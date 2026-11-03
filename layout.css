@@ -1,0 +1,132 @@
+/* Structural rules live here; colors, typography and component decoration stay in design.css. */
+:root{--layout-gap:24px;--comparison-gap:20px}
+main,#app>*{min-width:0}
+.grid2,.teams{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--layout-gap)}
+.grid2>*,.teams>*,.cards>*,.row>*,.toolbar>*,.community-cards>*{min-width:0}
+.grid2>.panel,.teams>.panel,.cards>.card{margin-block:0}
+.panel :is(h2,h3),.member :is(a,strong),.player-result strong{overflow-wrap:anywhere}
+input,select,textarea{max-width:100%;box-sizing:border-box}
+textarea{width:100%;resize:vertical}
+.tablewrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.row,.toolbar{flex-wrap:wrap}
+button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.profile-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--comparison-gap);align-items:stretch;margin-top:24px;min-width:0}
+.profile-comparison>.panel{margin:0;padding:22px;min-width:0;display:flex;flex-direction:column}
+.profile-comparison h2{font-size:20px;line-height:1.5;margin:0 0 18px}
+.profile-comparison .synergy-heading{display:block}
+.profile-comparison .synergy-heading .eyebrow,.profile-comparison .synergy-heading .badge{display:none}
+.profile-comparison .synergy-list{margin:0 0 16px}
+.profile-comparison :is(.synergy-row,.opponent-row){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;margin:0;padding:15px 0;align-items:center}
+.profile-comparison .synergy-name{grid-column:1;grid-row:1;font-size:15px}
+.profile-comparison .synergy-value{grid-column:2;grid-row:1;font-size:17px}
+.profile-comparison .synergy-track{grid-column:1/-1;grid-row:2;height:10px}
+.profile-comparison .synergy-record{grid-column:1/-1;grid-row:3;text-align:left;font-size:13px}
+.profile-comparison .synergy-record>span{display:inline;margin-left:8px}
+.comparison-guide{margin-top:auto;border-top:1px solid var(--line);padding-top:14px;min-width:0}
+.comparison-guide summary{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.comparison-guide p{font-size:13px;line-height:1.85;margin:12px 0}
+@media(max-width:720px){
+ :root{--layout-gap:16px;--comparison-gap:20px}
+ .grid2,.teams{grid-template-columns:minmax(0,1fr)}
+ .profile-comparison{grid-template-columns:minmax(0,1fr)}
+ .profile-comparison>.panel{padding:20px 16px;border-radius:14px}
+ .profile-comparison h2{font-size:20px;min-height:0;margin-bottom:16px}
+ .profile-comparison :is(.synergy-row,.opponent-row){grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:16px 0}
+ .profile-comparison .synergy-name{grid-column:1;grid-row:1;font-size:16px}
+ .profile-comparison .synergy-value{grid-column:2;grid-row:1;text-align:right;font-size:18px}
+ .profile-comparison .synergy-track{grid-column:1/-1;grid-row:2;height:12px}
+ .profile-comparison .synergy-record{grid-column:1/-1;grid-row:3;line-height:1.75;font-size:14px}
+ .profile-comparison .synergy-record>span{display:inline;margin-left:8px}
+ .profile-comparison .synergy-placement{font-size:12px;line-height:1.7}
+ .comparison-guide summary,.comparison-guide p{font-size:14px}
+}
+.profile-comparison .synergy-record{min-height:24px}
+/* Result preview: fixed lane labels; the assigned player moves between lane rows. */
+.result-rosters .result-team .member{display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start}
+.result-rosters .result-names{min-width:0;overflow-wrap:anywhere;text-align:left}
+.result-rosters .result-names strong{font-size:16px}
+.result-rosters .result-names>.small{white-space:normal;overflow-wrap:anywhere}
+.result-rosters .result-lane{white-space:nowrap;text-align:left;font-weight:600}
+@media(max-width:400px){.result-rosters .result-team .member{grid-template-columns:64px minmax(0,1fr);gap:10px}}
+/* Keep all support rotation actions together next to the current teams. */
+.toolbar .support-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;flex:1 1 100%;min-width:0;align-items:start}
+.support-actions>.feature-control{display:flex;flex-direction:column;min-width:0;max-width:none;width:100%;gap:8px}
+.support-actions button{width:100%;min-height:70px;padding:10px;line-height:1.6}
+.support-actions .feature-help{font-size:13px;line-height:1.75;margin:0}
+@media(max-width:720px){.toolbar .support-actions{gap:8px}.support-actions button{font-size:13px;padding:9px 5px;min-height:84px}.support-actions .feature-help{font-size:12px;line-height:1.8}}
+.setup-title{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.setup-title h1{margin:0}.setup-title button{flex-shrink:0;font-size:13px;padding:8px 12px;min-height:40px}
+.support-action-column{display:flex;flex-direction:column;gap:10px;min-width:0}
+.support-action-column>.feature-control{width:100%;max-width:none;min-width:0;flex:none}
+.support-actions .support-reset{min-height:46px;font-size:12px}
+body[data-setup-help=off] #app .feature-help{display:none}
+body[data-setup-help=off] #app .feature-control{gap:0}
+@media(max-width:720px){.setup-title{gap:10px}.setup-title h1{font-size:25px}.support-actions .support-reset{min-height:64px}}
+.support-actions button{word-break:keep-all;overflow-wrap:normal}
+/* Compact two-group controls: normal positions left, support controls right. */
+.toolbar.setup-actions{display:grid;grid-template-columns:minmax(180px,.75fr) minmax(0,1.65fr);gap:20px;align-items:start;width:100%;margin:20px 0;padding:0}
+.setup-actions>.position-actions{display:flex;flex-direction:column;gap:12px;max-width:none;min-width:0;width:100%}
+.setup-actions .feature-control{flex:none;max-width:none;width:100%;min-width:0}
+.setup-actions .manual-position-control{margin-bottom:0}
+.toolbar.setup-actions>.support-actions{width:100%;gap:12px;min-width:0}
+.setup-actions .support-action-column{gap:10px}
+.setup-actions button{min-height:52px;font-size:14px;padding:10px 12px;line-height:1.5}
+.setup-actions .support-reset{min-height:44px;font-size:13px;padding:8px 10px}
+@media(max-width:720px){.toolbar.setup-actions{grid-template-columns:minmax(0,1fr);gap:16px}.setup-actions>.position-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.toolbar.setup-actions>.support-actions{gap:8px}.setup-actions button{min-height:58px;font-size:13px;padding:9px 6px}.setup-actions .support-reset{min-height:58px;font-size:12px}}
+/* Narrow viewport fixes: explicit cell placement prevents auto-flow into the number column. */
+@media(max-width:720px){
+ .slot{grid-template-columns:20px minmax(0,1fr) 84px;gap:8px;align-items:center}
+ .slot>.num{grid-column:1;grid-row:1}
+ .slot>input{grid-column:2;grid-row:1;width:100%;min-width:0}
+ .slot>.lane,.slot>select{grid-column:3;grid-row:1;width:100%;min-width:0;max-width:100%;justify-self:stretch}
+ .slot>.lane{white-space:normal;overflow-wrap:anywhere}
+ .slot>select{padding:10px 5px;font-size:14px}
+ .rankfilter,.ranktools{min-width:0;max-width:100%;width:100%}
+ .ranktabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible;width:100%;min-width:0}
+ .ranktabs button{width:100%;min-width:0;padding:9px 4px;white-space:normal;font-size:14px;min-height:44px}
+ .guide-fields label{min-width:0}
+}
+@media(max-width:480px){
+ .toolbar.setup-actions>.support-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .support-actions>.support-action-column:first-child{grid-column:1/-1}
+ .setup-actions button{min-height:50px;font-size:14px}
+ .setup-actions .support-reset{min-height:48px;font-size:13px}
+ .ranktools{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+ .ranktools input,.ranktools select{width:100%;min-width:0}
+ .setup-title{align-items:flex-start}
+}
+@media(max-width:360px){
+ main{padding-inline:12px}
+ .slot{grid-template-columns:20px minmax(0,1fr);align-items:start}
+ .slot>.lane,.slot>select{grid-column:2;grid-row:2;width:100%;max-width:100%;text-align:left;padding-inline:12px}
+ .setup-title h1{font-size:23px}
+ .setup-actions>.position-actions{grid-template-columns:minmax(0,1fr)}
+ .panel{padding-inline:14px}
+ .result-team{padding-inline:12px}
+ .community-cards>div{padding:14px}
+}
+@media(min-width:721px) and (max-width:1000px){.slot{grid-template-columns:20px minmax(0,1fr) 84px;gap:8px}.slot>select{width:100%;min-width:0;padding:10px 5px;font-size:14px}}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media(max-width:720px){#app :is(input,select,textarea){font-size:16px}}
+/* Team balance settings stay local to the editor; typing never redraws the page. */
+.skill-editor fieldset{border:0;padding:0;margin:20px 0;min-width:0}
+.skill-groups-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.skill-group{min-width:0;padding:16px;border:1px solid #526176;border-top:3px solid var(--skill-color,#8ba0bc);border-radius:12px;background:#18212d}
+.skill-g1{--skill-color:#efbd72}.skill-g2{--skill-color:#b9a1ef}.skill-g3{--skill-color:#82bbef}.skill-g4{--skill-color:#f2a1a6}
+.skill-group h3{color:var(--skill-color);margin:0 0 10px}
+.skill-group label{display:block;font-size:14px;margin:14px 0 8px;line-height:1.7;overflow-wrap:anywhere}
+.skill-group textarea{width:100%;min-height:150px;font-family:inherit;font-size:16px;line-height:1.8}
+.skill-group button{width:100%;margin-top:10px;min-height:46px}
+.skill-group select{width:100%;min-width:0}
+.skill-member{display:flex;flex-direction:column;gap:8px;border-top:1px solid #3f5065;margin-top:14px;padding-top:14px;min-width:0}
+.skill-member>span{overflow-wrap:anywhere;font-size:14px}
+.skill-member select{font-size:14px}
+.skill-editor fieldset:disabled{opacity:.85}.skill-editor fieldset:disabled :is(textarea,select){color:#e0e6ef;-webkit-text-fill-color:#e0e6ef}
+.skill-tag{display:inline-block;font-size:12px;font-weight:600;line-height:1.6;padding:3px 7px;border:1px solid var(--skill-color,#58687e);color:var(--skill-color,#c0cbdc);border-radius:6px;white-space:normal;vertical-align:middle}
+.roster-skill-tags{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0;font-size:14px}
+.roster-skill{padding:8px 10px;background:#202b3b;border-radius:8px;overflow-wrap:anywhere;min-width:0;max-width:100%}
+.candidate-members{list-style:none;padding:0;margin:12px 0}.candidate-members li{margin:10px 0;overflow-wrap:anywhere;line-height:1.9}
+.balance-summary{color:#efd7ab}.balance-candidate .grid2{gap:18px}.skill-editor button{margin:6px 8px 6px 0;white-space:normal;min-height:44px}
+.skill-group button{margin-right:0}
+#skill-save-status{overflow-wrap:anywhere;line-height:1.85}
+@media(max-width:1000px){.skill-groups-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:720px){.skill-editor{padding:14px}.skill-group{padding:14px}.skill-member select{font-size:16px}.skill-editor fieldset>button{width:100%;margin:6px 0}.candidate-members .skill-tag{font-size:12px}}
