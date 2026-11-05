@@ -1,15 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { parseStoredDraft, type Draft } from "../shared/draft";
+import { parseStoredDraft, type Draft, type DraftPerson } from "../shared/draft";
+import { remapDraft, remapPeople } from "../shared/merge";
 import type { Snapshot } from "../shared/types";
 import { ApiFailure, call } from "./api";
 
 const DRAFT_KEY = "naejeon.draft.v1";
 const GROUP_KEY = "naejeon.group";
+/** 참가자 고르기 화면(Pick.tsx)이 기기에 보관하는 고른 목록. 합쳐진 ID를 바꿀 때만 여기서 읽고 쓴다. */
+const PICK_KEY = "naejeon.pick.v1";
 
 export interface Me {
   accountId: string | null;
   groups: { id: string; name: string }[];
+  /** "fake"(로컬 개발용 로그인) 또는 "oauth". */
   authMode: string;
+  /** 쓸 수 있는 로그인 수단. "local"은 자체 계정(아이디 + 비밀번호), 나머지는 키가 설정된 제공자. */
+  providers?: ("local" | "kakao" | "google")[];
+  /** 지금 세션의 로그인 수단. 아이디·식별자는 서버가 돌려주지 않는다. */
+  loginMethod?: "local" | "oauth" | "fake" | null;
 }
 
 export interface AppValue {
@@ -32,6 +40,8 @@ export interface AppValue {
   /** 이 기기에서 변경을 저장한 뒤 부른다. 초안의 기준 버전을 최신으로 맞춘다. */
   refreshAfterOwnChange: () => Promise<Snapshot | null>;
   login: (subject: string) => Promise<void>;
+  /** 로그인·가입 뒤 계정 상태를 다시 읽는다(작성 중인 편성은 그대로). */
+  reloadMe: () => Promise<void>;
   logout: () => Promise<void>;
   /** 모임이 없으면 만들고 모임 ID를 돌려준다. */
   ensureGroup: () => Promise<string>;
@@ -86,6 +96,30 @@ export function useApp(enabled: boolean): AppValue {
       setSnapshot(next);
       setLoadedAt(Date.now());
       setLoadError(null);
+      // 중복 참가자 합치기 뒤: 이 기기의 초안·고른 목록에 남은 옛 ID를 남은 사람의 ID로 바꾼다.
+      if (next.participants.some((p) => p.mergedInto)) {
+        const current = draftRef.current;
+        if (current && current.groupId === next.group.id) {
+          const remapped = remapDraft(current, next.participants);
+          if (remapped.changed) {
+            setDraft(remapped.draft);
+            setNotice("합쳐진 이름이 있어 작성 중인 편성의 이름을 바꿨어요. 서포터 추첨은 다시 확인해 주세요.");
+          } else if (remapped.conflicts.length > 0) {
+            setNotice(
+              `작성 중인 편성에 같은 사람이 두 이름(${remapped.conflicts.join(", ")})으로 들어 있어요. 한 명을 바꿔 주세요.`,
+            );
+          }
+        }
+        try {
+          const picked = JSON.parse(localStorage.getItem(PICK_KEY) ?? "[]") as DraftPerson[];
+          if (Array.isArray(picked) && picked.length > 0) {
+            const remapped = remapPeople(picked, next.participants);
+            if (remapped.changed) localStorage.setItem(PICK_KEY, JSON.stringify(remapped.people));
+          }
+        } catch {
+          // 기기 저장소를 못 쓰면 고르기 화면에서 다시 고르면 된다.
+        }
+      }
       return next;
     } catch (error) {
       if (error instanceof ApiFailure) {
@@ -95,10 +129,15 @@ export function useApp(enabled: boolean): AppValue {
       }
       return null;
     }
-  }, []);
+  }, [setDraft]);
 
+  // 계정 정보를 아직 못 받았으면(첫 불러오기가 네트워크 오류로 실패) 계정부터 다시 읽는다.
+  const loadMeRef = useRef<(() => Promise<Me | null>) | null>(null);
   const refresh = useCallback(async () => {
-    if (!groupRef.current) return null;
+    if (!groupRef.current) {
+      await loadMeRef.current?.();
+      return null;
+    }
     return loadSnapshot(groupRef.current);
   }, [loadSnapshot]);
 
@@ -133,6 +172,7 @@ export function useApp(enabled: boolean): AppValue {
     try {
       const next = await call<Me>("GET", "/api/me");
       setMe(next);
+      setLoadError(null);
       let stored: string | null = null;
       try {
         stored = localStorage.getItem(GROUP_KEY);
@@ -147,6 +187,8 @@ export function useApp(enabled: boolean): AppValue {
       return null;
     }
   }, [selectGroup]);
+
+  loadMeRef.current = loadMe;
 
   useEffect(() => {
     if (!enabled) return;
@@ -181,6 +223,10 @@ export function useApp(enabled: boolean): AppValue {
     [loadMe],
   );
 
+  const reloadMe = useCallback(async () => {
+    await loadMe();
+  }, [loadMe]);
+
   const logout = useCallback(async () => {
     await call("POST", "/api/auth/logout");
     groupRef.current = null;
@@ -212,6 +258,7 @@ export function useApp(enabled: boolean): AppValue {
     refresh,
     refreshAfterOwnChange,
     login,
+    reloadMe,
     logout,
     ensureGroup,
   };

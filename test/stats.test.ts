@@ -362,3 +362,16 @@ describe("그래프 분석용 집계", () => {
     expect(matrix.get("id0")?.support).toBeUndefined();
   });
 });
+describe("잘못 저장된 모임 시간대에도 화면 함수가 깨지지 않는다(검토 L3)", () => {
+  it("모르는 시간대는 기본 시간대(Asia/Seoul)로 계산한다", async () => {
+    const { isValidTimeZone, safeTimeZone, zonedTimeToUtc } = await import("../src/shared/stats");
+    expect(isValidTimeZone("Asia/Seoul")).toBe(true);
+    expect(isValidTimeZone("UTC")).toBe(true);
+    expect(isValidTimeZone("Mars/Olympus")).toBe(false);
+    expect(isValidTimeZone("")).toBe(false);
+    expect(safeTimeZone("Mars/Olympus")).toBe("Asia/Seoul");
+    expect(() => localDate("2026-01-01T15:30:00.000Z", "Mars/Olympus")).not.toThrow();
+    expect(localDate("2026-01-01T15:30:00.000Z", "Mars/Olympus")).toBe("2026-01-02");
+    expect(zonedTimeToUtc("2026-01-02", "00:30", "Mars/Olympus")).toBe("2026-01-01T15:30:00.000Z");
+  });
+});

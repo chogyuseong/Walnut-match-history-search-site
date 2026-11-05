@@ -18,18 +18,42 @@ export class ApiFailure extends Error {
 
 const TIMEOUT_MS = 15000;
 
+/**
+ * 모임 세대(백업 복원이 끝날 때마다 오름). 마지막으로 받은 스냅숏의 값을 기억했다가
+ * 그 모임의 쓰기 요청에 X-Group-Generation으로 실어 보낸다. 복원 전에 열린 탭의 요청은 서버가 거절한다.
+ */
+const generations = new Map<string, number>();
+const GROUP_PATH = /^\/api\/groups\/([^/]+)(\/|$)/;
+
+function rememberGeneration(path: string, parsed: any): void {
+  const match = /^\/api\/groups\/([^/]+)\/snapshot$/.exec(path);
+  const generation = parsed?.group?.generation;
+  if (match && typeof generation === "number") generations.set(match[1]!, generation);
+}
+
+function requestHeaders(method: string, path: string, hasBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (hasBody) headers["Content-Type"] = "application/json";
+  const gid = GROUP_PATH.exec(path)?.[1];
+  if (method !== "GET" && gid && generations.has(gid)) {
+    headers["X-Group-Generation"] = String(generations.get(gid));
+  }
+  return headers;
+}
+
 export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
     throw new ApiFailure("offline", "인터넷에 연결돼 있지 않아요.");
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  // 백업 파일 올리기는 크기가 커서 더 기다린다.
+  const timer = setTimeout(() => controller.abort(), path.includes("/restore") ? TIMEOUT_MS * 4 : TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch(path, {
       method,
       credentials: "same-origin",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: requestHeaders(method, path, body !== undefined),
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     });
@@ -54,6 +78,7 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
       error.details,
     );
   }
+  if (method === "GET") rememberGeneration(path, parsed);
   return parsed as T;
 }
 

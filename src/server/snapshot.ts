@@ -24,11 +24,14 @@ interface GroupRow {
   settings_version_id: string | null;
   view_token: string;
   next_match_no: number;
+  generation: number;
+  maintenance: number;
 }
 
 export async function loadGroup(env: Env, groupId: string): Promise<GroupRow> {
   const row = await env.DB.prepare(
-    `SELECT id, name, timezone, live_version, settings_version_id, view_token, next_match_no
+    `SELECT id, name, timezone, live_version, settings_version_id, view_token, next_match_no,
+       generation, maintenance
      FROM groups WHERE id = ?1`,
   )
     .bind(groupId)
@@ -157,14 +160,25 @@ export async function buildSnapshot(
   const includePrivate = role === "operator";
   const includeGroups = includePrivate || settings.groupsPublic;
 
+  // 합쳐진 사람에게는 남은 사람의 ID를 붙인다(되돌리지 않은 합치기만). 공개 정보다: 이름과 같은 수준.
   const participantRows = await env.DB.prepare(
-    "SELECT id, name, status, skill_group FROM participants WHERE group_id = ?1 ORDER BY created_at, id",
+    `SELECT p.id, p.name, p.status, p.skill_group, m.target_id AS merged_into
+     FROM participants p
+     LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
+     WHERE p.group_id = ?1 ORDER BY p.created_at, p.id`,
   )
     .bind(groupId)
-    .all<{ id: string; name: string; status: "active" | "archived"; skill_group: number | null }>();
+    .all<{
+      id: string;
+      name: string;
+      status: "active" | "archived";
+      skill_group: number | null;
+      merged_into: string | null;
+    }>();
   const participants: ParticipantView[] = participantRows.results.map((p) => {
     const view: ParticipantView = { id: p.id, name: p.name, status: p.status };
     if (includeGroups) view.skillGroup = p.skill_group;
+    if (p.merged_into) view.mergedInto = p.merged_into;
     return view;
   });
 
@@ -195,28 +209,7 @@ export async function buildSnapshot(
     });
   }
 
-  const revisionRows = await env.DB.prepare(
-    `SELECT r.id, r.match_id, m.match_no, r.kind, r.changes, r.created_at
-     FROM match_revisions r JOIN matches m ON m.id = r.match_id
-     WHERE r.group_id = ?1 ORDER BY r.id DESC LIMIT 200`,
-  )
-    .bind(groupId)
-    .all<{
-      id: number;
-      match_id: string;
-      match_no: number;
-      kind: string;
-      changes: string;
-      created_at: string;
-    }>();
-  const revisions: RevisionView[] = revisionRows.results.map((r) => ({
-    id: r.id,
-    matchId: r.match_id,
-    matchNo: r.match_no,
-    kind: r.kind,
-    changes: JSON.parse(r.changes) as RevisionView["changes"],
-    createdAt: r.created_at,
-  }));
+  const revisions = await loadRevisions(env, groupId);
 
   const seasonRows = await env.DB.prepare(
     "SELECT id, name, starts_on, ends_on FROM seasons WHERE group_id = ?1 ORDER BY starts_on",
@@ -232,14 +225,9 @@ export async function buildSnapshot(
       name: group.name,
       timezone: group.timezone,
       liveVersion: group.live_version,
-      settings: includePrivate
-        ? settings
-        : {
-            rotationEnabled: settings.rotationEnabled,
-            groupsPublic: settings.groupsPublic,
-            // 가중치는 비공개 평가의 일부이므로 공개 모임에서만 내보낸다.
-            groupWeights: settings.groupsPublic ? settings.groupWeights : [0, 0, 0, 0],
-          },
+      settings: includePrivate ? settings : viewerSettings(settings),
+      // 점검 여부는 조회 화면에도 알린다(복원·삭제 진행 중 안내). 값 하나뿐이라 새는 정보가 없다.
+      maintenance: group.maintenance === 1,
     },
     participants,
     session,
@@ -256,6 +244,7 @@ export async function buildSnapshot(
   if (includePrivate) {
     snapshot.group.settingsVersionId = group.settings_version_id ?? undefined;
     snapshot.group.viewToken = group.view_token;
+    snapshot.group.generation = group.generation;
     const batches = await env.DB.prepare(
       `SELECT import_batch_id AS id, COUNT(*) AS count,
          SUM(CASE WHEN state = 'excluded' THEN 1 ELSE 0 END) AS excluded,
@@ -265,12 +254,163 @@ export async function buildSnapshot(
     )
       .bind(groupId)
       .all<{ id: string; count: number; excluded: number; imported_at: string }>();
+    // 묶음의 출처(붙여 넣기 / 구글 시트, migrations/0007). 출처를 남기기 전에 넣은 묶음은 출처가 없다.
+    // 출처 열쇠(시트 문서 ID·기존 사이트 배포 ID)는 내보내지 않는다. 종류와 이름만.
+    const sources = new Map<string, { kind: "paste" | "sheet" | "legacy"; label: string | null }>();
+    if (batches.results.length > 0) {
+      try {
+        const rows = await env.DB.prepare("SELECT id, kind, label FROM import_batches WHERE group_id = ?1")
+          .bind(groupId)
+          .all<{ id: string; kind: "paste" | "sheet" | "legacy"; label: string | null }>();
+        for (const r of rows.results) sources.set(r.id, { kind: r.kind, label: r.label });
+      } catch (error) {
+        // 0007 마이그레이션 전의 DB(마이그레이션 전에 띄운 로컬 서버)에서도 스냅숏은 내려가게 한다. 출처만 빠진다.
+        if (!String(error).includes("no such table")) throw error;
+      }
+    }
     snapshot.importBatches = batches.results.map((b) => ({
       id: b.id,
       count: b.count,
       excluded: b.excluded,
       importedAt: b.imported_at,
+      ...sources.get(b.id),
+    }));
+    const merges = await env.DB.prepare(
+      `SELECT id, source_id, target_id, json_array_length(moved_matches) AS match_count, created_at, undone_at
+       FROM participant_merges WHERE group_id = ?1 ORDER BY created_at DESC, id LIMIT 50`,
+    )
+      .bind(groupId)
+      .all<{
+        id: string;
+        source_id: string;
+        target_id: string;
+        match_count: number;
+        created_at: string;
+        undone_at: string | null;
+      }>();
+    snapshot.merges = merges.results.map((m) => ({
+      id: m.id,
+      sourceId: m.source_id,
+      targetId: m.target_id,
+      matchCount: m.match_count,
+      createdAt: m.created_at,
+      undoneAt: m.undone_at,
     }));
   }
   return snapshot;
+}
+
+/** 스냅숏에 싣는 변경 이력 수. 모임당 수천 경기여도 응답 크기가 일정하도록 상한을 둔다. */
+const RECENT_REVISIONS = 200;
+/** "변경 내역"(정정·제외·복구)은 경기 시작·결과 이력에 밀려나지 않게 따로 이만큼 싣는다. */
+const RECENT_CHANGES = 200;
+/** 묶어서 싣는 합치기 이력(합치기·되돌리기 한 번이 한 줄). */
+const RECENT_MERGES = 50;
+
+/**
+ * 합치기·되돌리기가 남긴 정정 이력인지 가리는 식. 합치기는 옮긴 경기마다 참가자 정정 한 줄을
+ * 합치기 기록과 같은 시각으로 남긴다(src/server/merge.ts). 원본 행은 그대로 두고 읽을 때만 가린다.
+ * 결과: 합치기 기록 ID와 방향("merge" 또는 "undo"). 합치기 이력이 아니면 NULL.
+ */
+const MERGE_REF = `(SELECT pm.id || CASE WHEN pm.created_at = r.created_at THEN ':merge' ELSE ':undo' END
+   FROM participant_merges pm
+   WHERE pm.group_id = r.group_id AND r.kind = 'correction'
+     AND (SELECT COUNT(*) FROM json_each(r.changes)) = 1
+     AND ((pm.created_at = r.created_at
+           AND json_extract(r.changes, '$.participant.from') = pm.source_id
+           AND json_extract(r.changes, '$.participant.to') = pm.target_id)
+       OR (pm.undone_at = r.created_at
+           AND json_extract(r.changes, '$.participant.from') = pm.target_id
+           AND json_extract(r.changes, '$.participant.to') = pm.source_id))
+   LIMIT 1)`;
+
+interface RevisionRow {
+  id: number;
+  match_id: string;
+  match_no: number;
+  kind: string;
+  changes: string;
+  created_at: string;
+}
+
+/**
+ * 스냅숏의 변경 이력.
+ * - 최근 이력(종류 무관) RECENT_REVISIONS줄 + 정정·제외·복구 RECENT_CHANGES줄. 합치기가 만든 정정 줄은 빼고 센다.
+ * - 합치기·되돌리기는 경기 수만큼 늘어나므로 한 번에 한 줄(kind "merge" / "merge_undo")로 묶어 싣는다.
+ *   그래서 많이 뛴 사람을 합쳐도 실제 정정이 상한에 밀려 사라지지 않는다.
+ * 합친 사람·남은 사람의 ID는 참가자 목록의 mergedInto와 같은 공개 정보다.
+ */
+async function loadRevisions(env: Env, groupId: string): Promise<RevisionView[]> {
+  const select = `SELECT r.id, r.match_id, m.match_no, r.kind, r.changes, r.created_at
+     FROM match_revisions r JOIN matches m ON m.id = r.match_id AND m.group_id = r.group_id`;
+  const [recent, changes, merges] = await env.DB.batch([
+    env.DB.prepare(
+      `${select} WHERE r.group_id = ?1 AND ${MERGE_REF} IS NULL ORDER BY r.id DESC LIMIT ?2`,
+    ).bind(groupId, RECENT_REVISIONS),
+    env.DB.prepare(
+      `${select} WHERE r.group_id = ?1 AND r.kind IN ('correction', 'exclude', 'restore')
+         AND ${MERGE_REF} IS NULL ORDER BY r.id DESC LIMIT ?2`,
+    ).bind(groupId, RECENT_CHANGES),
+    env.DB.prepare(
+      `SELECT ref, MAX(id) AS id, COUNT(*) AS match_count, MAX(created_at) AS created_at,
+         MAX(json_extract(changes, '$.participant.from')) AS from_id,
+         MAX(json_extract(changes, '$.participant.to')) AS to_id
+       FROM (SELECT r.id, r.changes, r.created_at, ${MERGE_REF} AS ref
+             FROM match_revisions r WHERE r.group_id = ?1 AND r.kind = 'correction')
+       WHERE ref IS NOT NULL GROUP BY ref ORDER BY id DESC LIMIT ?2`,
+    ).bind(groupId, RECENT_MERGES),
+  ]);
+  const byId = new Map<number, RevisionView>();
+  for (const r of [...(recent!.results as unknown as RevisionRow[]), ...(changes!.results as unknown as RevisionRow[])]) {
+    byId.set(r.id, {
+      id: r.id,
+      matchId: r.match_id,
+      matchNo: r.match_no,
+      kind: r.kind,
+      changes: JSON.parse(r.changes) as RevisionView["changes"],
+      createdAt: r.created_at,
+    });
+  }
+  for (const g of merges!.results as unknown as {
+    ref: string;
+    id: number;
+    match_count: number;
+    created_at: string;
+    from_id: string;
+    to_id: string;
+  }[]) {
+    const undo = g.ref.endsWith(":undo");
+    byId.set(g.id, {
+      id: g.id,
+      matchId: "",
+      matchNo: 0,
+      kind: undo ? "merge_undo" : "merge",
+      changes: {},
+      createdAt: g.created_at,
+      merge: {
+        // 되돌리기 줄은 남았던 사람 → 합쳐졌던 사람 방향으로 저장돼 있다. 화면에는 합치기 기준으로 보낸다.
+        sourceId: undo ? g.to_id : g.from_id,
+        targetId: undo ? g.from_id : g.to_id,
+        matchCount: g.match_count,
+      },
+    });
+  }
+  return [...byId.values()].sort((x, y) => y.id - x.id);
+}
+
+/**
+ * 조회 응답에 넣는 설정. 허용 목록 방식: 여기 적은 값만 나간다(docs/P2 P2-9, P2-10).
+ * - 실력 그룹 가중치는 비공개 평가의 일부라 공개 모임에서만 내보낸다.
+ * - 칭호 구간은 공개 정보다(검색·랭킹·개인 화면이 같은 칭호를 보여준다). 저장한 적이 없으면 넣지 않는다
+ *   (화면이 기본 구간을 쓴다). 빈 배열로 저장했으면 빈 배열을 그대로 보낸다.
+ * - 팀 추천 다양성 같은 운영 설정은 내보내지 않는다.
+ */
+function viewerSettings(settings: Settings): Settings {
+  const view: Settings = {
+    rotationEnabled: settings.rotationEnabled,
+    groupsPublic: settings.groupsPublic,
+    groupWeights: settings.groupsPublic ? settings.groupWeights : [0, 0, 0, 0],
+  };
+  if (settings.titleBands !== undefined) view.titleBands = settings.titleBands;
+  return view;
 }

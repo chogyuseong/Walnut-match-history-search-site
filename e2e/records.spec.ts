@@ -132,6 +132,8 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
 
   // 시너지: 한 번만 함께한 선수11에는 "자료 적음"이 붙는다.
   const synergy = page.getByRole("region", { name: "시너지" });
+  // 같은 팀이었던 사람은 5명이라 처음 6명 안에 모두 보인다("더 보기" 없음).
+  await expect(synergy.getByRole("listitem")).toHaveCount(5);
   await expect(synergy.getByRole("listitem").filter({ hasText: "선수11" })).toContainText("자료 적음");
   await expect(synergy.getByRole("listitem").filter({ hasText: "선수03" })).not.toContainText(
     "자료 적음",
@@ -142,7 +144,11 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
     .getByRole("region")
     .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
   expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "참여 경기"]);
-  await expect(page.getByRole("region", { name: "참여 경기" }).getByRole("listitem")).toHaveCount(11);
+  // 참여 경기는 최근 10경기만 먼저 그리고 "더 보기"로 나머지를 연다.
+  const played = page.getByRole("region", { name: "참여 경기" });
+  await expect(played.getByRole("listitem")).toHaveCount(10);
+  await played.getByRole("button", { name: "나머지 1경기 중 1경기 더 보기" }).click();
+  await expect(played.getByRole("listitem")).toHaveCount(11);
 
   // 참여 경기에서 경기 상세로 이어진다.
   await page.getByRole("region", { name: "참여 경기" }).getByRole("button").first().click();
@@ -185,7 +191,13 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   const overflow = () =>
     page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(await overflow()).toBeLessThanOrEqual(0);
-  await page.getByRole("region", { name: "소환사 랭킹" }).getByRole("button").first().click();
+  // 랭킹 구역의 첫 버튼은 정렬 고르기이므로 첫 순위 줄의 버튼을 누른다.
+  await page
+    .getByRole("region", { name: "소환사 랭킹" })
+    .getByRole("listitem")
+    .first()
+    .getByRole("button")
+    .click();
   await expect(page.getByRole("region", { name: "요약" })).toBeVisible();
   expect(await overflow()).toBeLessThanOrEqual(0);
 

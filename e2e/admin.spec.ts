@@ -90,7 +90,7 @@ test("운영자를 넘기면 받은 사람만 수정할 수 있다", async ({ br
   await newPage.getByRole("button", { name: "로그인하고 계속" }).click();
   const login = newPage.getByRole("dialog", { name: "로그인" });
   await login.getByLabel("계정 이름").fill(uniqueUser("e2e-new"));
-  await login.getByRole("button", { name: "로그인" }).click();
+  await login.getByRole("button", { name: "개발용 로그인" }).click();
   await newPage.getByRole("button", { name: "운영자 맡기" }).click();
   await expect(newPage.getByRole("heading", { name: "모임", level: 1 })).toBeVisible();
   await expect(newPage.getByRole("textbox", { name: "모임 이름" })).toHaveValue("넘겨줄 모임");

@@ -1,7 +1,208 @@
+import { canGoBack } from "./nav";
+import { SessionExpiredNote } from "./screens/Login";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { TEAMS, type MatchView, type Team } from "../shared/types";
+import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, type Scope } from "../shared/stats";
+import type { Standing } from "../shared/titles";
+import {
+  sideOfTeam,
+  TEAMS,
+  type MatchView,
+  type Position,
+  type Snapshot,
+  type Team,
+} from "../shared/types";
 import { ApiFailure } from "./api";
 import { copyText, formatTime, POSITION_LABEL, TEAM_MARK, teamRoster } from "./format";
+
+/** 라인 아이콘. 디자인 키트가 직접 그린 도형이며 게임의 공식 아이콘이 아니다. */
+const ROLE_SHAPES: Record<Position, ReactNode> = {
+  top: (
+    <>
+      <path d="M4 4H19L15.5 7.5H7.5V15.5L4 19V4Z" fill="currentColor" />
+      <path
+        d="M9.5 9.5H19V19H9.5V9.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeOpacity="0.35"
+      />
+    </>
+  ),
+  jungle: (
+    <>
+      <path
+        d="M12 3L16.5 9.5L12 21L7.5 9.5L12 3Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M5 8L10 13M19 8L14 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  ),
+  mid: (
+    <>
+      <path d="M19 5L5 19" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M4 4H11L8.5 6.5H6.5V8.5L4 11V4Z" fill="currentColor" fillOpacity="0.45" />
+      <path d="M20 20H13L15.5 17.5H17.5V15.5L20 13V20Z" fill="currentColor" fillOpacity="0.45" />
+    </>
+  ),
+  adc: (
+    <>
+      <path d="M20 20H5L8.5 16.5H16.5V8.5L20 5V20Z" fill="currentColor" />
+      <circle cx="10.5" cy="10.5" r="2.5" stroke="currentColor" strokeWidth="1.6" strokeOpacity="0.45" />
+    </>
+  ),
+  support: (
+    <>
+      <path
+        d="M12 4L19 7.5V12.5C19 16.5 16 19.5 12 21C8 19.5 5 16.5 5 12.5V7.5L12 4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M12 8V16M8.5 11.5H15.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  ),
+};
+
+/** 라인 이름과 아이콘. 아이콘은 꾸밈이고 뜻은 글자가 전한다. */
+export function PosLabel(props: { position: Position | null }) {
+  if (!props.position) return <span className="pos">-</span>;
+  return (
+    <span className="pos">
+      <svg className="role-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+        {ROLE_SHAPES[props.position]}
+      </svg>
+      {POSITION_LABEL[props.position]}
+    </span>
+  );
+}
+
+/**
+ * 범위 고르기: 오늘 · 시즌 · 연도 · 전체. 기록·개인 통계가 함께 쓴다(그래프는 같은 값을 목록으로 고른다).
+ * 연도는 경기가 있는 해만, 모임 시간대 기준으로 나온다.
+ */
+export function ScopePicker(props: {
+  snapshot: Snapshot;
+  scope: Scope;
+  onChange: (scope: Scope) => void;
+}) {
+  const { snapshot, scope, onChange } = props;
+  const years = matchYears(snapshot);
+  return (
+    <div className="segmented scope-picker" role="group" aria-label="범위">
+      <button
+        type="button"
+        aria-pressed={scope.kind === "today"}
+        onClick={() => onChange({ kind: "today" })}
+      >
+        오늘
+      </button>
+      {snapshot.seasons.length > 0 && (
+        <select
+          aria-label="시즌 선택"
+          className={scope.kind === "season" ? "chosen" : undefined}
+          value={scope.kind === "season" ? scope.seasonId : ""}
+          onChange={(e) => {
+            if (e.target.value !== "") onChange({ kind: "season", seasonId: e.target.value });
+          }}
+        >
+          <option value="">시즌</option>
+          {snapshot.seasons.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      )}
+      {years.length > 0 && (
+        <select
+          aria-label="연도 선택"
+          className={scope.kind === "year" ? "chosen" : undefined}
+          value={scope.kind === "year" ? String(scope.year) : ""}
+          onChange={(e) => {
+            if (e.target.value !== "") onChange({ kind: "year", year: Number(e.target.value) });
+          }}
+        >
+          <option value="">연도</option>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}년
+            </option>
+          ))}
+        </select>
+      )}
+      <button
+        type="button"
+        aria-pressed={scope.kind === "all"}
+        onClick={() => onChange({ kind: "all" })}
+      >
+        전체
+      </button>
+    </div>
+  );
+}
+
+/** 그래프의 범위 목록이 쓰는 값. "all" · "today" · "season:ID" · "year:2026". */
+export function scopeValue(scope: Scope): string {
+  if (scope.kind === "season") return `season:${scope.seasonId}`;
+  if (scope.kind === "year") return `year:${scope.year}`;
+  return scope.kind;
+}
+
+export function scopeFromValue(value: string): Scope {
+  if (value.startsWith("season:")) return { kind: "season", seasonId: value.slice(7) };
+  if (value.startsWith("year:")) return { kind: "year", year: Number(value.slice(5)) };
+  return value === "today" ? { kind: "today" } : { kind: "all" };
+}
+
+/**
+ * 배치·칭호 표시. 누적 기준이며 범위 필터와 무관하다(docs/P2 P2-11).
+ * 배치 중은 "배치 진행 중 7/10"으로만 쓰고 낮은 실력처럼 보이게 하지 않는다.
+ * 칭호는 승률 색(rateTier)과 겹치지 않도록 색 없이 테두리 표식으로만 보여준다.
+ */
+export function StandingNote(props: { standing: Standing | undefined }) {
+  const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null };
+  if (!s.done) {
+    return (
+      <span className="standing">
+        배치 진행 중 {s.games}/{PLACEMENT_GAMES} (누적 기준)
+      </span>
+    );
+  }
+  if (!s.title) return <span className="standing">배치 완료 (누적 기준)</span>;
+  return (
+    <span className="standing">
+      <span className="title-chip">{s.title}</span> 누적 기준
+    </span>
+  );
+}
+
+/** 누적 경기 수, 진영별 승률, 참가자 수를 한 줄로 보여준다. 확정된 경기가 없으면 그리지 않는다. */
+export function KpiStrip(props: { snapshot: Snapshot }) {
+  const { snapshot } = props;
+  const games = snapshot.matches.filter(isCounted).length;
+  if (games === 0) return null;
+  const sides = sideTotals(snapshot.matches);
+  const people = snapshot.participants.filter((p) => p.status === "active").length;
+  // 목록·요약의 승률은 정수(%)로 쓴다(소수 한 자리는 그래프 분석 화면에서만). 두 값의 합이 100이 되게 한다.
+  const blueRate = Math.round((sides.blueWins / Math.max(1, sides.known)) * 100);
+  return (
+    <p className="kpi">
+      <span>
+        누적 경기<strong>{games}경기</strong>
+      </span>
+      {sides.known > 0 && (
+        <span>
+          블루 : 레드 승률<strong className="blue">{blueRate}%</strong> :{" "}
+          <strong className="red">{100 - blueRate}%</strong>
+        </span>
+      )}
+      <span>
+        참가자<strong>{people}명</strong>
+      </span>
+    </p>
+  );
+}
 
 /** 한 번에 하나만 띄우는 확인 창. 뒤 화면은 누를 수 없다. */
 export function Dialog(props: { title: string; onClose: () => void; children: ReactNode }) {
@@ -63,13 +264,7 @@ export function ErrorNote(props: { error: unknown; onCheck?: () => void }) {
         </p>
       );
     }
-    if (error.status === 401) {
-      return (
-        <p className="note warn" role="alert">
-          다시 로그인해 주세요. 입력은 그대로 있어요.
-        </p>
-      );
-    }
+    if (error.status === 401) return <SessionExpiredNote />;
     if (error.code === "VERSION_CONFLICT") {
       return (
         <p className="note warn" role="alert">
@@ -95,6 +290,11 @@ export function SavedBadge(props: { at: string | null | undefined; timeZone?: st
   return <span className="badge ok">저장됨 · {formatTime(props.at, props.timeZone)} 확인</span>;
 }
 
+/** 팀 상자의 클래스. 진영이 정해진 경기만 블루·레드 색을 입힌다. */
+function teamClass(side: string | null): string {
+  return side === "blue" || side === "red" ? `team side-${side}` : "team";
+}
+
 /** 확정 명단. 좁은 화면에서는 두 팀을 위아래로 쌓는다(CSS). */
 export function MatchTeams(props: {
   match: MatchView;
@@ -105,7 +305,11 @@ export function MatchTeams(props: {
   return (
     <div className="teams">
       {TEAMS.map((team) => (
-        <section key={team} className="team" aria-label={`팀 ${team}`}>
+        <section
+          key={team}
+          className={teamClass(sideOfTeam(team, props.match.teamASide))}
+          aria-label={`팀 ${team}`}
+        >
           <h3>
             <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team}
             {props.sideOf?.(team) ? <span className="side"> · {props.sideOf(team)}</span> : null}
@@ -116,7 +320,7 @@ export function MatchTeams(props: {
                 key={entry.participantId}
                 className={entry.participantId === props.highlightId ? "row me" : "row"}
               >
-                <span className="pos">{entry.position ? POSITION_LABEL[entry.position] : "-"}</span>
+                <PosLabel position={entry.position} />
                 <span className="name" title={props.nameOf(entry.participantId)}>
                   {props.nameOf(entry.participantId)}
                 </span>
@@ -161,17 +365,67 @@ export function CopyButton(props: { label: string; text: () => string }) {
   );
 }
 
-/** 화면 키보드가 열려 있는지. 열려 있으면 하단 고정 버튼을 본문 안으로 옮긴다. */
+/** 글자를 입력하는 칸인지(화면 키보드가 열리는 칸). 체크 상자·라디오·버튼은 아니다. */
+function isTextField(el: Element | null): boolean {
+  if (!el) return false;
+  if (el instanceof HTMLTextAreaElement) return !el.readOnly;
+  if (el instanceof HTMLInputElement) {
+    return !el.readOnly && !["checkbox", "radio", "button", "submit", "file", "range", "color"].includes(el.type);
+  }
+  return (el as HTMLElement).isContentEditable === true;
+}
+
+/** 키보드가 차지했다고 보는 최소 높이(px). 주소창이 접히고 펴지는 정도는 넘는다. */
+const KEYBOARD_GAP = 150;
+
+/**
+ * 화면 키보드가 열려 있는지. 기기마다 키보드가 화면을 줄이는 방식이 둘이라 둘 다 본다.
+ * - 보이는 영역(visualViewport)만 줄어드는 방식: 창 높이와 보이는 영역 높이의 차.
+ * - 창(innerHeight) 자체가 줄어드는 방식: 입력 칸에 초점이 있는 동안 창이 평소보다 낮아진 정도.
+ * 열려 있으면 하단 고정 버튼을 본문 안으로 옮기고 하단 탭을 숨긴다(입력 칸을 가리지 않게).
+ */
 export function useKeyboardOpen(): boolean {
   const [open, setOpen] = useState(false);
   useEffect(() => {
+    let baseHeight = window.innerHeight;
+    let baseWidth = window.innerWidth;
     const viewport = window.visualViewport;
-    if (!viewport) return;
-    const update = () => setOpen(window.innerHeight - viewport.height > 150);
-    viewport.addEventListener("resize", update);
-    return () => viewport.removeEventListener("resize", update);
+    const update = () => {
+      // 가로·세로를 돌리면 기준을 새로 잡는다.
+      if (window.innerWidth !== baseWidth) {
+        baseWidth = window.innerWidth;
+        baseHeight = window.innerHeight;
+      }
+      const focused = isTextField(document.activeElement);
+      if (!focused) baseHeight = window.innerHeight;
+      else baseHeight = Math.max(baseHeight, window.innerHeight);
+      const visualGap = viewport ? window.innerHeight - viewport.height : 0;
+      const layoutGap = baseHeight - window.innerHeight;
+      setOpen(visualGap > KEYBOARD_GAP || (focused && layoutGap > KEYBOARD_GAP));
+    };
+    // 초점이 빠질 때는 다음 칸으로 옮겨 가는 중일 수 있어 한 박자 뒤에 본다.
+    const later = () => setTimeout(update, 0);
+    viewport?.addEventListener("resize", update);
+    window.addEventListener("resize", update);
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", later);
+    return () => {
+      viewport?.removeEventListener("resize", update);
+      window.removeEventListener("resize", update);
+      document.removeEventListener("focusin", update);
+      document.removeEventListener("focusout", later);
+    };
   }, []);
   return open;
+}
+
+/** 키보드가 열려 있으면 <html data-keyboard="open">을 단다. CSS가 좁은 화면의 하단 탭을 숨긴다. */
+export function useKeyboardFlag(): void {
+  const open = useKeyboardOpen();
+  useEffect(() => {
+    if (open) document.documentElement.dataset.keyboard = "open";
+    else delete document.documentElement.dataset.keyboard;
+  }, [open]);
 }
 
 /**
@@ -181,4 +435,76 @@ export function useKeyboardOpen(): boolean {
 export function StickyAction(props: { children: ReactNode }) {
   const keyboardOpen = useKeyboardOpen();
   return <div className={keyboardOpen ? "action-inline" : "action-sticky"}>{props.children}</div>;
+}
+
+/**
+ * 최근 승패 칸. 최근 경기가 왼쪽이다. 색만이 아니라 칸 안의 글자(승·패)로도 구분한다.
+ * 읽는 사람에게는 "최근 5경기 승 패 승…"처럼 읽힌다.
+ */
+export function FormDots(props: { results: readonly boolean[]; label?: string }) {
+  if (props.results.length === 0) return null;
+  return (
+    <span className="form-dots">
+      <span className="sr-only">{props.label ?? `최근 ${props.results.length}경기`}</span>
+      {props.results.map((won, i) => (
+        <span key={i} className={won ? "form-dot win" : "form-dot loss"}>
+          {won ? "승" : "패"}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * 누적 승률 추이(작은 선 그래프). 그래프 화면의 .viz-root 색 변수를 쓴다.
+ * 50% 기준선을 두고, 처음·끝 값은 글자로 함께 적는다.
+ */
+export function TrendLine(props: { points: readonly { game: number; rate: number }[] }) {
+  const { points } = props;
+  if (points.length < 2) return null;
+  const W = 300;
+  const H = 72;
+  const last = points[points.length - 1]!;
+  const first = points[0]!;
+  // 세로축은 50%를 가운데에 두고 위아래를 같은 폭으로 잡는다(최소 ±20%p). 위아래 4px 여백.
+  const spread = Math.min(0.5, Math.max(0.2, ...points.map((p) => Math.abs(p.rate - 0.5))) + 0.02);
+  const x = (game: number) => ((game - first.game) / Math.max(1, last.game - first.game)) * W;
+  const y = (rate: number) => 4 + ((0.5 + spread - rate) / (spread * 2)) * (H - 8);
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.game).toFixed(1)},${y(p.rate).toFixed(1)}`).join("");
+  const pct = (r: number) => `${Math.round(r * 100)}%`;
+  return (
+    <figure className="trend viz-root">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`누적 승률 추이: ${first.game}경기째 ${pct(first.rate)}에서 ${last.game}경기째 ${pct(last.rate)}`}
+      >
+        <rect x="0" y="0" width={W} height={H} className="trend-bg" />
+        <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="trend-mid" vectorEffect="non-scaling-stroke" />
+        <path d={path} className="trend-path" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <figcaption className="trend-caption">
+        <span>
+          누적 승률 추이 · 가운데 선 50% · 위아래 끝 {pct(0.5 + spread)} / {pct(0.5 - spread)}
+        </span>
+        <span>
+          {first.game}경기째 {pct(first.rate)} → <strong>{last.game}경기째 {pct(last.rate)}</strong>
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
+
+/**
+ * 화면 위의 "← 뒤로". 이 사이트 안에서 온 화면이 있으면 그곳으로(검색에서 왔으면 검색으로) 돌아가고,
+ * 링크로 바로 들어와 앞 화면이 없으면 label이 가리키는 화면(fallback)으로 간다.
+ */
+export function BackLink(props: { label: string; fallback: () => void }) {
+  const back = canGoBack();
+  return (
+    <button type="button" className="link" onClick={() => (back ? history.back() : props.fallback())}>
+      {back ? "← 뒤로" : props.label}
+    </button>
+  );
 }

@@ -424,11 +424,38 @@ describe("비공개 실력 그룹 (12)", () => {
     const token = (await snapshot(g)).group.viewToken!;
     const backup = await api(g.cookie, "GET", `/api/groups/${g.gid}/export`);
     expect(backup.status).toBe(200);
-    expect(backup.body.formatVersion).toBe(1);
+    // 형식 4: 복원용 값(제외 직전 상태 등), 중복 참가자 합치기 기록, 일괄 입력 출처·지문을 더한 형식(src/server/restore.ts).
+    expect(backup.body.formatVersion).toBe(4);
     expect(backup.body.matchCount).toBe(1);
     const text = JSON.stringify(backup.body);
     expect(text).not.toContain(token);
     expect(text).not.toContain("account");
     expect(text).not.toContain("requestId");
+  });
+});
+
+describe("지난 경기 한 건 입력의 미래 시각(서버 검사)", () => {
+  const body = (g: Awaited<ReturnType<typeof setupGroup>>, playedAt: string) => ({
+    requestId: requestId(),
+    playedAt,
+    roster: rosterOf(g.people),
+    winnerTeam: "A",
+    winnerSide: "blue",
+  });
+
+  it("허용 폭(60초) 안은 저장하고, 넘으면 400 FUTURE_MATCH로 거절하며 아무것도 저장하지 않는다", async () => {
+    const g = await setupGroup();
+    const within = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/backfill`, body(g, new Date(Date.now() + 30_000).toISOString()));
+    expect(within.status).toBe(200);
+    const before = await snapshot(g);
+    for (const ahead of [5 * 60_000, 3 * 86400_000]) {
+      const res = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/backfill`, body(g, new Date(Date.now() + ahead).toISOString()));
+      expect(res.status, String(ahead)).toBe(400);
+      expect(res.body.error.code).toBe("FUTURE_MATCH");
+      expect(res.body.error.message).toContain("아직 오지 않은 시각");
+    }
+    const after = await snapshot(g);
+    expect(fingerprint(after)).toBe(fingerprint(before));
+    expect(after.matches).toHaveLength(1);
   });
 });

@@ -31,7 +31,7 @@ async function login(page: Page, user: string) {
   await dialog.getByLabel("계정 이름").fill("");
   await dialog.getByLabel("계정 이름").pressSequentially(user);
   await expect(dialog.getByLabel("계정 이름")).toHaveValue(user);
-  await dialog.getByRole("button", { name: "로그인" }).click();
+  await dialog.getByRole("button", { name: "개발용 로그인" }).click();
 }
 
 /** 시작을 누른다. 반복 서포터 확인 창이 뜨면 그대로 시작을 고른다. */

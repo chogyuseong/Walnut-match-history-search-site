@@ -1,3 +1,5 @@
+import { FUTURE_TOLERANCE_MS } from "../shared/backfill";
+import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
 import {
   POSITIONS,
   SIDES,
@@ -28,6 +30,7 @@ import {
   runMutation,
   type Plan,
 } from "./mutation";
+import { groupFingerprints } from "./sheets";
 import { loadGroup, loadMatch, loadOpenSession, loadSettings } from "./snapshot";
 
 const MAX_AWAITING = 10;
@@ -558,6 +561,91 @@ export async function excludeMatch(
   return loadMatch(env, groupId, matchId);
 }
 
+/* ------------------------------------------------------------------ */
+/* 지문 중복 검사(일괄 입력·복구)                                        */
+/* ------------------------------------------------------------------ */
+
+/** 지문이 있을 수 있는 경기(일괄 입력·지난 경기 입력) 중 전적 제외가 아닌 것. */
+const FINGERPRINT_SCOPE = "group_id = ?1 AND state <> 'excluded' AND source IN ('import', 'backfill')";
+const SCOPE_STAMP = "COUNT(*) || ':' || COALESCE(SUM(version), 0)";
+
+/** 확인한 때의 범위 상태(경기 수:버전 합). 확인과 저장 사이에 범위가 바뀌면 batch를 실패시키는 데 쓴다. */
+async function fingerprintScopeStamp(env: Env, groupId: string): Promise<string> {
+  const row = await env.DB.prepare(`SELECT ${SCOPE_STAMP} AS stamp FROM matches WHERE ${FINGERPRINT_SCOPE}`)
+    .bind(groupId)
+    .first<{ stamp: string }>();
+  return String(row?.stamp ?? "0:0");
+}
+
+/**
+ * 확인 뒤 다른 요청이 일괄 입력·지난 경기 입력·제외·복구·정정을 했으면 batch 전체를 실패시킨다.
+ * 계산한 지문(지문 없는 예전 경기)은 SQL로 견줄 수 없으므로 이 문장으로 확인 결과가 그대로인지 지킨다.
+ */
+function fingerprintScopeGuard(env: Env, groupId: string, stamp: string): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT INTO guard (version_conflict)
+     SELECT 1 WHERE (SELECT ${SCOPE_STAMP} FROM matches WHERE ${FINGERPRINT_SCOPE}) <> ?2`,
+  ).bind(groupId, stamp);
+}
+
+/** 복구할 경기(ids)와 저장된 지문이 같은, 전적 제외가 아닌 다른 경기가 있으면 batch 전체를 실패시킨다. */
+function storedFingerprintRestoreGuard(env: Env, groupId: string, ids: readonly string[]): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT INTO guard (version_conflict)
+     SELECT 1 WHERE EXISTS (
+       SELECT 1 FROM matches a
+       JOIN matches b ON b.group_id = a.group_id AND b.import_fingerprint = a.import_fingerprint AND b.id <> a.id
+       WHERE a.group_id = ?1 AND a.id IN (SELECT value FROM json_each(?2)) AND b.state <> 'excluded'
+     )`,
+  ).bind(groupId, JSON.stringify(ids));
+}
+
+interface FingerprintOverlap {
+  matchId: string;
+  matchNo: number;
+  /** 같은 지문을 가진, 전적 제외가 아닌 다른 경기의 번호. */
+  with: number[];
+}
+
+/**
+ * ids의 경기 가운데 같은 지문(저장된 것 또는 내용으로 계산한 것)의 다른 경기가 전적 제외가 아닌 상태로 있는 것.
+ * 다시 가져오기에서 "이미 들어간 경기"로 보는 기준과 같다(src/server/sheets.ts groupFingerprints).
+ */
+async function fingerprintOverlaps(env: Env, groupId: string, ids: readonly string[]): Promise<FingerprintOverlap[]> {
+  if (ids.length === 0) return [];
+  const all = await groupFingerprints(env, groupId);
+  const target = new Set(ids);
+  const active = new Map<string, Set<number>>();
+  for (const f of all) {
+    if (target.has(f.matchId) || f.state === "excluded") continue;
+    const set = active.get(f.fingerprint) ?? new Set<number>();
+    set.add(f.matchNo);
+    active.set(f.fingerprint, set);
+  }
+  const found = new Map<string, FingerprintOverlap>();
+  for (const f of all) {
+    if (!target.has(f.matchId)) continue;
+    const hits = active.get(f.fingerprint);
+    if (!hits) continue;
+    const entry = found.get(f.matchId) ?? { matchId: f.matchId, matchNo: f.matchNo, with: [] };
+    for (const no of hits) if (!entry.with.includes(no)) entry.with.push(no);
+    found.set(f.matchId, entry);
+  }
+  return [...found.values()]
+    .map((o) => ({ ...o, with: o.with.sort((x, y) => x - y) }))
+    .sort((x, y) => x.matchNo - y.matchNo);
+}
+
+function overlapText(overlaps: readonly FingerprintOverlap[]): string {
+  const shown = overlaps.slice(0, 5).map((o) => `${o.matchNo}번↔${o.with.map((n) => `${n}번`).join("·")}`);
+  return shown.join(", ") + (overlaps.length > 5 ? ` 외 ${overlaps.length - 5}경기` : "");
+}
+
+/**
+ * 전적 제외한 경기를 되살린다.
+ * 일괄 입력·지난 경기 입력 경기는 같은 내용(지문)의 경기가 이미 기록에 있으면 거절한다.
+ * 제외한 뒤 같은 시트를 다시 가져온 경우처럼 같은 경기가 두 번 세지는 것을 막는다.
+ */
 export async function restoreMatch(
   env: Env,
   groupId: string,
@@ -581,11 +669,27 @@ export async function restoreMatch(
         .bind(matchId)
         .first<{ prev_state: string | null }>();
       const target = prev?.prev_state ?? "confirmed";
+      const guards: D1PreparedStatement[] = [];
+      if (match.source === "import" || match.source === "backfill") {
+        const stamp = await fingerprintScopeStamp(env, groupId);
+        const overlaps = await fingerprintOverlaps(env, groupId, [matchId]);
+        if (overlaps.length > 0) {
+          const nos = overlaps[0]!.with;
+          throw new ApiError(
+            409,
+            "RESTORE_DUPLICATE",
+            `같은 내용의 경기가 이미 기록에 있어요(${nos.map((n) => `${n}번`).join(", ")} 경기). 두 번 세지 않도록 복구하지 않았어요. 그 경기가 잘못 들어간 것이면 먼저 전적 제외한 뒤 복구하세요.`,
+            { matchNos: nos },
+          );
+        }
+        guards.push(fingerprintScopeGuard(env, groupId, stamp), storedFingerprintRestoreGuard(env, groupId, [matchId]));
+      }
       const now = nowIso();
       return {
         stored: { matchId },
         statements: [
           matchGuard(env, groupId, matchId, baseMatchVersion, "excluded"),
+          ...guards,
           env.DB.prepare(
             `UPDATE matches SET state = ?1, prev_state = NULL, version = version + 1
              WHERE id = ?2 AND group_id = ?3`,
@@ -661,6 +765,10 @@ export async function correctMatch(
     input = { winnerSide: requireOneOf<Side>(body.winnerSide, SIDES, "winnerSide") };
   } else if (field === "playedAt") {
     input = { playedAt: requireIsoTime(body.playedAt, "playedAt") };
+    // 지난 경기 입력·일괄 입력과 같은 기준: 경기 시각을 미래로 고칠 수 없다.
+    if (Date.parse(input.playedAt as string) > Date.now() + FUTURE_TOLERANCE_MS) {
+      throw new ApiError(400, "FUTURE_MATCH", "아직 오지 않은 시각으로는 고칠 수 없습니다. 날짜와 시각을 확인해 주세요.");
+    }
   } else if (field === "positions") {
     if (!Array.isArray(body.positions) || body.positions.length < 1 || body.positions.length > 10) {
       throw new ApiError(400, "INVALID_FIELD", "positions 값이 올바르지 않습니다.");
@@ -864,6 +972,10 @@ export async function backfillMatch(env: Env, groupId: string, body: Body): Prom
   assertOnlyKeys(body, ["requestId", "playedAt", "roster", "winnerTeam", "winnerSide"]);
   const requestId = requestIdOf(body);
   const playedAt = requireIsoTime(body.playedAt, "playedAt");
+  // 일괄 입력(importMatches)과 같은 기준: 화면 검사(backfillProblems)를 거치지 않은 요청도 미래 경기는 거절한다.
+  if (Date.parse(playedAt) > Date.now() + FUTURE_TOLERANCE_MS) {
+    throw new ApiError(400, "FUTURE_MATCH", "아직 오지 않은 시각의 경기는 넣을 수 없습니다. 날짜와 시각을 확인해 주세요.");
+  }
   const roster = parseRoster(body.roster, false);
   const winnerTeam = requireOneOf<Team>(body.winnerTeam, TEAMS, "winnerTeam");
   const winnerSide = requireOneOf<Side>(body.winnerSide, SIDES, "winnerSide");
@@ -924,6 +1036,52 @@ interface ImportMatch {
   roster: RosterEntry[];
   winnerTeam: Team;
   winnerSide: Side;
+  /** 다시 가져오기 중복 방지용 시트 내용 지문과 줄 위치 열쇠(src/shared/sheetTable.ts). 없어도 된다. */
+  fingerprint?: string;
+  rowKey?: string;
+}
+
+/** 일괄 입력 묶음의 출처(migrations/0007, 0010). 없으면 기록하지 않는다(이전 화면과 호환). */
+interface ImportSource {
+  kind: "paste" | "sheet" | "legacy";
+  sourceKey: string | null;
+  label: string | null;
+  /** 기존 사이트 가져오기에서 고른 날짜 처리(migrations/0010). 그 밖에는 null. */
+  options: LegacyChoice | null;
+}
+
+const FINGERPRINT = /^v1-[0-9a-f]{16}$/;
+/** 줄 위치 열쇠: 시트 "날짜#같은 날 순서", 기존 사이트 "v1id:{경기 id 해시}"(src/shared/legacy.ts). */
+const ROW_KEY = /^(\d{4}-\d{2}-\d{2}#\d{1,5}|v1id:[0-9a-f]{16})$/;
+const SOURCE_KEY = /^(sheet|pub):[A-Za-z0-9_-]{20,220}:(\d{1,12}|first)$/;
+
+function parseImportSource(value: unknown): ImportSource | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new ApiError(400, "INVALID_FIELD", "source 값이 올바르지 않습니다.");
+  }
+  const raw = value as Body;
+  assertOnlyKeys(raw, ["kind", "sourceKey", "label", "options"]);
+  const kind = requireOneOf<"paste" | "sheet" | "legacy">(raw.kind, ["paste", "sheet", "legacy"], "source.kind");
+  let sourceKey: string | null = null;
+  let options: LegacyChoice | null = null;
+  if (kind === "sheet" || kind === "legacy") {
+    sourceKey = requireString(raw.sourceKey, "source.sourceKey", 1, 260);
+    if (!(kind === "sheet" ? SOURCE_KEY : LEGACY_SOURCE_KEY).test(sourceKey)) {
+      throw new ApiError(400, "INVALID_FIELD", "source.sourceKey 값이 올바르지 않습니다.");
+    }
+  } else if (raw.sourceKey !== undefined && raw.sourceKey !== null) {
+    throw new ApiError(400, "INVALID_FIELD", "source.sourceKey 값이 올바르지 않습니다.");
+  }
+  let label: string | null = null;
+  if (raw.label !== undefined && raw.label !== null) {
+    label = requireString(raw.label, "source.label", 1, 100).replace(/[\u0000-\u001f\u007f]/g, " ").trim() || null;
+  }
+  if (raw.options !== undefined && raw.options !== null) {
+    options = kind === "legacy" ? parseLegacyChoice(raw.options) : null;
+    if (options === null) throw new ApiError(400, "INVALID_FIELD", "source.options 값이 올바르지 않습니다.");
+  }
+  return { kind, sourceKey, label, options };
 }
 
 /**
@@ -938,10 +1096,11 @@ export async function importMatches(
   groupId: string,
   body: Body,
 ): Promise<{ matchIds: string[] }> {
-  assertOnlyKeys(body, ["requestId", "batchId", "matches"]);
+  assertOnlyKeys(body, ["requestId", "batchId", "matches", "source"]);
   const requestId = requestIdOf(body);
   // 한 번의 일괄 입력을 여러 묶음으로 나눠 보내도 같은 batchId를 쓴다. 되돌릴 때 이 값으로 찾는다.
   const batchId = requireString(body.batchId, "batchId", 8, 64);
+  const source = parseImportSource(body.source);
   if (
     !Array.isArray(body.matches) ||
     body.matches.length < 1 ||
@@ -959,13 +1118,31 @@ export async function importMatches(
     }
     const entry = raw as Body;
     try {
-      assertOnlyKeys(entry, ["playedAt", "roster", "winnerTeam", "winnerSide"]);
-      return {
+      assertOnlyKeys(entry, ["playedAt", "roster", "winnerTeam", "winnerSide", "fingerprint", "rowKey"]);
+      const match: ImportMatch = {
         playedAt: requireIsoTime(entry.playedAt, "playedAt"),
         roster: parseRoster(entry.roster, false),
         winnerTeam: requireOneOf<Team>(entry.winnerTeam, TEAMS, "winnerTeam"),
         winnerSide: requireOneOf<Side>(entry.winnerSide, SIDES, "winnerSide"),
       };
+      // 지난 경기만 넣는다. 시계 오차는 지난 경기 한 건 입력 화면과 같은 폭만 봐준다.
+      if (Date.parse(match.playedAt) > Date.now() + FUTURE_TOLERANCE_MS) {
+        throw new ApiError(400, "FUTURE_MATCH", "아직 오지 않은 시각의 경기는 넣을 수 없습니다. 날짜를 확인해 주세요.");
+      }
+      // 지문이 없는 요청(이전 화면)은 요청 내용이 예전과 똑같이 해시되도록 키를 만들지 않는다.
+      if (entry.fingerprint !== undefined) {
+        const fingerprint = requireString(entry.fingerprint, "fingerprint", 1, 40);
+        if (!FINGERPRINT.test(fingerprint)) throw new ApiError(400, "INVALID_FIELD", "fingerprint 값이 올바르지 않습니다.");
+        match.fingerprint = fingerprint;
+      }
+      if (entry.rowKey !== undefined) {
+        const rowKey = requireString(entry.rowKey, "rowKey", 1, 40);
+        if (!ROW_KEY.test(rowKey) || match.fingerprint === undefined) {
+          throw new ApiError(400, "INVALID_FIELD", "rowKey 값이 올바르지 않습니다.");
+        }
+        match.rowKey = rowKey;
+      }
+      return match;
     } catch (error) {
       // 몇 번째 경기에서 틀렸는지 알려준다.
       if (error instanceof ApiError) {
@@ -975,12 +1152,46 @@ export async function importMatches(
     }
   });
 
+  const fingerprints = matches.map((m) => m.fingerprint).filter((f): f is string => f !== undefined);
+  if (new Set(fingerprints).size !== fingerprints.length) {
+    throw new ApiError(400, "INVALID_FIELD", "같은 지문의 경기가 두 번 들어 있습니다.");
+  }
+
   const { stored } = await runMutation(env, {
     groupId,
     requestId,
     op: "import",
-    payload: { batchId, matches },
+    // 출처가 없는 요청은 예전과 같은 내용으로 해시한다(이어서 넣기 호환).
+    // 날짜 처리 선택이 없는 출처는 이전과 같은 내용으로 해시한다(이어서 넣기 호환).
+    payload:
+      source === undefined
+        ? { batchId, matches }
+        : {
+            batchId,
+            matches,
+            source: source.options === null ? { kind: source.kind, sourceKey: source.sourceKey, label: source.label } : source,
+          },
     build: async () => {
+      // 다시 가져오기 중복 방지: 같은 지문의 경기가 전적 제외가 아닌 상태로 이미 있으면 거절한다.
+      // 지문 없는 예전 일괄 입력·지난 경기 입력은 내용으로 계산한 지문과 견준다(화면의 비교와 같은 기준).
+      let scopeStamp: string | null = null;
+      if (fingerprints.length > 0) {
+        scopeStamp = await fingerprintScopeStamp(env, groupId);
+        const wanted = new Set(fingerprints);
+        const found = new Set(
+          (await groupFingerprints(env, groupId))
+            .filter((f) => f.state !== "excluded" && wanted.has(f.fingerprint))
+            .map((f) => f.fingerprint),
+        );
+        if (found.size > 0) {
+          throw new ApiError(
+            409,
+            "ALREADY_IMPORTED",
+            "이미 들어간 경기가 섞여 있어요. 화면을 새로 고친 뒤 다시 확인해 주세요.",
+            { indexes: matches.flatMap((m, i) => (m.fingerprint && found.has(m.fingerprint) ? [i] : [])) },
+          );
+        }
+      }
       const active = await env.DB.prepare(
         "SELECT id FROM participants WHERE group_id = ?1 AND status = 'active'",
       )
@@ -1001,28 +1212,79 @@ export async function importMatches(
 
       const now = nowIso();
       const statements: D1PreparedStatement[] = [];
+      if (scopeStamp !== null) {
+        // 확인과 저장 사이에 다른 탭이 같은 경기를 넣었으면 batch 전체를 실패시킨다.
+        statements.push(fingerprintScopeGuard(env, groupId, scopeStamp));
+        statements.push(
+          env.DB.prepare(
+            `INSERT INTO guard (version_conflict)
+             SELECT 1 WHERE EXISTS (
+               SELECT 1 FROM matches WHERE group_id = ?1 AND state <> 'excluded'
+                 AND import_fingerprint IN (SELECT value FROM json_each(?2))
+             )`,
+          ).bind(groupId, JSON.stringify(fingerprints)),
+        );
+      }
+      if (source !== undefined) {
+        // 여러 묶음으로 나눠 보내도 출처 행은 첫 묶음에서 한 번만 생긴다.
+        statements.push(
+          env.DB.prepare(
+            `INSERT INTO import_batches (group_id, id, kind, source_key, label, created_at, options)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT (group_id, id) DO NOTHING`,
+          ).bind(
+            groupId,
+            batchId,
+            source.kind,
+            source.sourceKey,
+            source.label,
+            now,
+            source.options === null ? null : JSON.stringify(source.options),
+          ),
+        );
+      }
       const matchIds: string[] = [];
       matches.forEach((match, offset) => {
         const matchId = newId();
         matchIds.push(matchId);
         const teamASide = teamASideFromWinner(match.winnerTeam, match.winnerSide);
         statements.push(
-          env.DB.prepare(
-            `INSERT INTO matches (id, group_id, match_no, state, source, played_at, ended_at,
-               confirmed_at, winner_team, team_a_side, settings_version_id, import_batch_id)
-             SELECT ?1, id, next_match_no + ?7, 'confirmed', 'import', ?3, ?3, ?4, ?5, ?6,
-               settings_version_id, ?8
-             FROM groups WHERE id = ?2`,
-          ).bind(
-            matchId,
-            groupId,
-            match.playedAt,
-            now,
-            match.winnerTeam,
-            teamASide,
-            offset,
-            batchId,
-          ),
+          match.fingerprint === undefined
+            ? env.DB.prepare(
+                `INSERT INTO matches (id, group_id, match_no, state, source, played_at, ended_at,
+                   confirmed_at, winner_team, team_a_side, settings_version_id, import_batch_id)
+                 SELECT ?1, id, next_match_no + ?7, 'confirmed', 'import', ?3, ?3, ?4, ?5, ?6,
+                   settings_version_id, ?8
+                 FROM groups WHERE id = ?2`,
+              ).bind(
+                matchId,
+                groupId,
+                match.playedAt,
+                now,
+                match.winnerTeam,
+                teamASide,
+                offset,
+                batchId,
+              )
+            : env.DB.prepare(
+                `INSERT INTO matches (id, group_id, match_no, state, source, played_at, ended_at,
+                   confirmed_at, winner_team, team_a_side, settings_version_id, import_batch_id,
+                   import_fingerprint, import_row_key)
+                 SELECT ?1, id, next_match_no + ?7, 'confirmed', 'import', ?3, ?3, ?4, ?5, ?6,
+                   settings_version_id, ?8, ?9, ?10
+                 FROM groups WHERE id = ?2`,
+              ).bind(
+                matchId,
+                groupId,
+                match.playedAt,
+                now,
+                match.winnerTeam,
+                teamASide,
+                offset,
+                batchId,
+                match.fingerprint,
+                match.rowKey ?? null,
+              ),
         );
         // 명단 10행을 한 문장으로 넣는다(문장당 값 50개).
         const values = match.roster.map(() => "(?, ?, ?, ?, ?)").join(", ");
@@ -1071,19 +1333,25 @@ export async function setImportBatchExcluded(
   groupId: string,
   batchId: string,
   body: Body,
-): Promise<{ changed: number }> {
-  assertOnlyKeys(body, ["requestId", "exclude"]);
+): Promise<{ changed: number; skipped?: number }> {
+  assertOnlyKeys(body, ["requestId", "exclude", "skipOverlapping"]);
   const requestId = requestIdOf(body);
   if (typeof body.exclude !== "boolean") {
     throw new ApiError(400, "INVALID_FIELD", "exclude 값이 올바르지 않습니다.");
   }
+  if (body.skipOverlapping !== undefined && typeof body.skipOverlapping !== "boolean") {
+    throw new ApiError(400, "INVALID_FIELD", "skipOverlapping 값이 올바르지 않습니다.");
+  }
   const exclude = body.exclude;
+  const skipOverlapping = !exclude && body.skipOverlapping === true;
   const { stored } = await runMutation(env, {
     groupId,
     requestId,
     op: "import-batch",
-    payload: { batchId, exclude },
+    // 예전 요청과 같은 내용으로 해시되도록 기본값은 넣지 않는다.
+    payload: skipOverlapping ? { batchId, exclude, skipOverlapping } : { batchId, exclude },
     build: async () => {
+      if (!exclude) return restoreImportBatch(env, groupId, batchId, skipOverlapping);
       const target = await env.DB.prepare(
         exclude
           ? `SELECT COUNT(*) AS n FROM matches
@@ -1131,5 +1399,63 @@ export async function setImportBatchExcluded(
       };
     },
   });
-  return { changed: stored.changed as number };
+  return stored.skipped === undefined
+    ? { changed: stored.changed as number }
+    : { changed: stored.changed as number, skipped: stored.skipped as number };
+}
+
+/**
+ * 묶음 복구. 복구할 경기 중 같은 내용(지문)의 경기가 이미 기록에 있으면(제외한 뒤 같은 시트를 다시 가져온 경우 등)
+ * 기본으로 전체를 거절하고 어떤 경기끼리 겹치는지 알려 준다. 사용자가 고르면(skipOverlapping) 겹치지 않는 경기만 복구한다.
+ * 겹치는 경기를 말없이 빼면 "모두 복구"를 눌렀는데 일부만 돌아와 헷갈리므로, 먼저 알리고 고르게 한다.
+ */
+async function restoreImportBatch(env: Env, groupId: string, batchId: string, skipOverlapping: boolean): Promise<Plan> {
+  const exists = await env.DB.prepare("SELECT 1 AS ok FROM matches WHERE group_id = ?1 AND import_batch_id = ?2 LIMIT 1")
+    .bind(groupId, batchId)
+    .first<{ ok: number }>();
+  if (!exists) throw new ApiError(404, "NOT_FOUND", "일괄 입력 기록을 찾을 수 없습니다.");
+  const stamp = await fingerprintScopeStamp(env, groupId);
+  const targets = await env.DB.prepare(
+    `SELECT id FROM matches
+     WHERE group_id = ?1 AND import_batch_id = ?2 AND state = 'excluded' AND prev_state = 'confirmed'`,
+  )
+    .bind(groupId, batchId)
+    .all<{ id: string }>();
+  const ids = targets.results.map((r) => r.id);
+  const overlaps = await fingerprintOverlaps(env, groupId, ids);
+  if (overlaps.length > 0 && !skipOverlapping) {
+    throw new ApiError(
+      409,
+      "RESTORE_DUPLICATE",
+      `이 묶음의 ${overlaps.length}경기는 같은 내용의 경기가 이미 기록에 있어요(${overlapText(overlaps)}). 두 번 세지 않도록 복구하지 않았어요.`,
+      {
+        overlaps: overlaps.map((o) => ({ matchNo: o.matchNo, with: o.with })),
+        restorable: ids.length - overlaps.length,
+      },
+    );
+  }
+  const skip = new Set(overlaps.map((o) => o.matchId));
+  const restore = ids.filter((id) => !skip.has(id));
+  const now = nowIso();
+  const where = `group_id = ?1 AND id IN (SELECT value FROM json_each(?2)) AND state = 'excluded' AND prev_state = 'confirmed'`;
+  const list = JSON.stringify(restore);
+  return {
+    stored: { changed: restore.length, ...(skipOverlapping ? { skipped: overlaps.length } : {}) },
+    statements: [
+      // 확인 뒤 범위가 바뀌었거나(다른 탭의 가져오기·복구) 고른 경기가 이미 바뀌었으면 batch 전체를 실패시킨다.
+      fingerprintScopeGuard(env, groupId, stamp),
+      storedFingerprintRestoreGuard(env, groupId, restore),
+      env.DB.prepare(
+        `INSERT INTO guard (version_conflict)
+         SELECT 1 WHERE (SELECT COUNT(*) FROM matches WHERE ${where}) <> ?3`,
+      ).bind(groupId, list, restore.length),
+      env.DB.prepare(
+        `INSERT INTO match_revisions (group_id, match_id, kind, changes, created_at)
+         SELECT group_id, id, 'restore', ?3, ?4 FROM matches WHERE ${where}`,
+      ).bind(groupId, list, JSON.stringify({ state: { from: "excluded", to: "confirmed" } }), now),
+      env.DB.prepare(
+        `UPDATE matches SET state = 'confirmed', prev_state = NULL, version = version + 1 WHERE ${where}`,
+      ).bind(groupId, list),
+    ],
+  };
 }

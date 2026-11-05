@@ -1,38 +1,150 @@
-/* 모바일 기준 배치. 팀·진영·상태는 색이 아니라 기호와 글자로 구분한다. */
-:root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --text: #16181d;
-  --muted: #555b66;
-  --line: #d5d9e0;
-  --primary: #1f4fd8;
-  --primary-text: #ffffff;
-  --danger: #b3261e;
-  --warn-bg: #fff4d6;
-  --warn-line: #b7791f;
-  --ok-bg: #e3f4e8;
-  --ok-text: #14532d;
-  --picked: #dbe6ff;
-  --tabs-height: 56px;
-  color-scheme: light dark;
+/* 모바일 기준 배치. 팀·진영·상태는 색만이 아니라 기호와 글자로도 구분한다.
+   색·글꼴·모서리 값은 디자인 키트(RIFT.INHOUSE UI kit)의 토큰을 그대로 쓴다.
+   <html data-theme="dark | deeplol | light"> 로 테마를 바꾼다. */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ih-bg-canvas: #0b0e14;
+  --ih-bg-surface: #131822;
+  --ih-bg-elevated: #1a2130;
+  --ih-bg-subtle: #212a3d;
+  --ih-bg-glass: rgba(19, 24, 34, 0.82);
+
+  --ih-text-primary: #f1f5f9;
+  --ih-text-secondary: #94a3b8;
+  --ih-text-muted: #64748b;
+
+  --ih-border-subtle: rgba(148, 163, 184, 0.12);
+  --ih-border-strong: rgba(148, 163, 184, 0.24);
+
+  --ih-brand-primary: #3b82f6;
+  --ih-brand-primary-hover: #2563eb;
+  --ih-brand-glow: rgba(59, 130, 246, 0.22);
+  --ih-accent-gold: #f59e0b;
+  --ih-accent-purple: #8b5cf6;
+
+  /* 승리·블루 / 패배·레드 */
+  --ih-win-accent: #3b82f6;
+  --ih-win-bg: rgba(59, 130, 246, 0.11);
+  --ih-win-bg-hover: rgba(59, 130, 246, 0.17);
+  --ih-win-border: rgba(59, 130, 246, 0.35);
+  --ih-win-text: #60a5fa;
+
+  --ih-loss-accent: #ef4444;
+  --ih-loss-bg: rgba(239, 68, 68, 0.11);
+  --ih-loss-bg-hover: rgba(239, 68, 68, 0.17);
+  --ih-loss-border: rgba(239, 68, 68, 0.35);
+  --ih-loss-text: #f87171;
+
+  /* 키트의 KDA 구간 색. 이 사이트에는 KDA가 없어 승률 구간에 쓴다. */
+  --ih-kda-under3: #94a3b8;
+  --ih-kda-3plus: #10b981;
+  --ih-kda-4plus: #3b82f6;
+  --ih-kda-5plus: #f59e0b;
+
+  --ih-radius-sm: 6px;
+  --ih-radius-md: 10px;
+  --ih-radius-lg: 14px;
+  --ih-radius-pill: 9999px;
+  --ih-shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  --ih-font-sans: "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+
+  /* 키트에 없어 같은 계열로 더한 값: 채운 버튼, 링크 글자, 저장됨·주의 표시 */
+  --ih-brand-fill: #2563eb;
+  --ih-brand-fill-hover: #1d4ed8;
+  --ih-link: #60a5fa;
+  --ih-ok-bg: rgba(16, 185, 129, 0.14);
+  --ih-ok-text: #34d399;
+  --ih-warn-bg: rgba(245, 158, 11, 0.12);
+  --ih-warn-line: #fbbf24;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111318;
-    --surface: #1b1e25;
-    --text: #eceef2;
-    --muted: #a9b0bd;
-    --line: #353a45;
-    --primary: #8fb0ff;
-    --primary-text: #0b1530;
-    --danger: #ffb4ab;
-    --warn-bg: #3a2f10;
-    --warn-line: #e0b252;
-    --ok-bg: #12301c;
-    --ok-text: #a8e6b8;
-    --picked: #24345e;
-  }
+[data-theme="deeplol"] {
+  --ih-bg-canvas: #090a10;
+  --ih-bg-surface: #12131f;
+  --ih-bg-elevated: #1b1d30;
+  --ih-bg-subtle: #252842;
+  --ih-bg-glass: rgba(17, 19, 34, 0.86);
+  --ih-border-subtle: rgba(129, 140, 248, 0.15);
+  --ih-border-strong: rgba(129, 140, 248, 0.32);
+  --ih-brand-primary: #6366f1;
+  --ih-brand-primary-hover: #4f46e5;
+  --ih-brand-glow: rgba(99, 102, 241, 0.24);
+  --ih-win-accent: #06b6d4;
+  --ih-win-bg: rgba(6, 182, 212, 0.11);
+  --ih-win-bg-hover: rgba(6, 182, 212, 0.18);
+  --ih-win-border: rgba(6, 182, 212, 0.38);
+  --ih-win-text: #22d3ee;
+  --ih-loss-accent: #f43f5e;
+  --ih-loss-bg: rgba(244, 63, 94, 0.11);
+  --ih-loss-bg-hover: rgba(244, 63, 94, 0.18);
+  --ih-loss-border: rgba(244, 63, 94, 0.38);
+  --ih-loss-text: #fb7185;
+  --ih-kda-4plus: #22d3ee;
+  --ih-brand-fill: #4f46e5;
+  --ih-brand-fill-hover: #4338ca;
+  --ih-link: #a5b4fc;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --ih-bg-canvas: #f1f5f9;
+  --ih-bg-surface: #ffffff;
+  --ih-bg-elevated: #f8fafc;
+  --ih-bg-subtle: #e2e8f0;
+  --ih-bg-glass: rgba(255, 255, 255, 0.88);
+  --ih-text-primary: #0f172a;
+  --ih-text-secondary: #475569;
+  --ih-text-muted: #64748b;
+  --ih-border-subtle: rgba(15, 23, 42, 0.09);
+  --ih-border-strong: rgba(15, 23, 42, 0.18);
+  --ih-brand-primary: #2563eb;
+  --ih-brand-primary-hover: #1d4ed8;
+  --ih-brand-glow: rgba(37, 99, 235, 0.14);
+  --ih-win-accent: #2563eb;
+  --ih-win-bg: #eff6ff;
+  --ih-win-bg-hover: #dbeafe;
+  --ih-win-border: #bfdbfe;
+  --ih-win-text: #1d4ed8;
+  --ih-loss-accent: #dc2626;
+  --ih-loss-bg: #fef2f2;
+  --ih-loss-bg-hover: #fee2e2;
+  --ih-loss-border: #fecaca;
+  --ih-loss-text: #b91c1c;
+  /* 흰 바탕에서 글자 대비 4.5:1을 넘도록 키트 값보다 어둡게 둔다. */
+  --ih-accent-gold: #b45309;
+  --ih-kda-under3: #475569;
+  --ih-kda-3plus: #047857;
+  --ih-kda-4plus: #2563eb;
+  --ih-kda-5plus: #b45309;
+  --ih-shadow-card: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --ih-brand-fill: #2563eb;
+  --ih-brand-fill-hover: #1d4ed8;
+  --ih-link: #1d4ed8;
+  --ih-ok-bg: #ecfdf5;
+  --ih-ok-text: #047857;
+  --ih-warn-bg: #fffbeb;
+  --ih-warn-line: #b45309;
+}
+
+/* 화면 규칙이 쓰는 이름. 값은 모두 위 토큰에서 온다. */
+:root {
+  --bg: var(--ih-bg-canvas);
+  --surface: var(--ih-bg-surface);
+  --text: var(--ih-text-primary);
+  --muted: var(--ih-text-secondary);
+  --line: var(--ih-border-strong);
+  --primary: var(--ih-brand-primary);
+  --primary-text: #ffffff;
+  --danger: var(--ih-loss-text);
+  --warn-bg: var(--ih-warn-bg);
+  --warn-line: var(--ih-warn-line);
+  --ok-bg: var(--ih-ok-bg);
+  --ok-text: var(--ih-ok-text);
+  --picked: var(--ih-brand-glow);
+  --tabs-height: 56px;
 }
 
 * {
@@ -41,15 +153,28 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* 초점 이동·scrollIntoView가 칸을 하단 탭과 고정 버튼 뒤, 고정 머리글 아래로 보내지 않게 한다. */
+  scroll-padding-top: 64px;
+  scroll-padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 88px);
+}
+html[data-keyboard="open"] {
+  scroll-padding-bottom: 16px;
+}
+@media (min-width: 720px) {
+  html {
+    scroll-padding-top: 128px;
+    scroll-padding-bottom: 88px;
+  }
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: var(--ih-font-sans);
   font-size: 1rem;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 main {
@@ -464,6 +589,15 @@ details > *:not(summary) {
 .action-inline {
   padding: 8px 0;
 }
+/* 화면 키보드가 열리면(좁은 화면) 하단 탭을 숨겨 입력 칸·확인 창 버튼을 가리지 않게 한다. */
+@media (max-width: 719px) {
+  html[data-keyboard="open"] .tabs {
+    display: none;
+  }
+  html[data-keyboard="open"] main {
+    padding-bottom: 16px;
+  }
+}
 
 .tabs {
   position: fixed;
@@ -610,7 +744,17 @@ input[type="search"] {
    플레이어×라인은 50%를 중립 회색으로 둔 양극(파랑↔주황) 다섯 구간.
    조합은 색각 구분 검사를 밝은·어두운 화면 모두에서 통과한 값이다. */
 .viz-root {
-  --viz-surface: #fcfcfb;
+  --viz-surface: var(--ih-bg-surface);
+  --viz-series: #3987e5;
+  --viz-blue: #3987e5;
+  --viz-red: #e66767;
+  --viz-low: #d95926;
+  --viz-mid: #33363d;
+  --viz-track: #262b36;
+  --viz-axis: #898781;
+}
+/* 그래프 색은 기기 설정이 아니라 고른 테마를 따른다. */
+[data-theme="light"] .viz-root {
   --viz-series: #2a78d6;
   --viz-blue: #2a78d6;
   --viz-red: #e34948;
@@ -618,18 +762,6 @@ input[type="search"] {
   --viz-mid: #f0efec;
   --viz-track: #e1e0d9;
   --viz-axis: #898781;
-}
-@media (prefers-color-scheme: dark) {
-  .viz-root {
-    --viz-surface: #1a1a19;
-    --viz-series: #3987e5;
-    --viz-blue: #3987e5;
-    --viz-red: #e66767;
-    --viz-low: #d95926;
-    --viz-mid: #383835;
-    --viz-track: #2c2c2a;
-    --viz-axis: #898781;
-  }
 }
 .filter-row {
   display: flex;
@@ -808,6 +940,11 @@ button.bar-row:hover {
   color: var(--muted);
   font-size: 0.75rem;
 }
+/* 진한 칸에서는 보조 글자 색의 대비가 4.5:1에 못 미친다. 본문 색을 쓴다. */
+.band-low2 .cell-games,
+.band-high2 .cell-games {
+  color: var(--text);
+}
 
 /* ---------- 배치 보정 ---------- */
 
@@ -854,33 +991,13 @@ button.bar-row:hover {
   justify-content: flex-end;
 }
 
-/* 넓은 화면: 탭을 위로 올리고 본문 폭을 읽기 좋은 너비로 줄인다. */
+/* 넓은 화면: 탭을 상단 바 가운데로 올리고 본문 폭을 읽기 좋은 너비로 줄인다. */
 @media (min-width: 720px) {
   main {
     max-width: 760px;
     padding-bottom: 32px;
   }
-  main:has(+ .tabs) {
-    padding-top: 56px;
-  }
-  .tabs {
-    top: 0;
-    bottom: auto;
-    height: 56px;
-    padding: 0 24px;
-    justify-content: center;
-    gap: 8px;
-    border-top: none;
-    border-bottom: 1px solid var(--line);
-  }
-  .tabs button {
-    flex: none;
-    min-width: 120px;
-  }
-  .tabs button[aria-current="page"] {
-    box-shadow: inset 0 -3px 0 var(--primary);
-  }
-  main:has(+ .tabs) .sticky-head {
+  .sticky-head {
     top: 56px;
   }
   .action-sticky {
@@ -888,10 +1005,9 @@ button.bar-row:hover {
     padding-bottom: 12px;
   }
   .toast {
-    left: 50%;
-    right: auto;
-    bottom: 24px;
-    transform: translateX(-50%);
+    left: auto;
+    right: 20px;
+    bottom: 20px;
     max-width: 480px;
   }
 }
@@ -955,4 +1071,1806 @@ button.row .name {
 }
 button.row .tag {
   margin-left: 0;
+}
+
+/* ==========================================================================
+   디자인 키트 적용: 표면·버튼·목록·팀 상자·경기 줄·상단 바·푸터
+   ========================================================================== */
+
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: 0.9375rem;
+  font-weight: 800;
+}
+h3 {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ih-border-strong);
+  border-radius: 9999px;
+}
+
+/* 버튼·입력 */
+button {
+  font-weight: 700;
+  background: var(--ih-bg-elevated);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+button:not(:disabled):hover {
+  border-color: var(--ih-text-muted);
+}
+.primary {
+  background: var(--ih-brand-fill);
+  border-color: var(--ih-brand-fill);
+  box-shadow: 0 2px 10px var(--ih-brand-glow);
+}
+.primary:not(:disabled):hover {
+  background: var(--ih-brand-fill-hover);
+  border-color: var(--ih-brand-fill-hover);
+}
+.secondary {
+  background: var(--ih-bg-elevated);
+}
+.danger {
+  background: var(--ih-loss-bg);
+  border-color: var(--ih-loss-border);
+}
+.link,
+.link:not(:disabled):hover {
+  color: var(--ih-link);
+  background: none;
+  border-color: transparent;
+  font-weight: 600;
+}
+input,
+textarea,
+select {
+  background: var(--ih-bg-elevated);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--ih-text-muted);
+}
+fieldset {
+  border-color: var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-surface);
+}
+
+/* 표면 */
+.card,
+.team,
+.chart-card,
+details,
+.candidate {
+  border-color: var(--ih-border-subtle);
+  border-radius: 12px;
+  box-shadow: var(--ih-shadow-card);
+}
+.note {
+  background: var(--ih-bg-elevated);
+  border-color: var(--ih-border-subtle);
+  border-left-color: var(--ih-brand-primary);
+  border-radius: var(--ih-radius-md);
+}
+.note.warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+}
+.saved {
+  border: 1px solid var(--ih-ok-text);
+  border-radius: var(--ih-radius-md);
+}
+.badge {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border-color: transparent;
+  background: var(--ih-bg-subtle);
+  color: var(--ih-text-secondary);
+}
+.tag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  border-color: transparent;
+  background: var(--ih-bg-subtle);
+  color: var(--ih-text-secondary);
+}
+
+/* 목록 줄 */
+.list {
+  gap: 6px;
+}
+.list-row {
+  background: var(--ih-bg-surface);
+  border-color: var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  font-weight: 500;
+}
+button.list-row:not(:disabled):hover {
+  background: var(--ih-bg-elevated);
+  border-color: var(--ih-border-strong);
+}
+.list-row.selected {
+  border-color: var(--ih-brand-primary);
+}
+.row-main,
+.row-main:not(:disabled):hover {
+  border: none;
+  background: none;
+  font-weight: 500;
+}
+
+/* 경기 줄: 왼쪽 6px 색 막대와 옅은 색 바탕.
+   전체 목록에서는 이긴 팀의 진영(블루·레드), 개인 화면에서는 그 사람의 승·패를 나타낸다.
+   같은 내용이 글자로도 적혀 있어 색만으로 구분하지 않는다. */
+.match-row {
+  border-left-width: 6px;
+  border-left-color: var(--ih-border-strong);
+}
+.match-row.tone-blue,
+.match-row.tone-win {
+  background: var(--ih-win-bg);
+  border-color: var(--ih-win-border);
+  border-left-color: var(--ih-win-accent);
+}
+.match-row.tone-red,
+.match-row.tone-loss {
+  background: var(--ih-loss-bg);
+  border-color: var(--ih-loss-border);
+  border-left-color: var(--ih-loss-accent);
+}
+button.match-row.tone-blue:not(:disabled):hover,
+button.match-row.tone-win:not(:disabled):hover,
+li.match-row.tone-blue:hover {
+  background: var(--ih-win-bg-hover);
+  border-color: var(--ih-win-border);
+  border-left-color: var(--ih-win-accent);
+}
+button.match-row.tone-red:not(:disabled):hover,
+button.match-row.tone-loss:not(:disabled):hover,
+li.match-row.tone-red:hover {
+  background: var(--ih-loss-bg-hover);
+  border-color: var(--ih-loss-border);
+  border-left-color: var(--ih-loss-accent);
+}
+.result-win {
+  color: var(--ih-win-text);
+  font-weight: 800;
+}
+.result-loss {
+  color: var(--ih-loss-text);
+  font-weight: 800;
+}
+
+/* 팀 상자: 진영이 정해진 경기는 블루·레드 색을 입힌다. 진영을 모르면 중립 표면. */
+.team {
+  padding: 12px;
+}
+.team h3 {
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ih-border-subtle);
+}
+.team.side-blue {
+  background: var(--ih-win-bg);
+  border-color: var(--ih-win-border);
+}
+.team.side-blue h3 {
+  color: var(--ih-win-text);
+  border-bottom-color: var(--ih-win-border);
+}
+.team.side-red {
+  background: var(--ih-loss-bg);
+  border-color: var(--ih-loss-border);
+}
+.team.side-red h3 {
+  color: var(--ih-loss-text);
+  border-bottom-color: var(--ih-loss-border);
+}
+.team .side {
+  color: inherit;
+  font-weight: 800;
+}
+button.row {
+  background: var(--ih-bg-elevated);
+  border-color: var(--ih-border-subtle);
+  font-weight: 600;
+}
+.row.picked,
+button.row.picked:hover {
+  background: var(--picked);
+  border-color: var(--ih-brand-primary);
+}
+.row.me {
+  box-shadow: inset 3px 0 0 var(--ih-brand-primary);
+}
+
+/* 라인 아이콘(키트의 자체 제작 도형)과 라인 이름 */
+.pos {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 3.7em;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.role-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.list-row .pos {
+  width: auto;
+  font-size: inherit;
+  color: var(--text);
+}
+.list-row .role-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--ih-text-secondary);
+}
+/* 좁은 화면의 두 팀 배치에서는 이름 자리를 위해 아이콘을 뺀다. */
+@media (max-width: 419px) {
+  .teams .pos {
+    width: 2.4em;
+  }
+  .teams .role-icon {
+    display: none;
+  }
+}
+
+/* 고르기 */
+.choice {
+  background: var(--ih-bg-elevated);
+  border-color: var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+}
+.choice.chosen {
+  background: var(--picked);
+  border-color: var(--ih-brand-primary);
+}
+.segmented {
+  gap: 4px;
+  padding: 4px;
+  background: var(--ih-bg-elevated);
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+}
+.segmented button,
+.segmented select {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--ih-text-secondary);
+}
+.segmented button[aria-pressed="true"],
+.segmented button[aria-pressed="true"]:hover {
+  border: 1px solid transparent;
+  background: var(--ih-brand-fill);
+  color: #ffffff;
+}
+.segmented select.chosen {
+  border: 1px solid var(--ih-brand-primary);
+  background: var(--picked);
+  color: var(--text);
+}
+
+/* 순위와 승률 구간 */
+.stat,
+.count,
+.kpi {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.rank {
+  font-weight: 800;
+}
+.rank.top {
+  color: var(--ih-accent-gold);
+}
+.rate {
+  font-weight: 800;
+}
+.rate-normal {
+  color: var(--ih-kda-under3);
+}
+.rate-good {
+  color: var(--ih-kda-3plus);
+}
+.rate-great {
+  color: var(--ih-kda-4plus);
+}
+.rate-god {
+  color: var(--ih-kda-5plus);
+}
+.summary-line {
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 한 줄 요약 지표 */
+.kpi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 10px 14px;
+  background: var(--ih-bg-surface);
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  font-size: 0.8125rem;
+  color: var(--ih-text-secondary);
+}
+.kpi strong {
+  margin-left: 4px;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.kpi strong.blue {
+  color: var(--ih-win-text);
+}
+.kpi strong.red {
+  margin-left: 0;
+  color: var(--ih-loss-text);
+}
+
+/* 상단 바: 좁은 화면에서는 본문과 함께 흐르고, 넓은 화면에서는 위에 붙는다. */
+.topbar {
+  background: var(--ih-bg-glass);
+  border-bottom: 1px solid var(--ih-border-subtle);
+}
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 56px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.brand:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--ih-brand-primary), var(--ih-accent-purple));
+  box-shadow: 0 2px 10px var(--ih-brand-glow);
+}
+.brand-mark svg {
+  width: 20px;
+  height: 20px;
+}
+.brand em {
+  font-style: normal;
+  color: var(--ih-link);
+}
+.theme-select {
+  width: auto;
+  /* 터치 대상 44px */
+  min-height: 44px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-color: var(--ih-border-subtle);
+}
+
+/* 주 메뉴: 좁은 화면에서는 아래에 붙고, 넓은 화면에서는 상단 바 가운데에 겹쳐 놓는다. */
+.tabs {
+  background: var(--ih-bg-glass);
+  border-top: 1px solid var(--ih-border-subtle);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.tabs button,
+.tabs button:not(:disabled):hover {
+  border: none;
+  background: none;
+  color: var(--ih-text-secondary);
+  font-size: 0.8125rem;
+}
+.tabs button[aria-current="page"],
+.tabs button[aria-current="page"]:hover {
+  color: var(--ih-link);
+  font-weight: 800;
+}
+.viewer-nav {
+  border-bottom-color: var(--ih-border-subtle);
+}
+/* 조회 메뉴에서 지금 보고 있는 화면: 밑줄 대신 글자색과 아래 선으로 표시한다. */
+.viewer-nav .link[aria-current="page"] {
+  color: var(--ih-text-primary);
+  text-decoration: none;
+  box-shadow: inset 0 -2px 0 var(--ih-brand-primary);
+}
+/* 조회 화면의 점검 안내: 본문(.screen)과 같은 좌우 여백. */
+.viewer-note {
+  margin: 12px 16px 0;
+}
+@media (min-width: 720px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  .topbar-inner {
+    padding: 0 24px;
+  }
+  .tabs {
+    top: 0;
+    bottom: auto;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    height: 56px;
+    padding: 0;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border-top: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    z-index: 4;
+  }
+  .tabs button,
+  .tabs button:not(:disabled):hover {
+    flex: none;
+    min-width: 76px;
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+  }
+  .tabs button:not(:disabled):hover {
+    color: var(--text);
+    background: var(--ih-bg-elevated);
+  }
+  .tabs button[aria-current="page"],
+  .tabs button[aria-current="page"]:hover {
+    box-shadow: none;
+    color: var(--text);
+    background: var(--ih-bg-subtle);
+  }
+}
+
+/* 확인 창·알림 */
+.overlay {
+  background: rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.dialog {
+  background: var(--ih-bg-surface);
+  border: 1px solid var(--ih-border-subtle);
+  box-shadow: var(--ih-shadow-card);
+}
+.toast {
+  background: var(--ih-bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--ih-brand-primary);
+  border-radius: 12px;
+  box-shadow: var(--ih-shadow-card);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+/* 푸터: 라이엇 게임즈와 무관함을 알리는 문구 */
+.legal {
+  margin: 32px 16px 0;
+  padding: 20px 0 8px;
+  border-top: 1px solid var(--ih-border-subtle);
+  color: var(--ih-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.legal p + p {
+  margin-top: 4px;
+}
+@media (min-width: 720px) {
+  .legal {
+    margin: 40px 24px 0;
+  }
+}
+
+/* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
+/* 새 색을 만들지 않고 키트 토큰만 쓴다. 칭호 표식은 승률 색(rate-*)과 겹치지 않게
+   색 없이 본문 글자 + 옅은 바탕 + 테두리로만 구분한다(세 테마 모두 본문 대비 그대로). */
+.title-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--ih-border-strong);
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-bg-subtle);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+/* 하단 탭이 5개가 되어도 320px에서 넘치지 않게 좌우 여백을 줄인다. 높이(56px)는 그대로다. */
+@media (max-width: 719px) {
+  .tabs button,
+  .tabs button:not(:disabled):hover {
+    min-width: 0;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+}
+
+/* 범위 고르기(오늘·시즌·연도·전체): 좁은 화면에서도 한 줄에 들어가게 칸이 줄어들 수 있다.
+   긴 시즌 이름은 목록 상자 안에서 잘린다. */
+.scope-picker > button,
+.scope-picker > select {
+  flex: 1 1 3.5em;
+  min-width: 0;
+}
+.scope-picker > select {
+  padding-left: 6px;
+  padding-right: 4px;
+  text-overflow: ellipsis;
+}
+
+/* 지난 경기 입력 */
+.backfill {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.backfill fieldset {
+  margin: 0;
+}
+/* .input-row > :first-child(첫 칸만 늘림)보다 우선해 날짜·시각을 반씩 나눈다. */
+.input-row.backfill-when > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.backfill-when input {
+  min-width: 0;
+}
+.backfill-slot {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.backfill-slot input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.backfill-slot select {
+  flex: none;
+  width: 7.5em;
+  max-width: 45%;
+}
+
+/* 칭호 설정 */
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.title-row > input {
+  flex: 1 1 8em;
+  min-width: 0;
+}
+.title-min {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+}
+.title-min input {
+  width: 5em;
+}
+.title-rest {
+  min-width: 5em;
+}
+
+/* ---------- B: 로그인·복원·처리방침 ---------- */
+/* 키트 토큰만 쓴다. 예외: 카카오·Google 로그인 버튼의 색은 각 회사의 브랜드 지침이 정한 값이라
+   테마와 관계없이 고정한다(카카오 #FEE500 바탕·검정 85% 글자, Google 흰 바탕·#747775 테두리·#1F1F1F 글자). */
+
+.legal a,
+.privacy a,
+.login-buttons a {
+  color: var(--ih-link);
+}
+.legal-links {
+  margin-top: 8px;
+}
+.legal-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.login-buttons {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+}
+.login-btn:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+.login-symbol {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.login-buttons a.login-kakao {
+  background: #fee500;
+  color: rgba(0, 0, 0, 0.85);
+  border-radius: 12px;
+}
+.login-buttons a.login-google {
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid #747775;
+  border-radius: 4px;
+}
+
+.privacy section {
+  margin-top: 16px;
+}
+.privacy ul {
+  margin: 4px 0 8px;
+  padding-left: 1.2em;
+}
+.privacy li + li {
+  margin-top: 4px;
+}
+.privacy-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 4px 0 8px;
+}
+.privacy-facts dt {
+  color: var(--muted);
+}
+.privacy-facts dd {
+  margin: 0;
+}
+.table-scroll {
+  overflow-x: auto;
+  margin: 4px 0 8px;
+}
+.privacy-table,
+.restore-diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.privacy-table {
+  min-width: 34em;
+}
+.privacy-table th,
+.privacy-table td,
+.restore-diff th,
+.restore-diff td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.privacy-table thead th,
+.restore-diff thead th {
+  color: var(--muted);
+  font-weight: 700;
+}
+.restore-diff tbody th {
+  font-weight: 400;
+}
+.restore-caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.restore .file-pick {
+  margin: 8px 0;
+}
+.restore .file-pick input[type="file"] {
+  border: 1px dashed var(--line);
+  margin-top: 4px;
+}
+.restore-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.problem-list {
+  margin: 8px 0 0;
+  padding-left: 1.2em;
+}
+.problem-list li + li {
+  margin-top: 2px;
+}
+
+/* ---------- C: 경기 카드·대시보드·랭킹·비교·이미지 ---------- */
+/* 새 색을 만들지 않고 키트 토큰만 쓴다. 승·패는 색과 함께 글자(승/패)로 적는다. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.section-head h2 {
+  min-width: 0;
+}
+.sub-head {
+  margin: 10px 0 6px;
+  color: var(--muted);
+}
+
+/* 경기 카드: 머리 줄(경기 번호·결과·시각)이 경기 상세로 가는 버튼이고, 카드의 빈 곳도 같은 곳으로 간다.
+   이름 칸은 그 위에 따로 눌리는 버튼이다. 두 팀은 한 줄씩, 포지션이 있으면 라인 순서로 칸을 맞춘다. */
+.match-cards {
+  gap: 8px;
+}
+.match-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 6px 10px;
+  background: var(--ih-bg-surface);
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  min-width: 0;
+}
+.mc-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.mc-main,
+.mc-main:not(:disabled):hover {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 2px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-weight: 700;
+}
+/* 카드 전체를 덮는 누름 영역. 이름 버튼과 동작 버튼은 그 위에 놓인다. */
+.mc-main::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.mc-main:focus-visible {
+  outline-offset: -2px;
+}
+.mc-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mc-when {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mc-result {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75em;
+  height: 1.75em;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+}
+.mc-action {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+.mc-grid {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  /* 빈 곳을 누르면 아래의 카드 누름 영역으로 간다. */
+  pointer-events: none;
+  min-width: 0;
+}
+.mc-roles,
+.mc-team {
+  display: grid;
+  grid-template-columns: 2.25rem repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  align-items: center;
+  min-width: 0;
+}
+.mc-roles {
+  padding-bottom: 2px;
+}
+.mc-role {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+.mc-role .pos {
+  width: auto;
+  gap: 2px;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.mc-role .role-icon {
+  width: 12px;
+  height: 12px;
+}
+.mc-team-label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+.mc-team.is-win .mc-team-label {
+  color: var(--text);
+}
+.mc-name,
+.mc-name:not(:disabled):hover {
+  pointer-events: auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 3px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 좁은 칸에서도 이름을 최대 두 줄까지 보여주고, 넘치면 말줄임표. 전체 이름은 title에 있다. */
+.mc-name-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  min-width: 0;
+  line-height: 1.2;
+  word-break: break-all;
+}
+.mc-name:not(:disabled):hover {
+  text-decoration: underline;
+}
+@media (max-width: 419px) {
+  .mc-roles,
+  .mc-team {
+    grid-template-columns: 1.6rem repeat(5, minmax(0, 1fr));
+  }
+  .match-card {
+    padding: 0 6px 6px 8px;
+  }
+  .mc-name,
+  .mc-name:not(:disabled):hover {
+    padding: 0 1px;
+    font-size: 0.75rem;
+  }
+}
+.mc-team.is-win .mc-name {
+  color: var(--text);
+  font-weight: 800;
+}
+.mc-name.is-me,
+.mc-name.is-me:not(:disabled):hover {
+  color: var(--text);
+  background: var(--picked);
+  box-shadow: inset 0 -3px 0 var(--ih-brand-primary);
+}
+@media (min-width: 720px) {
+  .mc-name,
+  .mc-name:not(:disabled):hover {
+    font-size: 0.875rem;
+  }
+  .mc-roles,
+  .mc-team {
+    grid-template-columns: 2.5rem repeat(5, minmax(0, 1fr));
+  }
+}
+
+/* 최근 승패 칸과 연승·연패 */
+.form-dots {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.form-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.form-dot.win {
+  background: var(--ih-win-bg);
+  border: 1px solid var(--ih-win-border);
+  color: var(--ih-win-text);
+}
+/* 패는 모서리를 각지게 해 모양으로도 구분한다. */
+.form-dot.loss {
+  background: var(--ih-loss-bg);
+  border: 1px solid var(--ih-loss-border);
+  border-radius: 0;
+  color: var(--ih-loss-text);
+}
+.streak {
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.streak.win {
+  color: var(--ih-win-text);
+}
+.streak.loss {
+  color: var(--ih-loss-text);
+}
+
+/* 랭킹 줄과 조작 */
+.rank-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.rank-controls .segmented {
+  flex: 1 1 14rem;
+}
+.rank-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.rank-line select {
+  color: var(--text);
+}
+.rank-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.rank-name {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+.rank-person {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.form-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+/* 경기 거르기 */
+.match-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.match-filter .filter-row label {
+  flex: 1 1 40%;
+}
+.filter-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 8px;
+  margin-bottom: 8px;
+  padding: 0 4px 0 12px;
+  background: var(--ih-bg-elevated);
+  border: 1px solid var(--ih-border-strong);
+  border-radius: var(--ih-radius-md);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.filter-summary > span {
+  min-width: 0;
+  padding: 6px 0;
+}
+
+/* 개인 통계 요약 */
+.person-summary .ps-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.ps-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ps-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tile-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ps-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.ps-tiles > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--ih-bg-elevated);
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+}
+.ps-tiles dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+.ps-tiles dd .pos {
+  width: auto;
+  font-size: 1rem;
+  color: var(--text);
+}
+.ps-tiles dd .streak {
+  font-size: 1rem;
+}
+.tile-sub {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.tile-link,
+.tile-link:not(:disabled):hover {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  font-size: 1rem;
+}
+@media (min-width: 720px) {
+  .ps-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* 누적 승률 추이(작은 선 그래프) */
+.trend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+.trend svg {
+  display: block;
+  width: 100%;
+  height: 72px;
+  border-radius: 8px;
+}
+.trend-bg {
+  fill: var(--ih-bg-elevated);
+}
+.trend-mid {
+  stroke: var(--viz-axis);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.trend-path {
+  fill: none;
+  stroke: var(--viz-series);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.trend-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.trend-caption strong {
+  color: var(--text);
+}
+
+/* 홈 요약 */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dash-grid {
+  display: grid;
+  gap: 12px;
+}
+.dash-grid > section {
+  min-width: 0;
+}
+.dash-empty-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+@media (min-width: 720px) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* 두 사람 비교 */
+.vs {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.screen-head h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.compare-pick label {
+  flex: 1 1 40%;
+}
+.cmp-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-table th,
+.cmp-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--ih-border-subtle);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.cmp-table thead th {
+  vertical-align: bottom;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.cmp-table th[scope="row"] {
+  width: 28%;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.cmp-table th[scope="row"] .pos {
+  width: auto;
+}
+.cmp-sub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.cmp-small {
+  font-size: 0.8125rem;
+}
+.cmp-name,
+.cmp-name:not(:disabled):hover {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.cmp-big {
+  font-size: 1.125rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.cmp-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--ih-bg-subtle);
+}
+.cmp-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ih-brand-primary);
+}
+
+/* 참가자 고르기: 넓은 화면은 여러 열 */
+.pick-item {
+  min-height: 52px;
+}
+.pick-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.pick-meta {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.pick-order {
+  flex: none;
+}
+.pick-order button {
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+}
+@media (min-width: 720px) {
+  .pick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 6px;
+  }
+}
+
+/* 결과 이미지 미리보기: 길게 눌러 저장할 수 있게 그대로 띄운다. */
+.share-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60dvh;
+  object-fit: contain;
+  background: var(--bg);
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+}
+
+/* ---------- D: 합치기·삭제 ---------- */
+/* 새 색을 만들지 않는다. 고르기 칸은 좁은 화면(320px)에서도 넘치지 않게 줄 전체를 쓴다. */
+.merge-select {
+  width: 100%;
+  max-width: 100%;
+}
+.merge-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.merge-table {
+  min-width: 18em;
+}
+.merge-table th,
+.merge-table td {
+  overflow-wrap: anywhere;
+}
+.merge-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.danger-box {
+  border: 1px solid var(--danger);
+  border-radius: var(--ih-radius-md);
+  padding: 12px;
+  margin: 12px 0;
+}
+.danger-box h2 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 모임 탭의 묶음(접고 펴기). 묶음 제목은 구역 제목(h2)보다 크게, 묶음 안의 구역은 선으로 나눈다. */
+.group-block {
+  padding: 4px 16px 12px;
+}
+.group-block > summary {
+  font-size: 1.0625rem;
+}
+.group-block-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.group-block-body > section + section {
+  border-top: 1px solid var(--ih-border-subtle);
+  padding-top: 12px;
+}
+.group-block-body h2 {
+  margin-top: 0;
+}
+.danger-block {
+  border-color: var(--danger);
+}
+.danger-block > summary {
+  color: var(--danger);
+}
+
+/* ---------- F: 시트 가져오기 ---------- */
+/* 단계 표시(1 링크 → 2 열 맞추기 → 3 확인 → 4 가져오기). 지금 단계는 글자 굵기와 테두리로도 구분한다. */
+.sheet-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  font-size: 0.8125rem;
+}
+.sheet-steps li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border-bottom: 3px solid var(--line);
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sheet-steps li.current {
+  border-bottom-color: var(--primary);
+  color: var(--text);
+  font-weight: 700;
+}
+.sheet-step-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: var(--ih-radius-pill);
+  border: 1px solid currentColor;
+}
+.sheet-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.sheet-options label,
+.sheet-col label,
+.sheet-links label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.sheet-cols {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.sheet-col {
+  border: 1px solid var(--line);
+  border-radius: var(--ih-radius-md);
+  padding: 8px;
+  min-width: 0;
+}
+.sheet-col-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.sheet-col-sample {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-col select,
+.sheet-options select,
+.sheet-options input,
+.sheet-links select {
+  width: 100%;
+  min-width: 0;
+}
+/* 큰 표는 이 상자 안에서만 가로로 움직인다. 화면 전체는 넘치지 않는다. */
+.sheet-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--ih-radius-md);
+  -webkit-overflow-scrolling: touch;
+}
+.sheet-table {
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.sheet-table th,
+.sheet-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--ih-border-subtle);
+  text-align: left;
+  max-width: 14em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sheet-table thead th {
+  background: var(--ih-bg-elevated);
+  position: sticky;
+  top: 0;
+}
+.sheet-table tbody th {
+  color: var(--muted);
+  font-weight: 400;
+}
+.sheet-role {
+  font-weight: 400;
+  color: var(--muted);
+}
+.sheet-row-header td {
+  font-weight: 700;
+  background: var(--ih-bg-elevated);
+}
+.sheet-row-skipped td {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.sheet-row-error th,
+.sheet-row-error td {
+  background: var(--warn-bg);
+}
+.sheet-row-error th {
+  color: var(--text);
+}
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.sheet-names {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sheet-links {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------- 상단 바 로그인 상태 · 모임이 없을 때의 시작 안내 ---------- */
+/* 새 색을 만들지 않고 키트 토큰만 쓴다. [로그인]은 채운 버튼(흰 글자 / --ih-brand-fill),
+   [로그인됨]은 본문 글자 / --ih-bg-elevated 라 세 테마 모두 대비 4.5:1을 넘는다. */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.topbar-login,
+.topbar-account-button {
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.topbar-account {
+  position: relative;
+}
+.topbar-account-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-color: var(--ih-border-strong);
+}
+/* 로그인돼 있다는 점 표시. 글자(로그인됨)가 뜻을 전하고 점은 꾸밈이다. */
+.account-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-ok-text);
+}
+.account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 6;
+  display: grid;
+  gap: 8px;
+  width: min(260px, calc(100vw - 32px));
+  padding: 12px;
+  background: var(--ih-bg-surface);
+  color: var(--text);
+  border: 1px solid var(--ih-border-strong);
+  border-radius: var(--ih-radius-md);
+  box-shadow: var(--ih-shadow-card);
+  font-size: 0.875rem;
+}
+.account-menu p {
+  margin: 0;
+}
+/* 좁은 화면: 로고 글자를 숨겨 테마·로그인이 한 줄에 들어가게 한다. 이름은 로고 링크의 aria-label로 남는다. */
+@media (max-width: 399px) {
+  .topbar-operator .topbar-inner {
+    gap: 8px;
+  }
+  .topbar-operator .brand > span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+/* 720~1023px: 주 메뉴를 가운데에 두면 오른쪽의 테마·로그인과 겹치므로 로고 바로 옆으로 붙이고 칸을 줄인다. */
+@media (min-width: 720px) and (max-width: 1023px) {
+  .tabs {
+    left: 160px;
+    transform: none;
+  }
+  .tabs button,
+  .tabs button:not(:disabled):hover {
+    min-width: 60px;
+    padding: 8px 10px;
+  }
+}
+
+/* 모임이 없는 계정의 모임 탭: 시작하는 길 세 가지 */
+.start-card {
+  margin-top: 12px;
+}
+.start-card h2 {
+  margin: 0;
+}
+.start-card .hint {
+  margin: 0;
+}
+.start-card .file-pick input[type="file"] {
+  border: 1px dashed var(--line);
+  margin-top: 4px;
+}
+
+/* ---------- 자체 계정: 로그인·회원가입 창, 복구 코드 ---------- */
+/* 새 색 없이 키트 토큰만 쓴다. 틀린 이유는 경고 색(--warn-line) 글자 + 기호로 적는다(세 테마 4.5:1 이상). */
+.local-login {
+  display: grid;
+  gap: 10px;
+}
+.local-login form {
+  display: grid;
+  gap: 12px;
+}
+.local-title {
+  margin: 0;
+  font-size: 1rem;
+}
+/* [로그인 | 회원가입] 전환: 기존 .segmented의 고른 칸 모양을 탭(aria-selected)에도 쓴다. */
+.segmented button[role="tab"][aria-selected="true"],
+.segmented button[role="tab"][aria-selected="true"]:hover {
+  border: 1px solid transparent;
+  background: var(--ih-brand-fill);
+  color: #ffffff;
+  font-weight: 700;
+}
+/* 고르지 않은 탭 글자는 보조 글자색보다 진하게(라이트 테마에서도 4.5:1). */
+.segmented button[role="tab"][aria-selected="false"] {
+  color: var(--text);
+}
+.field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.field > label {
+  font-weight: 700;
+}
+.field .field-rule {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+.field-problem {
+  margin: 0;
+  color: var(--warn-line);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.field-problem::before {
+  content: "! ";
+}
+.password-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.password-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.password-row button {
+  flex: none;
+  white-space: nowrap;
+}
+.login-other {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ih-border-subtle);
+}
+.login-or {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+/* 개발용 로그인: 자체 계정 칸과 섞이지 않게 점선 상자로 따로 둔다. */
+.dev-login {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px dashed var(--ih-border-strong);
+  border-radius: var(--ih-radius-md);
+}
+.recovery-step {
+  display: grid;
+  gap: 10px;
+}
+.recovery-code {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--ih-border-strong);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-elevated);
+  color: var(--text);
+  text-align: center;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  /* 좁은 화면에서는 붙임표 자리에서 줄을 바꾼다. */
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.recovery-code code {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+/* 열이 많은 표의 열 고르기(접을 수 있음)와 가로로 긴 표 미리보기. */
+.sheet-col-picker > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  cursor: pointer;
+}
+.sheet-col-picker > summary .inline-heading {
+  display: inline;
+  margin: 0;
+}
+.across-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+/* 이름이 긴 버튼(모임 만들고 기존 사이트 기록 가져오기 등)이 좁은 화면(320px)에서 넘치지 않게 줄을 바꾼다. */
+.button-row > button {
+  max-width: 100%;
+  white-space: normal;
 }
