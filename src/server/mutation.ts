@@ -8,6 +8,18 @@ export interface Plan {
   statements: D1PreparedStatement[];
   /** 요청 기록에 남겨 재시도 때 그대로 돌려줄 값. */
   stored: Record<string, unknown>;
+  /**
+   * 한 batch에 다 넣지 못하는 큰 작업(백업 복원)만 쓴다. statements보다 먼저 차례로 실행하는 batch들.
+   * 첫 batch는 모임을 점검 상태(maintenance = 1)로 바꿔야 하고, 마지막(statements)이 점검을 푼다.
+   * 첫 batch가 실패하면 아무것도 바뀌지 않는다. 그 뒤에 실패하면 점검 상태가 남아 다른 쓰기는 거절되고,
+   * 같은 작업을 다시 실행해 끝낼 수 있어야 한다(allowMaintenance).
+   */
+  stages?: D1PreparedStatement[][];
+  /**
+   * 단계 실행 뒤 실패했을 때(점검 상태가 남을 때) 한 번 실행해 보는 문장. 복원은 여기서 작업 잠금을 놓아
+   * 같은 파일로 바로 다시 복원할 수 있게 한다. 실패해도 무시한다(잠금은 시간이 지나면 이어받을 수 있다).
+   */
+  release?: D1PreparedStatement[];
 }
 
 export interface MutationArgs {
@@ -21,7 +33,14 @@ export interface MutationArgs {
   build: () => Promise<Plan>;
   /** batch가 제약 위반으로 실패했을 때 돌려줄 오류의 부가 정보. */
   conflictDetails?: () => Promise<unknown>;
+  /** 점검 중인 모임에서도 이 요청을 받아들일지. 끊긴 복원을 다시 실행할 때만 true를 돌려준다. */
+  allowMaintenance?: () => Promise<boolean>;
+  /** 단계(stages)마다 끝난 뒤 부른다. 테스트에서 "중간에 끊긴 복원"을 만들 때 쓴다. */
+  onStageDone?: (index: number) => void | Promise<void>;
 }
+
+const RESTORE_INCOMPLETE_MESSAGE =
+  "복원이 중간에 멈췄습니다. 모임은 점검 상태로 두었습니다. 같은 백업 파일로 복원을 다시 실행하면 끝납니다.";
 
 export async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -73,11 +92,36 @@ export async function runMutation(
     .bind(args.groupId)
     .first<{ maintenance: number }>();
   if (!group) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
-  if (group.maintenance === 1) {
-    throw new ApiError(503, "MAINTENANCE", "모임을 점검하는 중입니다. 잠시 뒤 다시 시도해 주세요.");
+  if (group.maintenance === 1 && !(args.allowMaintenance && (await args.allowMaintenance()))) {
+    throw maintenanceError();
   }
 
   const plan = await args.build();
+  const stages = plan.stages ?? [];
+  // 단계 도중 실패: 다른 실행이 작업을 이어받아 주인 확인에서 멈췄으면 그 실행에 맡기고, 아니면 잠금을 놓는다.
+  const incomplete = async (error: unknown): Promise<ApiError> => {
+    if (isJobBusy(error)) return takenOverError();
+    if (plan.release && plan.release.length > 0) {
+      try {
+        await env.DB.batch(plan.release);
+      } catch {
+        // 놓지 못하면 JOB_STALE_MS 뒤에 이어받을 수 있다.
+      }
+    }
+    return new ApiError(503, "RESTORE_INCOMPLETE", RESTORE_INCOMPLETE_MESSAGE);
+  };
+  for (let i = 0; i < stages.length; i++) {
+    let ran = false;
+    try {
+      await env.DB.batch(stages[i]!);
+      ran = true;
+      await args.onStageDone?.(i);
+    } catch (error) {
+      // 첫 단계가 실패하면 아무것도 바뀌지 않았다: 보통의 실패처럼 다룬다.
+      if (i === 0 && !ran) throw await classifyBatchError(args, error);
+      throw await incomplete(error);
+    }
+  }
   const now = nowIso();
   const cutoff = new Date(Date.now() - REQUEST_RETENTION_DAYS * 86400_000).toISOString();
   const statements = [
@@ -98,35 +142,70 @@ export async function runMutation(
     // 같은 요청이 동시에 먼저 처리됐을 수 있다.
     const after = await findRequest(env, args.groupId, args.requestId);
     if (after) return { stored: replay(after, hash), replayed: true };
-
-    const message = error instanceof Error ? error.message : String(error);
-    const details = args.conflictDetails ? await args.conflictDetails() : undefined;
-    if (
-      message.includes("guard_version_conflict") ||
-      message.includes("guard_state_conflict") ||
-      message.includes("uq_matches_in_progress") ||
-      message.includes("matches.group_id") ||
-      message.includes("uq_sessions_open") ||
-      message.includes("sessions.group_id")
-    ) {
-      throw new ApiError(
-        409,
-        "VERSION_CONFLICT",
-        "그 사이 내용이 바뀌었습니다. 최신 상태를 확인해 주세요.",
-        details,
-      );
-    }
-    if (message.includes("uq_rotation_used") || message.includes("rotation_events.")) {
-      throw new ApiError(
-        409,
-        "ROTATION_CONFLICT",
-        "서포터 차례 기록이 그 사이 바뀌었습니다. 최신 상태를 확인해 주세요.",
-        details,
-      );
-    }
-    throw error;
+    // 단계 실행 뒤 마지막 batch가 실패하면 점검 상태가 남는다.
+    if (stages.length > 0) throw await incomplete(error);
+    throw await classifyBatchError(args, error);
   }
   return { stored: plan.stored, replayed: false };
+}
+
+export function maintenanceError(): ApiError {
+  return new ApiError(
+    503,
+    "MAINTENANCE",
+    "모임을 점검하는 중입니다(백업 복원 중). 잠시 뒤 화면을 새로 고친 뒤 다시 시도해 주세요. 입력한 내용은 그대로 있어요.",
+  );
+}
+
+/** 복원·삭제 작업 잠금의 주인 확인(guard_job_busy, migrations/0008)에 걸린 실패인지. */
+function isJobBusy(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("guard_job_busy");
+}
+
+function takenOverError(): ApiError {
+  return new ApiError(
+    409,
+    "RESTORE_IN_PROGRESS",
+    "다른 복원(또는 모임 삭제)이 이 작업을 이어받아 이 요청은 멈췄습니다. 화면을 새로 고쳐 결과를 확인해 주세요.",
+  );
+}
+
+/** batch 실패를 화면이 이해하는 오류로 바꾼다. */
+async function classifyBatchError(args: MutationArgs, error: unknown): Promise<unknown> {
+  const message = error instanceof Error ? error.message : String(error);
+  if (isJobBusy(error)) {
+    return new ApiError(
+      409,
+      "RESTORE_IN_PROGRESS",
+      "이 모임에서 다른 복원이 진행 중입니다. 잠시 뒤 화면을 새로 고쳐 확인해 주세요. 기존 기록은 그대로입니다.",
+    );
+  }
+  const details = args.conflictDetails ? await args.conflictDetails() : undefined;
+  if (
+    message.includes("guard_version_conflict") ||
+    message.includes("guard_state_conflict") ||
+    message.includes("uq_matches_in_progress") ||
+    message.includes("matches.group_id") ||
+    message.includes("uq_sessions_open") ||
+    message.includes("sessions.group_id")
+  ) {
+    return new ApiError(
+      409,
+      "VERSION_CONFLICT",
+      "그 사이 내용이 바뀌었습니다. 최신 상태를 확인해 주세요.",
+      details,
+    );
+  }
+  if (message.includes("uq_rotation_used") || message.includes("rotation_events.")) {
+    return new ApiError(
+      409,
+      "ROTATION_CONFLICT",
+      "서포터 차례 기록이 그 사이 바뀌었습니다. 최신 상태를 확인해 주세요.",
+      details,
+    );
+  }
+  return error;
 }
 
 /** 진행 상태 버전이 기대값과 다르면 batch를 실패시키는 보호 문장. */

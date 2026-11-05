@@ -9,17 +9,75 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  // ---------------------------------------------------------------------------
+  // 여기(맨 위)는 로컬 개발·테스트용이다. 운영은 아래 env.production을 쓴다:
+  //   npx wrangler deploy --env production
+  // 배포 순서와 비밀값 목록은 docs/배포안내.md에 있다.
+  // ---------------------------------------------------------------------------
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "naejeon",
-      // 로컬 개발용 자리 표시값이다. 운영 DB ID는 배포 단계에서 넣는다.
+      // 로컬 개발용 자리 표시값이다. 운영 DB ID는 env.production에 넣는다.
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
   "vars": {
-    // "fake"는 로컬·테스트 전용 로그인이다. 운영 배포에서는 다른 값으로 바꾼다.
-    "AUTH_MODE": "fake"
+    // "fake"는 로컬·테스트 전용 로그인이다. 운영(env.production)은 "oauth"다.
+    // 가짜 로그인과 테스트 훅(/api/test/*)은 허용 목록으로만 열린다: AUTH_MODE=fake 이고 DEPLOY_ENV=local 이고
+    // 요청 주소가 localhost·127.0.0.1·[::1]·*.test일 때만(src/server/auth.ts). 이 설정이 실수로 공개 주소에
+    // 올라가도(--env production 빠뜨림) 공개 주소에서는 열리지 않는다.
+    "AUTH_MODE": "fake",
+    "DEPLOY_ENV": "local",
+    // 로컬에서는 합성 데이터 넣기(npm run seed)와 브라우저 테스트가 한도에 걸리지 않게 넉넉히 둔다.
+    "RATE_WINDOW_SECONDS": "60",
+    "RATE_WRITE_PER_ACCOUNT": "5000",
+    "RATE_WRITE_PER_IP": "5000",
+    "RATE_AUTH_PER_IP": "5000",
+    "RATE_VIEW_PER_IP": "5000",
+    "RATE_HEAVY_PER_ACCOUNT": "5000",
+    "RATE_HEAVY_PER_IP": "5000",
+    "RATE_SIGNUP_PER_IP": "5000",
+    "RATE_LOGIN_PER_IP": "5000",
+    "RATE_RECOVER_PER_IP": "5000"
+  },
+  "env": {
+    "production": {
+      // 운영 Worker 이름. 주소는 https://naejeon-v2-production.<계정>.workers.dev 또는 연결한 도메인.
+      "name": "naejeon-v2-production",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "naejeon-prod",
+          // [채워야 함] `npx wrangler d1 create naejeon-prod`가 알려주는 database_id로 바꾼다.
+          "database_id": "REPLACE-WITH-PRODUCTION-D1-ID",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "AUTH_MODE": "oauth",
+        // 이 값이 있으면 AUTH_MODE=fake나 빠진 비밀값을 서버가 거절한다(src/server/auth.ts).
+        "DEPLOY_ENV": "production",
+        // [채워야 함] 실제 서비스 주소(https). OAuth 리디렉션 URI가 이 주소 + /api/auth/{kakao|google}/callback 이다.
+        "PUBLIC_ORIGIN": "https://REPLACE-WITH-YOUR-DOMAIN",
+        "SESSION_TTL_HOURS": "720",
+        "RATE_WINDOW_SECONDS": "60",
+        "RATE_WRITE_PER_ACCOUNT": "60",
+        "RATE_WRITE_PER_IP": "120",
+        "RATE_AUTH_PER_IP": "20",
+        "RATE_VIEW_PER_IP": "120",
+        // 비싼 읽기(백업 내려받기·합치기 미리보기·가져오기 지문 목록).
+        "RATE_HEAVY_PER_ACCOUNT": "60",
+        "RATE_HEAVY_PER_IP": "120",
+        // 자체 계정(아이디 + 비밀번호) 경로의 IP별 한도. 아이디별 틀린 시도 제한(15분에 로그인 10·복구 5)은
+        // 코드에 고정이다(src/server/local.ts). 자체 계정을 끄려면 "LOCAL_ACCOUNTS": "off"를 더한다.
+        "RATE_SIGNUP_PER_IP": "5",
+        "RATE_LOGIN_PER_IP": "10",
+        "RATE_RECOVER_PER_IP": "5"
+      }
+      // 비밀값(wrangler secret put ... --env production): SESSION_SECRET,
+      // KAKAO_CLIENT_ID, KAKAO_CLIENT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+    }
   }
 }

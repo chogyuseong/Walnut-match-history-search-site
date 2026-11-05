@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { applyTeams, createDraft, type DraftPerson } from "../../shared/draft";
 import { nameKey, parseNameList } from "../../shared/names";
-import { recommendTeams } from "../../shared/recommend";
+import { participation } from "../../shared/insights";
+import { lastMatchPeople } from "../../shared/lastPick";
+import { remapPeople } from "../../shared/merge";
+import { diversityFor, recommendTeams } from "../../shared/recommend";
+import { latestSessionId } from "../../shared/stats";
 import { formatDate } from "../format";
 import { StickyAction } from "../ui";
 import { go, useAppValue } from "../useApp";
@@ -34,22 +38,48 @@ export function Pick() {
     }
   }, [selected]);
 
+  // 합치기 뒤 최신 상태를 받으면 화면에 든 고른 목록의 합쳐진 사람도 남은 사람으로 바꾼다
+  // (기기 보관분은 useApp이 바꾸지만 이미 열린 화면의 상태는 여기서 바꿔야 한다).
+  const participants = app.snapshot?.participants;
+  useEffect(() => {
+    if (!participants?.some((p) => p.mergedInto)) return;
+    setSelected((current) => {
+      const remapped = remapPeople(current, participants);
+      return remapped.changed ? remapped.people : current;
+    });
+  }, [participants]);
+
+  // 기본은 최근 참가 순(docs/P2 P2-11). 자주 나온 순·이름 순은 고를 수 있다.
+  const [order, setOrder] = useState<"recent" | "often" | "name">("recent");
+  // 사람별 누적 경기 수(확정 경기)와 마지막으로 나온 경기. 목록 정렬과 표시에 쓴다.
+  const seen = useMemo(() => participation(app.snapshot?.matches ?? []), [app.snapshot]);
+  const lastSession = useMemo(() => (app.snapshot ? latestSessionId(app.snapshot) : null), [app.snapshot]);
   const known: DraftPerson[] = useMemo(
     () =>
       (app.snapshot?.participants ?? [])
         .filter((p) => p.status === "active")
-        .map((p) => ({ key: `p:${p.id}`, name: p.name, participantId: p.id }))
-        // 찾기 쉽도록 이름순으로 보여준다.
-        .sort((a, b) => a.name.localeCompare(b.name, "ko")),
+        .map((p) => ({ key: `p:${p.id}`, name: p.name, participantId: p.id })),
     [app.snapshot],
   );
+  // 최근 참가 순: 마지막으로 나온 경기 → 누적 경기 수 → 이름.
+  // 자주 나온 순: 누적 경기 수 → 최근에 나온 순 → 이름. 이름 순: 가나다.
+  const ordered = useMemo(() => {
+    const byName = (a: DraftPerson, b: DraftPerson) => a.name.localeCompare(b.name, "ko");
+    if (order === "name") return [...known].sort(byName);
+    return [...known].sort((a, b) => {
+      const sa = seen.get(a.participantId!);
+      const sb = seen.get(b.participantId!);
+      const games = (sb?.games ?? 0) - (sa?.games ?? 0);
+      const recent = (sb?.lastPlayedAt ?? "").localeCompare(sa?.lastPlayedAt ?? "");
+      return (order === "recent" ? recent || games : games || recent) || byName(a, b);
+    });
+  }, [known, seen, order]);
 
-  const lastMatch = useMemo(() => {
-    const matches = (app.snapshot?.matches ?? []).filter(
-      (m) => m.source === "live" && m.state !== "canceled",
-    );
-    return matches.sort((a, b) => b.matchNo - a.matchNo)[0] ?? null;
-  }, [app.snapshot]);
+  // 지난 참가자 불러오기(docs/P4 시나리오 15). 계산은 src/shared/lastPick.ts가 한다.
+  const last = useMemo(
+    () => (app.snapshot ? lastMatchPeople(app.snapshot.matches, app.snapshot.participants) : null),
+    [app.snapshot],
+  );
 
   const selectedKeys = new Set(selected.map((p) => p.key));
   const selectedNames = new Set(selected.map((p) => nameKey(p.name)));
@@ -128,7 +158,19 @@ export function Pick() {
       skillGroup: (p.participantId ? groupOf.get(p.participantId) : null) ?? null,
     }));
     if (app.snapshot && recPeople.some((p) => p.skillGroup !== null)) {
-      const [best] = recommendTeams(recPeople, app.snapshot.group.settings.groupWeights, seed, 1);
+      // 준비 화면의 추천과 같게 조합 다양성(모임 설정, 기본 켜짐)을 반영한다.
+      const diversity = diversityFor(
+        { matches: app.snapshot.matches, settings: app.snapshot.group.settings },
+        selected,
+      );
+      const [best] = recommendTeams(
+        recPeople,
+        app.snapshot.group.settings.groupWeights,
+        seed,
+        1,
+        [],
+        diversity,
+      );
       if (best) draft = { ...applyTeams(draft, best.teamA), previousSlots: null };
     }
     app.setDraft(draft);
@@ -137,7 +179,19 @@ export function Pick() {
   }
 
   const query = nameKey(text);
-  const visible = known.filter((p) => query === "" || nameKey(p.name).includes(query));
+  const visible = ordered.filter((p) => query === "" || nameKey(p.name).includes(query));
+  const tz = app.snapshot?.group.timezone;
+  const seenText = (id: string | null): string => {
+    const s = id ? seen.get(id) : undefined;
+    if (!s || s.lastPlayedAt === "") return "아직 경기 없음";
+    const inLatest = lastSession !== null && s.lastSessionId === lastSession;
+    const when = inLatest
+      ? app.snapshot?.session?.id === lastSession
+        ? "이번 세션 참가"
+        : "지난 세션 참가"
+      : `마지막 ${formatDate(s.lastPlayedAt, tz)}`;
+    return `${s.games}경기 · ${when}`;
+  };
   const missing = 10 - selected.length;
 
   return (
@@ -152,22 +206,23 @@ export function Pick() {
         </strong>
       </header>
 
-      {lastMatch && (
+      {last && (
         <button
           type="button"
           className="secondary wide"
           onClick={() => {
-            const ids = new Set(lastMatch.roster.map((r) => r.participantId));
-            const people = known.filter((p) => p.participantId && ids.has(p.participantId));
-            setSelected(people.slice(0, 10));
+            setSelected(last.people);
             setMessages(
-              people.length < 10
-                ? [`지난 참가자 중 ${people.length}명만 불러왔어요. 나머지는 보관된 참가자입니다.`]
+              last.missing > 0
+                ? [
+                    `지난 참가자 중 ${last.people.length}명만 불러왔어요. ${last.missing}명은 보관된 참가자라 뺐습니다.`,
+                  ]
                 : ["지난 참가자를 불러왔어요. 오늘 참가자와 다르면 바꿔 주세요."],
             );
           }}
         >
-          지난 참가자 불러오기 · {formatDate(lastMatch.playedAt, app.snapshot?.group.timezone)} 10명
+          지난 참가자 불러오기 · {formatDate(last.match.playedAt, app.snapshot?.group.timezone)}{" "}
+          {last.people.length}명
         </button>
       )}
 
@@ -260,22 +315,38 @@ export function Pick() {
 
       {known.length > 0 && (
         <section aria-label="전체 참가자">
-          <h2>전체</h2>
-          <ul className="list">
+          <div className="section-head">
+            <h2>전체 {known.length}명</h2>
+            <div className="segmented pick-order" role="group" aria-label="참가자 정렬">
+              <button type="button" aria-pressed={order === "recent"} onClick={() => setOrder("recent")}>
+                최근 참가 순
+              </button>
+              <button type="button" aria-pressed={order === "often"} onClick={() => setOrder("often")}>
+                자주 나온 순
+              </button>
+              <button type="button" aria-pressed={order === "name"} onClick={() => setOrder("name")}>
+                이름 순
+              </button>
+            </div>
+          </div>
+          <ul className="list pick-grid">
             {visible.map((p) => {
               const isSelected = selectedKeys.has(p.key);
               return (
                 <li key={p.key}>
                   <button
                     type="button"
-                    className={isSelected ? "list-row selected" : "list-row"}
+                    className={isSelected ? "list-row pick-item selected" : "list-row pick-item"}
                     aria-pressed={isSelected}
                     onClick={() => {
                       if (isSelected) setSelected(selected.filter((s) => s.key !== p.key));
                       else add([p], []);
                     }}
                   >
-                    <span className="name">{isSelected ? "✓ " : ""}{p.name}</span>
+                    <span className="pick-text">
+                      <span className="name">{isSelected ? "✓ " : ""}{p.name}</span>
+                      <span className="pick-meta">{seenText(p.participantId)}</span>
+                    </span>
                     {isSelected && <span className="tag">선택됨</span>}
                   </button>
                 </li>

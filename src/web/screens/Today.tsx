@@ -1,8 +1,11 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { personRecords, searchByName, todayMatches } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
-import { formatTime, matchTone, nameMap, rateTier, resultLine } from "../format";
-import { ErrorNote, KpiStrip } from "../ui";
+import { formatTime, nameMap, rateTier, standingsOf } from "../format";
+import { MatchCard } from "../matchCard";
+import { drawDayImage, fileDate, ShareImageDialog } from "../shareImage";
+import { ErrorNote, KpiStrip, StandingNote } from "../ui";
+import { Dashboard, DashboardEmpty } from "./Dashboard";
 import { go, useAppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 import { ResultSheet } from "./ResultSheet";
@@ -18,19 +21,22 @@ export function Today() {
   const closeRequest = useRef<string | null>(null);
   // "버리기" 직후에만 쓰는 되돌리기.
   const [undo, setUndo] = useState<(() => void) | null>(null);
+  const [imageOpen, setImageOpen] = useState(false);
 
   const snapshot = app.snapshot;
-  const nameOf = nameMap(snapshot);
+  const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const current = snapshot?.matches.find((m) => m.state === "in_progress") ?? null;
   const awaiting = (snapshot?.matches ?? [])
     .filter((m) => m.state === "awaiting_result")
     .sort((a, b) => b.matchNo - a.matchNo);
-  const today = snapshot ? todayMatches(snapshot) : [];
+  const today = useMemo(() => (snapshot ? todayMatches(snapshot) : []), [snapshot]);
+  const todayIds = useMemo(() => new Set(today.map((m) => m.id)), [today]);
   const confirmedToday = today.filter((m) => m.state === "confirmed");
   const hasAnyMatch = (snapshot?.matches.length ?? 0) > 0;
   // 전적 검색은 범위 없이 전체 누적 기록에서 찾는다.
   const [query, setQuery] = useState("");
-  const allTime = personRecords(snapshot?.matches ?? []);
+  const allTime = useMemo(() => personRecords(snapshot?.matches ?? []), [snapshot]);
+  const standing = useMemo(() => (snapshot ? standingsOf(snapshot) : null), [snapshot]);
   const found = searchByName(
     [...allTime.values()].map((r) => ({ ...r, name: nameOf(r.participantId) })),
     query,
@@ -179,6 +185,10 @@ export function Today() {
                           </span>{" "}
                           · {r.wins}승 {r.losses}패 (
                           {r.games}경기)
+                          <br />
+                          <span className="hint">
+                            <StandingNote standing={standing?.get(r.participantId)} />
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -210,26 +220,35 @@ export function Today() {
 
       {today.length > 0 && (
         <section aria-label="오늘의 결과">
-          <h2>오늘의 결과 · {confirmedToday.length}경기 확정</h2>
-          <ul className="list">
+          <div className="section-head">
+            <h2>오늘의 결과 · {confirmedToday.length}경기 확정</h2>
+            {confirmedToday.length > 0 && (
+              <button type="button" className="secondary" onClick={() => setImageOpen(true)}>
+                결과 이미지
+              </button>
+            )}
+          </div>
+          <ul className="list match-cards">
             {[...today].reverse().map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  className={`list-row match-row tone-${matchTone(m)}`}
-                  onClick={() => go(`/m/${m.id}`)}
-                >
-                  <span>
-                    {m.matchNo}경기 · {resultLine(m)}
-                  </span>
-                  <span className="hint">
-                    {formatTime(m.confirmedAt ?? m.startedAt, snapshot?.group.timezone)}
-                  </span>
-                </button>
-              </li>
+              <MatchCard
+                key={m.id}
+                match={m}
+                nameOf={nameOf}
+                timeZone={snapshot?.group.timezone ?? "Asia/Seoul"}
+                onOpen={() => go(`/m/${m.id}`)}
+                onPerson={(id) => go(`/p/${id}`)}
+              />
             ))}
           </ul>
         </section>
+      )}
+      {imageOpen && snapshot && confirmedToday.length > 0 && (
+        <ShareImageDialog
+          title="오늘의 결과 이미지"
+          fileName={`오늘의결과-${fileDate(confirmedToday[0]!.playedAt, snapshot.group.timezone)}.png`}
+          make={() => drawDayImage(snapshot, today)}
+          onClose={() => setImageOpen(false)}
+        />
       )}
 
       {snapshot?.session && !current && (
@@ -241,12 +260,26 @@ export function Today() {
       )}
       <ErrorNote error={error} />
 
+      {snapshot ? (
+        <Dashboard
+          snapshot={snapshot}
+          skipIds={todayIds}
+          openMatch={(id) => go(`/m/${id}`)}
+          openPerson={(id) => go(`/p/${id}`)}
+          openRanking={() => go("/records")}
+        />
+      ) : (
+        app.ready && <DashboardEmpty />
+      )}
+
       {app.ready && !app.me?.accountId && (
         <p className="hint">
-          팀 짜기와 명단 복사는 로그인 없이 됩니다. 경기를 저장할 때 로그인합니다.{" "}
+          팀 짜기와 명단 복사는 로그인 없이 됩니다. 경기를 저장하거나 지난 기록을 가져올 때 로그인합니다.
+          이미 쓰고 있다면 맨 위 [로그인]을 누르거나{" "}
           <button type="button" className="link" onClick={() => setLoginOpen(true)}>
-            이미 쓰고 있다면 로그인
+            여기서 로그인
           </button>
+          하세요.
         </p>
       )}
 

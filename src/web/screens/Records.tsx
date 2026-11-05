@@ -1,14 +1,29 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  anchorRecord,
+  EMPTY_FILTER,
+  filterMatches,
+  isFilterActive,
+  lineRanking,
+  matchesWithoutPositions,
+  newestFirst,
+  personForms,
+  rankAndSearch,
+  RANKING_SORT_LABEL,
+  recentResults,
+  streakText,
+  type MatchFilter,
+  type RankingSort,
+  type WinnerSideFilter,
+} from "../../shared/insights";
 import {
   matchesInScope,
-  personRecords,
-  placements,
   PLACEMENT_GAMES,
-  searchByName,
-  sortRanking,
+  scopeLabel as scopeLabelOf,
   type Scope,
 } from "../../shared/stats";
 import {
+  POSITIONS,
   sideOfTeam,
   type MatchView,
   type Position,
@@ -20,16 +35,19 @@ import { ApiFailure, mutate, newRequestId } from "../api";
 import {
   formatDate,
   formatTime,
-  matchTone,
   nameMap,
   POSITION_LABEL,
+  objectParticle,
   rateTier,
   resultLine,
   SIDE_LABEL,
+  standingsOf,
   STATE_LABEL,
   teamRoster,
 } from "../format";
-import { Dialog, ErrorNote, KpiStrip, MatchTeams } from "../ui";
+import { MatchCard } from "../matchCard";
+import { drawMatchImage, fileDate, ShareImageDialog } from "../shareImage";
+import { BackLink, Dialog, ErrorNote, FormDots, KpiStrip, MatchTeams, ScopePicker, StandingNote } from "../ui";
 import type { AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
@@ -55,9 +73,154 @@ function changeText(key: string, nameOf: (id: string) => string): string {
   return key;
 }
 
+/** 한 번에 보여주는 경기 카드 수. "더 보기"로 같은 수만큼 더 연다. */
+const PAGE = 30;
+
+const WINNER_SIDE_LABEL: Record<WinnerSideFilter, string> = {
+  blue: "블루 승",
+  red: "레드 승",
+  unknown: "진영 미상",
+};
+
+/** 거른 조건을 한 줄 글로. */
+function filterText(filter: MatchFilter, nameOf: (id: string) => string): string {
+  const parts: string[] = [];
+  const [anchor] = filter.people;
+  if (filter.people.length === 1) parts.push(`${nameOf(anchor!)} 참가`);
+  if (filter.people.length > 1) parts.push(`${filter.people.map(nameOf).join("·")} 모두 참가`);
+  if (anchor && filter.position) parts.push(`${nameOf(anchor)} ${POSITION_LABEL[filter.position]}`);
+  if (anchor && filter.result) parts.push(`${nameOf(anchor)} ${filter.result === "win" ? "승" : "패"}`);
+  if (filter.winnerSide) parts.push(WINNER_SIDE_LABEL[filter.winnerSide]);
+  return parts.join(" · ");
+}
+
+/**
+ * 경기 거르기: 사람(여러 명이면 모두 함께 뛴 경기), 첫 번째 사람의 라인·승패, 이긴 팀의 진영.
+ * 라인·승패는 사람을 고른 뒤에만 고를 수 있다.
+ */
+function MatchFilterBar(props: {
+  scoped: readonly MatchView[];
+  filter: MatchFilter;
+  onChange: (filter: MatchFilter) => void;
+  nameOf: (id: string) => string;
+}) {
+  const { filter, onChange, nameOf } = props;
+  const candidates = useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of props.scoped) for (const r of m.roster) ids.add(r.participantId);
+    return [...ids].sort((a, b) => nameOf(a).localeCompare(nameOf(b), "ko"));
+  }, [props.scoped, nameOf]);
+  const hasPerson = filter.people.length > 0;
+  const anchorName = hasPerson ? nameOf(filter.people[0]!) : "";
+
+  return (
+    <div className="match-filter" role="group" aria-label="경기 거르기">
+      <div className="filter-row">
+        <label>
+          사람
+          <select
+            aria-label="거를 사람 추가"
+            value=""
+            onChange={(e) => {
+              if (e.target.value === "") return;
+              onChange({ ...filter, people: [...filter.people, e.target.value] });
+            }}
+          >
+            <option value="">{hasPerson ? "함께 뛴 사람 추가" : "사람 고르기"}</option>
+            {candidates
+              .filter((id) => !filter.people.includes(id))
+              .map((id) => (
+                <option key={id} value={id}>
+                  {nameOf(id)}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label>
+          이긴 진영
+          <select
+            aria-label="이긴 진영"
+            value={filter.winnerSide ?? ""}
+            onChange={(e) =>
+              onChange({ ...filter, winnerSide: (e.target.value || null) as WinnerSideFilter | null })
+            }
+          >
+            <option value="">진영 모두</option>
+            <option value="blue">블루 승</option>
+            <option value="red">레드 승</option>
+            <option value="unknown">진영 미상</option>
+          </select>
+        </label>
+      </div>
+      {hasPerson && (
+        <>
+          <div className="filter-people">
+            {filter.people.map((id, i) => (
+              <button
+                key={id}
+                type="button"
+                className="chip"
+                aria-label={`${nameOf(id)} 조건 빼기`}
+                onClick={() => {
+                  const people = filter.people.filter((p) => p !== id);
+                  // 기준(첫 사람)이 바뀌면 그 사람에게 걸린 라인·승패 조건도 지운다.
+                  onChange(
+                    i === 0
+                      ? { ...filter, people, position: null, result: null }
+                      : { ...filter, people },
+                  );
+                }}
+              >
+                {i === 0 && filter.people.length > 1 ? "기준 " : ""}
+                {nameOf(id)} <span aria-hidden="true">×</span>
+              </button>
+            ))}
+          </div>
+          <div className="filter-row">
+            <label>
+              {anchorName}의 라인
+              <select
+                aria-label="라인"
+                value={filter.position ?? ""}
+                onChange={(e) =>
+                  onChange({ ...filter, position: (e.target.value || null) as Position | null })
+                }
+              >
+                <option value="">라인 모두</option>
+                {POSITIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {POSITION_LABEL[p]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {anchorName}의 승패
+              <select
+                aria-label="승패"
+                value={filter.result ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...filter,
+                    result: (e.target.value || null) as MatchFilter["result"],
+                  })
+                }
+              >
+                <option value="">승패 모두</option>
+                <option value="win">승</option>
+                <option value="loss">패</option>
+              </select>
+            </label>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /**
  * 화면 6 — 기록. 운영자와 조회자가 같은 화면을 본다.
- * 표 대신 행 목록을 쓰고, 범위 선택은 목록 바로 위에 둔다.
+ * 경기는 카드 목록(양 팀 명단), 범위 선택과 거르기는 목록 바로 위에 둔다.
  */
 export function Records(props: {
   snapshot: Snapshot;
@@ -65,44 +228,69 @@ export function Records(props: {
   openPerson: (id: string) => void;
   openGraphs: () => void;
   onResult?: (match: MatchView) => void;
+  /** 운영자에게만 있다: 지난 경기 한 건 입력 화면으로 간다. */
+  openBackfill?: () => void;
 }) {
   const { snapshot } = props;
   // 최근 세션에 경기가 없으면 "오늘"이 비어 보이므로 전체로 연다.
   const [scope, setScope] = useState<Scope>(() =>
     matchesInScope(snapshot, { kind: "today" }).length > 0 ? { kind: "today" } : { kind: "all" },
   );
-  const [showAll, setShowAll] = useState(false);
+  const [shown, setShown] = useState(PAGE);
   const [query, setQuery] = useState("");
-  const nameOf = nameMap(snapshot);
+  const [filter, setFilterState] = useState<MatchFilter>(EMPTY_FILTER);
+  const [sort, setSort] = useState<RankingSort>("rate");
+  const [line, setLine] = useState<Position | null>(null);
+  const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const tz = snapshot.group.timezone;
 
+  const setFilter = (next: MatchFilter) => {
+    setFilterState(next);
+    setShown(PAGE);
+  };
+
   const season = scope.kind === "season" ? snapshot.seasons.find((s) => s.id === scope.seasonId) : null;
-  const scopeLabel = scope.kind === "today" ? "오늘" : scope.kind === "all" ? "전체" : (season?.name ?? "시즌");
-  const scoped = matchesInScope(snapshot, scope);
-  const ordered = [...scoped].sort((a, b) => b.matchNo - a.matchNo);
-  const listed = showAll ? ordered : ordered.slice(0, 30);
+  const scopeLabel = scopeLabelOf(snapshot, scope);
+  const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
+  const ordered = useMemo(() => newestFirst(scoped), [scoped]);
+  const filtered = useMemo(() => filterMatches(ordered, filter), [ordered, filter]);
+  const filtering = isFilterActive(filter);
+  const listed = filtered.slice(0, shown);
   const confirmed = scoped.filter((m) => m.state === "confirmed").length;
   const awaiting = scoped.filter((m) => m.state === "awaiting_result").length;
   const excluded = scoped.filter((m) => m.state === "excluded").length;
+  const anchor = filter.people[0] ?? null;
+  const anchorTally = useMemo(
+    () => (anchor ? anchorRecord(filtered, anchor) : null),
+    [filtered, anchor],
+  );
 
-  // 배치는 범위와 무관하게 모임 전체 누적 기준이다.
-  const placement = placements(snapshot.matches);
-  // 순위는 배치 완료자를 먼저 둔다. 범위 안에 경기가 없는 사람은 순위에 없다.
-  const ranked = sortRanking([...personRecords(scoped).values()], placement, nameOf);
-  const rankOf = new Map(ranked.map((r, i) => [r.participantId, i + 1]));
-  // 이름 검색은 일치도 순이고 배치 여부로 순서를 바꾸지 않는다. 순위 숫자는 그대로 보여준다.
-  const records =
-    query.trim() === ""
-      ? ranked
-      : searchByName(
-          ranked.map((r) => ({ ...r, name: nameOf(r.participantId) })),
-          query,
-        );
+  // 배치와 칭호는 범위와 무관하게 모임 전체 누적 기준이다.
+  const placement = useMemo(() => standingsOf(snapshot), [snapshot]);
+  // 순위는 배치 완료자를 먼저 두고 고른 기준으로 정렬한다. 범위 안에 경기가 없는 사람은 순위에 없다.
+  // 라인을 고르면 그 라인으로 뛴 경기만 센다. 최근 흐름·연승도 같은 경기로 센다.
+  const lineRecords = useMemo(() => lineRanking(scoped, line), [scoped, line]);
+  const forms = useMemo(() => personForms(scoped, line), [scoped, line]);
+  const noPosition = useMemo(() => (line ? matchesWithoutPositions(scoped) : 0), [scoped, line]);
+  const ranking = useMemo(
+    () => rankAndSearch(lineRecords, placement, nameOf, sort, query),
+    [lineRecords, placement, nameOf, sort, query],
+  );
+  const records = ranking.shown;
+  // 변경 내역: 정정·제외·복구와, 합치기(한 번에 한 줄로 묶어 서버가 보냄).
+  const changeLog = snapshot.revisions.filter((r) =>
+    ["correction", "exclude", "restore", "merge", "merge_undo"].includes(r.kind),
+  );
 
   return (
     <div className="screen cols">
       <header className="screen-head">
         <h1>기록</h1>
+        {props.openBackfill && (
+          <button type="button" className="secondary" onClick={props.openBackfill}>
+            지난 경기 입력
+          </button>
+        )}
         <button type="button" className="secondary" onClick={props.openGraphs}>
           그래프 분석
         </button>
@@ -110,39 +298,14 @@ export function Records(props: {
 
       <KpiStrip snapshot={snapshot} />
 
-      <div className="segmented" role="group" aria-label="범위">
-        <button
-          type="button"
-          aria-pressed={scope.kind === "today"}
-          onClick={() => setScope({ kind: "today" })}
-        >
-          오늘
-        </button>
-        {snapshot.seasons.length > 0 && (
-          <select
-            aria-label="시즌 선택"
-            className={scope.kind === "season" ? "chosen" : undefined}
-            value={scope.kind === "season" ? scope.seasonId : ""}
-            onChange={(e) => {
-              if (e.target.value !== "") setScope({ kind: "season", seasonId: e.target.value });
-            }}
-          >
-            <option value="">시즌</option>
-            {snapshot.seasons.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          type="button"
-          aria-pressed={scope.kind === "all"}
-          onClick={() => setScope({ kind: "all" })}
-        >
-          전체
-        </button>
-      </div>
+      <ScopePicker
+        snapshot={snapshot}
+        scope={scope}
+        onChange={(next) => {
+          setScope(next);
+          setShown(PAGE);
+        }}
+      />
       {season && (
         <p className="hint">
           {season.name}: {season.startsOn} ~ {season.endsOn}
@@ -155,39 +318,97 @@ export function Records(props: {
           {awaiting > 0 ? ` · 결과 미입력 ${awaiting}` : ""}
           {excluded > 0 ? ` · 전적 제외 ${excluded}` : ""}
         </h2>
+        {ordered.length > 0 && (
+          <MatchFilterBar
+            scoped={scoped}
+            filter={filter}
+            onChange={setFilter}
+            nameOf={nameOf}
+          />
+        )}
+        {filtering && (
+          <p className="filter-summary" role="status">
+            <span>
+              <strong>{filterText(filter, nameOf)}</strong> · {filtered.length}경기
+              {anchor && anchorTally && anchorTally.games > 0
+                ? ` · ${nameOf(anchor)} ${anchorTally.wins}승 ${anchorTally.games - anchorTally.wins}패`
+                : ""}
+            </span>
+            <button type="button" className="link" onClick={() => setFilter(EMPTY_FILTER)}>
+              조건 지우기
+            </button>
+          </p>
+        )}
         {ordered.length === 0 ? (
           <p className="hint">이 범위에는 기록이 없어요.</p>
+        ) : filtered.length === 0 ? (
+          <p className="hint">조건에 맞는 경기가 없어요. 조건을 줄이거나 범위를 넓혀 보세요.</p>
         ) : (
-          <ul className="list">
+          <ul className="list match-cards">
             {listed.map((m) => (
-              <li key={m.id} className={`list-row static match-row tone-${matchTone(m)}`}>
-                <button type="button" className="row-main" onClick={() => props.openMatch(m.id)}>
-                  <span>
-                    {m.matchNo}경기 · {resultLine(m)}
-                  </span>
-                  <span className="hint">
-                    {scope.kind !== "today" ? `${formatDate(m.playedAt, tz)} ` : ""}
-                    {formatTime(m.confirmedAt ?? m.playedAt, tz)}
-                  </span>
-                </button>
-                {m.state === "awaiting_result" && props.onResult && (
-                  <button type="button" className="secondary" onClick={() => props.onResult!(m)}>
-                    결과 입력
-                  </button>
-                )}
-              </li>
+              <MatchCard
+                key={m.id}
+                match={m}
+                nameOf={nameOf}
+                timeZone={tz}
+                showDate={scope.kind !== "today"}
+                focusId={filter.people.length === 1 ? anchor : null}
+                highlightIds={filter.people}
+                onOpen={() => props.openMatch(m.id)}
+                onPerson={props.openPerson}
+                action={
+                  m.state === "awaiting_result" && props.onResult ? (
+                    <button type="button" className="secondary" onClick={() => props.onResult!(m)}>
+                      결과 입력
+                    </button>
+                  ) : undefined
+                }
+              />
             ))}
           </ul>
         )}
-        {ordered.length > listed.length && (
-          <button type="button" className="link" onClick={() => setShowAll(true)}>
-            나머지 {ordered.length - listed.length}경기 더 보기
+        {filtered.length > listed.length && (
+          <button type="button" className="link" onClick={() => setShown(shown + PAGE)}>
+            나머지 {filtered.length - listed.length}경기 중 {Math.min(PAGE, filtered.length - listed.length)}경기
+            더 보기
           </button>
         )}
       </section>
 
       <section aria-label="소환사 랭킹">
-        <h2>소환사 랭킹 ({scopeLabel})</h2>
+        <h2>
+          소환사 랭킹 ({scopeLabel}
+          {line ? ` · ${POSITION_LABEL[line]}` : ""})
+        </h2>
+        <div className="rank-controls">
+          <div className="segmented" role="group" aria-label="랭킹 정렬">
+            {(Object.keys(RANKING_SORT_LABEL) as RankingSort[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={sort === key}
+                onClick={() => setSort(key)}
+              >
+                {RANKING_SORT_LABEL[key]}
+              </button>
+            ))}
+          </div>
+          <label className="rank-line">
+            라인별
+            <select
+              aria-label="라인별 랭킹"
+              value={line ?? ""}
+              onChange={(e) => setLine((e.target.value || null) as Position | null)}
+            >
+              <option value="">모든 라인</option>
+              {POSITIONS.map((p) => (
+                <option key={p} value={p}>
+                  {POSITION_LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <input
           type="search"
           aria-label="이름 검색"
@@ -202,39 +423,48 @@ export function Records(props: {
             </button>
           </p>
         )}
-        {ranked.length === 0 ? (
-          <p className="hint">이 범위에는 확정된 경기가 없어요.</p>
+        {ranking.ranked.length === 0 ? (
+          <p className="hint">
+            {line
+              ? `이 범위에는 ${POSITION_LABEL[line]}(으)로 뛴 확정 경기가 없어요.`
+              : "이 범위에는 확정된 경기가 없어요."}
+          </p>
         ) : records.length === 0 ? (
           <p className="hint">일치하는 이름이 없어요.</p>
         ) : (
           <ul className="list">
             {records.map((r) => {
-              const p = placement.get(r.participantId);
+              const form = forms.get(r.participantId);
+              const streak = form?.currentStreak ?? 0;
               const rate = Math.round((r.wins / r.games) * 100);
               return (
                 <li key={r.participantId}>
                   <button
                     type="button"
-                    className="list-row"
+                    className="list-row rank-row"
                     onClick={() => props.openPerson(r.participantId)}
                   >
-                    <span className="name">
-                      <span className={(rankOf.get(r.participantId) ?? 99) <= 3 ? "rank top" : "rank"}>
-                        {rankOf.get(r.participantId)}
-                      </span>{" "}
-                      {nameOf(r.participantId)}
+                    <span className="rank-main">
+                      <span className="rank-name">
+                        <span className={r.rank <= 3 ? "rank top" : "rank"}>{r.rank}</span>{" "}
+                        <span className="rank-person">{r.name}</span>
+                      </span>
+                      <span className="form-line">
+                        <FormDots results={recentResults(form)} />
+                        {Math.abs(streak) >= 2 && (
+                          <span className={streak > 0 ? "streak win" : "streak loss"}>
+                            {streakText(streak)}
+                          </span>
+                        )}
+                      </span>
                     </span>
                     <span className="stat">
                       <span className={rateTier(r.wins, r.games)}>{rate}%</span> · {r.wins}승 {r.losses}패 (
                       {r.games}경기)
-                      {p && !p.done && (
-                        <>
-                          <br />
-                          <span className="hint">
-                            배치 진행 중 {p.games}/{PLACEMENT_GAMES} (누적 기준)
-                          </span>
-                        </>
-                      )}
+                      <br />
+                      <span className="hint">
+                        <StandingNote standing={placement.get(r.participantId)} />
+                      </span>
                     </span>
                   </button>
                 </li>
@@ -243,35 +473,34 @@ export function Records(props: {
           </ul>
         )}
         <p className="hint">
-          순서: 배치 완료(누적 {PLACEMENT_GAMES}경기 이상) 먼저 → 승률 → 경기 수 → 이름. 이름을
-          검색하면 일치하는 순으로 보여주고 순위 숫자는 바뀌지 않습니다. 결과 미입력·제외 경기는
-          세지 않습니다.
+          순서: 배치 완료(누적 {PLACEMENT_GAMES}경기 이상) 먼저 → {RANKING_SORT_LABEL[sort]}
+          {sort === "rate" ? " → 경기 수 → 이름" : sort === "games" ? " → 승률 → 이름" : " → 승률 → 경기 수 → 이름"}.
+          이름을 검색하면 일치하는 순으로 보여주고 순위 숫자는 바뀌지 않습니다. 승·패 칸은 최근 경기가
+          왼쪽이며, 2경기 이상 이어지면 연승·연패를 적습니다. 결과 미입력·제외 경기는 세지 않습니다.
+          {line && noPosition > 0
+            ? ` 포지션 기록이 없는 ${noPosition}경기는 라인별 순위에서 빠집니다.`
+            : ""}
         </p>
       </section>
 
       <details>
         <summary>변경 내역</summary>
-        {snapshot.revisions.filter((r) => ["correction", "exclude", "restore"].includes(r.kind))
-          .length === 0 ? (
+        {changeLog.length === 0 ? (
           <p className="hint">정정·제외·복구한 기록이 없어요.</p>
         ) : (
           <ul className="list">
-            {snapshot.revisions
-              .filter((r) => ["correction", "exclude", "restore"].includes(r.kind))
-              .map((r) => {
-                const match = snapshot.matches.find((m) => m.id === r.matchId);
+            {changeLog.map((r) => {
+              if (r.merge) {
+                const { sourceId, targetId, matchCount } = r.merge;
                 return (
                   <li key={r.id}>
-                    <button type="button" className="list-row" onClick={() => props.openMatch(r.matchId)}>
+                    <button type="button" className="list-row" onClick={() => props.openPerson(targetId)}>
                       <span>
-                        {r.matchNo}경기 · {REVISION_LABEL[r.kind] ?? r.kind}
-                        {r.kind === "correction"
-                          ? ` (${Object.keys(r.changes)
-                              .map((k) => changeText(k, nameOf))
-                              .join(", ")})`
-                          : ""}
+                        {r.kind === "merge_undo"
+                          ? `${nameOf(sourceId)}${objectParticle(nameOf(sourceId))} ${nameOf(targetId)}에게 합친 것을 되돌림 (${matchCount}경기)`
+                          : `${nameOf(sourceId)}${objectParticle(nameOf(sourceId))} ${nameOf(targetId)}에게 합침 (${matchCount}경기)`}
                         <br />
-                        <span className="hint">현재: {match ? resultLine(match) : ""}</span>
+                        <span className="hint">중복 참가자 합치기 · 승패는 그대로</span>
                       </span>
                       <span className="hint">
                         {formatDate(r.createdAt, tz)} {formatTime(r.createdAt, tz)}
@@ -279,7 +508,28 @@ export function Records(props: {
                     </button>
                   </li>
                 );
-              })}
+              }
+              const match = snapshot.matches.find((m) => m.id === r.matchId);
+              return (
+                <li key={r.id}>
+                  <button type="button" className="list-row" onClick={() => props.openMatch(r.matchId)}>
+                    <span>
+                      {r.matchNo}경기 · {REVISION_LABEL[r.kind] ?? r.kind}
+                      {r.kind === "correction"
+                        ? ` (${Object.keys(r.changes)
+                            .map((k) => changeText(k, nameOf))
+                            .join(", ")})`
+                        : ""}
+                      <br />
+                      <span className="hint">현재: {match ? resultLine(match) : ""}</span>
+                    </span>
+                    <span className="hint">
+                      {formatDate(r.createdAt, tz)} {formatTime(r.createdAt, tz)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
         <p className="hint">
@@ -312,13 +562,12 @@ export function MatchDetail(props: {
   const [picked, setPicked] = useState<string[]>([]);
   const [outId, setOutId] = useState<string | null>(null);
   const [playedInput, setPlayedInput] = useState("");
+  const [imageOpen, setImageOpen] = useState(false);
 
   if (!match) {
     return (
       <div className="screen">
-        <button type="button" className="link" onClick={props.back}>
-          ← 기록
-        </button>
+        <BackLink label="← 기록" fallback={props.back} />
         <p>경기를 찾을 수 없어요.</p>
       </div>
     );
@@ -373,9 +622,7 @@ export function MatchDetail(props: {
   return (
     <div className="screen">
       <header className="screen-head">
-        <button type="button" className="link" onClick={props.back}>
-          ← 기록
-        </button>
+        <BackLink label="← 기록" fallback={props.back} />
         <h1>{match.matchNo}경기</h1>
         <span className="badge">{STATE_LABEL[match.state]}</span>
       </header>
@@ -394,6 +641,22 @@ export function MatchDetail(props: {
           return s && s !== "unknown" ? SIDE_LABEL[s] : null;
         }}
       />
+
+      {match.state === "confirmed" && (
+        <div className="button-row">
+          <button type="button" className="secondary" onClick={() => setImageOpen(true)}>
+            결과 이미지
+          </button>
+        </div>
+      )}
+      {imageOpen && (
+        <ShareImageDialog
+          title={`${match.matchNo}경기 결과 이미지`}
+          fileName={`${match.matchNo}경기-${fileDate(match.playedAt, tz)}.png`}
+          make={() => drawMatchImage(snapshot, match)}
+          onClose={() => setImageOpen(false)}
+        />
+      )}
 
       {match.state === "confirmed" && (
         <ul className="list">

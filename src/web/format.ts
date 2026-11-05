@@ -1,4 +1,6 @@
 import type { Draft } from "../shared/draft";
+import { safeTimeZone } from "../shared/stats";
+import { standings, titleBandsOf, type Standing } from "../shared/titles";
 import {
   POSITIONS,
   sideOfTeam,
@@ -37,7 +39,7 @@ export const STATE_LABEL: Record<MatchView["state"], string> = {
 export function formatTime(iso: string | null | undefined, timeZone = "Asia/Seoul"): string {
   if (!iso) return "";
   return new Intl.DateTimeFormat("ko-KR", {
-    timeZone,
+    timeZone: safeTimeZone(timeZone),
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(iso));
@@ -46,10 +48,18 @@ export function formatTime(iso: string | null | undefined, timeZone = "Asia/Seou
 export function formatDate(iso: string | null | undefined, timeZone = "Asia/Seoul"): string {
   if (!iso) return "";
   return new Intl.DateTimeFormat("ko-KR", {
-    timeZone,
+    timeZone: safeTimeZone(timeZone),
     month: "long",
     day: "numeric",
   }).format(new Date(iso));
+}
+
+/**
+ * 모든 사람의 누적 배치·칭호. 검색·랭킹·개인 통계·그래프가 모두 이것 하나를 쓴다.
+ * 범위가 적용되지 않은 모임 전체 경기로 계산하므로 범위 필터가 칭호를 바꾸지 않는다.
+ */
+export function standingsOf(snapshot: Snapshot): Map<string, Standing> {
+  return standings(snapshot.matches, titleBandsOf(snapshot.group.settings));
 }
 
 export function nameMap(snapshot: Snapshot | null): (id: string) => string {
@@ -149,4 +159,16 @@ export async function copyText(text: string): Promise<boolean> {
 
 export function viewLink(token: string, suffix = "now"): string {
   return `${location.origin}/#/v/${token}/${suffix}`;
+}
+
+/**
+ * 받침에 맞춘 목적격 조사("을"/"를"). 이름 끝이 한글이 아니면(영문·숫자) "을(를)"로 둔다.
+ * 예: "용호" → "용호를", "김민" → "김민을".
+ */
+export function objectParticle(word: string): string {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 0 ? "를" : "을";
+  if (/[0-9]/.test(last)) return "013678".includes(last) ? "을" : "를";
+  return "을(를)";
 }

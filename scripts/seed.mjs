@@ -65,7 +65,10 @@ for (const [index, person] of participants.entries()) {
 }
 
 // 경기: 앞쪽 사람일수록 자주 나오게 해서 배치 완료자와 배치 중인 사람이 섞이게 한다.
-const start = Date.parse("2026-07-01T11:00:00.000Z");
+// 마지막 경기가 어제가 되도록 시작일을 잡는다(미래 날짜 경기가 생기지 않게). 시각은 한국 20시.
+const DAY = 24 * 3600_000;
+const start =
+  Math.floor((Date.now() - DAY - (MATCHES - 1) * 26 * 3600_000) / DAY) * DAY + 11 * 3600_000;
 const matches = Array.from({ length: MATCHES }, (_, index) => {
   const pool = index % 6 === 0 ? participants : participants.slice(0, 16);
   const ten = shuffle(pool).slice(0, 10);

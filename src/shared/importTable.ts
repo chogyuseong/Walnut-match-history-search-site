@@ -1,4 +1,6 @@
 import { cleanName, MAX_NAME_LENGTH, nameKey } from "./names";
+import { fingerprinter, futureIndexes, futureMessage, playedAtTimes, type SheetPlayer } from "./sheetTable";
+import { localDate } from "./stats";
 import { POSITIONS, type Position, type RosterEntry, type Side, type Team } from "./types";
 
 /**
@@ -35,6 +37,11 @@ export interface ImportRow {
   teamA: string[];
   teamB: string[];
   winner: Team;
+  /**
+   * 중복 판별 지문. 시트 가져오기와 같은 함수(sheetTable의 fingerprinter)로 만든다.
+   * 시각이 없는 날짜, 이름 칸 순서대로 정한 라인(탑→서폿)이므로 같은 표를 시트로 가져와도 같은 값이 나온다.
+   */
+  fingerprint: string;
 }
 
 export interface ImportError {
@@ -65,11 +72,24 @@ function parseWinner(cell: string): Team | null {
   return null;
 }
 
+/** 이름 칸 순서대로 라인을 붙인 팀(지문용). */
+function withLanes(names: readonly string[]): SheetPlayer[] {
+  return names.map((name, i) => ({ name, position: POSITIONS[i] as Position }));
+}
+
+export interface ImportParseOptions {
+  /** 지금(밀리초). timeZone과 함께 주면 아직 오지 않은 날짜의 줄을 틀린 줄로 돌려준다. */
+  now: number;
+  /** 모임 시간대. 경기 시각은 이 시간대의 정오다. */
+  timeZone: string;
+}
+
 /** 붙여 넣은 표 전체를 읽는다. 오류가 하나라도 있으면 호출한 쪽이 저장을 막아야 한다. */
-export function parseMatchTable(text: string): ImportParse {
-  const rows: ImportRow[] = [];
+export function parseMatchTable(text: string, options?: ImportParseOptions): ImportParse {
+  let rows: ImportRow[] = [];
   const errors: ImportError[] = [];
   const names = new Map<string, string>();
+  const fingerprintOf = fingerprinter();
   const lines = text.split(/\r?\n/);
   let sawContent = false;
 
@@ -121,12 +141,25 @@ export function parseMatchTable(text: string): ImportParse {
       errors.push({ line, message: `승리팀 '${cells[11]}'를 읽지 못했어요. A 또는 B로 써 주세요.` });
       return;
     }
-    for (const name of players) {
-      if (!names.has(nameKey(name))) names.set(nameKey(name), name);
-    }
-    rows.push({ line, date, teamA: players.slice(0, 5), teamB: players.slice(5), winner });
+    const teamA = players.slice(0, 5);
+    const teamB = players.slice(5);
+    const fingerprint = fingerprintOf({ date, time: null, teamA: withLanes(teamA), teamB: withLanes(teamB), winner });
+    rows.push({ line, date, teamA, teamB, winner, fingerprint });
   });
 
+  // 아직 오지 않은 날짜의 줄은 틀린 줄로 돌린다(서버도 거절한다). 지문은 그 전에 매긴다.
+  if (options) {
+    const today = localDate(new Date(options.now).toISOString(), options.timeZone);
+    const future = futureIndexes(rows.map((r) => ({ date: r.date, time: null })), options.timeZone, options.now);
+    for (const i of future) errors.push({ line: rows[i]!.line, message: futureMessage(rows[i]!.date, null, today) });
+    rows = rows.filter((_, i) => !future.has(i));
+    errors.sort((x, y) => x.line - y.line);
+  }
+  for (const row of rows) {
+    for (const name of [...row.teamA, ...row.teamB]) {
+      if (!names.has(nameKey(name))) names.set(nameKey(name), name);
+    }
+  }
   return { rows, errors, names: [...names.values()] };
 }
 
@@ -138,25 +171,25 @@ export interface ImportMatchPayload {
   roster: RosterEntry[];
   winnerTeam: Team;
   winnerSide: Side;
+  fingerprint: string;
 }
 
 /**
  * 읽은 줄을 서버로 보낼 경기로 바꾼다.
  * - unknown: 모든 경기를 진영 미상으로 넣는다. 개인 승패는 그대로이고 진영 통계에서만 빠진다.
  * - a-blue: 팀 A를 블루, 팀 B를 레드로 넣는다(기존 시트의 자리 기준 그대로).
- * 같은 날의 경기는 표에 적힌 순서를 유지하도록 시각을 1초씩 늦춘다.
+ * 시각은 시트 가져오기와 같은 규칙(sheetTable의 playedAtTimes): 날짜만 있으므로 모임 시간대의 정오,
+ * 같은 날의 경기는 표에 적힌 순서를 유지하도록 1초씩 늦춘다.
  */
 export function toImportMatches(
   rows: readonly ImportRow[],
   idOfName: (name: string) => string,
   sideMode: ImportSideMode,
+  timeZone = "Asia/Seoul",
 ): ImportMatchPayload[] {
-  const perDay = new Map<string, number>();
-  return rows.map((row) => {
-    const order = perDay.get(row.date) ?? 0;
-    perDay.set(row.date, order + 1);
-    // 날짜만 있으므로 한국 시간 정오로 두고 순서만큼 초를 더한다.
-    const playedAt = new Date(Date.parse(`${row.date}T12:00:00+09:00`) + order * 1000).toISOString();
+  const times = playedAtTimes(rows.map((r) => ({ date: r.date, time: null })), timeZone);
+  return rows.map((row, index) => {
+    const playedAt = times[index]!;
     const entry = (name: string, team: Team, index: number): RosterEntry => ({
       participantId: idOfName(name),
       team,
@@ -170,6 +203,7 @@ export function toImportMatches(
       ],
       winnerTeam: row.winner,
       winnerSide: sideMode === "unknown" ? "unknown" : row.winner === "A" ? "blue" : "red",
+      fingerprint: row.fingerprint,
     };
   });
 }

@@ -1,25 +1,37 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { AccountControl, LOGIN_ONLY, LoginRequired } from "./account";
 import type { MatchView } from "../shared/types";
 import { nameMap } from "./format";
+import { Backfill } from "./screens/Backfill";
+import { Compare } from "./screens/Compare";
+import { DangerZone } from "./screens/DangerZone";
 import { Graphs } from "./screens/Graphs";
 import { Group } from "./screens/Group";
 import { Import } from "./screens/Import";
+import { SheetImport } from "./screens/SheetImport";
+import { LegacyImport } from "./screens/LegacyImport";
 import { Match } from "./screens/Match";
+import { Merge } from "./screens/Merge";
 import { Person } from "./screens/Person";
 import { Pick } from "./screens/Pick";
 import { Prep } from "./screens/Prep";
 import { MatchDetail, Records } from "./screens/Records";
 import { ResultSheet } from "./screens/ResultSheet";
+import { Search } from "./screens/Search";
 import { Today } from "./screens/Today";
 import { Transfer } from "./screens/Transfer";
 import { Viewer } from "./screens/Viewer";
+import { LoginFailed } from "./screens/Login";
+import { Privacy } from "./screens/Privacy";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
+import { useKeyboardFlag } from "./ui";
 import { AppContext, go, useApp, useAppValue, useRoute } from "./useApp";
 
 export function App() {
   const route = useRoute();
   const isViewer = route[0] === "v" && typeof route[1] === "string";
   const app = useApp(!isViewer);
+  useKeyboardFlag();
 
   if (isViewer) {
     return (
@@ -27,7 +39,8 @@ export function App() {
         <TopBar />
         <main>
           <Viewer token={route[1]!} rest={route.slice(2)} />
-          <LegalFooter />
+          {/* 조회 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
+          <LegalFooter privacyHref={`#/v/${route[1]}/privacy`} />
         </main>
       </>
     );
@@ -35,7 +48,7 @@ export function App() {
 
   return (
     <AppContext.Provider value={app}>
-      <TopBar homeLink />
+      <TopBar homeLink actions={<AccountControl />} />
       <main>
         {!app.ready ? <p className="screen">불러오는 중…</p> : <OperatorScreen route={route} />}
         <LegalFooter />
@@ -54,10 +67,10 @@ export function App() {
 const SITE_NAME = "내전 운영";
 
 /**
- * 상단 바: 로고와 테마 고르기. 넓은 화면에서는 주 메뉴가 이 바의 가운데에 겹쳐 놓인다(CSS).
- * 조회 링크로 들어온 사람에게는 운영 화면으로 가는 로고 링크를 주지 않는다.
+ * 상단 바: 로고, 테마 고르기, 로그인 상태(운영 화면만). 넓은 화면에서는 주 메뉴가 이 바에 겹쳐 놓인다(CSS).
+ * 조회 링크로 들어온 사람에게는 운영 화면으로 가는 로고 링크와 로그인 버튼을 주지 않는다.
  */
-function TopBar(props: { homeLink?: boolean }) {
+function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const mark = (
     <>
@@ -78,7 +91,7 @@ function TopBar(props: { homeLink?: boolean }) {
     </>
   );
   return (
-    <header className="topbar">
+    <header className={props.actions ? "topbar topbar-operator" : "topbar"}>
       <div className="topbar-inner">
         {props.homeLink ? (
           <a className="brand" href="#/" aria-label={`${SITE_NAME} 첫 화면`}>
@@ -87,31 +100,35 @@ function TopBar(props: { homeLink?: boolean }) {
         ) : (
           <span className="brand">{mark}</span>
         )}
-        <select
-          className="theme-select"
-          aria-label="화면 테마"
-          value={theme}
-          onChange={(event) => {
-            const next = event.target.value as Theme;
-            setTheme(next);
-            applyTheme(next, true);
-          }}
-        >
-          {THEMES.map((t) => (
-            <option key={t.value} value={t.value}>
-              테마: {t.label}
-            </option>
-          ))}
-        </select>
+        <div className="topbar-actions">
+          <select
+            className="theme-select"
+            aria-label="화면 테마"
+            value={theme}
+            onChange={(event) => {
+              const next = event.target.value as Theme;
+              setTheme(next);
+              applyTheme(next, true);
+            }}
+          >
+            {THEMES.map((t) => (
+              <option key={t.value} value={t.value}>
+                테마: {t.label}
+              </option>
+            ))}
+          </select>
+          {props.actions}
+        </div>
       </div>
     </header>
   );
 }
 
 /** 라이엇 게임즈와 무관한 서비스임을 알리는 문구. 디자인 키트의 안내에 따라 모든 화면 아래에 둔다. */
-function LegalFooter() {
+function LegalFooter(props: { privacyHref?: string }) {
   return (
-    <footer className="legal">
+    // 배치 때문에 <main> 안에 두므로, 보조 기기가 사이트 푸터로 알도록 역할을 직접 적는다.
+    <footer className="legal" role="contentinfo">
       <p>
         {SITE_NAME} isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot
         Games or anyone officially involved in producing or managing Riot Games properties. Riot
@@ -123,18 +140,94 @@ function LegalFooter() {
         만들었습니다. 라이엇 게임즈의 로고·상표·게임 이미지를 쓰지 않고, 라인 아이콘은 직접 그린
         도형입니다.
       </p>
+      <p className="legal-links">
+        <a href={props.privacyHref ?? "#/privacy"}>개인정보 처리방침</a>
+      </p>
     </footer>
   );
 }
 
+/** 기록이 필요한 화면인데 서버에서 받지 못했을 때(네트워크 오류·서버 오류). "기록이 없어요"와 구분한다. */
+function LoadFailed() {
+  const app = useAppValue();
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="screen">
+      <h1>불러오지 못했어요</h1>
+      <p className="note warn" role="alert">
+        {app.loadError?.kind === "offline"
+          ? "인터넷에 연결돼 있지 않아요. 연결되면 다시 시도해 주세요."
+          : app.loadError?.status === 429 || app.loadError?.status === 503
+            ? app.loadError.message
+            : "서버에서 기록을 받지 못했어요. 잠시 뒤 다시 시도해 주세요."}{" "}
+        작성 중인 편성은 이 기기에 그대로 있어요.
+      </p>
+      <button
+        type="button"
+        className="primary"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void app.refresh().finally(() => setBusy(false));
+        }}
+      >
+        {busy ? "불러오는 중…" : "다시 시도"}
+      </button>
+    </div>
+  );
+}
+
+/** 기록(스냅숏)이 있어야 그릴 수 있는 화면. */
+const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill"]);
+
 function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
   const [page, id] = props.route;
+  if (page === "privacy") return <Privacy back={() => go("/")} backLabel="← 오늘" />;
+  if (page === "login-failed") return <LoginFailed reason={id ?? ""} />;
+  // 로그인 만료(401)는 각 화면이 로그인 안내를 보여준다. 그 밖의 불러오기 실패는 "기록 없음"과 구분해 알린다.
+  if (
+    page !== undefined &&
+    NEEDS_SNAPSHOT.has(page) &&
+    !app.snapshot &&
+    app.loadError &&
+    app.loadError.status !== 401
+  ) {
+    return <LoadFailed />;
+  }
+  // 로그인해야 쓰는 화면: 로그인 안내를 보여준다. 로그인하면 주소가 그대로라 그 화면이 열린다.
+  // 계정 정보를 받지 못한 경우(네트워크 오류)는 로그인 문제가 아니므로 불러오기 실패로 알린다.
+  if (page !== undefined && page in LOGIN_ONLY && !app.me?.accountId) {
+    if (!app.me && app.loadError) return <LoadFailed />;
+    return <LoginRequired title={LOGIN_ONLY[page]!} />;
+  }
   if (page === "pick") return <Pick />;
   if (page === "prep") return <Prep />;
   if (page === "match") return <Match />;
   if (page === "group") return <Group />;
   if (page === "import") return <Import />;
+  if (page === "sheet-import") return <SheetImport />;
+  if (page === "legacy-import") return <LegacyImport />;
+  if (page === "backfill") return <Backfill />;
+  if (page === "merge") return <Merge />;
+  if (page === "delete") return <DangerZone />;
+  if (page === "search") {
+    if (!app.snapshot) {
+      return (
+        <div className="screen">
+          <h1>전적 검색</h1>
+          <p>아직 기록이 없어요. 경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
+        </div>
+      );
+    }
+    return (
+      <Search
+        snapshot={app.snapshot}
+        openPerson={(personId) => go(`/p/${personId}`)}
+        openCompare={(a, b) => go(`/compare/${a}/${b}`)}
+      />
+    );
+  }
   if (page === "transfer" && id) return <Transfer token={id} />;
   if (page === "records") return <OperatorRecords />;
   if (page === "m" && id) {
@@ -172,6 +265,21 @@ function OperatorScreen(props: { route: string[] }) {
         back={() => go("/records")}
         openMatch={(matchId) => go(`/m/${matchId}`)}
         openPerson={(personId) => go(`/p/${personId}`)}
+        openCompare={(personId) => go(`/compare/${personId}/-`)}
+      />
+    );
+  }
+  if (page === "compare") {
+    if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
+    return (
+      <Compare
+        snapshot={app.snapshot}
+        a={id ?? null}
+        b={props.route[2] ?? null}
+        choose={(a, b) => go(`/compare/${a ?? "-"}/${b ?? "-"}`)}
+        openMatch={(matchId) => go(`/m/${matchId}`)}
+        openPerson={(personId) => go(`/p/${personId}`)}
+        back={() => go("/records")}
       />
     );
   }
@@ -199,6 +307,7 @@ function OperatorRecords() {
         openMatch={(matchId) => go(`/m/${matchId}`)}
         openPerson={(personId) => go(`/p/${personId}`)}
         openGraphs={() => go("/graphs")}
+        openBackfill={app.me?.accountId ? () => go("/backfill") : undefined}
         onResult={setResultFor}
       />
       {resultFor && (
@@ -213,21 +322,39 @@ function OperatorRecords() {
   );
 }
 
-/** 하단 탭: 오늘 · 기록 · 모임. 모임 탭은 로그인한 운영자에게만 보인다. */
+/** 주 메뉴: 오늘 · 검색 · 기록 · 분석 · 모임. 모임 탭은 로그인한 운영자에게만 보인다. */
 function Tabs(props: { current: string }) {
   const app = useAppValue();
   const tab =
-    props.current === "records" || props.current === "m" || props.current === "p"
+    props.current === "records" ||
+    props.current === "m" ||
+    props.current === "p" ||
+    props.current === "compare"
       ? "records"
       : props.current === "graphs"
         ? "graphs"
-        : props.current === "group" || props.current === "import"
+        : props.current === "group" ||
+            props.current === "import" ||
+            props.current === "sheet-import" ||
+            props.current === "legacy-import" ||
+            props.current === "backfill" ||
+            props.current === "merge" ||
+            props.current === "delete"
           ? "group"
-          : "today";
+          : props.current === "search"
+            ? "search"
+            : "today";
   return (
     <nav className="tabs" aria-label="주 메뉴">
       <button type="button" aria-current={tab === "today" ? "page" : undefined} onClick={() => go("/")}>
         오늘
+      </button>
+      <button
+        type="button"
+        aria-current={tab === "search" ? "page" : undefined}
+        onClick={() => go("/search")}
+      >
+        검색
       </button>
       <button
         type="button"

@@ -1,0 +1,30 @@
+{
+  // 원격(실제 Cloudflare) D1에서 원자성 스파이크 테스트를 다시 돌릴 때만 쓰는 설정이다.
+  // 운영 DB가 아니라 버릴 수 있는 별도 D1(naejeon-spike)을 가리킨다. 테스트가 표를 만들고 행을 쓴다.
+  // 사용법: docs/배포안내.md "7. 운영 D1에서 원자성 스파이크 다시 돌리기"
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "naejeon-v2-spike",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-11-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "naejeon-spike",
+      // [채워야 함] `npx wrangler d1 create naejeon-spike`가 알려주는 database_id
+      "database_id": "REPLACE-WITH-SPIKE-D1-ID",
+      "migrations_dir": "migrations",
+      // 워커는 로컬에서 돌고 DB만 원격(실제 D1)을 쓴다.
+      "remote": true
+    }
+  ],
+  "vars": {
+    // 스파이크 테스트는 로그인을 쓰지 않는다. DEPLOY_ENV가 "local"이 아니므로 가짜 로그인·테스트 훅은 닫혀 있다
+    // (이 설정을 실수로 배포해도 열리지 않는다, src/server/auth.ts의 허용 목록).
+    "AUTH_MODE": "fake",
+    "DEPLOY_ENV": "spike",
+    "RATE_WRITE_PER_ACCOUNT": "5000",
+    "RATE_WRITE_PER_IP": "5000",
+    "RATE_AUTH_PER_IP": "5000",
+    "RATE_VIEW_PER_IP": "5000"
+  }
+}

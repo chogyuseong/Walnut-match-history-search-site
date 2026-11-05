@@ -71,26 +71,109 @@ export function todayMatches(snapshot: Snapshot): MatchView[] {
     .sort((a, b) => a.matchNo - b.matchNo);
 }
 
+/** 모임 시간대가 없거나 이 기기가 모르는 값일 때 쓰는 시간대. */
+export const DEFAULT_TIME_ZONE = "Asia/Seoul";
+const zoneChecks = new Map<string, boolean>();
+
+/** Intl이 받아들이는 시간대 이름인지(실제로 만들어 본다). 백업 복원 검증과 화면 방어가 함께 쓴다. */
+export function isValidTimeZone(value: unknown): value is string {
+  if (typeof value !== "string" || value.length < 1 || value.length > 64) return false;
+  let ok = zoneChecks.get(value);
+  if (ok === undefined) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: value });
+      ok = true;
+    } catch {
+      ok = false;
+    }
+    zoneChecks.set(value, ok);
+  }
+  return ok;
+}
+
+/** 잘못된 시간대가 이미 저장돼 있어도 화면이 깨지지 않게(RangeError) 기본 시간대로 바꿔 쓴다. */
+export function safeTimeZone(value: unknown): string {
+  return isValidTimeZone(value) ? value : DEFAULT_TIME_ZONE;
+}
+
 /** 주어진 시각의 모임 표시 시간대 날짜(YYYY-MM-DD). */
 export function localDate(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
+    timeZone: safeTimeZone(timeZone),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(iso));
 }
 
-export type Scope = { kind: "all" } | { kind: "today" } | { kind: "season"; seasonId: string };
+/**
+ * 모임 표시 시간대의 날짜·시각(YYYY-MM-DD, HH:mm)을 UTC ISO 시각으로 바꾼다.
+ * 지난 경기 입력에서 사용자가 고른 날짜·시각을 모임 시간대 기준으로 해석할 때 쓴다.
+ * 시간대 규칙(서머타임 등)은 Intl에 맡긴다. 없는 시각(서머타임으로 건너뛴 시각)은 가까운 시각이 된다.
+ */
+export function zonedTimeToUtc(date: string, time: string, timeZone: string): string {
+  const [y, mo, d] = date.split("-").map(Number) as [number, number, number];
+  const [h, mi] = time.split(":").map(Number) as [number, number];
+  const wanted = Date.UTC(y, mo - 1, d, h, mi);
+  // 그 시각을 UTC로 가정했을 때 모임 시간대에서 몇 시로 보이는지로 시차를 구한다. 두 번 맞춘다.
+  let guess = wanted;
+  for (let i = 0; i < 2; i++) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: safeTimeZone(timeZone),
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).formatToParts(new Date(guess));
+    const get = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+    const shown = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
+    guess += wanted - shown;
+  }
+  return new Date(guess).toISOString();
+}
+
+export type Scope =
+  | { kind: "all" }
+  | { kind: "today" }
+  | { kind: "season"; seasonId: string }
+  | { kind: "year"; year: number };
+
+/** 모임 시간대 기준 연도. 12월 31일 밤 경기가 UTC로 다음 해여도 모임의 달력을 따른다. */
+export function localYear(iso: string, timeZone: string): number {
+  return Number(localDate(iso, timeZone).slice(0, 4));
+}
+
+/** 경기가 있는 연도(최근 연도부터). 연도 필터는 이 목록에서만 고를 수 있다. 취소 경기는 세지 않는다. */
+export function matchYears(snapshot: Snapshot): number[] {
+  const years = new Set<number>();
+  for (const m of snapshot.matches) {
+    if (m.state === "canceled") continue;
+    years.add(localYear(m.playedAt, snapshot.group.timezone));
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
+/** 범위 이름. 화면 제목과 안내 문구에 쓴다. */
+export function scopeLabel(snapshot: Snapshot, scope: Scope): string {
+  if (scope.kind === "today") return "오늘";
+  if (scope.kind === "all") return "전체";
+  if (scope.kind === "year") return `${scope.year}년`;
+  return snapshot.seasons.find((s) => s.id === scope.seasonId)?.name ?? "시즌";
+}
 
 /**
- * 범위(전체·시즌·오늘)에 속하는 경기. 취소된 경기는 어느 범위에도 넣지 않는다.
+ * 범위(전체·시즌·연도·오늘)에 속하는 경기. 취소된 경기는 어느 범위에도 넣지 않는다.
  * 배치와 칭호는 이 필터를 거치지 않고 항상 전체 누적으로 계산한다.
  */
 export function matchesInScope(snapshot: Snapshot, scope: Scope): MatchView[] {
   if (scope.kind === "today") return todayMatches(snapshot);
   const visible = snapshot.matches.filter((m) => m.state !== "canceled");
   if (scope.kind === "all") return visible;
+  if (scope.kind === "year") {
+    return visible.filter((m) => localYear(m.playedAt, snapshot.group.timezone) === scope.year);
+  }
   const season = snapshot.seasons.find((s) => s.id === scope.seasonId);
   if (!season) return [];
   return visible.filter((m) => {

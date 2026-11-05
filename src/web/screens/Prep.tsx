@@ -8,13 +8,14 @@ import {
   replacePerson,
   rerollPositions,
   swapPeople,
+  swapSides,
   toggleLock,
   undoDraft,
   violatedConstraints,
   type Draft,
   type DraftPerson,
 } from "../../shared/draft";
-import { recommendTeams, type TeamCandidate } from "../../shared/recommend";
+import { diversityFor, recommendTeams, type TeamCandidate } from "../../shared/recommend";
 import {
   drawStatus,
   drawSupport,
@@ -121,7 +122,11 @@ export function Prep() {
       skillGroup: (p.participantId ? groupOf.get(p.participantId) : null) ?? null,
     }));
     const weights = app.snapshot?.group.settings.groupWeights ?? [4, 3, 2, 1];
-    setCandidates(recommendTeams(people, weights, draft!.seed, 3, draft!.constraints ?? []));
+    // 조합 다양성(모임 설정, 기본 켜짐): 균형이 같은 후보 중 최근 경기와 덜 겹치는 조합을 먼저.
+    const diversity = app.snapshot
+      ? diversityFor({ matches: app.snapshot.matches, settings: app.snapshot.group.settings }, draft!.people)
+      : undefined;
+    setCandidates(recommendTeams(people, weights, draft!.seed, 3, draft!.constraints ?? [], diversity));
   }
 
   function runDraw(teams: readonly Team[]) {
@@ -337,6 +342,7 @@ export function Prep() {
                 })}
               </ul>
               {status === "stale" && <p className="hint warn-text">서포터 추첨 다시 확인 필요</p>}
+              {status === "applied" && <p className="hint">서포터 추첨 적용됨</p>}
             </section>
           );
         })}
@@ -405,6 +411,21 @@ export function Prep() {
         <button
           type="button"
           className="secondary"
+          title="두 팀의 A·B 자리를 맞바꿉니다. 팀 구성·포지션·서포터 추첨은 그대로입니다."
+          onClick={() => {
+            update(swapSides(draft));
+            setSelectedKey(null);
+            setPairMode(null);
+            // 추첨 안내 문구의 팀 이름이 바뀌므로 지운다. 추첨 결과 자체는 그대로 유지된다.
+            setDrawNote(null);
+            app.setNotice("팀 A와 팀 B를 맞바꿨어요. 서포터 추첨은 그대로예요.");
+          }}
+        >
+          좌우 바꾸기
+        </button>
+        <button
+          type="button"
+          className="secondary"
           onClick={() => {
             update(rerollPositions(draft));
             setDrawNote(null);
@@ -419,7 +440,14 @@ export function Prep() {
         )}
       </div>
 
-      {drawNote && <DrawSummary result={drawNote} nameOf={nameOf} onOnly={(team) => runDraw([team])} />}
+      {drawNote && (
+        <DrawSummary
+          result={drawNote}
+          nameOf={nameOf}
+          onOnly={(team) => runDraw([team])}
+          onCancel={() => setDrawNote(null)}
+        />
+      )}
 
       {(draft.constraints ?? []).length > 0 && (
         <details open>
@@ -672,6 +700,8 @@ function DrawSummary(props: {
   result: DrawResult;
   nameOf: (key: string) => string;
   onOnly: (team: Team) => void;
+  /** 한 팀만 적용할 수 있을 때 아무것도 하지 않고 안내를 닫는다. */
+  onCancel: () => void;
 }) {
   const { result, nameOf } = props;
   const blocked = result.outcomes.filter((o) => o.kind === "blocked");
@@ -683,6 +713,9 @@ function DrawSummary(props: {
           . 아직 아무것도 바꾸지 않았어요.{" "}
           <button type="button" className="link" onClick={() => props.onOnly(result.needsChoice!)}>
             팀 {result.needsChoice}만 적용
+          </button>{" "}
+          <button type="button" className="link" onClick={props.onCancel}>
+            취소
           </button>
         </p>
       ) : (

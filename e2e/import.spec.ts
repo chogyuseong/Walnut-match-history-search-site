@@ -99,3 +99,42 @@ test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠�
   // 개인별 승률에는 들어간다.
   await expect(page.getByRole("region", { name: "개인별 승률" }).getByRole("listitem")).toHaveCount(12);
 });
+
+test("이미 들어간 경기는 건너뛰고, 아직 오지 않은 날짜는 줄 번호와 함께 알린다", async ({ page }) => {
+  const groupId = await openImport(page);
+  await page.getByLabel("붙여 넣을 표").fill(table(3).join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "3경기 넣기" }).click();
+  await expect(page.getByText("3경기 저장됨 · 진영 미상")).toBeVisible();
+
+  // 같은 표에 한 줄을 더해 다시 넣으면 이미 들어간 3경기는 건너뛰고 1경기만 넣는다.
+  await page.goto("/#/group");
+  await page.getByRole("button", { name: "지난 기록 한꺼번에 넣기" }).click();
+  await page.getByLabel("붙여 넣을 표").fill(table(4).join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  const preview = page.getByRole("region", { name: "미리보기" });
+  await expect(preview).toContainText("이미 들어간 경기(건너뜀)3경기");
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "1경기 넣기" }).click();
+  await expect(page.getByText("1경기 저장됨 · 진영 미상")).toBeVisible();
+  await expect(page.getByText("이미 들어간 3경기는 건너뛰었어요.")).toBeVisible();
+  const snapshot = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();
+  expect(snapshot.matches).toHaveLength(4);
+
+  // 모두 들어간 표는 넣을 경기가 없다고 알린다.
+  await page.goto("/#/group");
+  await page.getByRole("button", { name: "지난 기록 한꺼번에 넣기" }).click();
+  await page.getByLabel("붙여 넣을 표").fill(table(4).join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  await expect(page.getByText("새로 넣을 경기가 없어요. 이 표의 경기는 이미 모두 들어가 있어요.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /경기 넣기/ })).toHaveCount(0);
+
+  // 내일 날짜 줄은 넣지 않고 줄 번호와 함께 알린다.
+  const tomorrow = new Date(Date.now() + 2 * 24 * 3600_000).toISOString().slice(0, 10);
+  const future = table(1)[0]!.replace(/^\S+/, tomorrow);
+  await page.getByLabel("붙여 넣을 표").fill([HEADER, future].join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  await expect(page.getByText(`2번째 줄: ${tomorrow}는 아직 오지 않은 날짜예요.`, { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: /경기 넣기/ })).toHaveCount(0);
+});

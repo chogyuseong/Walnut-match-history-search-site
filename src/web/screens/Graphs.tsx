@@ -1,9 +1,10 @@
 import { useState } from "react";
 import {
   matchesInScope,
+  matchYears,
   personRecordsByLine,
-  placements,
   PLACEMENT_GAMES,
+  scopeLabel as scopeLabelOf,
   playerLineMatrix,
   sideTotals,
   SMALL_SAMPLE,
@@ -12,7 +13,15 @@ import {
   type Tally,
 } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { nameMap, POSITION_LABEL } from "../format";
+import type { Standing } from "../../shared/titles";
+import { nameMap, POSITION_LABEL, standingsOf } from "../format";
+import { BackLink, scopeFromValue, scopeValue } from "../ui";
+
+/** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
+function standingText(standing: Standing | undefined): string | undefined {
+  if (!standing?.done) return "배치 진행 중";
+  return standing.title ? `${standing.title}(누적)` : undefined;
+}
 
 function percent(wins: number, games: number): number {
   return games === 0 ? 0 : (wins / games) * 100;
@@ -94,13 +103,12 @@ export function Graphs(props: {
   const [playerId, setPlayerId] = useState("");
   const nameOf = nameMap(snapshot);
 
-  const season = scope.kind === "season" ? snapshot.seasons.find((s) => s.id === scope.seasonId) : null;
-  const scopeLabel =
-    scope.kind === "today" ? "오늘" : scope.kind === "all" ? "전체" : (season?.name ?? "시즌");
+  const scopeLabel = scopeLabelOf(snapshot, scope);
+  const years = matchYears(snapshot);
   const scoped = matchesInScope(snapshot, scope);
   const counted = scoped.filter((m) => m.state === "confirmed").length;
-  // 배치는 범위와 무관하게 전체 누적 기준이다.
-  const placement = placements(snapshot.matches);
+  // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
+  const placement = standingsOf(snapshot);
 
   const people = sortRanking(
     [...personRecordsByLine(scoped, line === "" ? null : line).values()],
@@ -118,9 +126,7 @@ export function Graphs(props: {
   return (
     <div className="screen cols viz-root">
       <header className="screen-head">
-        <button type="button" className="link" onClick={props.back}>
-          ← 기록
-        </button>
+        <BackLink label="← 기록" fallback={props.back} />
         <h1>그래프 분석</h1>
       </header>
 
@@ -129,18 +135,19 @@ export function Graphs(props: {
           범위
           <select
             aria-label="범위"
-            value={scope.kind === "season" ? `season:${scope.seasonId}` : scope.kind}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === "all" || value === "today") setScope({ kind: value });
-              else setScope({ kind: "season", seasonId: value.slice(7) });
-            }}
+            value={scopeValue(scope)}
+            onChange={(e) => setScope(scopeFromValue(e.target.value))}
           >
             <option value="all">전체</option>
             <option value="today">오늘</option>
             {snapshot.seasons.map((s) => (
               <option key={s.id} value={`season:${s.id}`}>
                 {s.name}
+              </option>
+            ))}
+            {years.map((y) => (
+              <option key={y} value={`year:${y}`}>
+                {y}년
               </option>
             ))}
           </select>
@@ -170,7 +177,7 @@ export function Graphs(props: {
       </div>
       <p className="hint">
         {scopeLabel} · 확정 {counted}경기. 누적 {PLACEMENT_GAMES}경기 미만은 배치 진행 중이며
-        배치 완료자 아래에 표시됩니다(배치는 누적 기준).
+        배치 완료자 아래에 표시됩니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
       </p>
 
       <section className="chart-card" aria-label="개인별 승률">
@@ -187,7 +194,7 @@ export function Graphs(props: {
               <li key={r.participantId}>
                 <RateBar
                   label={nameOf(r.participantId)}
-                  note={placement.get(r.participantId)?.done ? undefined : "배치 진행 중"}
+                  note={standingText(placement.get(r.participantId))}
                   wins={r.wins}
                   games={r.games}
                   onOpen={() => props.openPerson(r.participantId)}

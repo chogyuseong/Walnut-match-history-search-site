@@ -1,0 +1,495 @@
+import { useEffect, useState } from "react";
+import { dayRecords } from "../shared/insights";
+import { isCounted, safeTimeZone } from "../shared/stats";
+import { sideOfTeam, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
+import { formatDate, formatTime, nameMap, POSITION_LABEL, SIDE_LABEL, teamRoster } from "./format";
+import { Dialog } from "./ui";
+
+/**
+ * 결과 이미지(PNG). 서버 없이 이 기기에서 canvas로 그린다.
+ * 넣는 것: 모임 이름, 날짜, 경기 번호, 팀 명단·포지션, 승리 팀, 진영, 개인 승패.
+ * 넣지 않는 것: 실력 그룹·가중치·조회 링크(토큰)·라이엇 로고와 게임 이미지.
+ * 색은 지금 고른 테마의 토큰 값을 읽어 쓴다(새 색을 만들지 않는다).
+ */
+
+const WIDTH = 1080;
+const PAD = 56;
+
+interface Palette {
+  bg: string;
+  surface: string;
+  elevated: string;
+  text: string;
+  muted: string;
+  line: string;
+  brand: string;
+  winBg: string;
+  winText: string;
+  winAccent: string;
+  lossBg: string;
+  lossText: string;
+  lossAccent: string;
+  font: string;
+}
+
+function palette(): Palette {
+  const style = getComputedStyle(document.documentElement);
+  const v = (name: string) => style.getPropertyValue(name).trim();
+  return {
+    bg: v("--ih-bg-canvas"),
+    surface: v("--ih-bg-surface"),
+    elevated: v("--ih-bg-elevated"),
+    text: v("--ih-text-primary"),
+    muted: v("--ih-text-secondary"),
+    line: v("--ih-border-strong"),
+    brand: v("--ih-brand-primary"),
+    winBg: v("--ih-win-bg"),
+    winText: v("--ih-win-text"),
+    winAccent: v("--ih-win-accent"),
+    lossBg: v("--ih-loss-bg"),
+    lossText: v("--ih-loss-text"),
+    lossAccent: v("--ih-loss-accent"),
+    font: getComputedStyle(document.body).fontFamily,
+  };
+}
+
+/** 화면과 같은 글꼴이 준비된 뒤에 그린다. 글꼴을 못 받으면 기기 글꼴(한글 포함)로 그린다. */
+async function fontsReady(font: string): Promise<void> {
+  if (!document.fonts) return;
+  try {
+    await Promise.all(
+      ["400", "700", "800"].map((w) => document.fonts.load(`${w} 32px ${font}`, "가나다 0123 ABC")),
+    );
+    await document.fonts.ready;
+  } catch {
+    // 글꼴을 못 불러와도 기기 글꼴로 그린다.
+  }
+}
+
+/** 너비를 넘으면 말줄임표로 자른다. */
+function fit(ctx: CanvasRenderingContext2D, text: string, max: number): string {
+  if (ctx.measureText(text).width <= max) return text;
+  const chars = [...text];
+  while (chars.length > 1 && ctx.measureText(`${chars.join("")}…`).width > max) chars.pop();
+  return `${chars.join("")}…`;
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function setFont(ctx: CanvasRenderingContext2D, p: Palette, weight: number, size: number) {
+  ctx.font = `${weight} ${size}px ${p.font}`;
+}
+
+function newCanvas(height: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  const canvas = document.createElement("canvas");
+  canvas.width = WIDTH;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("이 기기에서는 이미지를 만들 수 없어요.");
+  ctx.textBaseline = "middle";
+  return { canvas, ctx };
+}
+
+function drawFooter(ctx: CanvasRenderingContext2D, p: Palette, height: number, group: string, date: string) {
+  ctx.strokeStyle = p.line;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD, height - 92);
+  ctx.lineTo(WIDTH - PAD, height - 92);
+  ctx.stroke();
+  setFont(ctx, p, 800, 30);
+  ctx.fillStyle = p.text;
+  ctx.textAlign = "left";
+  ctx.fillText(fit(ctx, group, WIDTH - PAD * 2 - 260), PAD, height - 48);
+  setFont(ctx, p, 500, 26);
+  ctx.fillStyle = p.muted;
+  ctx.textAlign = "right";
+  ctx.fillText(date, WIDTH - PAD, height - 48);
+  ctx.textAlign = "left";
+}
+
+function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("이미지를 만들지 못했어요."))), "image/png"),
+  );
+}
+
+/** 팀 상자 하나: 머리(팀·진영·승패)와 5명(포지션·이름). */
+function drawTeamBox(
+  ctx: CanvasRenderingContext2D,
+  p: Palette,
+  match: MatchView,
+  team: Team,
+  nameOf: (id: string) => string,
+  x: number,
+  y: number,
+  w: number,
+  rowH: number,
+) {
+  const won = isCounted(match) ? match.winnerTeam === team : null;
+  const side = sideOfTeam(team, match.teamASide);
+  const h = 72 + rowH * 5 + 16;
+  roundRect(ctx, x, y, w, h, 20);
+  ctx.fillStyle = p.surface;
+  ctx.fill();
+  if (side === "blue" || side === "red") {
+    ctx.fillStyle = side === "blue" ? p.winBg : p.lossBg;
+    ctx.fill();
+  }
+  ctx.lineWidth = won ? 4 : 1.5;
+  ctx.strokeStyle = won ? p.brand : p.line;
+  ctx.stroke();
+
+  setFont(ctx, p, 800, 32);
+  ctx.fillStyle = side === "blue" ? p.winText : side === "red" ? p.lossText : p.text;
+  const sideText = side === "blue" || side === "red" ? ` · ${SIDE_LABEL[side]}` : "";
+  ctx.fillText(`${team === "A" ? "●" : "■"} 팀 ${team}${sideText}`, x + 24, y + 40);
+  if (won !== null) {
+    ctx.textAlign = "right";
+    setFont(ctx, p, 800, 30);
+    ctx.fillStyle = p.text;
+    ctx.fillText(won ? "승리" : "패배", x + w - 24, y + 40);
+    ctx.textAlign = "left";
+  }
+  let rowY = y + 72 + rowH / 2;
+  for (const entry of teamRoster(match, team)) {
+    setFont(ctx, p, 600, 24);
+    ctx.fillStyle = p.muted;
+    const position = entry.position ? POSITION_LABEL[entry.position] : "";
+    if (position) ctx.fillText(position, x + 24, rowY);
+    ctx.fillStyle = p.text;
+    const nameX = position ? x + 104 : x + 24;
+    const name = fitSized(ctx, p, won ? 800 : 600, nameOf(entry.participantId), x + w - 24 - nameX, 30, 22);
+    ctx.fillText(name, nameX, rowY);
+    rowY += rowH;
+  }
+  return h;
+}
+
+/** 경기 한 건 이미지: 양 팀 명단과 승리 팀. */
+export async function drawMatchImage(snapshot: Snapshot, match: MatchView): Promise<Blob> {
+  const p = palette();
+  await fontsReady(p.font);
+  const nameOf = nameMap(snapshot);
+  const tz = snapshot.group.timezone;
+  const rowH = 58;
+  const boxH = 72 + rowH * 5 + 16;
+  const height = PAD + 150 + boxH + 48 + 110;
+  const { canvas, ctx } = newCanvas(height);
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, WIDTH, height);
+
+  setFont(ctx, p, 800, 56);
+  ctx.fillStyle = p.text;
+  ctx.fillText(`${match.matchNo}경기`, PAD, PAD + 34);
+  setFont(ctx, p, 600, 30);
+  ctx.fillStyle = p.muted;
+  const winner = match.winnerTeam;
+  const winnerSide = winner ? sideOfTeam(winner, match.teamASide) : null;
+  const summary = winner
+    ? `팀 ${winner} 승리 · ${SIDE_LABEL[winnerSide ?? "unknown"]}`
+    : "결과 미확정";
+  ctx.fillText(summary, PAD, PAD + 98);
+
+  const boxW = (WIDTH - PAD * 2 - 24) / 2;
+  const top = PAD + 150;
+  TEAMS.forEach((team, i) => {
+    drawTeamBox(ctx, p, match, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+  });
+  drawFooter(
+    ctx,
+    p,
+    height,
+    snapshot.group.name,
+    `${formatDate(match.playedAt, tz)} ${formatTime(match.playedAt, tz)}`,
+  );
+  return toBlob(canvas);
+}
+
+/** 이름 목록을 너비에 맞춰 여러 줄로 나눈다(이름 중간에서는 끊지 않는다. 한 이름이 너무 길면 자른다). */
+function wrapNames(ctx: CanvasRenderingContext2D, names: readonly string[], max: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  names.forEach((raw, i) => {
+    const name = fit(ctx, raw, max - 20) + (i < names.length - 1 ? "," : "");
+    const next = line === "" ? name : `${line} ${name}`;
+    if (line !== "" && ctx.measureText(next).width > max) {
+      lines.push(line);
+      line = name;
+    } else {
+      line = next;
+    }
+  });
+  if (line !== "") lines.push(line);
+  return lines;
+}
+
+/** 칸에 맞게 글자 크기를 줄인다(최소 크기에서도 넘치면 말줄임표). */
+function fitSized(
+  ctx: CanvasRenderingContext2D,
+  p: Palette,
+  weight: number,
+  text: string,
+  max: number,
+  size: number,
+  min: number,
+): string {
+  for (let s = size; s >= min; s -= 2) {
+    setFont(ctx, p, weight, s);
+    if (ctx.measureText(text).width <= max) return text;
+  }
+  return fit(ctx, text, max);
+}
+
+/** 오늘의 결과 이미지: 확정 경기 목록(경기별 승리 팀 명단)과 개인 승패. 긴 이름은 줄을 바꿔 다섯 명을 모두 싣는다. */
+export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchView[]): Promise<Blob> {
+  const p = palette();
+  await fontsReady(p.font);
+  const nameOf = nameMap(snapshot);
+  const tz = snapshot.group.timezone;
+  const confirmed = matches.filter(isCounted).sort((a, b) => a.matchNo - b.matchNo);
+  const people = dayRecords(confirmed, nameOf);
+  const innerW = WIDTH - PAD * 2;
+  const namesW = innerW - 100 - 24;
+  const lineH = 30;
+
+  // 먼저 줄 수를 재서 높이를 정한다.
+  const measure = newCanvas(1).ctx;
+  const layout = confirmed.map((match) => {
+    const winner = match.winnerTeam!;
+    const loser: Team = winner === "A" ? "B" : "A";
+    const names = (team: Team) => teamRoster(match, team).map((r) => nameOf(r.participantId));
+    setFont(measure, p, 600, 24);
+    const win = wrapNames(measure, names(winner), namesW);
+    setFont(measure, p, 500, 24);
+    const lose = wrapNames(measure, names(loser), namesW);
+    return { match, winner, win, lose, h: 60 + (win.length + lose.length) * lineH + 14 };
+  });
+  const personRowH = 56;
+  const personCols = 2;
+  const personRows = Math.ceil(people.length / personCols);
+  const height =
+    PAD + 150 + 56 + layout.reduce((sum, l) => sum + l.h + 12, 0) + 40 + 56 + personRows * personRowH + 48 + 110;
+  const { canvas, ctx } = newCanvas(height);
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, WIDTH, height);
+
+  setFont(ctx, p, 800, 56);
+  ctx.fillStyle = p.text;
+  ctx.fillText("오늘의 결과", PAD, PAD + 34);
+  setFont(ctx, p, 600, 30);
+  ctx.fillStyle = p.muted;
+  ctx.fillText(`확정 ${confirmed.length}경기 · 참가 ${people.length}명`, PAD, PAD + 98);
+
+  let y = PAD + 150;
+  setFont(ctx, p, 800, 32);
+  ctx.fillStyle = p.text;
+  ctx.fillText("경기별 결과", PAD, y + 20);
+  y += 56;
+  for (const { match, winner, win, lose, h } of layout) {
+    const side = sideOfTeam(winner, match.teamASide);
+    roundRect(ctx, PAD, y, innerW, h, 16);
+    ctx.fillStyle = p.surface;
+    ctx.fill();
+    if (side === "blue" || side === "red") {
+      ctx.fillStyle = side === "blue" ? p.winBg : p.lossBg;
+      ctx.fill();
+    }
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = p.line;
+    ctx.stroke();
+    // 왼쪽 막대: 이긴 팀의 진영(미상이면 중립)
+    ctx.fillStyle = side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
+    ctx.fillRect(PAD, y + 8, 8, h - 16);
+
+    setFont(ctx, p, 800, 30);
+    ctx.fillStyle = p.text;
+    ctx.fillText(`${match.matchNo}경기`, PAD + 28, y + 34);
+    setFont(ctx, p, 600, 24);
+    ctx.fillStyle = p.muted;
+    ctx.fillText(`팀 ${winner} 승 · ${SIDE_LABEL[side ?? "unknown"]}`, PAD + 160, y + 34);
+    ctx.textAlign = "right";
+    ctx.fillText(formatTime(match.playedAt, tz), PAD + innerW - 24, y + 34);
+    ctx.textAlign = "left";
+
+    let lineY = y + 76;
+    setFont(ctx, p, 800, 24);
+    ctx.fillStyle = p.text;
+    ctx.fillText("승", PAD + 28, lineY);
+    setFont(ctx, p, 600, 24);
+    for (const text of win) {
+      ctx.fillText(text, PAD + 72, lineY);
+      lineY += lineH;
+    }
+    setFont(ctx, p, 800, 24);
+    ctx.fillStyle = p.muted;
+    ctx.fillText("패", PAD + 28, lineY);
+    setFont(ctx, p, 500, 24);
+    for (const text of lose) {
+      ctx.fillText(text, PAD + 72, lineY);
+      lineY += lineH;
+    }
+    y += h + 12;
+  }
+
+  y += 40;
+  setFont(ctx, p, 800, 32);
+  ctx.fillStyle = p.text;
+  ctx.fillText("개인 승패", PAD, y);
+  y += 40;
+  const colW = (innerW - 24) / personCols;
+  people.forEach((row, i) => {
+    const col = i % personCols;
+    const r = Math.floor(i / personCols);
+    const x = PAD + col * (colW + 24);
+    const rowY = y + r * personRowH + personRowH / 2;
+    if (r % 2 === 0) {
+      ctx.fillStyle = p.elevated;
+      ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
+    }
+    ctx.fillStyle = p.text;
+    const name = fitSized(ctx, p, 700, row.name, colW - 150, 26, 20);
+    ctx.fillText(name, x + 16, rowY);
+    ctx.textAlign = "right";
+    setFont(ctx, p, 800, 26);
+    ctx.fillText(`${row.wins}승 ${row.losses}패`, x + colW - 16, rowY);
+    ctx.textAlign = "left";
+  });
+
+  const day = confirmed[0] ?? matches[0];
+  drawFooter(ctx, p, height, snapshot.group.name, day ? formatDate(day.playedAt, tz) : "");
+  return toBlob(canvas);
+}
+
+type ShareState =
+  | { kind: "making" }
+  | { kind: "ready"; blob: Blob; url: string; canShare: boolean }
+  | { kind: "failed"; message: string };
+
+function canShareFile(file: File): boolean {
+  try {
+    return typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 결과 이미지 창. 만든 이미지를 먼저 보여주고,
+ * 파일 공유가 되는 기기는 [공유], 안 되면 [내려받기]를 주요 버튼으로 둔다.
+ * 둘 다 안 되면 이미지를 길게 눌러 저장하라고 안내한다(이미지는 항상 보인다).
+ */
+export function ShareImageDialog(props: {
+  title: string;
+  fileName: string;
+  make: () => Promise<Blob>;
+  onClose: () => void;
+}) {
+  const [state, setState] = useState<ShareState>({ kind: "making" });
+  const [message, setMessage] = useState<string | null>(null);
+  const { make, fileName } = props;
+
+  useEffect(() => {
+    let url: string | null = null;
+    let alive = true;
+    make()
+      .then((blob) => {
+        if (!alive) return;
+        url = URL.createObjectURL(blob);
+        const file = new File([blob], fileName, { type: "image/png" });
+        setState({ kind: "ready", blob, url, canShare: canShareFile(file) });
+      })
+      .catch((error: unknown) => {
+        if (alive) {
+          setState({
+            kind: "failed",
+            message: error instanceof Error ? error.message : "이미지를 만들지 못했어요.",
+          });
+        }
+      });
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+    // 창을 열 때 한 번만 만든다.
+  }, []);
+
+  const downloadable = typeof document !== "undefined" && "download" in document.createElement("a");
+
+  async function share(blob: Blob) {
+    const file = new File([blob], fileName, { type: "image/png" });
+    try {
+      await navigator.share({ files: [file], title: props.title });
+      setMessage("공유했어요.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setMessage("공유하지 못했어요. 내려받기나 길게 눌러 저장을 써 주세요.");
+    }
+  }
+
+  function download(url: string) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setMessage("내려받기를 시작했어요. 안 되면 이미지를 길게 눌러 저장해 주세요.");
+  }
+
+  return (
+    <Dialog title={props.title} onClose={props.onClose}>
+      {state.kind === "making" && <p role="status">이미지를 만드는 중…</p>}
+      {state.kind === "failed" && (
+        <p className="note warn" role="alert">
+          {state.message}
+        </p>
+      )}
+      {state.kind === "ready" && (
+        <>
+          <img className="share-preview" src={state.url} alt={`${props.title} 미리보기`} />
+          <p className="hint">
+            실력 그룹·조회 링크는 이미지에 넣지 않았어요. 버튼이 안 되면 이미지를 길게 눌러(컴퓨터는
+            오른쪽 클릭) 저장해 주세요.
+          </p>
+          <div className="button-row">
+            {state.canShare && (
+              <button type="button" className="primary" onClick={() => void share(state.blob)}>
+                공유
+              </button>
+            )}
+            {downloadable && (
+              <button
+                type="button"
+                className={state.canShare ? "secondary" : "primary"}
+                onClick={() => download(state.url)}
+              >
+                내려받기
+              </button>
+            )}
+          </div>
+          {message && (
+            <p className="hint" role="status">
+              {message}
+            </p>
+          )}
+        </>
+      )}
+    </Dialog>
+  );
+}
+
+/** 파일 이름에 쓸 날짜(모임 시간대). */
+export function fileDate(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: safeTimeZone(timeZone), year: "numeric", month: "2-digit", day: "2-digit" }).format(
+    new Date(iso),
+  );
+}

@@ -8,9 +8,13 @@ import {
   type ImportSideMode,
 } from "../../shared/importTable";
 import { nameKey } from "../../shared/names";
+import { parseDelimited } from "../../shared/csv";
+import { classifyImport, isLegacyLayout, type ExistingImport } from "../../shared/sheetTable";
 import { call, mutate, newRequestId } from "../api";
+import { handOffPaste } from "../sheetHandoff";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
+import { CreateGroupButton } from "../account";
 
 const CHUNK = 50;
 const NAME_CHUNK = 30;
@@ -32,6 +36,9 @@ export function Import() {
   const snapshot = app.snapshot;
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState<ImportParse | null>(null);
+  // 이 모임에 이미 들어간 경기의 지문. 표를 읽을 때 받아 와서 같은 경기를 건너뛴다.
+  const [existing, setExisting] = useState<ExistingImport[] | null>(null);
+  const [checking, setChecking] = useState(false);
   const [sideMode, setSideMode] = useState<ImportSideMode | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -45,40 +52,74 @@ export function Import() {
     return (
       <div className="screen">
         <h1>표 일괄 입력</h1>
-        <p>모임이 있어야 기록을 넣을 수 있어요.</p>
-        <button type="button" className="primary" onClick={() => go("/")}>
-          오늘로 가기
-        </button>
+        <p>모임이 있어야 기록을 넣을 수 있어요. 경기를 하지 않아도 모임을 먼저 만들 수 있어요.</p>
+        <div className="button-row">
+          <CreateGroupButton primary label="모임 만들고 시작" to="/import" />
+          <button type="button" className="secondary" onClick={() => go("/")}>
+            오늘로 가기
+          </button>
+        </div>
       </div>
     );
   }
   const gid = snapshot.group.id;
+  const timeZone = snapshot.group.timezone;
   const known = new Set(
     snapshot.participants.filter((p) => p.status === "active").map((p) => nameKey(p.name)),
   );
-  const newNames = parsed ? parsed.names.filter((name) => !known.has(nameKey(name))) : [];
+  // 이미 들어간 경기(같은 지문)는 건너뛴다. 시트 가져오기와 같은 기준이다.
+  const classification =
+    parsed && existing && parsed.errors.length === 0 ? classifyImport(parsed.rows, existing, null) : null;
+  const fresh = classification?.fresh ?? [];
+  const skipped = classification?.already.length ?? 0;
+  // 새로 만들 참가자는 실제로 넣을 경기의 이름만 센다(확인 전에는 표 전체).
+  const usedKeys = new Set(fresh.flatMap((r) => [...r.teamA, ...r.teamB].map(nameKey)));
+  const usedNames = classification
+    ? parsed!.names.filter((name) => usedKeys.has(nameKey(name)))
+    : (parsed?.names ?? []);
+  const newNames = usedNames.filter((name) => !known.has(nameKey(name)));
   const dates = parsed ? parsed.rows.map((r) => r.date).sort() : [];
+  const readable = parsed !== null && parsed.rows.length > 0 && parsed.errors.length === 0 && !done;
+  const allSkipped = classification !== null && fresh.length === 0 && saved === 0;
   const ready =
-    parsed !== null && parsed.rows.length > 0 && parsed.errors.length === 0 && sideMode !== null;
+    parsed !== null &&
+    parsed.rows.length > 0 &&
+    parsed.errors.length === 0 &&
+    classification !== null &&
+    fresh.length > 0 &&
+    sideMode !== null;
 
-  function read() {
+  async function read() {
     plan.current = null;
     setSaved(0);
     setDone(false);
     setError(null);
-    setParsed(parseMatchTable(text));
+    setExisting(null);
+    // 아직 오지 않은 날짜의 줄은 틀린 줄로 알려 준다(서버도 거절한다).
+    const result = parseMatchTable(text, { now: Date.now(), timeZone });
+    setParsed(result);
+    if (result.rows.length === 0 || result.errors.length > 0) return;
+    setChecking(true);
+    try {
+      const res = await call<{ imports: ExistingImport[] }>("GET", `/api/groups/${gid}/imports/fingerprints`);
+      setExisting(res.imports);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setChecking(false);
+    }
   }
 
   async function run() {
-    if (!parsed || sideMode === null) return;
+    if (!parsed || !classification || sideMode === null) return;
     setBusy(true);
     setError(null);
     try {
       if (!plan.current) {
         // 이름에 해당하는 참가자를 찾고, 없는 이름은 새로 만든다(같은 이름이면 같은 참가자).
         const idOf = new Map<string, string>();
-        for (let i = 0; i < parsed.names.length; i += NAME_CHUNK) {
-          const names = parsed.names.slice(i, i + NAME_CHUNK);
+        for (let i = 0; i < usedNames.length; i += NAME_CHUNK) {
+          const names = usedNames.slice(i, i + NAME_CHUNK);
           const ensured = await call<{ participants: { id: string }[] }>(
             "POST",
             `/api/groups/${gid}/participants`,
@@ -86,7 +127,7 @@ export function Import() {
           );
           names.forEach((name, k) => idOf.set(nameKey(name), ensured.participants[k]!.id));
         }
-        const matches = toImportMatches(parsed.rows, (name) => idOf.get(nameKey(name))!, sideMode);
+        const matches = toImportMatches(fresh, (name) => idOf.get(nameKey(name))!, sideMode, timeZone);
         const chunks: Plan["chunks"] = [];
         for (let i = 0; i < matches.length; i += CHUNK) {
           chunks.push({ requestId: newRequestId(), matches: matches.slice(i, i + CHUNK) });
@@ -98,6 +139,7 @@ export function Import() {
         await mutate(`/api/groups/${gid}/matches/import`, {
           requestId: chunk.requestId,
           batchId: plan.current.batchId,
+          source: { kind: "paste" },
           matches: chunk.matches,
         });
         count += chunk.matches.length;
@@ -140,10 +182,11 @@ export function Import() {
             <textarea
               rows={8}
               value={text}
-              disabled={busy || saved > 0}
+              disabled={busy || checking || saved > 0}
               onChange={(e) => {
                 setText(e.target.value);
                 setParsed(null);
+                setExisting(null);
               }}
               spellCheck={false}
             />
@@ -151,10 +194,10 @@ export function Import() {
           <button
             type="button"
             className="secondary"
-            disabled={busy || saved > 0 || text.trim() === ""}
-            onClick={read}
+            disabled={busy || checking || saved > 0 || text.trim() === ""}
+            onClick={() => void read()}
           >
-            표 읽기
+            {checking ? "이미 들어간 경기 확인 중…" : "표 읽기"}
           </button>
         </>
       )}
@@ -170,6 +213,20 @@ export function Import() {
                 <span>경기</span>
                 <span>{parsed.rows.length}경기</span>
               </li>
+              {skipped > 0 && (
+                <>
+                  <li className="list-row static">
+                    <span>이미 들어간 경기(건너뜀)</span>
+                    <span>{skipped}경기</span>
+                  </li>
+                  <li className="list-row static">
+                    <span>새로 넣을 경기</span>
+                    <span>
+                      <strong>{fresh.length}경기</strong>
+                    </span>
+                  </li>
+                </>
+              )}
               {dates.length > 0 && (
                 <li className="list-row static">
                   <span>기간</span>
@@ -212,11 +269,43 @@ export function Import() {
               {parsed.errors.length > 20 && <p>그 밖에 {parsed.errors.length - 20}줄이 더 있어요.</p>}
             </div>
           )}
+          {parsed.errors.length > 0 && !isLegacyLayout(parseDelimited(text)) && (
+            <div className="note" role="status">
+              <p>열 순서가 기본 형식과 달라 보여요. 열 맞추기 화면에서 어느 열이 무엇인지 고르면 그대로 읽을 수 있어요.</p>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  handOffPaste(text);
+                  go("/sheet-import");
+                }}
+              >
+                열 맞추기로 계속
+              </button>
+            </div>
+          )}
         </section>
       )}
 
-      {parsed && parsed.rows.length > 0 && parsed.errors.length === 0 && !done && (
+      {readable && allSkipped && (
+        <p className="note" role="status">
+          새로 넣을 경기가 없어요. 이 표의 경기는 이미 모두 들어가 있어요.
+        </p>
+      )}
+
+      {readable && !allSkipped && (
         <>
+          {skipped > 0 && (
+            <p className="hint">
+              같은 날짜·같은 명단·같은 결과로 이미 들어간 {skipped}경기는 건너뛰고 {fresh.length}경기만 넣어요.
+            </p>
+          )}
+          {classification && classification.wasExcluded > 0 && (
+            <p className="hint">
+              전에 넣었다가 전적 제외한 경기와 같은 내용 {classification.wasExcluded}경기는 새로 넣어요. 제외한 묶음을
+              다시 복구하면 같은 경기가 두 번 들어가니 둘 중 하나만 쓰세요.
+            </p>
+          )}
           <fieldset disabled={busy || saved > 0}>
             <legend>진영을 어떻게 넣을까요?</legend>
             <label className={sideMode === "unknown" ? "choice chosen" : "choice"}>
@@ -266,10 +355,10 @@ export function Import() {
           )}
           <button type="button" className="primary wide" disabled={!ready || busy} onClick={() => void run()}>
             {busy
-              ? `저장 중 · ${saved}/${plan.current?.total ?? parsed.rows.length}경기`
+              ? `저장 중 · ${saved}/${plan.current?.total ?? fresh.length}경기`
               : saved > 0
                 ? "이어서 넣기"
-                : `${parsed.rows.length}경기 넣기`}
+                : `${classification ? fresh.length : parsed.rows.length}경기 넣기`}
           </button>
         </>
       )}
@@ -282,6 +371,7 @@ export function Import() {
               {sideMode === "unknown" ? "진영 미상" : "팀 A 블루 / 팀 B 레드"}
             </strong>
           </p>
+          {skipped > 0 && <p className="hint">이미 들어간 {skipped}경기는 건너뛰었어요.</p>}
           <div className="button-row">
             <button type="button" className="primary" onClick={() => go("/records")}>
               기록 보기

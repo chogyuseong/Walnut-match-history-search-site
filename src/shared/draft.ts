@@ -178,6 +178,28 @@ export function swapPeople(draft: Draft, keyA: string, keyB: string): Draft {
   };
 }
 
+/**
+ * 좌우 바꾸기(docs/P4 시나리오 19): 두 팀의 A·B 자리를 통째로 맞바꾼다.
+ * 팀 구성·포지션·고정은 그대로이고 이름표(A/B)만 바뀐다.
+ * 서포터 추첨 기록도 함께 옮긴다. 추첨 지문에는 팀 이름표가 들어가지 않으므로(rotation.ts)
+ * 옮긴 기록은 그대로 유효하고, "두 팀 추첨 유지"가 깨지지 않는다.
+ * 직전 편성(되돌리기)도 같은 방식으로 바꿔, 되돌려도 추첨 기록과 어긋나지 않게 한다.
+ * 두 번 바꾸면 원래와 같다. 팀 조건(같은 팀·다른 팀)은 좌우와 무관하다.
+ */
+export function swapSides(draft: Draft): Draft {
+  const flip = (slots: DraftSlot[]): DraftSlot[] =>
+    slots.map((s) => ({ ...s, team: s.team === "A" ? "B" : "A" }));
+  const draws: Partial<Record<Team, DrawRecord>> = {};
+  if (draft.draws.B) draws.A = draft.draws.B;
+  if (draft.draws.A) draws.B = draft.draws.A;
+  return {
+    ...draft,
+    slots: flip(draft.slots),
+    previousSlots: draft.previousSlots ? flip(draft.previousSlots) : null,
+    draws,
+  };
+}
+
 /** 한 사람을 초안에 없는 다른 사람으로 바꾼다. 자리(팀·포지션)는 그대로 물려받는다. */
 export function replacePerson(draft: Draft, oldKey: string, person: DraftPerson): Draft {
   if (draft.people.some((p) => p.key === person.key)) return draft;
