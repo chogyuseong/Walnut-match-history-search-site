@@ -20,14 +20,16 @@ import { ApiFailure, mutate, newRequestId } from "../api";
 import {
   formatDate,
   formatTime,
+  matchTone,
   nameMap,
   POSITION_LABEL,
+  rateTier,
   resultLine,
   SIDE_LABEL,
   STATE_LABEL,
   teamRoster,
 } from "../format";
-import { Dialog, ErrorNote, MatchTeams } from "../ui";
+import { Dialog, ErrorNote, KpiStrip, MatchTeams } from "../ui";
 import type { AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
@@ -106,6 +108,8 @@ export function Records(props: {
         </button>
       </header>
 
+      <KpiStrip snapshot={snapshot} />
+
       <div className="segmented" role="group" aria-label="범위">
         <button
           type="button"
@@ -156,7 +160,7 @@ export function Records(props: {
         ) : (
           <ul className="list">
             {listed.map((m) => (
-              <li key={m.id} className="list-row static">
+              <li key={m.id} className={`list-row static match-row tone-${matchTone(m)}`}>
                 <button type="button" className="row-main" onClick={() => props.openMatch(m.id)}>
                   <span>
                     {m.matchNo}경기 · {resultLine(m)}
@@ -215,11 +219,14 @@ export function Records(props: {
                     onClick={() => props.openPerson(r.participantId)}
                   >
                     <span className="name">
-                      <span className="rank">{rankOf.get(r.participantId)}</span>{" "}
+                      <span className={(rankOf.get(r.participantId) ?? 99) <= 3 ? "rank top" : "rank"}>
+                        {rankOf.get(r.participantId)}
+                      </span>{" "}
                       {nameOf(r.participantId)}
                     </span>
                     <span className="stat">
-                      {rate}% · {r.wins}승 {r.losses}패 ({r.games}경기)
+                      <span className={rateTier(r.wins, r.games)}>{rate}%</span> · {r.wins}승 {r.losses}패 (
+                      {r.games}경기)
                       {p && !p.done && (
                         <>
                           <br />

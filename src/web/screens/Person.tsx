@@ -10,7 +10,8 @@ import {
   type Tally,
 } from "../../shared/stats";
 import { POSITIONS, type Snapshot } from "../../shared/types";
-import { formatDate, nameMap, POSITION_LABEL, resultLine } from "../format";
+import { formatDate, nameMap, POSITION_LABEL, rateTier, resultLine } from "../format";
+import { PosLabel } from "../ui";
 
 function rate(tally: Tally): string {
   return tally.games === 0 ? "기록 없음" : `${Math.round((tally.wins / tally.games) * 100)}%`;
@@ -136,8 +137,8 @@ export function Person(props: {
 
       <section className="card" aria-label="요약">
         <h2>요약 ({scopeLabel})</h2>
-        <p>
-          <strong>{line(detail.summary)}</strong>
+        <p className={`summary-line ${rateTier(detail.summary.wins, detail.summary.games)}`}>
+          {line(detail.summary)}
         </p>
         <p className="hint">
           {placement.done
@@ -175,7 +176,7 @@ export function Person(props: {
             const tally = detail.byPosition[position];
             return (
               <li key={position} className="list-row static">
-                <span>{POSITION_LABEL[position]}</span>
+                <PosLabel position={position} />
                 <span className="stat">
                   {tally ? line(tally) : "기록 없음"}
                   {tally && tally.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
@@ -236,11 +237,18 @@ export function Person(props: {
           <ul className="list">
             {detail.matches.map((m) => {
               const me = m.roster.find((r) => r.participantId === participantId)!;
+              const won = me.team === m.winnerTeam;
               return (
                 <li key={m.id}>
-                  <button type="button" className="list-row" onClick={() => props.openMatch(m.id)}>
+                  <button
+                    type="button"
+                    className={`list-row match-row ${won ? "tone-win" : "tone-loss"}`}
+                    onClick={() => props.openMatch(m.id)}
+                  >
                     <span>
-                      {m.matchNo}경기 · {me.team === m.winnerTeam ? "승" : "패"} · 팀 {me.team}
+                      {m.matchNo}경기 ·{" "}
+                      <span className={won ? "result-win" : "result-loss"}>{won ? "승" : "패"}</span> · 팀{" "}
+                      {me.team}
                       {me.position ? ` ${POSITION_LABEL[me.position]}` : ""}
                       <br />
                       <span className="hint">{resultLine(m)}</span>

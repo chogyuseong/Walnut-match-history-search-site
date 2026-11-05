@@ -74,6 +74,32 @@ export function resultLine(match: MatchView): string {
 }
 
 /**
+ * 경기 줄의 색조. 이긴 팀의 진영을 따른다.
+ * 결과가 확정되지 않았거나 진영을 모르면 색을 입히지 않는다.
+ */
+export function matchTone(match: MatchView): "blue" | "red" | "none" {
+  if (match.state !== "confirmed" || !match.winnerTeam) return "none";
+  const side = sideOfTeam(match.winnerTeam, match.teamASide);
+  return side === "blue" || side === "red" ? side : "none";
+}
+
+/** 승률 색 구간을 적용하기 시작하는 경기 수. 이보다 적으면 우연일 수 있어 색을 입히지 않는다. */
+const RATE_TIER_MIN_GAMES = 5;
+
+/**
+ * 승률 구간의 클래스 이름. 디자인 키트의 평점 4단계 색을 승률에 옮긴 것이다:
+ * 50% 미만 회색, 50% 이상 초록, 55% 이상 파랑, 65% 이상 금색.
+ */
+export function rateTier(wins: number, games: number): string {
+  if (games < RATE_TIER_MIN_GAMES) return "rate";
+  const rate = (wins / games) * 100;
+  if (rate >= 65) return "rate rate-god";
+  if (rate >= 55) return "rate rate-great";
+  if (rate >= 50) return "rate rate-good";
+  return "rate rate-normal";
+}
+
+/**
  * 명단 텍스트(docs/P1 후보 C). 복사한 시점의 내용이며 끝에 기준 시각을 붙인다.
  * 진영이 확인되지 않았으면 팀 A·B로만 쓴다. 실력 그룹은 넣지 않는다.
  */

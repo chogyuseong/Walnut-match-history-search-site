@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { personRecords, searchByName, todayMatches } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
-import { formatTime, nameMap, resultLine } from "../format";
-import { ErrorNote } from "../ui";
+import { formatTime, matchTone, nameMap, rateTier, resultLine } from "../format";
+import { ErrorNote, KpiStrip } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 import { ResultSheet } from "./ResultSheet";
@@ -68,6 +68,8 @@ export function Today() {
           </span>
         )}
       </header>
+
+      {snapshot && <KpiStrip snapshot={snapshot} />}
 
       {app.loadError && app.loadError.status !== 401 && (
         <p className="note warn" role="alert">
@@ -172,7 +174,10 @@ export function Today() {
                       >
                         <span className="name">{r.name}</span>
                         <span className="stat">
-                          {Math.round((r.wins / r.games) * 100)}% · {r.wins}승 {r.losses}패 (
+                          <span className={rateTier(r.wins, r.games)}>
+                            {Math.round((r.wins / r.games) * 100)}%
+                          </span>{" "}
+                          · {r.wins}승 {r.losses}패 (
                           {r.games}경기)
                         </span>
                       </button>
@@ -209,7 +214,11 @@ export function Today() {
           <ul className="list">
             {[...today].reverse().map((m) => (
               <li key={m.id}>
-                <button type="button" className="list-row" onClick={() => go(`/m/${m.id}`)}>
+                <button
+                  type="button"
+                  className={`list-row match-row tone-${matchTone(m)}`}
+                  onClick={() => go(`/m/${m.id}`)}
+                >
                   <span>
                     {m.matchNo}경기 · {resultLine(m)}
                   </span>

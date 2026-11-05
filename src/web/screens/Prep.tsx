@@ -26,7 +26,7 @@ import {
 import { POSITIONS, TEAMS, type MatchView, type Snapshot, type Team } from "../../shared/types";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { draftRosterText, POSITION_LABEL, TEAM_MARK } from "../format";
-import { CopyButton, Dialog, ErrorNote, StickyAction } from "../ui";
+import { CopyButton, Dialog, ErrorNote, PosLabel, StickyAction } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 
@@ -311,7 +311,7 @@ export function Prep() {
                   if (!slot) {
                     return (
                       <li key={position} className="row empty">
-                        <span className="pos">{POSITION_LABEL[position]}</span>
+                        <PosLabel position={position} />
                         <span className="name">(비어 있음)</span>
                       </li>
                     );
@@ -325,7 +325,7 @@ export function Prep() {
                         aria-pressed={selectedKey === slot.key}
                         onClick={() => onTapPerson(slot.key)}
                       >
-                        <span className="pos">{POSITION_LABEL[position]}</span>
+                        <PosLabel position={position} />
                         <span className="name" title={nameOf(slot.key)}>
                           {nameOf(slot.key)}
                         </span>

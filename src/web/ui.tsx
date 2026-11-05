@@ -1,7 +1,104 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { TEAMS, type MatchView, type Team } from "../shared/types";
+import { isCounted, sideTotals } from "../shared/stats";
+import {
+  sideOfTeam,
+  TEAMS,
+  type MatchView,
+  type Position,
+  type Snapshot,
+  type Team,
+} from "../shared/types";
 import { ApiFailure } from "./api";
 import { copyText, formatTime, POSITION_LABEL, TEAM_MARK, teamRoster } from "./format";
+
+/** 라인 아이콘. 디자인 키트가 직접 그린 도형이며 게임의 공식 아이콘이 아니다. */
+const ROLE_SHAPES: Record<Position, ReactNode> = {
+  top: (
+    <>
+      <path d="M4 4H19L15.5 7.5H7.5V15.5L4 19V4Z" fill="currentColor" />
+      <path
+        d="M9.5 9.5H19V19H9.5V9.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeOpacity="0.35"
+      />
+    </>
+  ),
+  jungle: (
+    <>
+      <path
+        d="M12 3L16.5 9.5L12 21L7.5 9.5L12 3Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M5 8L10 13M19 8L14 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  ),
+  mid: (
+    <>
+      <path d="M19 5L5 19" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M4 4H11L8.5 6.5H6.5V8.5L4 11V4Z" fill="currentColor" fillOpacity="0.45" />
+      <path d="M20 20H13L15.5 17.5H17.5V15.5L20 13V20Z" fill="currentColor" fillOpacity="0.45" />
+    </>
+  ),
+  adc: (
+    <>
+      <path d="M20 20H5L8.5 16.5H16.5V8.5L20 5V20Z" fill="currentColor" />
+      <circle cx="10.5" cy="10.5" r="2.5" stroke="currentColor" strokeWidth="1.6" strokeOpacity="0.45" />
+    </>
+  ),
+  support: (
+    <>
+      <path
+        d="M12 4L19 7.5V12.5C19 16.5 16 19.5 12 21C8 19.5 5 16.5 5 12.5V7.5L12 4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M12 8V16M8.5 11.5H15.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  ),
+};
+
+/** 라인 이름과 아이콘. 아이콘은 꾸밈이고 뜻은 글자가 전한다. */
+export function PosLabel(props: { position: Position | null }) {
+  if (!props.position) return <span className="pos">-</span>;
+  return (
+    <span className="pos">
+      <svg className="role-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+        {ROLE_SHAPES[props.position]}
+      </svg>
+      {POSITION_LABEL[props.position]}
+    </span>
+  );
+}
+
+/** 누적 경기 수, 진영별 승률, 참가자 수를 한 줄로 보여준다. 확정된 경기가 없으면 그리지 않는다. */
+export function KpiStrip(props: { snapshot: Snapshot }) {
+  const { snapshot } = props;
+  const games = snapshot.matches.filter(isCounted).length;
+  if (games === 0) return null;
+  const sides = sideTotals(snapshot.matches);
+  const people = snapshot.participants.filter((p) => p.status === "active").length;
+  const percent = (wins: number) => ((wins / sides.known) * 100).toFixed(1);
+  return (
+    <p className="kpi">
+      <span>
+        누적 경기<strong>{games}경기</strong>
+      </span>
+      {sides.known > 0 && (
+        <span>
+          블루 : 레드 승률<strong className="blue">{percent(sides.blueWins)}%</strong> :{" "}
+          <strong className="red">{percent(sides.redWins)}%</strong>
+        </span>
+      )}
+      <span>
+        참가자<strong>{people}명</strong>
+      </span>
+    </p>
+  );
+}
 
 /** 한 번에 하나만 띄우는 확인 창. 뒤 화면은 누를 수 없다. */
 export function Dialog(props: { title: string; onClose: () => void; children: ReactNode }) {
@@ -95,6 +192,11 @@ export function SavedBadge(props: { at: string | null | undefined; timeZone?: st
   return <span className="badge ok">저장됨 · {formatTime(props.at, props.timeZone)} 확인</span>;
 }
 
+/** 팀 상자의 클래스. 진영이 정해진 경기만 블루·레드 색을 입힌다. */
+function teamClass(side: string | null): string {
+  return side === "blue" || side === "red" ? `team side-${side}` : "team";
+}
+
 /** 확정 명단. 좁은 화면에서는 두 팀을 위아래로 쌓는다(CSS). */
 export function MatchTeams(props: {
   match: MatchView;
@@ -105,7 +207,11 @@ export function MatchTeams(props: {
   return (
     <div className="teams">
       {TEAMS.map((team) => (
-        <section key={team} className="team" aria-label={`팀 ${team}`}>
+        <section
+          key={team}
+          className={teamClass(sideOfTeam(team, props.match.teamASide))}
+          aria-label={`팀 ${team}`}
+        >
           <h3>
             <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team}
             {props.sideOf?.(team) ? <span className="side"> · {props.sideOf(team)}</span> : null}
@@ -116,7 +222,7 @@ export function MatchTeams(props: {
                 key={entry.participantId}
                 className={entry.participantId === props.highlightId ? "row me" : "row"}
               >
-                <span className="pos">{entry.position ? POSITION_LABEL[entry.position] : "-"}</span>
+                <PosLabel position={entry.position} />
                 <span className="name" title={props.nameOf(entry.participantId)}>
                   {props.nameOf(entry.participantId)}
                 </span>
