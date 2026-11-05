@@ -1,0 +1,958 @@
+/* 모바일 기준 배치. 팀·진영·상태는 색이 아니라 기호와 글자로 구분한다. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #16181d;
+  --muted: #555b66;
+  --line: #d5d9e0;
+  --primary: #1f4fd8;
+  --primary-text: #ffffff;
+  --danger: #b3261e;
+  --warn-bg: #fff4d6;
+  --warn-line: #b7791f;
+  --ok-bg: #e3f4e8;
+  --ok-text: #14532d;
+  --picked: #dbe6ff;
+  --tabs-height: 56px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111318;
+    --surface: #1b1e25;
+    --text: #eceef2;
+    --muted: #a9b0bd;
+    --line: #353a45;
+    --primary: #8fb0ff;
+    --primary-text: #0b1530;
+    --danger: #ffb4ab;
+    --warn-bg: #3a2f10;
+    --warn-line: #e0b252;
+    --ok-bg: #12301c;
+    --ok-text: #a8e6b8;
+    --picked: #24345e;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  /* 하단 탭과 기기 하단 안전 영역만큼 띄운다. */
+  padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 16px);
+}
+
+.screen {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+h2 {
+  font-size: 1rem;
+  margin: 8px 0 4px;
+}
+h3 {
+  font-size: 1rem;
+  margin: 0 0 4px;
+}
+p {
+  margin: 0;
+}
+
+.screen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.screen-head h1 {
+  flex: 1 1 auto;
+}
+.sticky-head {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  padding: 8px 0;
+  z-index: 2;
+}
+.count {
+  font-size: 1.25rem;
+}
+
+/* 버튼: 터치 대상 44px 이상 */
+button,
+select,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.dialog:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
+  font-weight: 700;
+}
+.secondary {
+  background: var(--surface);
+}
+.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--surface);
+}
+.link {
+  border: none;
+  background: none;
+  padding: 8px 4px;
+  color: var(--primary);
+  text-decoration: underline;
+  min-height: 44px;
+}
+.wide {
+  width: 100%;
+}
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+input,
+textarea,
+select {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  width: 100%;
+}
+select {
+  width: auto;
+}
+input[type="radio"],
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  flex: none;
+}
+label {
+  display: block;
+}
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.input-row > :first-child {
+  flex: 1 1 auto;
+}
+textarea {
+  resize: vertical;
+}
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px 12px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+legend {
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.center {
+  text-align: center;
+}
+.warn-text {
+  color: var(--warn-line);
+  font-weight: 700;
+}
+.note {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.note.warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+}
+.badge {
+  font-size: 0.8125rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+.badge.ok {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+  border-color: transparent;
+}
+.tag {
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 6px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.saved {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+/* 두 팀: 기본은 좌우 2열, 360px 미만에서는 위아래로 쌓는다. */
+.teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (max-width: 359px) {
+  .teams {
+    grid-template-columns: 1fr;
+  }
+}
+.team {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  min-width: 0;
+}
+.team ul,
+.list,
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.team li {
+  margin: 0;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+}
+button.row {
+  border-color: var(--line);
+  margin-bottom: 4px;
+}
+.row.picked {
+  background: var(--picked);
+  border: 2px solid var(--primary);
+}
+.row.me {
+  background: var(--picked);
+  font-weight: 700;
+}
+.row.empty {
+  color: var(--muted);
+}
+.pos {
+  flex: none;
+  width: 2.6em;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+/* 긴 이름은 한 줄로 자르고 말줄임표. 전체 이름은 title과 확인 창에서 볼 수 있다. */
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.side {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+}
+.list-row.selected {
+  background: var(--picked);
+  border: 2px solid var(--primary);
+}
+.list-row.static {
+  cursor: default;
+}
+.row-main {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  min-width: 0;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  border-radius: 999px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  /* 요약·선택 창에서는 긴 이름도 줄바꿈해 전체를 보여준다. */
+  overflow-wrap: anywhere;
+}
+.choice.chosen {
+  border: 2px solid var(--primary);
+  background: var(--picked);
+}
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.choice-row .choice {
+  flex: 1 1 30%;
+  align-items: center;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.segmented {
+  display: flex;
+  gap: 6px;
+}
+.segmented button {
+  flex: 1;
+}
+.segmented button[aria-pressed="true"] {
+  border: 2px solid var(--primary);
+  background: var(--picked);
+  font-weight: 700;
+}
+
+details {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 12px 8px;
+}
+summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+}
+details > *:not(summary) {
+  margin-top: 6px;
+}
+
+/* 주요 행동: 평소에는 탭 위에 고정, 키보드가 열리면 본문 안에 둔다. */
+.action-sticky {
+  position: sticky;
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 8px);
+  background: var(--bg);
+  padding: 8px 0;
+  z-index: 1;
+}
+.action-inline {
+  padding: 8px 0;
+}
+
+.tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--tabs-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  z-index: 3;
+}
+.tabs button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background: none;
+  min-height: var(--tabs-height);
+}
+.tabs button[aria-current="page"] {
+  font-weight: 700;
+  box-shadow: inset 0 3px 0 var(--primary);
+}
+.viewer-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* 확인 창: 하단 탭과 고정 버튼 위를 덮는다. 뒤 화면은 누를 수 없다. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 10;
+}
+.dialog {
+  background: var(--bg);
+  width: 100%;
+  max-width: 560px;
+  max-height: 92dvh;
+  overflow-y: auto;
+  border-radius: 16px 16px 0 0;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dialog-head h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+.candidate {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.manual-copy {
+  flex: 1 1 100%;
+  font-size: 0.875rem;
+}
+.copy {
+  display: contents;
+}
+.toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 12px);
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  text-align: center;
+  z-index: 20;
+}
+
+/* 넓은 화면: 확인 창을 가운데에 띄운다. */
+@media (min-width: 720px) {
+  .overlay {
+    align-items: center;
+  }
+  .dialog {
+    border-radius: 16px;
+  }
+  .screen {
+    padding: 16px 24px;
+  }
+}
+
+/* 순위·통계 행 */
+.rank {
+  display: inline-block;
+  min-width: 1.6em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stat {
+  flex: none;
+  max-width: 62%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.segmented select {
+  flex: 1;
+}
+.segmented select.chosen {
+  border: 2px solid var(--primary);
+  background: var(--picked);
+  font-weight: 700;
+}
+input[type="search"] {
+  margin-bottom: 6px;
+}
+
+.season-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.season-form .input-row > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* ---------- 그래프 분석 ----------
+   색은 역할로 쓴다. 한 계열 막대는 한 색, 진영은 블루·레드(글자와 함께),
+   플레이어×라인은 50%를 중립 회색으로 둔 양극(파랑↔주황) 다섯 구간.
+   조합은 색각 구분 검사를 밝은·어두운 화면 모두에서 통과한 값이다. */
+.viz-root {
+  --viz-surface: #fcfcfb;
+  --viz-series: #2a78d6;
+  --viz-blue: #2a78d6;
+  --viz-red: #e34948;
+  --viz-low: #eb6834;
+  --viz-mid: #f0efec;
+  --viz-track: #e1e0d9;
+  --viz-axis: #898781;
+}
+@media (prefers-color-scheme: dark) {
+  .viz-root {
+    --viz-surface: #1a1a19;
+    --viz-series: #3987e5;
+    --viz-blue: #3987e5;
+    --viz-red: #e66767;
+    --viz-low: #d95926;
+    --viz-mid: #383835;
+    --viz-track: #2c2c2a;
+    --viz-axis: #898781;
+  }
+}
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.filter-row label {
+  flex: 1 1 30%;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.filter-row select {
+  width: 100%;
+  color: var(--text);
+}
+.chart-card {
+  background: var(--viz-surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.chart-card h2 {
+  margin: 0;
+}
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+}
+button.bar-row:hover {
+  background: var(--viz-mid);
+}
+.bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.bar-note {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+/* 값은 본문 색으로 쓴다. 막대 색을 글자에 입히지 않는다. */
+.bar-value {
+  flex: none;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+.bar-track {
+  position: relative;
+  display: block;
+  height: 10px;
+  background: var(--viz-track);
+  border-radius: 0 4px 4px 0;
+}
+/* 기준선(왼쪽)은 각지게, 값 쪽 끝만 둥글게. */
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--viz-series);
+}
+.bar-fill.tone-blue {
+  background: var(--viz-blue);
+}
+.bar-fill.tone-red {
+  background: var(--viz-red);
+}
+/* 50% 기준선 */
+.bar-mid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--viz-axis);
+}
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+}
+.band-low2 {
+  background: color-mix(in oklab, var(--viz-low) 50%, var(--viz-surface));
+}
+.band-low1 {
+  background: color-mix(in oklab, var(--viz-low) 22%, var(--viz-surface));
+}
+.band-mid {
+  background: var(--viz-mid);
+}
+.band-high1 {
+  background: color-mix(in oklab, var(--viz-blue) 22%, var(--viz-surface));
+}
+.band-high2 {
+  background: color-mix(in oklab, var(--viz-blue) 50%, var(--viz-surface));
+}
+.band-none,
+.band-empty {
+  background: var(--viz-surface);
+}
+.band-empty {
+  color: var(--muted);
+}
+.matrix {
+  width: 100%;
+  table-layout: fixed;
+  /* 칸 사이는 테두리가 아니라 바탕색 틈으로 나눈다. */
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.matrix th,
+.matrix td {
+  padding: 4px 2px;
+  text-align: center;
+  border-radius: 4px;
+  color: var(--text);
+  line-height: 1.25;
+}
+.matrix thead th {
+  color: var(--muted);
+  font-weight: 400;
+}
+.matrix th[scope="row"] {
+  width: 26%;
+  text-align: left;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.matrix tr.picked th[scope="row"] {
+  font-weight: 700;
+}
+.cell-games {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* ---------- 배치 보정 ---------- */
+
+/* 동작 버튼의 글자는 줄바꿈하지 않는다(입력 칸 옆에서 한 글자씩 꺾이던 문제). */
+.primary,
+.secondary,
+.danger,
+.link,
+.segmented button,
+.tabs button {
+  white-space: nowrap;
+}
+.input-row > :first-child {
+  min-width: 0;
+}
+.input-row > button {
+  flex: none;
+}
+
+/* 목록 줄: 내용은 세로 가운데, 오른쪽 보조 글자(시각 등)는 한 줄로 둔다. */
+/* 줄 전체를 누를 수 있는 목록: 바깥 줄의 위아래 여백을 없애고 안쪽 버튼이 여백을 갖는다.
+   글자가 두 줄이 되어도 테두리에 닿지 않는다. */
+.list-row.static:has(> .row-main) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.row-main {
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 0;
+}
+.row-main > :first-child,
+.list-row > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.row-main > .hint,
+.list-row > .hint {
+  flex: none;
+  white-space: nowrap;
+}
+.list-row.static > .button-row {
+  flex: none;
+  justify-content: flex-end;
+}
+
+/* 넓은 화면: 탭을 위로 올리고 본문 폭을 읽기 좋은 너비로 줄인다. */
+@media (min-width: 720px) {
+  main {
+    max-width: 760px;
+    padding-bottom: 32px;
+  }
+  main:has(+ .tabs) {
+    padding-top: 56px;
+  }
+  .tabs {
+    top: 0;
+    bottom: auto;
+    height: 56px;
+    padding: 0 24px;
+    justify-content: center;
+    gap: 8px;
+    border-top: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .tabs button {
+    flex: none;
+    min-width: 120px;
+  }
+  .tabs button[aria-current="page"] {
+    box-shadow: inset 0 -3px 0 var(--primary);
+  }
+  main:has(+ .tabs) .sticky-head {
+    top: 56px;
+  }
+  .action-sticky {
+    bottom: 0;
+    padding-bottom: 12px;
+  }
+  .toast {
+    left: 50%;
+    right: auto;
+    bottom: 24px;
+    transform: translateX(-50%);
+    max-width: 480px;
+  }
+}
+
+/* ---------- PC(1024px 이상): 넓은 화면을 2단으로 쓴다 ----------
+   입력·진행 화면은 읽기 좋은 폭(760px)을 유지하고,
+   읽는 화면(기록·개인 통계·그래프·모임)은 구역을 두 단으로 나란히 놓는다. */
+@media (min-width: 1024px) {
+  main {
+    max-width: 1120px;
+  }
+  .screen:not(.cols) {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .screen.cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px 24px;
+    align-items: start;
+  }
+  /* 제목·필터·안내 문구·접는 영역은 두 단을 가로질러 놓는다. 구역(section)만 단을 나눠 갖는다. */
+  .screen.cols > :not(section),
+  .screen.cols > .full {
+    grid-column: 1 / -1;
+  }
+  /* 그래프: 긴 개인별 승률을 왼쪽에 세우고 오른쪽에 라인별·진영별을 한 묶음으로 쌓는다. */
+  .screen.cols > .stack {
+    grid-column: auto;
+    min-width: 0;
+  }
+  .screen.cols > section {
+    min-width: 0;
+  }
+  .matrix {
+    font-size: 0.9375rem;
+  }
+  .matrix th[scope="row"] {
+    width: 18%;
+  }
+  .matrix th,
+  .matrix td {
+    padding: 8px 4px;
+  }
+}
+
+/* 여러 구역을 세로로 쌓는 묶음. 좁은 화면에서는 다른 구역과 같은 간격으로 이어진다. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 편성 줄: 표시(고정·차례 씀)가 이름을 밀어내지 않게, 자리가 모자라면 표시를 아랫줄로 내린다. */
+button.row {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+button.row .name {
+  flex: 1 1 4em;
+}
+button.row .tag {
+  margin-left: 0;
+}

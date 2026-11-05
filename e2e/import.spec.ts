@@ -1,0 +1,101 @@
+import { expect, test, type Page } from "@playwright/test";
+
+// 표 일괄 입력: 시트에서 복사한 표를 붙여 넣어 지난 경기를 한꺼번에 넣는다.
+
+const HEADER = "날짜\tA탑\tA정글\tA미드\tA원딜\tA서폿\tB탑\tB정글\tB미드\tB원딜\tB서폿\t승리팀";
+
+/** 12명 중 10명이 번갈아 나오는 경기 표를 만든다. 짝수 번째는 A 승, 홀수 번째는 B 승. */
+function table(count: number): string[] {
+  const names = Array.from({ length: 12 }, (_, i) => `옛선수${String(i + 1).padStart(2, "0")}`);
+  return Array.from({ length: count }, (_, i) => {
+    const ten = Array.from({ length: 10 }, (_, k) => names[(i + k) % 12]!);
+    const day = String(1 + (i % 28)).padStart(2, "0");
+    return [`2026-07-${day}`, ...ten, i % 2 === 0 ? "A" : "B"].join("\t");
+  });
+}
+
+async function openImport(page: Page): Promise<string> {
+  const user = `e2e-imp-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
+  await page.request.post("/api/auth/fake-login", { data: { subject: user } });
+  const group = await (await page.request.post("/api/groups", { data: { name: "이관 모임" } })).json();
+  await page.goto("/#/group");
+  await page.getByRole("button", { name: "지난 기록 한꺼번에 넣기" }).click();
+  await expect(page.getByRole("heading", { name: "표 일괄 입력", level: 1 })).toBeVisible();
+  return group.id as string;
+}
+
+test.use({ viewport: { width: 390, height: 844 } });
+
+test("틀린 줄이 있으면 넣지 않고, 고친 뒤 진영을 골라야 넣을 수 있다", async ({ page }) => {
+  const groupId = await openImport(page);
+  const rows = table(120);
+
+  // 틀린 줄(승리팀을 읽을 수 없음)이 하나 있으면 줄 번호와 이유를 알려주고 넣기 버튼이 없다.
+  const broken = [...rows];
+  broken[4] = broken[4]!.replace(/\t[AB]$/, "\t무승부");
+  await page.getByLabel("붙여 넣을 표").fill([HEADER, ...broken].join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  await expect(page.getByText("틀린 줄이 1개 있어요.")).toBeVisible();
+  await expect(page.getByText(/6번째 줄: 승리팀 '무승부'를 읽지 못했어요/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /경기 넣기/ })).toHaveCount(0);
+  const none = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();
+  expect(none.matches).toHaveLength(0);
+
+  // 고쳐서 다시 읽으면 미리보기가 나온다.
+  await page.getByLabel("붙여 넣을 표").fill([HEADER, ...rows].join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  const preview = page.getByRole("region", { name: "미리보기" });
+  await expect(preview).toContainText("120경기");
+  await expect(preview).toContainText("2026-07-01 ~ 2026-07-28");
+  await expect(preview).toContainText("12명 (새로 만들 12명)");
+
+  // 진영은 미리 골라져 있지 않고, 고르기 전에는 넣을 수 없다.
+  await expect(page.getByRole("radio", { name: /진영 미상으로 넣기/ })).not.toBeChecked();
+  await expect(page.getByRole("radio", { name: /팀 A는 블루/ })).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "120경기 넣기" })).toBeDisabled();
+
+  await page.getByRole("radio", { name: /팀 A는 블루/ }).check();
+  await page.getByRole("button", { name: "120경기 넣기" }).click();
+  await expect(page.getByText("120경기 저장됨 · 팀 A 블루 / 팀 B 레드")).toBeVisible();
+
+  // 서버에 120경기가 확정 경기로 들어갔고 진영은 팀 A가 블루다. 세션과 순환은 생기지 않았다.
+  const snapshot = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();
+  expect(snapshot.matches).toHaveLength(120);
+  expect(
+    snapshot.matches.every(
+      (m: { state: string; source: string; teamASide: string; roster: unknown[] }) =>
+        m.state === "confirmed" && m.source === "import" && m.teamASide === "blue" && m.roster.length === 10,
+    ),
+  ).toBe(true);
+  expect(snapshot.participants).toHaveLength(12);
+  expect(snapshot.session).toBeNull();
+  expect(snapshot.group.liveVersion).toBe(0);
+
+  // 기록과 그래프에 바로 반영된다. 팀 A가 60승이므로 블루 50%.
+  await page.getByRole("button", { name: "기록 보기" }).click();
+  await page.getByRole("button", { name: "전체", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /전체 경기 · 120경기 확정/ })).toBeVisible();
+  await page.getByRole("button", { name: "그래프 분석" }).click();
+  const sides = page.getByRole("region", { name: "진영별 누적 승률" });
+  await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("50.0% · 120경기");
+});
+
+test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠진다", async ({ page }) => {
+  const groupId = await openImport(page);
+  await page.getByLabel("붙여 넣을 표").fill(table(3).join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "3경기 넣기" }).click();
+  await expect(page.getByText("3경기 저장됨 · 진영 미상")).toBeVisible();
+
+  const snapshot = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();
+  expect(snapshot.matches.every((m: { teamASide: string }) => m.teamASide === "unknown")).toBe(true);
+
+  await page.getByRole("button", { name: "그래프 분석" }).click();
+  await expect(page.getByText(/전체 · 확정 3경기/)).toBeVisible();
+  const sides = page.getByRole("region", { name: "진영별 누적 승률" });
+  await expect(sides).toContainText("진영을 아는 경기가 없어요.");
+  await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
+  // 개인별 승률에는 들어간다.
+  await expect(page.getByRole("region", { name: "개인별 승률" }).getByRole("listitem")).toHaveCount(12);
+});

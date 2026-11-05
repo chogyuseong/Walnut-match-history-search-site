@@ -1,0 +1,33 @@
+{
+    "name":  "naejeon-v2",
+    "version":  "0.0.0",
+    "private":  true,
+    "type":  "module",
+    "scripts":  {
+                    "dev":  "vite build \u0026\u0026 wrangler d1 migrations apply naejeon --local \u0026\u0026 wrangler dev",
+                    "dev:web":  "vite",
+                    "build":  "vite build",
+                    "db:migrate:local":  "wrangler d1 migrations apply naejeon --local",
+                    "test":  "vitest run",
+                    "typecheck":  "tsc --noEmit \u0026\u0026 tsc --noEmit -p tsconfig.web.json",
+                    "e2e":  "playwright test",
+                    "seed":  "node scripts/seed.mjs"
+                },
+    "dependencies":  {
+                         "hono":  "4.13.16",
+                         "react":  "19.3.1",
+                         "react-dom":  "19.3.1"
+                     },
+    "devDependencies":  {
+                            "@cloudflare/vitest-plugin":  "1.5.1",
+                            "@cloudflare/workers-types":  "5.20261104.1",
+                            "@playwright/test":  "1.64.1",
+                            "@types/react":  "19.3.0",
+                            "@types/react-dom":  "19.3.0",
+                            "@vitejs/plugin-react":  "6.2.1",
+                            "typescript":  "7.0.2",
+                            "vite":  "8.3.5",
+                            "vitest":  "5.1.0",
+                            "wrangler":  "4.157.0"
+                        }
+}

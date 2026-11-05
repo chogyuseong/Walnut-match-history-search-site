@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "naejeon-v2",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-11-01",
+  // 화면은 정적 파일로 함께 배포한다. /api/* 만 Worker가 처리하고 나머지 주소는 index.html로 보낸다.
+  "assets": {
+    "directory": "./dist/web",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "naejeon",
+      // 로컬 개발용 자리 표시값이다. 운영 DB ID는 배포 단계에서 넣는다.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // "fake"는 로컬·테스트 전용 로그인이다. 운영 배포에서는 다른 값으로 바꾼다.
+    "AUTH_MODE": "fake"
+  }
+}
