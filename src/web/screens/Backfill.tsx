@@ -40,7 +40,7 @@ const SIDE_CHOICES: { value: BackfillSide; title: string; hint: string }[] = [
 
 /**
  * 지난 경기 한 건 입력. 이미 끝난 경기의 결과를 바로 확정 경기로 넣는다.
- * 오늘 내전(세션), 진행 중 경기, 서포터 차례에는 영향이 없다.
+ * 오늘 내전(세션), 진행 중 경기, 서포터 횟수에는 영향이 없다.
  */
 export function Backfill() {
   const app = useAppValue();
@@ -138,7 +138,7 @@ export function Backfill() {
               {formatTime(saved.playedAt, tz)} · 팀 {saved.winnerTeam} 승
             </strong>
           </p>
-          <p className="hint">통계와 배치 판수에 바로 들어갑니다. 오늘 내전과 서포터 차례는 그대로입니다.</p>
+          <p className="hint">통계와 배치 판수에 바로 들어갑니다. 오늘 내전과 서포터 횟수는 그대로입니다.</p>
           <div className="button-row">
             <button type="button" className="primary" onClick={() => go(`/m/${saved.id}`)}>
               이 경기 보기
@@ -173,7 +173,7 @@ export function Backfill() {
         <h1>지난 경기 입력</h1>
       </header>
       <p className="hint">
-        이미 끝난 경기 하나를 결과까지 넣습니다. 오늘 내전, 진행 중인 경기, 서포터 차례에는 영향이
+        이미 끝난 경기 하나를 결과까지 넣습니다. 오늘 내전, 진행 중인 경기, 서포터 횟수에는 영향이
         없습니다. 여러 경기는{" "}
         <button type="button" className="link" onClick={() => go("/import")}>
           표 일괄 입력

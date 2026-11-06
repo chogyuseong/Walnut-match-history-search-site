@@ -130,12 +130,14 @@ export function matchRosterText(snapshot: Snapshot, match: MatchView, link: stri
   return lines.join("\n");
 }
 
-/** 아직 시작하지 않은 편성의 명단 텍스트. 링크가 없다. */
+/** 아직 시작하지 않은 편성의 명단 텍스트. 링크가 없다. 진영을 골라 두었으면 함께 쓴다(실력 그룹은 넣지 않는다). */
 export function draftRosterText(draft: Draft): string {
   const nameOf = new Map(draft.people.map((p) => [p.key, p.name]));
   const lines = ["내전 편성 (아직 시작 전)"];
   for (const team of ["A", "B"] as const) {
-    lines.push("", `${TEAM_MARK[team]} 팀 ${team}`);
+    const side = sideOfTeam(team, draft.teamASide ?? null);
+    const sideText = side && side !== "unknown" ? ` (${SIDE_LABEL[side]})` : "";
+    lines.push("", `${TEAM_MARK[team]} 팀 ${team}${sideText}`);
     const members = draft.slots
       .filter((s) => s.team === team)
       .sort((a, b) => positionIndex(a.position) - positionIndex(b.position));
@@ -171,4 +173,12 @@ export function objectParticle(word: string): string {
   if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 0 ? "를" : "을";
   if (/[0-9]/.test(last)) return "013678".includes(last) ? "을" : "를";
   return "을(를)";
+}
+
+/** 팀 상자 제목 옆 진영 표시(MatchTeams의 sideOf). 진영을 모르면(미정·미상) null. */
+export function teamSideLabel(match: MatchView): (team: Team) => string | null {
+  return (team) => {
+    const side = sideOfTeam(team, match.teamASide);
+    return side === "blue" || side === "red" ? SIDE_LABEL[side] : null;
+  };
 }

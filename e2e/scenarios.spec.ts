@@ -225,9 +225,9 @@ test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 
 
   const teamA = page.getByRole("region", { name: "팀 A" });
   const teamB = page.getByRole("region", { name: "팀 B" });
-  await page.getByRole("button", { name: "서포터 추첨" }).click();
-  await expect(teamA.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(teamB.getByText("서포터 추첨 적용됨")).toBeVisible();
+  await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
+  await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(teamB.getByText("서포터 바꾸기 적용됨")).toBeVisible();
 
   const rows = (team: Locator) => team.getByRole("button").allInnerTexts();
   const beforeA = await rows(teamA);
@@ -237,9 +237,9 @@ test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 
   // 사람·포지션은 그대로 자리만 바뀌고, 두 팀 모두 추첨이 유지된다.
   expect(await rows(teamA)).toEqual(beforeB);
   expect(await rows(teamB)).toEqual(beforeA);
-  await expect(teamA.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(teamB.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(page.getByText("서포터 추첨 다시 확인 필요")).toHaveCount(0);
+  await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(teamB.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(page.getByText("서포터 바꾸기 다시 확인 필요")).toHaveCount(0);
 
   // 시작하면 서버에 저장된 명단의 팀도 바꾼 대로다.
   await page.getByRole("button", { name: "이 팀으로 시작" }).click();
@@ -267,49 +267,74 @@ test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 
   expect(shownSupportA && lastWord(shownSupportA)).toBe(nameOf.get(supportA.participantId));
 });
 
-test("21: 팀 B에 추첨 후보가 없으면 아무것도 바꾸지 않고 '팀 A만 적용 / 취소'", async ({ page }) => {
+// 서포터 규칙(2026-11-06 개정): 새 서포터는 아직 안 간 사람(0회)만. 두 팀을 따로 판단해
+// 안 간 사람이 없는 팀은 그대로 두고 다른 팀만 바로 바꾼다(예전의 "팀 A만 적용 / 취소" 선택은 없앴다).
+test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸고 알린다 → 초기화 버튼이 켜지고, 누르면 다시 꺼진다", async ({
+  page,
+}) => {
   const s = await setup(page);
   const P = s.people;
-  // 1~4경기: 팀 B의 서포터 자리에 선수06~09가 한 번씩 선다(차례 사용). 팀 A 서포터는 선수11로 반복 허용.
-  for (let k = 0; k < 4; k++) {
-    // 팀 B 다섯째(서포터)가 선수06+k다. 앞 넷은 나머지 선수06~10으로 채운다.
-    const others = [P[5]!, P[6]!, P[7]!, P[8]!, P[9]!].filter((p) => p.id !== P[5 + k]!.id);
-    const roster = [P[0]!, P[1]!, P[2]!, P[3]!, P[10]!, ...others, P[5 + k]!];
-    const m = await start(page.request, s, roster, k > 0 ? [P[10]!.id] : []);
+  // 1~8경기: 팀 B의 서포터 자리에 선수06~09가 두 번씩 선다. 팀 A 서포터는 선수11로 반복.
+  for (let k = 0; k < 8; k++) {
+    // 팀 B 다섯째(서포터)가 선수06+(k%4)다. 앞 넷은 나머지 선수06~10으로 채운다.
+    const sup = P[5 + (k % 4)]!;
+    const others = [P[5]!, P[6]!, P[7]!, P[8]!, P[9]!].filter((p) => p.id !== sup.id);
+    const roster = [P[0]!, P[1]!, P[2]!, P[3]!, P[10]!, ...others, sup];
+    const ack = [...(k > 0 ? [P[10]!.id] : []), ...(k >= 4 ? [sup.id] : [])];
+    const m = await start(page.request, s, roster, ack);
     await finish(page.request, s, m, "A", "blue");
   }
-  // 5경기 진행 중: 팀 B 다섯 명(선수06~10) 모두 이번 순환에서 차례를 썼다(선수10은 시작하며 씀).
+  // 9경기 진행 중: 팀 B 서포터는 선수10(이번이 1회), 선수06~09는 2회씩 → 팀 B 다섯 명 모두 1회 이상.
+  // 팀 A는 선수05만 1회(이번 경기), 선수01~04는 0회.
   await start(page.request, s, [...P.slice(0, 5), ...P.slice(5, 10)]);
 
   await page.goto("/#/match");
   await page.getByRole("button", { name: "다음 경기 준비" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
+  await page.getByRole("button", { name: "포지션 유지" }).click();
   const teamA = page.getByRole("region", { name: "팀 A" });
   const teamB = page.getByRole("region", { name: "팀 B" });
+  const reset = page.getByRole("button", { name: "서포터 횟수 초기화" });
+
+  // 팀 B에 안 간 사람(선수01)을 넣으면 모두 배정받은 팀이 없어 초기화 버튼은 꺼져 있고 이유를 글로 보여준다.
+  await teamB.getByRole("button", { name: /선수06/ }).click();
+  await teamA.getByRole("button", { name: /선수01/ }).click();
+  await expect(teamB.getByRole("button", { name: /선수01/ })).toBeVisible();
+  await page.getByText(/^서포터 횟수: /).click();
+  await expect(reset).toBeDisabled();
+  await expect(page.getByText("아직 서포터를 안 간 사람이 있어요.", { exact: false })).toBeVisible();
+  // 되돌리면(팀 B가 다시 모두 간 사람) 초안에서 바로 다시 계산해 켜진다.
+  await page.getByRole("button", { name: "직전 편성으로" }).click();
+  await expect(teamB.getByRole("button", { name: /선수06/ })).toBeVisible();
+  await expect(reset).toBeEnabled();
+
   const rows = async () => [await teamA.getByRole("button").allInnerTexts(), await teamB.getByRole("button").allInnerTexts()];
   const before = await rows();
 
-  await page.getByRole("button", { name: "서포터 추첨" }).click();
-  const note = page.getByRole("status").filter({ hasText: "아직 아무것도 바꾸지 않았어요" });
-  await expect(note).toContainText("팀 B는");
-  await expect(note.getByRole("button", { name: "팀 A만 적용" })).toBeVisible();
-  await expect(note.getByRole("button", { name: "취소" })).toBeVisible();
-  expect(await rows()).toEqual(before);
-
-  // 취소: 안내만 닫히고 편성은 그대로다.
-  await note.getByRole("button", { name: "취소" }).click();
-  await expect(note).toHaveCount(0);
-  expect(await rows()).toEqual(before);
-
-  // 다시 추첨 → 팀 A만 적용: 팀 A만 바뀌고 적용됨 표시, 팀 B는 그대로.
-  await page.getByRole("button", { name: "서포터 추첨" }).click();
-  await page.getByRole("button", { name: "팀 A만 적용" }).click();
-  await expect(teamA.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(teamB.getByText("서포터 추첨 적용됨")).toHaveCount(0);
+  // 서포터만 바꾸기: 묻지 않고 팀 A만 바뀐다. 팀 B는 그대로이고 알림이 뜬다.
+  await page.getByRole("region", { name: "섞기" }).getByRole("button", { name: "서포터만 바꾸기" }).click();
+  const note = page.getByRole("status").filter({ hasText: "모두 서포터를 배정받았어요" });
+  await expect(note).toContainText("팀 B는 모두 서포터를 배정받았어요.");
+  await expect(note).toContainText("서포터 횟수 초기화를 누르면 다시 처음부터 돌아가요.");
+  await expect(note.getByRole("button")).toHaveCount(0);
+  await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(teamB.getByText("서포터 바꾸기 적용됨")).toHaveCount(0);
   const after = await rows();
   expect(after[1]).toEqual(before[1]);
   expect(after[0]).not.toEqual(before[0]);
   await expect(page.getByText(/^팀 A: .+→서포터/)).toBeVisible();
+  // 팀 A의 새 서포터는 아직 안 간 사람(서폿 표시 없음)이다.
+  await expect(teamA.getByRole("button").nth(4)).not.toContainText(/서폿 \d회/);
+
+  // 초기화 버튼이 켜져 있다 → 누르면 횟수 표시가 사라지고 버튼은 다시 꺼진다.
+  await expect(reset).toBeEnabled();
+  await reset.click();
+  const dialog = page.getByRole("dialog", { name: "서포터 횟수 초기화" });
+  await dialog.getByRole("button", { name: "초기화" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".teams").getByRole("button").filter({ hasText: /서폿 \d회/ })).toHaveCount(0);
+  await page.getByText("서포터 횟수: 아직 없음").click();
+  await expect(reset).toBeDisabled();
 });
 
 test("29: 클립보드가 거절되면 선택 가능한 글 상자, 진영 미확인이면 '팀 A·B'로만", async ({ page }) => {

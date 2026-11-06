@@ -8,7 +8,7 @@ import type { MatchView, Settings } from "./types";
  */
 export interface RecommendPerson {
   key: string;
-  /** 1(최상위)~4(최하위) 또는 null(미지정). 미지정은 낮은 실력이 아니다. */
+  /** 우선순위(화면 이름, 예전 "실력 그룹"). 1(가장 잘함)~4 또는 null(미지정). 미지정은 낮은 실력이 아니다. */
   skillGroup: number | null;
 }
 
@@ -132,8 +132,22 @@ function median(values: number[]): number {
   return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
+/**
+ * 사람별 가중치. 지정된 사람은 그 순위의 가중치, 미지정은 지정된 사람 가중치의 중앙값(아무도 없으면 0).
+ * 팀 추천과 팀까지 올랜덤(src/shared/priority.ts)이 같이 쓴다.
+ */
+export function priorityWeightOf(
+  people: readonly RecommendPerson[],
+  groupWeights: readonly [number, number, number, number],
+): (p: RecommendPerson) => number {
+  const assigned = people.filter((p) => p.skillGroup !== null);
+  const fallback =
+    assigned.length > 0 ? median(assigned.map((p) => groupWeights[p.skillGroup! - 1]!)) : 0;
+  return (p) => (p.skillGroup === null ? fallback : groupWeights[p.skillGroup - 1]!);
+}
+
 /** 9명 중 4명을 고르는 모든 조합. 첫 사람을 팀 A에 고정해 중복 분할을 없앤다. */
-function* chooseFour(n: number): Generator<number[]> {
+export function* chooseFour(n: number): Generator<number[]> {
   for (let a = 0; a < n; a++)
     for (let b = a + 1; b < n; b++)
       for (let c = b + 1; c < n; c++) for (let d = c + 1; d < n; d++) yield [a, b, c, d];
@@ -147,7 +161,7 @@ function count(people: RecommendPerson[], group: number | null): number {
  * 추천 후보를 좋은 순으로 돌려준다(최대 limit개).
  * 같은 팀·다른 팀 조건을 어기는 분할은 비교하기 전에 뺀다.
  * 비교 순서(앞 기준이 같을 때만 뒤 기준을 본다):
- *   1) 가중치 합의 차  2) 최상위 그룹 인원 차  3) 최하위 그룹 인원 차
+ *   1) 가중치 합의 차  2) 1순위 인원 차  3) 4순위 인원 차
  *   4) 미지정 인원 차  5) 조합 다양성(diversity를 넘겼을 때만) 6) 시드로 정한 순서
  * 다양성은 1~4가 모두 같은 후보(균형 허용 폭 0) 사이에서만 순서를 정하므로 균형을 희생하지 않는다.
  * diversity를 넘기지 않으면 예전과 똑같은 결과다(시드 순서 값도 같은 순서로 뽑는다).
@@ -163,10 +177,7 @@ export function recommendTeams(
   if (people.length !== 10) throw new Error("추천은 10명이어야 합니다.");
   const assigned = people.filter((p) => p.skillGroup !== null);
   // 미지정은 지정된 참가자 가중치의 중앙값으로 계산한다.
-  const fallback =
-    assigned.length > 0 ? median(assigned.map((p) => groupWeights[p.skillGroup! - 1]!)) : 0;
-  const weightOf = (p: RecommendPerson) =>
-    p.skillGroup === null ? fallback : groupWeights[p.skillGroup - 1]!;
+  const weightOf = priorityWeightOf(people, groupWeights);
 
   const rng = rngFromSeed(seed);
   const first = people[0]!;
@@ -216,9 +227,9 @@ export function recommendTeams(
     const base =
       assigned.length === 0
         ? diversityShown
-          ? "실력 그룹을 지정한 사람이 없어 최근 조합을 피해 나눴어요."
-          : "실력 그룹을 지정한 사람이 없어 무작위로 나눴어요."
-        : `그룹 합계 차 ${c.sumDiff} · 최상위 ${c.topCount[0]}:${c.topCount[1]}` +
+          ? "우선순위를 정한 사람이 없어 최근 조합을 피해 나눴어요."
+          : "우선순위를 정한 사람이 없어 무작위로 나눴어요."
+        : `우선순위 합계 차 ${c.sumDiff} · 1순위 ${c.topCount[0]}:${c.topCount[1]}` +
           (c.unassignedCount[0] + c.unassignedCount[1] > 0
             ? ` · 미지정 ${c.unassignedCount[0]}:${c.unassignedCount[1]}`
             : "");

@@ -25,7 +25,10 @@ function reopenHome(): void {
 export function DangerZone() {
   const app = useAppValue();
   const snapshot = app.snapshot;
-  const groups = app.me?.groups ?? [];
+  // 탈퇴를 막는 것은 대표로 운영하는 모임뿐이다. 공동 운영자로 있는 모임은 탈퇴하면 함께 빠진다(서버가 행을 지운다).
+  const groups = (app.me?.groups ?? []).filter((g) => (g.role ?? "owner") === "owner");
+  const coGroups = (app.me?.groups ?? []).filter((g) => g.role === "co");
+  const isOwner = snapshot !== null && groups.some((g) => g.id === snapshot.group.id);
   const [groupConfirm, setGroupConfirm] = useState("");
   const [accountConfirm, setAccountConfirm] = useState("");
   // 아이디로 가입한 계정은 탈퇴할 때 비밀번호를 한 번 더 확인한다.
@@ -116,7 +119,12 @@ export function DangerZone() {
         <h1>모임 삭제 · 탈퇴</h1>
       </header>
 
-      {snapshot && (
+      {snapshot && !isOwner && (
+        <p className="note" role="note">
+          모임 삭제는 대표 운영자만 할 수 있어요. 이 계정은 {snapshot.group.name} 모임의 공동 운영자예요.
+        </p>
+      )}
+      {snapshot && isOwner && (
         <section aria-labelledby="dz-group" className="danger-box">
           <h2 id="dz-group">모임 삭제: {snapshot.group.name}</h2>
           <p>
@@ -164,6 +172,12 @@ export function DangerZone() {
           지우고 모든 기기에서 로그아웃합니다. 같은 카카오·Google 계정이나 같은 아이디로 다시 시작하면 새 계정이
           됩니다.
         </p>
+        {coGroups.length > 0 && groups.length === 0 && (
+          <p className="hint">
+            공동 운영자로 있는 모임({coGroups.map((g) => g.name).join(", ")})에서는 탈퇴하면 함께 빠져요. 모임의 기록은
+            그대로 남아요.
+          </p>
+        )}
         {groups.length > 0 ? (
           <div className="note warn" role="note">
             <p>운영 중인 모임이 있어 지금은 탈퇴할 수 없어요. 먼저 넘기거나 삭제해 주세요.</p>

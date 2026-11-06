@@ -311,31 +311,27 @@ describe("서포터 추첨", () => {
     expect(drawStatus(drawn, "A", ctx([], 0, "c2"))).toBe("stale");
   });
 
-  it("한 팀만 후보가 있으면 아무것도 바꾸지 않고 선택을 묻는다 (21)", () => {
+  it("한 팀만 후보가 있으면 묻지 않고 그 팀만 바로 바꾼다 (21)", () => {
     const draft = fixedDraft();
-    // 팀 B의 서포터가 아닌 네 명이 모두 차례를 썼다.
+    // 팀 B의 서포터가 아닌 네 명이 모두 차례를 썼다(안 간 사람은 지금 서포터뿐).
     const usedB = draft.slots
       .filter((s) => s.team === "B" && s.position !== "support")
       .map((s) => s.key.slice(2));
     const result = drawSupport(draft, ["A", "B"], ctx(usedB));
-    expect(result.needsChoice).toBe("A");
-    expect(result.draft).toBe(draft);
     expect(result.outcomes.find((o) => o.team === "B")).toMatchObject({
       kind: "blocked",
-      block: "no-candidates",
+      block: "only-current",
     });
-    // 사용자가 팀 A만 적용을 고르면 팀 A만 바뀐다.
-    const onlyA = drawSupport(draft, ["A"], ctx(usedB));
-    expect(onlyA.needsChoice).toBeNull();
-    expect(onlyA.draft.draws.A).toBeDefined();
-    expect(onlyA.draft.draws.B).toBeUndefined();
+    expect(result.draft.draws.A).toBeDefined();
+    expect(result.draft.draws.B).toBeUndefined();
+    expect(result.draft.slots.filter((s) => s.team === "B")).toEqual(draft.slots.filter((s) => s.team === "B"));
   });
 
   it("둘 다 후보가 없으면 원인만 돌려준다", () => {
     const draft = fixedDraft();
     const used = draft.slots.filter((s) => s.position !== "support").map((s) => s.key.slice(2));
     const result = drawSupport(draft, ["A", "B"], ctx(used));
-    expect(result.needsChoice).toBeNull();
+    expect(result.allAssigned).toEqual([]);
     expect(result.draft).toBe(draft);
     expect(result.outcomes.every((o) => o.kind === "blocked")).toBe(true);
   });

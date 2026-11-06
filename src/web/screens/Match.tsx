@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { avoidMapFor } from "../../shared/avoid";
 import { draftFromMatch } from "../../shared/draft";
 import type { MatchView } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
-import { formatTime, matchRosterText, nameMap, viewLink } from "../format";
+import { formatTime, matchRosterText, nameMap, teamSideLabel, viewLink } from "../format";
 import { CopyButton, Dialog, ErrorNote, MatchTeams, StickyAction } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
@@ -17,6 +18,11 @@ export function prepareNext(app: AppValue, from: MatchView): void {
         baseLiveVersion: app.snapshot.group.liveVersion,
         seed: (Math.random() * 0xffffffff) >>> 0,
         now: new Date().toISOString(),
+        // 같은 팀으로 포지션을 새로 뽑을 때도 기피 라인을 되도록 피한다.
+        avoid: avoidMapFor(
+          from.roster.map((r) => ({ key: `p:${r.participantId}`, participantId: r.participantId })),
+          app.snapshot.participants,
+        ),
       }),
     );
   }
@@ -133,7 +139,7 @@ export function Match() {
         </span>
       </header>
 
-      <MatchTeams match={match} nameOf={nameOf} />
+      <MatchTeams match={match} nameOf={nameOf} sideOf={teamSideLabel(match)} />
 
       <div className="button-row">
         <button type="button" className="secondary" onClick={() => setSharing(true)}>
@@ -159,7 +165,7 @@ export function Match() {
           <button type="button" className="danger" onClick={() => setCancelAsk({ needsDecision: false })}>
             미진행 취소
           </button>
-          <span className="hint">경기를 하지 않았을 때만 씁니다. 서포터 차례를 돌려줍니다.</span>
+          <span className="hint">경기를 하지 않았을 때만 씁니다. 이 경기는 서포터 횟수에서 빠집니다.</span>
         </div>
       )}
       <ErrorNote error={error} />
@@ -192,8 +198,8 @@ export function Match() {
           {cancelAsk.needsDecision ? (
             <>
               <p>
-                이 경기에서 차례를 쓴 사람이 뒤 경기에서 "반복 허용"으로 서포터를 했어요. 그 기록을
-                일반 사용으로 바꿀까요?
+                이 경기의 서포터가 뒤 경기에서도 서포터를 했어요. 뒤 경기 기록을 첫 번째 기록으로
+                바꿀까요? 서포터 횟수는 어느 쪽이든 같아요.
               </p>
               <div className="button-row">
                 <button
@@ -217,8 +223,8 @@ export function Match() {
           ) : (
             <>
               <p>
-                {match.matchNo}경기를 하지 않은 것으로 처리합니다. 전적에 남지 않고 이 경기의 서포터
-                차례를 돌려줍니다.
+                {match.matchNo}경기를 하지 않은 것으로 처리합니다. 전적에 남지 않고 이 경기는 서포터
+                횟수에서 빠집니다.
               </p>
               <div className="button-row">
                 <button

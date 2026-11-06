@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { avoidMapFor } from "../../shared/avoid";
 import { applyTeams, createDraft, type DraftPerson } from "../../shared/draft";
 import { nameKey, parseNameList } from "../../shared/names";
 import { participation } from "../../shared/insights";
@@ -145,11 +146,14 @@ export function Pick() {
   function buildTeams() {
     const now = new Date().toISOString();
     const seed = (Math.random() * 0xffffffff) >>> 0;
+    // 기피 라인을 정한 사람은 처음 라인을 뽑을 때도 되도록 피한다(없으면 예전과 같다).
+    const avoid = avoidMapFor(selected, app.snapshot?.participants);
     let draft = createDraft(selected, {
       groupId: app.groupId,
       baseLiveVersion: app.snapshot?.group.liveVersion ?? null,
       seed,
       now,
+      avoid,
     });
     // 실력 그룹을 지정한 사람이 있으면 기본 추천으로 팀을 나눈다.
     const groupOf = new Map((app.snapshot?.participants ?? []).map((p) => [p.id, p.skillGroup]));
@@ -171,7 +175,7 @@ export function Pick() {
         [],
         diversity,
       );
-      if (best) draft = { ...applyTeams(draft, best.teamA), previousSlots: null };
+      if (best) draft = { ...applyTeams(draft, best.teamA, avoid), previousSlots: null };
     }
     app.setDraft(draft);
     setSelected([]);

@@ -1,3 +1,4 @@
+import { saveSupportCounts } from "./supportCounts";
 import { Hono } from "hono";
 import {
   clearSessionCookie,
@@ -8,10 +9,18 @@ import {
   readSession,
   requireAccountId,
   requireOperator,
+  requireOwner,
   revokeSessions,
   sessionCookie,
   upsertAccount,
 } from "./auth";
+import {
+  acceptCoInvite,
+  coInviteInfo,
+  createCoInvite,
+  listCoOperators,
+  removeCoOperator,
+} from "./coOperators";
 import type { Env } from "./env";
 import {
   acceptTransfer,
@@ -142,7 +151,7 @@ app.use("/api/*", async (c, next) => {
       throw error;
     }
   } else if (method === "GET") {
-    if (path.startsWith("/api/view/") || path.startsWith("/api/transfer/")) {
+    if (path.startsWith("/api/view/") || path.startsWith("/api/transfer/") || path.startsWith("/api/co-invite/")) {
       await hit(c.env, "view-ip", ip);
     } else if (HEAVY_READ.test(path)) {
       // 비싼 읽기(모임 전체를 읽음): IP·계정별로 센다. 운영자 스냅숏과 /api/me는 화면이 자주 부르는
@@ -360,6 +369,14 @@ app.post("/api/groups/:gid/rotation/new-cycle", async (c) => {
   return c.json({ ok: true });
 });
 
+// 서포터 횟수 직접 입력: 여러 사람의 횟수를 한 번에 정한다(운영자·공동 운영자).
+app.post("/api/groups/:gid/rotation/counts", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await saveSupportCounts(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json({ ok: true });
+});
+
 app.post("/api/groups/:gid/session/close", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);
@@ -388,17 +405,17 @@ app.post("/api/groups/:gid/view-token", async (c) => {
 
 /* ---------------------------- 백업 복원 ---------------------------- */
 
-// 검증과 요약만 한다(아무것도 쓰지 않음).
+// 검증과 요약만 한다(아무것도 쓰지 않음). 복원은 대표 운영자만 한다.
 app.post("/api/groups/:gid/restore/preview", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await previewRestore(c.env, gid, c.req.raw));
 });
 
-// 같은 모임 복구. 운영자·조회 토큰은 바뀌지 않는다.
+// 같은 모임 복구. 운영자·공동 운영자·조회 토큰은 바뀌지 않는다. 대표 운영자만.
 app.post("/api/groups/:gid/restore", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await applyRestore(c.env, gid, c.req.raw));
 });
 
@@ -410,10 +427,10 @@ app.post("/api/restore/new-group", async (c) => {
 
 /* ---------------------------- 모임·계정 삭제 ---------------------------- */
 
-// 모임 삭제(되돌릴 수 없음). 화면이 실행 직전에 백업을 내려받는다.
+// 모임 삭제(되돌릴 수 없음). 화면이 실행 직전에 백업을 내려받는다. 대표 운영자만.
 app.post("/api/groups/:gid/delete", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await deleteGroup(c.env, gid, await readJsonBody(c.req.raw)));
 });
 
@@ -536,7 +553,7 @@ app.post("/api/groups/:gid/imports/:bid", async (c) => {
 
 app.post("/api/groups/:gid/transfer", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await createTransfer(c.env, gid));
 });
 
@@ -545,6 +562,43 @@ app.get("/api/transfer/:token", async (c) => c.json(await transferInfo(c.env, c.
 app.post("/api/transfer/:token/accept", async (c) => {
   const accountId = await requireAccountId(c.env, c.req.raw);
   return c.json(await acceptTransfer(c.env, accountId, c.req.param("token")));
+});
+
+/* ---------------------------- 공동 운영자 ---------------------------- */
+// src/server/coOperators.ts. 초대·목록·내보내기는 대표 운영자만, 나가기는 공동 운영자 본인.
+
+app.get("/api/groups/:gid/co-operators", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOwner(c.env, c.req.raw, gid);
+  return c.json(await listCoOperators(c.env, gid));
+});
+
+app.post("/api/groups/:gid/co-operators/invite", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOwner(c.env, c.req.raw, gid);
+  return c.json(await createCoInvite(c.env, gid));
+});
+
+// 공동 운영자가 스스로 나간다. 대표 운영자는 나갈 수 없다(넘기거나 삭제).
+app.post("/api/groups/:gid/co-operators/leave", async (c) => {
+  const gid = c.req.param("gid");
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
+  await removeCoOperator(c.env, gid, accountId);
+  return c.json({ ok: true });
+});
+
+app.delete("/api/groups/:gid/co-operators/:aid", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOwner(c.env, c.req.raw, gid);
+  await removeCoOperator(c.env, gid, c.req.param("aid"));
+  return c.json({ ok: true });
+});
+
+app.get("/api/co-invite/:token", async (c) => c.json(await coInviteInfo(c.env, c.req.param("token"))));
+
+app.post("/api/co-invite/:token/accept", async (c) => {
+  const accountId = await requireAccountId(c.env, c.req.raw);
+  return c.json(await acceptCoInvite(c.env, accountId, c.req.param("token")));
 });
 
 const matchActions = {

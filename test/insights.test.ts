@@ -15,6 +15,8 @@ import {
   personForms,
   pickPair,
   rankAndSearch,
+  RANKING_VETERAN_GAMES,
+  rankingGroup,
   recentResults,
   resultsOf,
   sortRankingBy,
@@ -213,6 +215,103 @@ describe("랭킹 정렬 기준", () => {
       ["id2", 3],
       ["id3", 1],
     ]);
+  });
+});
+
+describe("랭킹: 누적 50경기 이상 먼저", () => {
+  // v0: 누적 60경기 40% · v1: 누적 50경기 30%(경계) · a: 누적 49경기 90%(경계 아래)
+  // b: 누적 20경기 80% · c: 누적 3경기 100%(배치 진행 중)
+  const records = [
+    { participantId: "id10", games: 60, wins: 24, losses: 36 },
+    { participantId: "id11", games: 50, wins: 15, losses: 35 },
+    { participantId: "id12", games: 49, wins: 44, losses: 5 },
+    { participantId: "id13", games: 20, wins: 16, losses: 4 },
+    { participantId: "id14", games: 3, wins: 3, losses: 0 },
+  ];
+  const placement = new Map(
+    records.map((r) => [r.participantId, { games: r.games, done: r.games >= 10 }]),
+  );
+  const ids = (rows: { participantId: string }[]) => rows.map((r) => r.participantId);
+
+  it("기준은 50경기이고, 49경기는 아래 묶음·50경기는 위 묶음이다", () => {
+    expect(RANKING_VETERAN_GAMES).toBe(50);
+    expect(rankingGroup(placement, "id11")).toBe(0);
+    expect(rankingGroup(placement, "id12")).toBe(1);
+    expect(rankingGroup(placement, "id14")).toBe(2);
+    expect(rankingGroup(placement, "없는사람")).toBe(2);
+  });
+
+  it("승률이 낮아도 50경기 이상이 위다. 세 정렬 기준 모두 묶음 순서를 지킨다", () => {
+    expect(ids(sortRankingBy(records, placement, nameOf, "rate"))).toEqual([
+      "id10",
+      "id11",
+      "id12",
+      "id13",
+      "id14",
+    ]);
+    expect(ids(sortRankingBy(records, placement, nameOf, "games"))).toEqual([
+      "id10",
+      "id11",
+      "id12",
+      "id13",
+      "id14",
+    ]);
+    // 승수: 묶음 안에서 승수 순. 위 묶음은 24승 > 15승, 가운데 묶음은 44승 > 16승.
+    expect(ids(sortRankingBy(records, placement, nameOf, "wins"))).toEqual([
+      "id10",
+      "id11",
+      "id12",
+      "id13",
+      "id14",
+    ]);
+    // 묶음 안에서는 고른 기준을 따른다: 위 묶음에서 승률이 높은 쪽이 앞.
+    const swapped = [
+      { participantId: "id10", games: 60, wins: 24, losses: 36 },
+      { participantId: "id11", games: 50, wins: 40, losses: 10 },
+    ];
+    expect(ids(sortRankingBy(swapped, placement, nameOf, "rate"))).toEqual(["id11", "id10"]);
+    expect(ids(sortRankingBy(swapped, placement, nameOf, "games"))).toEqual(["id10", "id11"]);
+    expect(ids(sortRankingBy(swapped, placement, nameOf, "wins"))).toEqual(["id11", "id10"]);
+  });
+
+  it("순위 숫자는 묶음을 넘어 1부터 이어지고, 검색해도 바뀌지 않는다", () => {
+    for (const sort of ["rate", "games", "wins"] as const) {
+      const all = rankAndSearch(records, placement, nameOf, sort, "");
+      expect(all.ranked.map((r) => r.rank)).toEqual([1, 2, 3, 4, 5]);
+      const searched = rankAndSearch(records, placement, nameOf, sort, "선수12");
+      expect(searched.shown.map((r) => r.rank)).toEqual([3]);
+      expect(searched.ranked.map((r) => r.rank)).toEqual([1, 2, 3, 4, 5]);
+    }
+  });
+
+  it("범위·라인별 기록에서도 묶음은 모임 전체 누적 경기 수로 정한다", () => {
+    // 1~50경기: id0~4(팀 A)가 모두 진다. 51~70경기: id10~14(팀 A)가 id0~4(팀 B)를 모두 이긴다.
+    const matches: MatchView[] = [];
+    for (let i = 1; i <= 50; i++) matches.push(match(i, { winner: "B" }));
+    const people = [0, 1, 2, 3, 4, 10, 11, 12, 13, 14];
+    for (let i = 51; i <= 70; i++) {
+      matches.push(match(i, { people, teamA: [10, 11, 12, 13, 14], winner: "A" }));
+    }
+    const all = placements(matches);
+    expect(all.get("id0")!.games).toBe(70);
+    expect(all.get("id10")!.games).toBe(20);
+    // 범위: 마지막 20경기만. 그 안에서 id0은 20경기 0%, id10은 20경기 100%지만 id0이 위다.
+    const scoped = matches.slice(50);
+    const ranked = rankAndSearch(lineRanking(scoped, null), all, nameOf, "rate", "").ranked;
+    expect(ranked.findIndex((r) => r.participantId === "id0")).toBeLessThan(
+      ranked.findIndex((r) => r.participantId === "id10"),
+    );
+    // 라인별(탑): id0과 id10 모두 20경기씩 탑. 누적 기준으로 id0이 먼저.
+    const top = rankAndSearch(lineRanking(scoped, "top"), all, nameOf, "rate", "").ranked;
+    expect(top.map((r) => [r.participantId, r.rank])).toEqual([
+      ["id0", 1],
+      ["id10", 2],
+    ]);
+    // 범위 안 경기 수(20)로 판정했다면 같은 묶음이라 id10(100%)이 먼저였을 것이다.
+    const scopedOnly = placements(scoped);
+    expect(
+      rankAndSearch(lineRanking(scoped, "top"), scopedOnly, nameOf, "rate", "").ranked[0]!.participantId,
+    ).toBe("id10");
   });
 });
 

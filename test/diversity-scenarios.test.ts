@@ -162,7 +162,7 @@ describe("팀 추천의 조합 다양성", () => {
     // 직전 팀 5명 중 3명·2명으로 섞는 것이 최소(같은 팀 반복 쌍 3+1, 두 팀 합계 8). 그대로면 20.
     expect(best!.repeatPairs).toBe(8);
     expect(splitOf(best!)).not.toBe("k0,k1,k2,k3,k4");
-    expect(best!.reason).toBe("실력 그룹을 지정한 사람이 없어 최근 조합을 피해 나눴어요. · 최근 1경기 같은 팀 반복 8번");
+    expect(best!.reason).toBe("우선순위를 정한 사람이 없어 최근 조합을 피해 나눴어요. · 최근 1경기 같은 팀 반복 8번");
     const all = recommendTeams(input, weights, 4, 126, [], diversity);
     expect(all.find((c) => splitOf(c) === "k0,k1,k2,k3,k4")!.repeatPairs).toBe(20);
     expect(all[all.length - 1]!.repeatPairs).toBe(20);
@@ -381,7 +381,8 @@ describe("기기에 남은 초안의 합쳐진 ID 처리", () => {
   });
 });
 
-describe("'팀 A만 적용' 경로 (21)", () => {
+describe("한 팀만 바꿀 수 있으면 그 팀만 바로 바꾼다 (21)", () => {
+  // 이전에는 "팀 A만 적용 / 취소"를 물었다. 이제 두 팀을 따로 판단해 가능한 팀만 묻지 않고 바꾼다.
   const people10: DraftPerson[] = Array.from({ length: 10 }, (_, i) => ({ key: `p:id${i}`, name: `p${i}`, participantId: `id${i}` }));
   function draftAB(): Draft {
     const teamOf: Record<string, Team> = {};
@@ -389,38 +390,34 @@ describe("'팀 A만 적용' 경로 (21)", () => {
     return createDraft(people10, { groupId: "g", baseLiveVersion: 0, seed: 21, now: "2026-11-05T00:00:00.000Z", teamOf });
   }
 
-  it("양팀 추첨이 막히면 아무것도 바꾸지 않고, 'A만 적용'은 팀 B 자리를 하나도 건드리지 않는다", () => {
+  it("팀 B는 안 간 사람이 지금 서포터뿐이라 그대로, 팀 A만 바로 바뀐다. 팀 B 자리는 하나도 건드리지 않는다", () => {
     const draft = draftAB();
     const usedB = draft.slots.filter((s) => s.team === "B" && s.position !== "support").map((s) => s.key.slice(2));
     const ctx: RotationContext = { enabled: true, cycleId: "c", usedIds: new Set(usedB), eventCount: usedB.length };
     const both = drawSupport(draft, ["A", "B"], ctx);
-    expect(both.needsChoice).toBe("A");
-    expect(both.draft).toBe(draft);
-
-    // 화면의 "팀 A만 적용"은 drawSupport(draft, [needsChoice])를 부른다.
-    const onlyA = drawSupport(draft, [both.needsChoice!], ctx);
+    expect(both.outcomes.find((o) => o.team === "B")).toMatchObject({ kind: "blocked", block: "only-current" });
+    expect(both.allAssigned).toEqual([]);
     const plannedA = both.outcomes.find((o) => o.team === "A")!;
-    expect(onlyA.draft.draws.A).toEqual(plannedA.record);
-    expect(onlyA.draft.slots.filter((s) => s.team === "B")).toEqual(draft.slots.filter((s) => s.team === "B"));
-    expect(onlyA.draft.previousSlots).toEqual(draft.slots);
-    expect(drawStatus(onlyA.draft, "A", ctx)).toBe("applied");
+    expect(plannedA.kind).toBe("drawn");
+    expect(both.draft.draws.A).toEqual(plannedA.record);
+    expect(both.draft.slots.filter((s) => s.team === "B")).toEqual(draft.slots.filter((s) => s.team === "B"));
+    expect(both.draft.previousSlots).toEqual(draft.slots);
+    expect(drawStatus(both.draft, "A", ctx)).toBe("applied");
 
-    // 다시 양팀을 누르면: A는 같은 결과를 유지, B는 여전히 막혀 다시 묻는다. 초안은 그대로다.
-    const again = drawSupport(onlyA.draft, ["A", "B"], ctx);
-    expect(again.needsChoice).toBe("A");
-    expect(again.draft).toBe(onlyA.draft);
+    // 다시 누르면: A는 같은 결과를 유지, B는 여전히 그대로. 초안은 바뀌지 않는다.
+    const again = drawSupport(both.draft, ["A", "B"], ctx);
+    expect(again.draft).toBe(both.draft);
     expect(again.outcomes.find((o) => o.team === "A")!.kind).toBe("kept");
   });
 
-  it("반대로 팀 A가 막히면 'B만 적용'을 묻는다", () => {
+  it("반대로 팀 A가 막히면 팀 B만 바로 바뀐다", () => {
     const draft = draftAB();
     const usedA = draft.slots.filter((s) => s.team === "A" && s.position !== "support").map((s) => s.key.slice(2));
     const ctx: RotationContext = { enabled: true, cycleId: "c", usedIds: new Set(usedA), eventCount: usedA.length };
     const both = drawSupport(draft, ["A", "B"], ctx);
-    expect(both.needsChoice).toBe("B");
-    const onlyB = drawSupport(draft, ["B"], ctx);
-    expect(onlyB.draft.slots.filter((s) => s.team === "A")).toEqual(draft.slots.filter((s) => s.team === "A"));
-    expect(onlyB.draft.draws.B).toBeDefined();
+    expect(both.draft.slots.filter((s) => s.team === "A")).toEqual(draft.slots.filter((s) => s.team === "A"));
+    expect(both.draft.draws.B).toBeDefined();
+    expect(both.draft.draws.A).toBeUndefined();
   });
 });
 

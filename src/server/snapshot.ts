@@ -13,7 +13,9 @@ import {
   type Snapshot,
   type Team,
 } from "../shared/types";
+import { decodeAvoid } from "../shared/avoid";
 import type { Env } from "./env";
+import { loadAdjustmentsView } from "./supportCounts";
 import { ApiError, nowIso } from "./http";
 
 interface GroupRow {
@@ -162,7 +164,7 @@ export async function buildSnapshot(
 
   // 합쳐진 사람에게는 남은 사람의 ID를 붙인다(되돌리지 않은 합치기만). 공개 정보다: 이름과 같은 수준.
   const participantRows = await env.DB.prepare(
-    `SELECT p.id, p.name, p.status, p.skill_group, m.target_id AS merged_into
+    `SELECT p.id, p.name, p.status, p.skill_group, p.avoid_positions, m.target_id AS merged_into
      FROM participants p
      LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
      WHERE p.group_id = ?1 ORDER BY p.created_at, p.id`,
@@ -173,17 +175,28 @@ export async function buildSnapshot(
       name: string;
       status: "active" | "archived";
       skill_group: number | null;
+      avoid_positions: string | null;
       merged_into: string | null;
     }>();
   const participants: ParticipantView[] = participantRows.results.map((p) => {
     const view: ParticipantView = { id: p.id, name: p.name, status: p.status };
     if (includeGroups) view.skillGroup = p.skill_group;
+    // 기피 라인은 운영자에게만(우선순위 공개 설정과 무관). 없으면 필드를 넣지 않는다.
+    if (includePrivate) {
+      const avoid = decodeAvoid(p.avoid_positions);
+      if (avoid.length > 0) view.avoidPositions = avoid;
+    }
     if (p.merged_into) view.mergedInto = p.merged_into;
     return view;
   });
 
   const session = await loadOpenSession(env, groupId);
-  const rotation = session ? await loadActiveRotation(env, session.id) : null;
+  let rotation = session ? await loadActiveRotation(env, session.id) : null;
+  // 서포터 횟수 직접 입력의 보정값은 운영자에게만 준다(조회 응답에 새 정보를 늘리지 않는다).
+  if (includePrivate) {
+    const adjustments = await loadAdjustmentsView(env, groupId, rotation?.cycleId ?? null, participants);
+    if (adjustments.length > 0) rotation = { ...(rotation ?? { cycleId: null, events: [] }), adjustments };
+  }
 
   const matchRows = await env.DB.prepare(
     `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 ORDER BY played_at, match_no`,

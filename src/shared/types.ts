@@ -44,6 +44,11 @@ export interface ParticipantView {
   /** 1~4 또는 null(미지정). 비공개 모임의 조회 응답에는 이 필드가 없다. */
   skillGroup?: number | null;
   /**
+   * 기피 라인(라인 섞기에서 되도록 피할 포지션, 0~4개, 탑~서폿 순서). 운영자 응답·백업에만, 있을 때만 들어 있다.
+   * 조회 링크 응답에는 공개 설정과 상관없이 넣지 않는다.
+   */
+  avoidPositions?: Position[];
+  /**
    * 중복 참가자 합치기로 다른 사람에게 합쳐졌으면 그 사람의 ID(되돌리지 않은 합치기만).
    * 기기에 남은 초안·"내 이름"의 옛 ID를 새 ID로 바꾸는 데 쓴다. 합쳐진 사람은 항상 보관 상태다.
    */
@@ -90,10 +95,19 @@ export interface RotationEventView {
   kind: "used" | "repeat";
 }
 
+/** 서포터 횟수 직접 입력의 보정값(사람별). 표시 횟수 = 사건 수 + delta(0 미만이면 0). */
+export interface SupportAdjustmentView {
+  participantId: string;
+  delta: number;
+}
+
 export interface RotationView {
-  cycleId: string;
+  /** 활성 주기. null이면 아직 주기가 없고(첫 경기 전) 미리 넣은 보정값만 있다. */
+  cycleId: string | null;
   /** 무효가 아닌 사건만. */
   events: RotationEventView[];
+  /** 서포터 횟수 직접 입력의 보정값. 운영자 응답에만, 있을 때만 들어 있다(합쳐진 이름은 남은 사람에게 더해 둠). */
+  adjustments?: SupportAdjustmentView[];
 }
 
 export interface RevisionView {
@@ -197,4 +211,13 @@ export function sideOfTeam(team: Team, teamASide: Side | null): Side | null {
   if (teamASide === "unknown") return "unknown";
   if (team === "A") return teamASide;
   return teamASide === "blue" ? "red" : "blue";
+}
+
+/**
+ * 결과 입력 창의 진영 기본값. 시작할 때 팀 A의 진영을 골라 두었으면(블루·레드) 고른 승리 팀의 진영을 미리 고른다.
+ * 정하지 않았거나 미상이면 null(미리 고르지 않음). 사용자는 바꿀 수 있고 저장 때 확인한 값이 최종이다.
+ */
+export function presetWinnerSide(winnerTeam: Team, teamASide: Side | null): "blue" | "red" | null {
+  const side = sideOfTeam(winnerTeam, teamASide);
+  return side === "blue" || side === "red" ? side : null;
 }

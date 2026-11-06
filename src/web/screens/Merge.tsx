@@ -148,7 +148,7 @@ export function Merge() {
         <h1>중복 참가자 합치기</h1>
       </header>
       <p className="hint">
-        같은 사람이 다른 이름으로 두 번 들어갔을 때 하나로 합칩니다. 없앨 이름의 모든 경기 기록과 서포터 차례
+        같은 사람이 다른 이름으로 두 번 들어갔을 때 하나로 합칩니다. 없앨 이름의 모든 경기 기록과 서포터 횟수
         기록이 남길 이름으로 옮겨지고, 없앨 이름은 보관됩니다. 잘못 합쳤으면 아래 기록에서 되돌릴 수 있어요.
       </p>
 
@@ -234,12 +234,12 @@ export function Merge() {
               ` (${Object.entries(preview.byState)
                 .map(([state, n]) => `${STATE_TEXT[state as MatchState]} ${n}`)
                 .join(", ")})`}
-            {preview.rotation.moved > 0 && ` · 서포터 차례 기록 ${preview.rotation.moved}건`}
+            {preview.rotation.moved > 0 && ` · 서포터 횟수 기록 ${preview.rotation.moved}건`}
           </p>
           {preview.rotation.converted > 0 && (
             <p className="note" role="note">
-              같은 순환에서 두 이름이 각각 서포터를 했어요. 한 사람이 두 번 한 것이므로 나중 기록{" "}
-              {preview.rotation.converted}건을 '이번 경기만 반복 허용'으로 바꿉니다.
+              서포터 횟수를 초기화한 뒤 두 이름이 각각 서포터를 했어요. 한 사람이 두 번 한 것이므로 나중 기록{" "}
+              {preview.rotation.converted}건을 반복 기록으로 바꿉니다. 합친 사람의 서포터 횟수는 두 이름의 합이에요.
             </p>
           )}
           <div className="table-scroll">

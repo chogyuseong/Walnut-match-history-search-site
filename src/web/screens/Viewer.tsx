@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { resolveMerged } from "../../shared/merge";
 import type { Snapshot } from "../../shared/types";
 import { ApiFailure, call } from "../api";
-import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL } from "../format";
+import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamSideLabel } from "../format";
 import { Dialog, KpiStrip, MatchTeams } from "../ui";
 import { go } from "../useApp";
 import { Compare } from "./Compare";
@@ -243,7 +243,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
               </button>
             </section>
 
-            <MatchTeams match={match} nameOf={nameOf} highlightId={meId} />
+            <MatchTeams match={match} nameOf={nameOf} highlightId={meId} sideOf={teamSideLabel(match)} />
             <p className="hint">팀 편성 기준은 운영자가 정합니다.</p>
           </>
         )}

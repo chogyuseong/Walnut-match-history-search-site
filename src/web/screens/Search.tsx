@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { personRecords, searchByName } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { rateTier, standingsOf } from "../format";
-import { StandingNote } from "../ui";
+import { RateBar, StandingNote } from "../ui";
 
 /**
  * 전적 검색. 운영자와 조회 링크가 같은 화면을 쓴다.
@@ -118,7 +118,7 @@ export function Search(props: {
               <li key={r.id}>
                 <button
                   type="button"
-                  className={picked.includes(r.id) ? "list-row selected" : "list-row"}
+                  className={picked.includes(r.id) ? "list-row has-bar selected" : "list-row has-bar"}
                   aria-pressed={comparing ? picked.includes(r.id) : undefined}
                   onClick={() => choose(r.id)}
                 >
@@ -139,6 +139,7 @@ export function Search(props: {
                       <StandingNote standing={standing.get(r.id)} />
                     </span>
                   </span>
+                  {r.games > 0 && <RateBar wins={r.wins} games={r.games} small />}
                 </button>
               </li>
             ))}

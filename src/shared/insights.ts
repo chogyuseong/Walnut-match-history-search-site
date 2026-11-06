@@ -117,9 +117,32 @@ export const RANKING_SORT_LABEL: Record<RankingSort, string> = {
   wins: "승수",
 };
 
+/** 랭킹에서 이 경기 수(모임 전체 누적) 이상인 사람은 그보다 적은 사람보다 항상 위에 둔다. 배치와는 별개다. */
+export const RANKING_VETERAN_GAMES = 50;
+
+/** 랭킹 묶음. 0: 누적 50경기 이상, 1: 배치 완료(50경기 미만), 2: 배치 진행 중. 항상 누적 기준이다. */
+export type RankingGroup = 0 | 1 | 2;
+
+export const RANKING_GROUP_LABEL: Record<RankingGroup, string> = {
+  0: `누적 ${RANKING_VETERAN_GAMES}경기 이상`,
+  1: `배치 완료 · ${RANKING_VETERAN_GAMES}경기 미만`,
+  2: "배치 진행 중",
+};
+
+export function rankingGroup(
+  placement: ReadonlyMap<string, Placement>,
+  participantId: string,
+): RankingGroup {
+  const p = placement.get(participantId);
+  if (!p) return 2;
+  if (p.games >= RANKING_VETERAN_GAMES) return 0;
+  return p.done ? 1 : 2;
+}
+
 /**
- * 랭킹 정렬. 배치 완료자(누적 기준)를 먼저 두고, 그 안에서 고른 기준으로 정렬한다.
- * - 승률: 승률 → 경기 수 → 이름 → ID (stats.sortRanking과 같다)
+ * 랭킹 정렬. 누적 50경기 이상 → 배치 완료 → 배치 진행 중 순으로 묶고(모두 모임 전체 누적 기준),
+ * 묶음 안에서 고른 기준으로 정렬한다.
+ * - 승률: 승률 → 경기 수 → 이름 → ID (묶음 안에서는 stats.sortRanking과 같다)
  * - 경기 수: 경기 수 → 승률 → 이름 → ID
  * - 승수: 승수 → 승률 → 경기 수 → 이름 → ID
  */
@@ -130,17 +153,17 @@ export function sortRankingBy(
   sort: RankingSort,
 ): PersonRecord[] {
   const rate = (r: PersonRecord) => (r.games === 0 ? 0 : r.wins / r.games);
-  const done = (r: PersonRecord) => (placement.get(r.participantId)?.done ? 0 : 1);
+  const group = (r: PersonRecord) => rankingGroup(placement, r.participantId);
   const byName = (a: PersonRecord, b: PersonRecord) =>
     nameOf(a.participantId).localeCompare(nameOf(b.participantId), "ko") ||
     a.participantId.localeCompare(b.participantId);
   if (sort === "rate") {
     const sorted = sortByWinRate([...records], nameOf);
-    return sorted.sort((a, b) => done(a) - done(b));
+    return sorted.sort((a, b) => group(a) - group(b));
   }
   return [...records].sort(
     (a, b) =>
-      done(a) - done(b) ||
+      group(a) - group(b) ||
       (sort === "games"
         ? b.games - a.games || rate(b) - rate(a)
         : b.wins - a.wins || rate(b) - rate(a) || b.games - a.games) ||

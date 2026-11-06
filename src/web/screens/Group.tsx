@@ -4,11 +4,14 @@ import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { resolveMerged } from "../../shared/merge";
 import { nameKey } from "../../shared/names";
 import { formatDate, formatTime, nameMap, viewLink } from "../format";
+import { rotationContext, supportCounts } from "../../shared/rotation";
+import { SupportCountEditor } from "../supportCountEditor";
 import { CopyButton, Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { TitleSettings } from "./TitleSettings";
 import { NewGroupFromBackup, RestoreSection } from "./Restore";
 import { CreateGroupButton, LocalAccountSettings } from "../account";
+import { CoOperatorSelfSection, CoOperatorsSection } from "./CoOperators";
 
 /** 모임 탭 참가자 목록에서 처음 보여주는 사람 수. */
 const PEOPLE_PREVIEW = 10;
@@ -38,6 +41,8 @@ export function Group() {
   if (!snapshot) return <NoGroupYet />;
   const gid = snapshot.group.id;
   const settings = snapshot.group.settings;
+  // 공동 운영자에게는 대표 전용 작업(넘기기·복원·모임 삭제·공동 운영자 관리)을 보여주지 않는다. 서버도 거절한다.
+  const isOwner = (app.me?.groups.find((g) => g.id === gid)?.role ?? "owner") === "owner";
 
   /** 저장하고 최신 상태를 다시 읽는다. 성공하면 true를 돌려준다. */
   async function run(work: () => Promise<unknown>, done?: string): Promise<boolean> {
@@ -145,22 +150,22 @@ export function Group() {
                 </span>
                 <span className="button-row">
                   <select
-                    aria-label={`${p.name}의 실력 그룹`}
+                    aria-label={`${p.name}의 우선순위`}
                     value={p.skillGroup ?? ""}
                     disabled={busy}
                     onChange={(e) =>
                       void patchParticipant(
                         p.id,
                         { skillGroup: e.target.value === "" ? null : Number(e.target.value) },
-                        `${p.name}의 그룹을 바꿨어요.`,
+                        `${p.name}의 우선순위를 바꿨어요.`,
                       )
                     }
                   >
                     <option value="">미지정</option>
-                    <option value="1">그룹 1</option>
-                    <option value="2">그룹 2</option>
-                    <option value="3">그룹 3</option>
-                    <option value="4">그룹 4</option>
+                    <option value="1">1순위</option>
+                    <option value="2">2순위</option>
+                    <option value="3">3순위</option>
+                    <option value="4">4순위</option>
                   </select>
                   <button
                     type="button"
@@ -192,7 +197,13 @@ export function Group() {
             />{" "}
             보관한 참가자도 보기
           </label>
-          <p className="hint">미지정은 낮은 실력이 아니라 아직 정하지 않았다는 뜻입니다.</p>
+          <p className="hint">
+            우선순위: 1순위가 가장 잘하는 사람이에요. 같은 순위끼리는 팀까지 올랜덤·팀 추천에서 양 팀에 나뉘어요. 미지정은
+            못하는 사람이 아니라 아직 안 정한 사람이에요.
+          </p>
+          <button type="button" className="secondary" onClick={() => go("/priority")}>
+            우선순위 배정
+          </button>
           <p className="hint">같은 사람이 다른 이름으로 두 번 들어갔나요?</p>
           <button type="button" className="secondary" onClick={() => go("/merge")}>
             중복 참가자 합치기
@@ -201,8 +212,8 @@ export function Group() {
       </GroupBlock>
 
       <GroupBlock id="play" title="경기 운영 설정" defaultOpen>
-        <section aria-label="서포터 순환">
-          <h2>서포터 순환</h2>
+        <section aria-label="서포터 횟수">
+          <h2>서포터 횟수</h2>
           <label className="toggle">
             <input
               type="checkbox"
@@ -212,16 +223,16 @@ export function Group() {
                 void saveSettings(
                   { ...settings, rotationEnabled: e.target.checked },
                   e.target.checked
-                    ? "서포터 순환을 켰어요. 이전 차례 기록을 이어갑니다."
-                    : "서포터 순환을 껐어요. 차례 기록은 지우지 않았습니다.",
+                    ? "서포터 횟수를 다시 셉니다. 이전 기록을 이어갑니다."
+                    : "서포터 횟수 세기를 껐어요. 기록은 지우지 않았습니다.",
                 )
               }
             />{" "}
-            한 순환 안에서 같은 사람이 서포터를 반복하지 않게 차례를 나눕니다
+            서포터로 간 횟수를 세고, 같은 팀에서 아직 서포터를 안 간 사람을 서포터로 고릅니다
           </label>
-          {settings.rotationEnabled && snapshot.session && (
+          {settings.rotationEnabled && (snapshot.session || snapshot.rotation) && (
             <p>
-              <span className="hint">이번 순환에서 차례를 쓴 기록 {rotationEvents}건. </span>
+              <span className="hint">지금까지 서포터로 간 기록 {rotationEvents}건. </span>
               <button
                 type="button"
                 className="link"
@@ -233,13 +244,28 @@ export function Group() {
                         requestId: newRequestId(),
                         baseLiveVersion: snapshot.group.liveVersion,
                       } as { requestId: string }),
-                    "새 순환을 시작했어요. 전적은 그대로입니다.",
+                    "서포터 횟수를 초기화했어요. 전적은 그대로입니다.",
                   )
                 }
               >
-                새 순환 시작
+                서포터 횟수 초기화
               </button>
             </p>
+          )}
+          {settings.rotationEnabled && (
+            <details>
+              <summary>서포터 횟수 보기·고치기</summary>
+              <SupportCountEditor
+                groupId={gid}
+                people={snapshot.participants
+                  .filter((p) => p.status === "active" && !p.mergedInto)
+                  .sort((a, b) => a.name.localeCompare(b.name, "ko"))}
+                counts={supportCounts(rotationContext(true, snapshot.rotation))}
+                refresh={app.refreshAfterOwnChange}
+                onSaved={() => app.setNotice("서포터 횟수를 저장했어요.")}
+                label="전체 참가자 서포터 횟수"
+              />
+            </details>
           )}
         </section>
         <section aria-label="팀 추천">
@@ -258,14 +284,14 @@ export function Group() {
                 )
               }
             />{" "}
-            실력 균형이 같은 후보 중에서 최근 8경기에 같은 팀이었던 사람끼리 덜 묶이는 조합을 먼저 추천합니다
+            우선순위 균형이 같은 후보 중에서 최근 8경기에 같은 팀이었던 사람끼리 덜 묶이는 조합을 먼저 추천합니다
           </label>
-          <p className="hint">균형(그룹 합계·인원)과 같은 팀·다른 팀 조건이 항상 먼저입니다.</p>
+          <p className="hint">균형(우선순위 합계·인원)과 같은 팀·다른 팀 조건이 항상 먼저입니다.</p>
         </section>
-        <section aria-label="실력 그룹">
-          <h2>실력 그룹 공개</h2>
+        <section aria-label="우선순위 공개">
+          <h2>우선순위 공개</h2>
           <p className="hint">
-            실력 그룹은 팀 추천에 쓰는 운영 기준이며 공식 등급이 아닙니다. 공개 여부는 추천 결과를
+            우선순위는 팀 추천·팀까지 올랜덤에 쓰는 운영 기준이며 공식 등급이 아닙니다. 공개 여부는 추천·섞기 결과를
             바꾸지 않습니다.
           </p>
           <p>
@@ -281,7 +307,7 @@ export function Group() {
         <section aria-label="지난 경기 입력">
           <h2>지난 경기 입력</h2>
           <p className="hint">
-            이미 끝난 경기 하나를 결과까지 넣습니다. 오늘 내전과 서포터 차례에는 영향이 없습니다.
+            이미 끝난 경기 하나를 결과까지 넣습니다. 오늘 내전과 서포터 횟수에는 영향이 없습니다.
           </p>
           <button type="button" className="secondary" onClick={() => go("/backfill")}>
             지난 경기 한 건 넣기
@@ -290,7 +316,7 @@ export function Group() {
         <section aria-label="표 일괄 입력">
           <h2>표 일괄 입력</h2>
           <p className="hint">
-            시트에 적어 둔 지난 경기를 붙여 넣어 한꺼번에 넣습니다. 현재 경기와 서포터 차례에는 영향이
+            시트에 적어 둔 지난 경기를 붙여 넣어 한꺼번에 넣습니다. 현재 경기와 서포터 횟수에는 영향이
             없습니다.
           </p>
           <button type="button" className="secondary" onClick={() => go("/import")}>
@@ -528,16 +554,19 @@ export function Group() {
             백업 내려받기
           </button>
         </section>
-        <section aria-label="운영자 넘기기">
-          <h2>운영자 넘기기</h2>
-          <p className="hint">
-            모임 운영을 다른 사람에게 넘깁니다. 받는 사람이 링크를 열어 수락하면 그 사람이 운영자가
-            되고, 이 계정은 더 이상 이 모임을 수정할 수 없습니다. 기록과 조회 링크는 그대로입니다.
-          </p>
-          <button type="button" className="secondary" onClick={() => setTransferOpen(true)}>
-            인수 링크 만들기
-          </button>
-        </section>
+        {isOwner ? <CoOperatorsSection gid={gid} /> : <CoOperatorSelfSection gid={gid} />}
+        {isOwner && (
+          <section aria-label="운영자 넘기기">
+            <h2>운영자 넘기기</h2>
+            <p className="hint">
+              모임 운영을 다른 사람에게 넘깁니다. 받는 사람이 링크를 열어 수락하면 그 사람이 운영자가
+              되고, 이 계정은 더 이상 이 모임을 수정할 수 없습니다. 기록과 조회 링크는 그대로입니다.
+            </p>
+            <button type="button" className="secondary" onClick={() => setTransferOpen(true)}>
+              인수 링크 만들기
+            </button>
+          </section>
+        )}
       </GroupBlock>
 
       <GroupBlock id="account" title="계정 관리">
@@ -553,24 +582,26 @@ export function Group() {
 
       <GroupBlock id="danger" title="위험한 작업 · 복원 · 삭제" danger forceOpen={snapshot.group.maintenance === true}>
         <p className="hint">되돌리기 어렵거나 기록 전체를 바꾸는 작업입니다. 실행 전에 확인 문구를 입력해야 합니다.</p>
-        <RestoreSection />
+        {isOwner && <RestoreSection />}
         <section aria-label="모임 삭제 · 탈퇴">
-          <h2>모임 삭제 · 탈퇴</h2>
+          <h2>{isOwner ? "모임 삭제 · 탈퇴" : "탈퇴"}</h2>
           <p className="hint">
-            모임의 모든 기록을 지우거나 이 계정을 없앱니다. 되돌릴 수 없어 확인 문구를 입력해야 합니다.
+            {isOwner
+              ? "모임의 모든 기록을 지우거나 이 계정을 없앱니다. 되돌릴 수 없어 확인 문구를 입력해야 합니다."
+              : "이 계정을 없앱니다. 모임 삭제와 백업에서 복원은 대표 운영자만 할 수 있어요."}
           </p>
           <button type="button" className="danger" onClick={() => go("/delete")}>
-            모임 삭제 · 탈퇴로
+            {isOwner ? "모임 삭제 · 탈퇴로" : "탈퇴로"}
           </button>
         </section>
       </GroupBlock>
 
 
       {previewPublic && (
-        <Dialog title="실력 그룹 공개 설정" onClose={() => setPreviewPublic(false)}>
+        <Dialog title="우선순위 공개 설정" onClose={() => setPreviewPublic(false)}>
           {settings.groupsPublic ? (
             <p>
-              비공개로 바꾸면 조회자에게 실력 그룹이 보이지 않습니다. 이미 본 사람에게는 소용이
+              비공개로 바꾸면 조회자에게 우선순위가 보이지 않습니다. 이미 본 사람에게는 소용이
               없습니다.
             </p>
           ) : (
@@ -583,7 +614,7 @@ export function Group() {
                   .map((p) => (
                     <li key={p.id} className="list-row static">
                       <span>{p.name}</span>
-                      <span>{p.skillGroup ? `그룹 ${p.skillGroup}` : "미지정"}</span>
+                      <span>{p.skillGroup ? `${p.skillGroup}순위` : "미지정"}</span>
                     </li>
                   ))}
               </ul>
@@ -763,7 +794,7 @@ function NoGroupYet() {
       <section className="card start-card" aria-label="적어 둔 기록부터">
         <h2>시트에 적어 둔 기록부터</h2>
         <p className="hint">
-          경기를 하지 않아도 모임을 먼저 만들고 지난 기록을 넣을 수 있어요. 지금 경기와 서포터 차례에는 영향이
+          경기를 하지 않아도 모임을 먼저 만들고 지난 기록을 넣을 수 있어요. 지금 경기와 서포터 횟수에는 영향이
           없어요.
         </p>
         <div className="button-row">

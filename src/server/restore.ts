@@ -15,6 +15,7 @@
  * D1 한도(2026-11-05 확인, https://developers.cloudflare.com/d1/platform/limits/):
  * 문장 길이 100KB, 문장당 바인딩 값 100개, 문자열·행 2MB. batch 문장 수 상한은 문서에 없다.
  */
+import { encodeAvoid, normalizeAvoidPositions } from "../shared/avoid";
 import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
 import { MAX_NAME_LENGTH, cleanName, nameKey } from "../shared/names";
 import { isValidTimeZone } from "../shared/stats";
@@ -32,6 +33,7 @@ export const RESTORE_CONFIRM_TEXT = "복원";
  * 운영자·조회 토큰·인수 링크·복원 작업 표는 들어가지 않는다(복원이 바꾸지 않는 것).
  */
 export const GROUP_DATA_TABLES = [
+  "support_adjustments",
   "rotation_events",
   "match_revisions",
   "match_roster",
@@ -182,6 +184,8 @@ interface PRow {
   nameKey: string;
   status: "active" | "archived";
   skillGroup: number | null;
+  /** 기피 라인 저장 글자(없으면 null). 이 항목이 없는 예전 백업은 null. */
+  avoidPositions: string | null;
   createdAt: string;
 }
 interface SRow {
@@ -242,6 +246,13 @@ interface ERow {
   voided: number;
   createdAt: string;
 }
+/** 서포터 횟수 직접 입력의 보정값(migrations/0012). cycleId가 null이면 첫 경기 전에 받아 둔 값. */
+interface ARow {
+  cycleId: string | null;
+  participantId: string;
+  delta: number;
+  updatedAt: string;
+}
 interface RRow {
   matchId: string;
   kind: string;
@@ -288,6 +299,8 @@ export interface BackupData {
   matches: MRow[];
   cycles: CRow[];
   events: ERow[];
+  /** 이 항목이 없는 예전 백업은 빈 목록으로 읽는다. */
+  adjustments: ARow[];
   revisions: RRow[];
   seasons: SeasonRow[];
   settingsVersions: VRow[];
@@ -382,6 +395,13 @@ export function validateBackup(
     if (sg !== null && !(Number.isInteger(sg) && (sg as number) >= 1 && (sg as number) <= 4)) {
       return p.add(`${at}: 실력 그룹 값 오류`);
     }
+    // 기피 라인(2026-11-06). 없으면(예전 백업) 없음으로 본다.
+    let avoid: string | null = null;
+    if (r.avoidPositions !== undefined && r.avoidPositions !== null) {
+      const list = normalizeAvoidPositions(r.avoidPositions);
+      if (!list) return p.add(`${at}: 기피 라인 값 오류`);
+      avoid = encodeAvoid(list);
+    }
     const key = nameKey(name);
     if (r.status === "active") {
       if (activeKeys.has(key)) return p.add(`${at}: 활성 참가자 이름 '${name}'이 중복됩니다.`);
@@ -393,6 +413,7 @@ export function validateBackup(
       nameKey: key,
       status: r.status,
       skillGroup: sg as number | null,
+      avoidPositions: avoid,
       createdAt: isTime(r.createdAt) ? iso(r.createdAt) : "",
     });
   });
@@ -633,6 +654,36 @@ export function validateBackup(
     });
   });
 
+  // 서포터 횟수 보정값(없으면 예전 백업: 빈 목록)
+  const adjustments: ARow[] = [];
+  const adjustmentKeys = new Set<string>();
+  arrayField(raw, "supportAdjustments", p).forEach((r, i) => {
+    const at = `서포터 횟수 보정값 ${i + 1}번째`;
+    const cycleId = isObj(r) ? (r.cycleId ?? null) : null;
+    if (
+      !isObj(r) ||
+      !(cycleId === null || typeof cycleId === "string") ||
+      typeof r.participantId !== "string" ||
+      !Number.isInteger(r.delta) ||
+      Math.abs(r.delta as number) > 100000 ||
+      !isTime(r.updatedAt)
+    ) {
+      return p.add(`${at}: 형식 오류`);
+    }
+    if ((cycleId !== null && !cids.has(cycleId)) || !pids.has(r.participantId)) {
+      return p.add(`${at}: 연결된 주기·참가자가 파일에 없습니다.`);
+    }
+    const key = `${cycleId ?? ""}:${r.participantId}`;
+    if (adjustmentKeys.has(key)) return p.add(`${at}: 같은 주기에 같은 사람이 둘입니다.`);
+    adjustmentKeys.add(key);
+    adjustments.push({
+      cycleId,
+      participantId: r.participantId,
+      delta: r.delta as number,
+      updatedAt: iso(r.updatedAt),
+    });
+  });
+
   // 변경 이력
   const revisions: RRow[] = [];
   arrayField(raw, "revisions", p).forEach((r, i) => {
@@ -805,6 +856,7 @@ export function validateBackup(
       matches,
       cycles,
       events,
+      adjustments,
       revisions,
       seasons,
       settingsVersions,
@@ -1063,8 +1115,8 @@ async function buildRestorePlan(
     ...insertStatements(env, groupId, "settings_versions", ["id", "version_no", "payload", "created_at"],
       data.settingsVersions.map((v) => [map(v.id), v.versionNo, v.payload, v.createdAt]), maxBytes),
     ...insertStatements(env, groupId, "participants",
-      ["id", "name", "name_key", "skill_group", "status", "created_at"],
-      data.participants.map((r) => [map(r.id), r.name, r.nameKey, r.skillGroup, r.status, r.createdAt]),
+      ["id", "name", "name_key", "skill_group", "status", "created_at", "avoid_positions"],
+      data.participants.map((r) => [map(r.id), r.name, r.nameKey, r.skillGroup, r.status, r.createdAt, r.avoidPositions]),
       maxBytes),
     ...insertStatements(env, groupId, "sessions", ["id", "started_at", "last_activity_at", "closed_at"],
       data.sessions.map((s) => [map(s.id), s.startedAt, s.lastActivityAt, s.closedAt]), maxBytes),
@@ -1093,6 +1145,9 @@ async function buildRestorePlan(
       ["id", "cycle_id", "match_id", "participant_id", "kind", "voided", "created_at"],
       data.events.map((e) => [map(e.id), map(e.cycleId), map(e.matchId), map(e.participantId), e.kind,
         e.voided, e.createdAt]), maxBytes),
+    ...insertStatements(env, groupId, "support_adjustments", ["cycle_id", "participant_id", "delta", "updated_at"],
+      data.adjustments.map((a) => [a.cycleId === null ? null : map(a.cycleId), map(a.participantId), a.delta,
+        a.updatedAt]), maxBytes),
     ...insertStatements(env, groupId, "match_revisions", ["match_id", "kind", "changes", "created_at"],
       data.revisions.map((r) => [map(r.matchId), r.kind, remapChanges(r.changes, map), r.createdAt]), maxBytes),
     ...insertStatements(env, groupId, "seasons", ["id", "name", "starts_on", "ends_on", "created_at"],

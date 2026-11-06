@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import {
+  presetWinnerSide,
   sideOfTeam,
   teamASideFromWinner,
   TEAMS,
@@ -22,6 +23,7 @@ const SIDE_CHOICES: { value: Side; label: string }[] = [
  * 화면 5 — 결과 입력 창(docs/P2 P2-7).
  * ① 명단을 보고 승리 팀 선택 → ② 승리 팀의 실제 진영 → ③ 요약 확인 후 저장.
  * 진영은 미리 선택돼 있지 않고, 승리 팀을 바꾸면 진영을 다시 묻는다.
+ * 단, 준비 화면에서 진영을 골라 시작한 경기는 고른 승리 팀의 진영을 그 값으로 미리 골라 둔다(바꿀 수 있다).
  * mode가 "correct"면 확정 경기의 승리 팀 정정이다.
  */
 export function ResultSheet(props: {
@@ -119,8 +121,8 @@ export function ResultSheet(props: {
               checked={winner === team}
               onChange={() => {
                 setWinner(team);
-                // 승리 팀을 바꾸면 진영 선택을 비운다.
-                setSide(null);
+                // 승리 팀을 바꾸면 진영 선택을 비운다. 시작 때 고른 진영이 있으면 그 팀의 진영으로 다시 채운다.
+                setSide(props.mode === "result" ? presetWinnerSide(team, match.teamASide) : null);
               }}
             />
             <span>
@@ -141,6 +143,9 @@ export function ResultSheet(props: {
       {winner && (
         <fieldset>
           <legend>2/3 · 이긴 팀 {winner}는 어느 진영이었나요?</legend>
+          {props.mode === "result" && presetWinnerSide(winner, match.teamASide) !== null && (
+            <p className="hint">시작할 때 고른 진영으로 미리 골라 뒀어요. 실제와 다르면 바꿔 주세요.</p>
+          )}
           <div className="choice-row">
             {SIDE_CHOICES.map((choice) => (
               <label key={choice.value} className={side === choice.value ? "choice chosen" : "choice"}>

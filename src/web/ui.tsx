@@ -1,7 +1,7 @@
 import { canGoBack } from "./nav";
 import { SessionExpiredNote } from "./screens/Login";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, type Scope } from "../shared/stats";
+import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, SMALL_SAMPLE, type Scope } from "../shared/stats";
 import type { Standing } from "../shared/titles";
 import {
   sideOfTeam,
@@ -12,7 +12,7 @@ import {
   type Team,
 } from "../shared/types";
 import { ApiFailure } from "./api";
-import { copyText, formatTime, POSITION_LABEL, TEAM_MARK, teamRoster } from "./format";
+import { copyText, formatTime, POSITION_LABEL, rateTier, TEAM_MARK, teamRoster } from "./format";
 
 /** 라인 아이콘. 디자인 키트가 직접 그린 도형이며 게임의 공식 아이콘이 아니다. */
 const ROLE_SHAPES: Record<Position, ReactNode> = {
@@ -493,6 +493,99 @@ export function TrendLine(props: { points: readonly { game: number; rate: number
         </span>
       </figcaption>
     </figure>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 개인 통계·검색의 작은 그림. 그림은 보조이고 정확한 값은 언제나 옆의 숫자·글자다.
+// 그래서 그림은 화면 읽기 프로그램에 읽히지 않게 숨긴다(aria-hidden). 색은 그래프 화면의 .viz-root 값을 쓴다.
+
+export type MeterTone = "rate" | "blue" | "red" | "share";
+
+/**
+ * 가로 막대 하나. value는 0~1.
+ * tone: rate(승률, 한 가지 색) · blue/red(진영 색) · share(비중, 중립색). muted면 색 없이 회색으로 그린다.
+ * mid: 50% 기준선.
+ */
+export function Meter(props: {
+  value: number;
+  tone?: MeterTone;
+  mid?: boolean;
+  muted?: boolean;
+  small?: boolean;
+}) {
+  const width = Math.max(0, Math.min(1, props.value)) * 100;
+  const tone = props.muted ? "muted" : (props.tone ?? "rate");
+  return (
+    <span className={props.small ? "meter meter-sm viz-root" : "meter viz-root"} aria-hidden="true">
+      <span className={`meter-fill tone-${tone}`} style={{ width: `${width}%` }} />
+      {props.mid && <span className="meter-mid" />}
+    </span>
+  );
+}
+
+/**
+ * 승률 막대(50% 기준선 포함). 기록이 없으면 빈 막대다.
+ * 승률 막대는 SMALL_SAMPLE경기 미만이면 색으로 강조하지 않는다(rateTier·"자료 적음"과 같은 규칙).
+ * 진영 막대(blue·red)는 진영을 가리키는 색이라 표본과 관계없이 진영 색을 쓴다.
+ */
+export function RateBar(props: { wins: number; games: number; tone?: MeterTone; small?: boolean }) {
+  const { wins, games } = props;
+  const tone = props.tone ?? "rate";
+  return (
+    <Meter
+      value={games === 0 ? 0 : wins / games}
+      tone={tone}
+      mid
+      muted={tone === "rate" && games < SMALL_SAMPLE}
+      small={props.small}
+    />
+  );
+}
+
+/** 승·패 비율 막대. 왼쪽이 승(승리 색), 오른쪽이 패(패배 색, 빗금). 가운데 50% 기준선. */
+export function WinLossBar(props: { wins: number; losses: number }) {
+  const { wins, losses } = props;
+  if (wins + losses === 0) return <Meter value={0} mid />;
+  return (
+    <span className="wl-bar" aria-hidden="true">
+      <span className="wl-win" style={{ flexGrow: wins }} />
+      <span className="wl-loss" style={{ flexGrow: losses }} />
+      <span className="meter-mid" />
+    </span>
+  );
+}
+
+/**
+ * 승률 고리(도넛). 채운 호가 승률이고 아래쪽 눈금이 50%다. 가운데에 승률을 크게 적는다.
+ * 숫자는 바로 옆 요약 줄에도 그대로 있으므로 고리 전체를 화면 읽기에서 숨긴다.
+ */
+export function RateRing(props: { wins: number; games: number }) {
+  const { wins, games } = props;
+  if (games === 0) return null;
+  const rate = wins / games;
+  const R = 26;
+  const C = 2 * Math.PI * R;
+  const muted = games < SMALL_SAMPLE;
+  return (
+    <div className="ring viz-root" aria-hidden="true">
+      <svg viewBox="0 0 68 68">
+        <circle className="ring-track" cx="34" cy="34" r={R} />
+        <circle
+          className={muted ? "ring-fill tone-muted" : "ring-fill"}
+          cx="34"
+          cy="34"
+          r={R}
+          strokeDasharray={`${(rate * C).toFixed(2)} ${C.toFixed(2)}`}
+          transform="rotate(-90 34 34)"
+        />
+        <line className="ring-mid" x1="34" x2="34" y1={34 + R - 7} y2={34 + R + 7} />
+      </svg>
+      <span className="ring-text">
+        <strong className={rateTier(wins, games)}>{Math.round(rate * 100)}%</strong>
+        <span>승률</span>
+      </span>
+    </div>
   );
 }
 

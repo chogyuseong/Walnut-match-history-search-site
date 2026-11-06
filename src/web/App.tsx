@@ -15,11 +15,13 @@ import { Merge } from "./screens/Merge";
 import { Person } from "./screens/Person";
 import { Pick } from "./screens/Pick";
 import { Prep } from "./screens/Prep";
+import { PriorityScreen } from "./screens/Priority";
 import { MatchDetail, Records } from "./screens/Records";
 import { ResultSheet } from "./screens/ResultSheet";
 import { Search } from "./screens/Search";
 import { Today } from "./screens/Today";
 import { Transfer } from "./screens/Transfer";
+import { CoInvite } from "./screens/CoOperators";
 import { Viewer } from "./screens/Viewer";
 import { LoginFailed } from "./screens/Login";
 import { Privacy } from "./screens/Privacy";
@@ -178,7 +180,7 @@ function LoadFailed() {
 }
 
 /** 기록(스냅숏)이 있어야 그릴 수 있는 화면. */
-const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill"]);
+const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill", "priority"]);
 
 function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
@@ -203,6 +205,7 @@ function OperatorScreen(props: { route: string[] }) {
   }
   if (page === "pick") return <Pick />;
   if (page === "prep") return <Prep />;
+  if (page === "priority") return <PriorityScreen tab={id === "avoid" ? "avoid" : "priority"} />;
   if (page === "match") return <Match />;
   if (page === "group") return <Group />;
   if (page === "import") return <Import />;
@@ -229,6 +232,7 @@ function OperatorScreen(props: { route: string[] }) {
     );
   }
   if (page === "transfer" && id) return <Transfer token={id} />;
+  if (page === "co-invite" && id) return <CoInvite token={id} />;
   if (page === "records") return <OperatorRecords />;
   if (page === "m" && id) {
     if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
@@ -339,6 +343,7 @@ function Tabs(props: { current: string }) {
             props.current === "legacy-import" ||
             props.current === "backfill" ||
             props.current === "merge" ||
+            props.current === "priority" ||
             props.current === "delete"
           ? "group"
           : props.current === "search"

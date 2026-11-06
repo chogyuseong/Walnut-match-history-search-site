@@ -159,10 +159,17 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
     "ackRepeat",
     "moveCurrentToAwaiting",
     "newSession",
+    "teamASide",
   ]);
   const requestId = requestIdOf(body);
   const baseLiveVersion = requireInt(body.baseLiveVersion, "baseLiveVersion");
   const roster = parseRoster(body.roster, true);
+  // 준비 화면에서 고른 팀 A의 진영(선택). 블루·레드만 받는다("나중에"는 보내지 않는다).
+  // 결과 입력 창이 이 값을 미리 골라 두고, 결과를 저장할 때 확인한 값이 최종이다.
+  const teamASide =
+    body.teamASide === undefined || body.teamASide === null
+      ? null
+      : requireOneOf<"blue" | "red">(body.teamASide, ["blue", "red"], "teamASide");
   const ackRepeat = Array.isArray(body.ackRepeat)
     ? body.ackRepeat.map((id) => requireString(id, "ackRepeat", 1, 64))
     : [];
@@ -171,7 +178,11 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
       ? null
       : requireString(body.moveCurrentToAwaiting, "moveCurrentToAwaiting", 1, 64);
   const newSession = body.newSession === true;
-  const payload = { baseLiveVersion, roster, ackRepeat, moveCurrent, newSession };
+  // 진영을 고르지 않은 요청은 예전과 같은 내용으로 해시한다.
+  const payload =
+    teamASide === null
+      ? { baseLiveVersion, roster, ackRepeat, moveCurrent, newSession }
+      : { baseLiveVersion, roster, ackRepeat, moveCurrent, newSession, teamASide };
 
   const { stored } = await runMutation(env, {
     groupId,
@@ -272,10 +283,10 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
       statements.push(
         env.DB.prepare(
           `INSERT INTO matches (id, group_id, match_no, session_id, state, source,
-             started_at, played_at, settings_version_id)
-           SELECT ?1, id, next_match_no, ?3, 'in_progress', 'live', ?4, ?4, settings_version_id
+             started_at, played_at, settings_version_id, team_a_side)
+           SELECT ?1, id, next_match_no, ?3, 'in_progress', 'live', ?4, ?4, settings_version_id, ?5
            FROM groups WHERE id = ?2`,
-        ).bind(matchId, groupId, sessionId, now),
+        ).bind(matchId, groupId, sessionId, now, teamASide),
         env.DB.prepare(
           `UPDATE groups SET next_match_no = next_match_no + 1, live_version = live_version + 1
            WHERE id = ?1`,
@@ -303,6 +314,10 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
               `INSERT INTO rotation_cycles (id, group_id, session_id, status, created_at)
                VALUES (?1, ?2, ?3, 'active', ?4)`,
             ).bind(cycleId, groupId, sessionId, now),
+            // 주기가 없을 때(첫 경기 전) 미리 넣어 둔 서포터 횟수는 새로 연 주기가 물려받는다(migrations/0012).
+            env.DB.prepare(
+              "UPDATE support_adjustments SET cycle_id = ?1 WHERE group_id = ?2 AND cycle_id IS NULL",
+            ).bind(cycleId, groupId),
           );
         }
         const supporters = roster.filter((r) => r.position === "support");
@@ -418,7 +433,8 @@ export async function confirmResult(
           "result",
           {
             winnerTeam: { from: null, to: winnerTeam },
-            teamASide: { from: null, to: teamASide },
+            // 시작할 때 진영을 골라 두었으면 그 값에서 바뀐 것으로 남긴다.
+            teamASide: { from: match.teamASide, to: teamASide },
           },
           now,
         ),

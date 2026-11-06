@@ -542,6 +542,11 @@ button.row {
   flex: 1 1 30%;
   align-items: center;
 }
+/* 준비 화면 진영: "팀 A 블루"가 글자 중간에서 줄바꿈되지 않게, 좁으면 칸이 다음 줄로 내려간다. */
+.choice-row.side-choices .choice {
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
 .toggle {
   display: flex;
   align-items: center;
@@ -989,6 +994,35 @@ button.bar-row:hover {
 .list-row.static > .button-row {
   flex: none;
   justify-content: flex-end;
+}
+/* 우선순위 배정: 좁은 화면에서는 1·2·3·4·미정 버튼 줄이 이름 아래로 내려간다. 버튼은 44px 이상. */
+.list-row.priority-row {
+  flex-wrap: wrap;
+}
+.priority-row > .segmented {
+  flex: 1 1 260px;
+}
+.priority-row > .segmented button {
+  min-width: 44px;
+  padding: 8px 4px;
+}
+/* 기피 라인 토글: 라인 아이콘 + 이름. 다섯 칸이 390px 안에 들어가게 칸을 똑같이 나누고 글자를 줄이지 않는다. */
+.avoid-row > .segmented button {
+  flex: 1 1 0;
+  min-width: 44px;
+  display: inline-flex;
+  justify-content: center;
+}
+.avoid-row > .segmented .pos,
+.avoid-row > .segmented .role-icon {
+  color: inherit;
+}
+.avoid-row > .segmented button[aria-disabled="true"] {
+  opacity: 0.5;
+}
+/* 준비 화면 명단: 기피 라인에 서 있는 사람 표시(글자 + 점선 테두리, 색만으로 구분하지 않는다). */
+.tag.avoid-tag {
+  border: 1px dashed var(--ih-text-secondary);
 }
 
 /* 넓은 화면: 탭을 상단 바 가운데로 올리고 본문 폭을 읽기 좋은 너비로 줄인다. */
@@ -2296,6 +2330,177 @@ button.row.picked:hover {
   color: var(--text);
 }
 
+/* 개인 통계·검색의 작은 막대와 승률 고리. 그림은 보조이고 값은 옆 숫자로 함께 적는다.
+   승률 막대는 한 가지 색 + 50% 기준선, 5경기 미만은 회색(강조하지 않음). */
+.meter {
+  position: relative;
+  display: block;
+  height: 8px;
+  min-width: 0;
+  background: var(--viz-track);
+  border-radius: 0 4px 4px 0;
+}
+.meter-sm {
+  height: 5px;
+}
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--viz-series);
+}
+.meter-fill.tone-blue {
+  background: var(--viz-blue);
+}
+.meter-fill.tone-red {
+  background: var(--viz-red);
+}
+.meter-fill.tone-share {
+  background: var(--ih-text-secondary);
+}
+.meter-fill.tone-muted {
+  background: var(--viz-axis);
+}
+/* 밝은 테마에서는 회색 막대가 바탕 막대와 3:1 이상 구분되도록 조금 더 어둡게 둔다. */
+[data-theme="light"] .meter-fill.tone-muted {
+  background: var(--ih-text-muted);
+}
+[data-theme="light"] .ring-fill.tone-muted {
+  stroke: var(--ih-text-muted);
+}
+.meter-mid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ih-text-primary);
+  opacity: 0.55;
+}
+/* 승·패 비율: 승은 승리 색, 패는 패배 색에 빗금(색이 아니라 무늬로도 구분). */
+.wl-bar {
+  position: relative;
+  display: flex;
+  height: 8px;
+  min-width: 0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.wl-win,
+.wl-loss {
+  flex-basis: 0;
+  min-width: 0;
+}
+.wl-win {
+  background: var(--ih-win-accent);
+}
+.wl-loss {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--ih-loss-accent) 0 3px,
+    color-mix(in oklab, var(--ih-loss-accent) 45%, var(--ih-bg-surface)) 3px 5px
+  );
+}
+.wl-bar .meter-mid {
+  top: 0;
+  bottom: 0;
+}
+/* 막대를 둔 목록 줄: 첫 줄은 이름·숫자, 막대는 다음 줄 전체 폭. */
+.list-row.has-bar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.list-row.has-bar > .meter,
+.list-row.has-bar > .wl-bar,
+.list-row.has-bar > .meters {
+  flex: 1 0 100%;
+}
+/* 라인별: 비중과 승률을 한 줄씩. 이름표 · 막대 · 값 */
+.meters {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 2.5rem;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.meter-value {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ps-tiles dd .meter {
+  align-self: stretch;
+  margin-top: 4px;
+}
+/* 요약의 승률 고리 */
+.ps-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ring {
+  position: relative;
+  flex: none;
+  width: 88px;
+  height: 88px;
+}
+.ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ring-track,
+.ring-fill {
+  fill: none;
+  stroke-width: 8;
+}
+.ring-track {
+  stroke: var(--viz-track);
+}
+.ring-fill {
+  stroke: var(--viz-series);
+}
+.ring-fill.tone-muted {
+  stroke: var(--viz-axis);
+}
+.ring-mid {
+  stroke: var(--ih-text-primary);
+  stroke-width: 2;
+  opacity: 0.6;
+}
+.ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+}
+.ring-text strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.ring-text span {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+/* 랭킹 묶음 소제목(누적 50경기 이상 · 배치 완료 · 배치 진행 중) */
+.rank-group {
+  margin-top: 6px;
+  padding: 2px 4px 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--ih-border-strong);
+}
+.rank-group:first-child {
+  margin-top: 0;
+}
+
 /* 홈 요약 */
 .dashboard {
   display: flex;
@@ -2873,4 +3078,52 @@ button.row.picked:hover {
 .button-row > button {
   max-width: 100%;
   white-space: normal;
+}
+/* 준비 화면의 팀 섞기·진영 구역. 390px에서 버튼이 줄을 바꿔 넘치지 않게 button-row를 쓴다. */
+.prep-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prep-tools h2 {
+  margin: 0;
+}
+
+/* 서포터 횟수 직접 입력: 이름 · [−] 숫자 [＋]. 버튼은 44px 이상, 좁은 화면에서도 한 줄. */
+.count-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.count-row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.count-row.dirty {
+  border-color: var(--ih-brand-primary);
+}
+.count-row .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.count-stepper {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.count-stepper button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.125rem;
+}
+.count-stepper input {
+  width: 3.5em;
+  min-height: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }

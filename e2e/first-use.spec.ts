@@ -103,11 +103,11 @@ test.describe("첫 이용 흐름 (390px)", () => {
     await expect(teamB.getByRole("button").first()).toContainText(firstA);
 
     // 서포터 추첨: 누가 어디로 갔는지 이름으로 보여주고, 다시 눌러도 같은 결과다. (17)
-    await page.getByRole("button", { name: "서포터 추첨" }).click();
+    await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
     const drawLine = page.getByText(/^팀 A: .+→서포터, .+ 서포터→.+, 나머지 유지/);
     await expect(drawLine).toBeVisible();
     const firstDraw = (await drawLine.innerText()).replace(/ \(같은 조건.*$/, "");
-    await page.getByRole("button", { name: "서포터 추첨" }).click();
+    await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
     await expect(page.getByText(/같은 조건이라 결과를 유지했어요/).first()).toBeVisible();
     expect((await drawLine.innerText()).startsWith(firstDraw)).toBe(true);
 
@@ -139,7 +139,7 @@ test.describe("첫 이용 흐름 (390px)", () => {
     // 다음 경기 준비: 같은 팀으로 초안이 만들어진다. (26)
     await sheet.getByRole("button", { name: "다음 경기 준비" }).click();
     await expect(page.getByText("지난 경기와 같은 팀이에요. 포지션은 새로 뽑았어요.")).toBeVisible();
-    await expect(page.getByText("◆차례 씀").first()).toBeVisible();
+    await expect(page.getByText("서폿 1회").first()).toBeVisible();
 
     // 두 번째 경기를 시작하고 결과는 나중에 넣는다. (27)
     await startMatch(page);

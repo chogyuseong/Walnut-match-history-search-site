@@ -11,7 +11,8 @@ const PICK_KEY = "naejeon.pick.v1";
 
 export interface Me {
   accountId: string | null;
-  groups: { id: string; name: string }[];
+  /** role: owner = 대표 운영자, co = 공동 운영자. 예전 서버 응답에는 없을 수 있다(대표로 본다). */
+  groups: { id: string; name: string; role?: "owner" | "co" }[];
   /** "fake"(로컬 개발용 로그인) 또는 "oauth". */
   authMode: string;
   /** 쓸 수 있는 로그인 수단. "local"은 자체 계정(아이디 + 비밀번호), 나머지는 키가 설정된 제공자. */
