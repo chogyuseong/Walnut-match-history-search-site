@@ -79,79 +79,84 @@ export interface Overview {
   rateLimited: { bucket: string; last7: number; last30: number }[];
 }
 
-async function countOf(env: Env, sql: string, ...binds: unknown[]): Promise<number> {
-  const row = await env.DB.prepare(sql)
-    .bind(...binds)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+interface GroupRow {
+  source: "client" | "server";
+  kind: string;
+  message: string;
+  path: string | null;
+  count: number;
+  first_at: string;
+  last_at: string;
+  stack: string | null;
+  app_version: string | null;
+  browser: string | null;
 }
 
+/**
+ * 수치는 D1 batch 한 번(왕복 1회)으로 읽는다. batch는 한 트랜잭션이라 숫자끼리 같은 시점이다.
+ * 이름·메모·ID 같은 모임 안의 열은 SELECT하지 않는다.
+ */
 export async function siteOverview(env: Env, now = Date.now()): Promise<Overview> {
   const since = (days: number) => new Date(now - days * DAY_MS).toISOString();
-  const recent = await Promise.all(
-    [7, 30].map(async (days) => ({
-      days,
-      activeGroups: await countOf(
-        env,
-        `SELECT COUNT(DISTINCT group_id) AS n FROM matches
-         WHERE COALESCE(confirmed_at, started_at, played_at) >= ?1`,
-        since(days),
-      ),
-      newAccounts: await countOf(env, "SELECT COUNT(*) AS n FROM accounts WHERE created_at >= ?1", since(days)),
-      newGroups: await countOf(env, "SELECT COUNT(*) AS n FROM groups WHERE created_at >= ?1", since(days)),
-    })),
-  );
-  const byKind = await env.DB.prepare(
-    "SELECT source, kind, COUNT(*) AS count FROM error_logs GROUP BY source, kind ORDER BY count DESC",
-  ).all<{ source: string; kind: string; count: number }>();
-  // 같은 출처·종류·메시지·경로를 한 줄로 묶는다. 스택·버전·브라우저는 가장 최근 한 건의 값이다.
-  const groups = await env.DB.prepare(
-    `SELECT g.source, g.kind, g.message, g.path, g.count, g.first_at, g.last_at,
-       e.stack, e.app_version, e.browser
-     FROM (
-       SELECT source, kind, message, path, COUNT(*) AS count, MIN(created_at) AS first_at,
-         MAX(created_at) AS last_at, MAX(id) AS last_id
-       FROM error_logs GROUP BY source, kind, message, path
-     ) g JOIN error_logs e ON e.id = g.last_id
-     ORDER BY g.last_at DESC LIMIT ?1`,
-  )
-    .bind(OVERVIEW_ERROR_GROUPS)
-    .all<{
-      source: "client" | "server";
-      kind: string;
-      message: string;
-      path: string | null;
-      count: number;
-      first_at: string;
-      last_at: string;
-      stack: string | null;
-      app_version: string | null;
-      browser: string | null;
-    }>();
   const day = (days: number) => new Date(now - days * DAY_MS).toISOString().slice(0, 10);
-  const rate = await env.DB.prepare(
-    `SELECT bucket,
-       SUM(CASE WHEN day > ?1 THEN count ELSE 0 END) AS last7,
-       SUM(count) AS last30
-     FROM rate_limit_hits WHERE day > ?2 GROUP BY bucket ORDER BY last30 DESC`,
-  )
-    .bind(day(7), day(30))
-    .all<{ bucket: string; last7: number; last30: number }>();
+  const active = "SELECT COUNT(DISTINCT group_id) FROM matches WHERE COALESCE(confirmed_at, started_at, played_at) >= ";
+  const [countsResult, byKind, groups, rate] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM accounts) AS accounts,
+         (SELECT COUNT(*) FROM groups) AS groups_n,
+         (SELECT COUNT(*) FROM matches) AS matches,
+         (SELECT COUNT(*) FROM matches WHERE state = 'confirmed') AS confirmed,
+         (SELECT COUNT(*) FROM participants) AS participants,
+         (SELECT COUNT(*) FROM error_logs) AS errors,
+         (${active}?1) AS active7,
+         (${active}?2) AS active30,
+         (SELECT COUNT(*) FROM accounts WHERE created_at >= ?1) AS accounts7,
+         (SELECT COUNT(*) FROM accounts WHERE created_at >= ?2) AS accounts30,
+         (SELECT COUNT(*) FROM groups WHERE created_at >= ?1) AS groups7,
+         (SELECT COUNT(*) FROM groups WHERE created_at >= ?2) AS groups30`,
+    ).bind(since(7), since(30)),
+    env.DB.prepare(
+      "SELECT source, kind, COUNT(*) AS count FROM error_logs GROUP BY source, kind ORDER BY count DESC",
+    ),
+    // 같은 출처·종류·메시지·경로를 한 줄로 묶는다. 스택·버전·브라우저는 가장 최근 한 건의 값이다.
+    env.DB.prepare(
+      `SELECT g.source, g.kind, g.message, g.path, g.count, g.first_at, g.last_at,
+         e.stack, e.app_version, e.browser
+       FROM (
+         SELECT source, kind, message, path, COUNT(*) AS count, MIN(created_at) AS first_at,
+           MAX(created_at) AS last_at, MAX(id) AS last_id
+         FROM error_logs GROUP BY source, kind, message, path
+       ) g JOIN error_logs e ON e.id = g.last_id
+       ORDER BY g.last_at DESC LIMIT ?1`,
+    ).bind(OVERVIEW_ERROR_GROUPS),
+    env.DB.prepare(
+      `SELECT bucket,
+         SUM(CASE WHEN day > ?1 THEN count ELSE 0 END) AS last7,
+         SUM(count) AS last30
+       FROM rate_limit_hits WHERE day > ?2 GROUP BY bucket ORDER BY last30 DESC`,
+    ).bind(day(7), day(30)),
+  ]);
+  const n = (countsResult!.results[0] ?? {}) as Record<string, number>;
+  const num = (key: string) => Number(n[key] ?? 0);
 
   return {
     generatedAt: new Date(now).toISOString(),
     totals: {
-      accounts: await countOf(env, "SELECT COUNT(*) AS n FROM accounts"),
-      groups: await countOf(env, "SELECT COUNT(*) AS n FROM groups"),
-      matches: await countOf(env, "SELECT COUNT(*) AS n FROM matches"),
-      confirmedMatches: await countOf(env, "SELECT COUNT(*) AS n FROM matches WHERE state = 'confirmed'"),
-      participants: await countOf(env, "SELECT COUNT(*) AS n FROM participants"),
+      accounts: num("accounts"),
+      groups: num("groups_n"),
+      matches: num("matches"),
+      confirmedMatches: num("confirmed"),
+      participants: num("participants"),
     },
-    recent,
+    recent: [
+      { days: 7, activeGroups: num("active7"), newAccounts: num("accounts7"), newGroups: num("groups7") },
+      { days: 30, activeGroups: num("active30"), newAccounts: num("accounts30"), newGroups: num("groups30") },
+    ],
     errors: {
-      total: await countOf(env, "SELECT COUNT(*) AS n FROM error_logs"),
-      byKind: byKind.results,
-      groups: groups.results.map((g) => ({
+      total: num("errors"),
+      byKind: byKind!.results as { source: string; kind: string; count: number }[],
+      groups: (groups!.results as GroupRow[]).map((g) => ({
         source: g.source,
         kind: g.kind,
         message: g.message,
@@ -164,7 +169,11 @@ export async function siteOverview(env: Env, now = Date.now()): Promise<Overview
         browser: g.browser,
       })),
     },
-    rateLimited: rate.results.map((r) => ({ bucket: r.bucket, last7: r.last7 ?? 0, last30: r.last30 ?? 0 })),
+    rateLimited: (rate!.results as { bucket: string; last7: number | null; last30: number | null }[]).map((r) => ({
+      bucket: r.bucket,
+      last7: r.last7 ?? 0,
+      last30: r.last30 ?? 0,
+    })),
   };
 }
 

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
 import { ERROR_LOG_MAX_DAYS, ERROR_LOG_MAX_ROWS, errorLogClock, recordError } from "../src/server/errorLog";
 import { rateClock } from "../src/server/ratelimit";
-import { browserKind, ERROR_MESSAGE_MAX, ERROR_STACK_MAX, scrubPath, scrubText } from "../src/shared/errorScrub";
+import { browserKind, ERROR_MESSAGE_MAX, ERROR_STACK_MAX, isNoise, scrubPath, scrubText } from "../src/shared/errorScrub";
 import { direct } from "./direct";
 import { api, login, setupGroup, snapshot, unique } from "./helpers";
 
@@ -77,6 +77,13 @@ describe("가림 처리(공용 함수)", () => {
     expect(long.length).toBe(ERROR_MESSAGE_MAX);
     expect(browserKind("Mozilla/5.0 (iPhone) AppleWebKit Version/17 Mobile Safari/604.1")).toBe("Safari 모바일");
     expect(browserKind(null)).toBeNull();
+  });
+
+  it("고칠 수 없는 잡음(다른 출처 Script error, ResizeObserver 경고)은 화면이 보내지 않는다", () => {
+    expect(isNoise("Script error.", null)).toBe(true);
+    expect(isNoise("Script error.", "at x")).toBe(false);
+    expect(isNoise("ResizeObserver loop completed with undelivered notifications.", null)).toBe(true);
+    expect(isNoise("TypeError: x is undefined", null)).toBe(false);
   });
 });
 

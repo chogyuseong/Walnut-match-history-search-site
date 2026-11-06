@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { ERROR_MESSAGE_MAX, ERROR_STACK_MAX, scrubPath, scrubText } from "../shared/errorScrub";
+import { ERROR_MESSAGE_MAX, ERROR_STACK_MAX, isNoise, scrubPath, scrubText } from "../shared/errorScrub";
 import { APP_VERSION } from "../shared/version";
 
 /**
@@ -46,6 +46,7 @@ function describe(value: unknown): { message: string; stack: string | null } {
 export function reportClientError(kind: Kind, value: unknown): void {
   try {
     const { message, stack } = describe(value);
+    if (isNoise(message, stack)) return;
     const safeMessage = scrubText(message, ERROR_MESSAGE_MAX);
     if (!shouldReport(`${kind}|${safeMessage}`, Date.now())) return;
     const body = JSON.stringify({
@@ -106,9 +107,22 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
         <div className="screen" role="alert">
           <h1>문제가 생겼어요</h1>
           <p>화면을 그리다 오류가 났어요. 새로 고치면 대부분 해결돼요. 작성 중인 편성은 이 기기에 그대로 있어요.</p>
-          <button type="button" className="primary" onClick={() => location.reload()}>
-            새로 고침
-          </button>
+          <div className="button-row">
+            <button type="button" className="primary" onClick={() => location.reload()}>
+              새로 고침
+            </button>
+            {/* 같은 주소를 새로 고쳐도 다시 깨지는 경우(그 화면의 오류)를 위해 첫 화면으로 가는 길을 둔다. */}
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                location.hash = "#/";
+                location.reload();
+              }}
+            >
+              첫 화면으로
+            </button>
+          </div>
         </div>
       </main>
     );

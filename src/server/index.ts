@@ -140,10 +140,12 @@ app.onError(async (error, c) => {
   console.error(JSON.stringify({ at: nowIso(), path: pathForLog(c.req.path), error: String(error) }));
   // 오류 기록 표에도 넣는다(가린 값만, src/server/errorLog.ts). 넣다가 실패해도 응답은 그대로다.
   // 사용자 실수(ApiError: 4xx·점검 503)는 위에서 돌아가므로 여기 오지 않는다.
+  // 응답을 늦추지 않게 Workers의 waitUntil로 넘긴다(실행 문맥이 없는 직접 호출·테스트에서는 기다린다).
+  const recording = recordServerError(c.env, c.req.path, error).catch(() => undefined);
   try {
-    await recordServerError(c.env, c.req.path, error);
+    c.executionCtx.waitUntil(recording);
   } catch {
-    // 무시
+    await recording;
   }
   return c.json({ error: { code: "INTERNAL", message: "서버 오류가 발생했습니다." } }, 500);
 });

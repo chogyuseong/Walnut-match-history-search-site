@@ -101,3 +101,13 @@ export function browserKind(userAgent: string | null | undefined): string | null
                 : "기타";
   return /Mobile|Android|iPhone|iPad/.test(ua) ? `${name} 모바일` : name;
 }
+
+/**
+ * 고칠 수 없는 잡음은 보내지 않는다(기록 한도를 차지하고 진짜 오류를 가린다).
+ * - "Script error.": 다른 출처 스크립트(브라우저 확장·광고 등)의 오류. 브라우저가 내용을 숨겨 알 수 있는 것이 없다.
+ * - ResizeObserver 경고: 브라우저가 한 프레임에 크기 변화를 다 전하지 못했다는 알림으로, 화면 동작에는 영향이 없다.
+ */
+export function isNoise(message: string, stack: string | null): boolean {
+  if (/^Script error\.?$/i.test(message.trim()) && !stack) return true;
+  return /ResizeObserver loop (limit exceeded|completed with undelivered notifications)/.test(message);
+}
