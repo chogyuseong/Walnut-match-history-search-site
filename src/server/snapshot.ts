@@ -2,6 +2,9 @@ import {
   DEFAULT_SETTINGS,
   type MatchState,
   type MatchSource,
+  type MemberRequestKind,
+  type MemberRequestStatus,
+  type MemberRequestView,
   type MatchView,
   type ParticipantView,
   type Position,
@@ -319,8 +322,88 @@ export async function buildSnapshot(
       createdAt: m.created_at,
       undoneAt: m.undone_at,
     }));
+    // 참가자 본인 연결·연결 링크·참가자 요청(migrations/0019). 계정 ID·토큰은 넣지 않는다.
+    const [links, claims] = await env.DB.batch([
+      env.DB.prepare(
+        "SELECT participant_id, created_at, avoid_self_at FROM participant_links WHERE group_id = ?1 ORDER BY created_at",
+      ).bind(groupId),
+      env.DB.prepare(
+        `SELECT participant_id, MAX(expires_at) AS expires_at FROM participant_claims
+         WHERE group_id = ?1 AND used_at IS NULL AND expires_at > ?2 GROUP BY participant_id`,
+      ).bind(groupId, nowIso()),
+    ]);
+    snapshot.memberLinks = (
+      links!.results as unknown as { participant_id: string; created_at: string; avoid_self_at: string | null }[]
+    ).map((l) => ({ participantId: l.participant_id, linkedAt: l.created_at, avoidBySelf: l.avoid_self_at !== null }));
+    snapshot.memberClaims = (claims!.results as unknown as { participant_id: string; expires_at: string }[]).map((c) => ({
+      participantId: c.participant_id,
+      expiresAt: c.expires_at,
+    }));
+    snapshot.memberRequests = await loadMemberRequests(env, groupId, null);
   }
   return snapshot;
+}
+
+/** 운영자 화면에 싣는 처리한 요청 수(열린 요청은 모두 싣는다). */
+const RECENT_RESOLVED_REQUESTS = 30;
+
+interface RequestRow {
+  id: string;
+  participant_id: string;
+  kind: MemberRequestKind;
+  match_id: string | null;
+  body: string;
+  status: MemberRequestStatus;
+  reply: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+function toRequestView(r: RequestRow): MemberRequestView {
+  return {
+    id: r.id,
+    participantId: r.participant_id,
+    kind: r.kind,
+    matchId: r.match_id,
+    text: r.body,
+    status: r.status,
+    reply: r.reply,
+    createdAt: r.created_at,
+    resolvedAt: r.resolved_at,
+  };
+}
+
+/**
+ * 참가자 요청 목록(최근 것부터). participantId가 있으면 그 사람 것만(멤버 본인 응답), 없으면 모임 전체(운영자 응답:
+ * 열린 요청 전부 + 처리한 요청 최근 RECENT_RESOLVED_REQUESTS개).
+ */
+export async function loadMemberRequests(
+  env: Env,
+  groupId: string,
+  participantId: string | null,
+): Promise<MemberRequestView[]> {
+  const columns = "id, participant_id, kind, match_id, body, status, reply, created_at, resolved_at";
+  if (participantId !== null) {
+    const rows = await env.DB.prepare(
+      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND participant_id = ?2
+       ORDER BY created_at DESC, id LIMIT ?3`,
+    )
+      .bind(groupId, participantId, RECENT_RESOLVED_REQUESTS)
+      .all<RequestRow>();
+    return rows.results.map(toRequestView);
+  }
+  const [open, resolved] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND status = 'open' ORDER BY created_at DESC, id`,
+    ).bind(groupId),
+    env.DB.prepare(
+      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND status <> 'open'
+       ORDER BY resolved_at DESC, id LIMIT ?2`,
+    ).bind(groupId, RECENT_RESOLVED_REQUESTS),
+  ]);
+  return [...(open!.results as unknown as RequestRow[]), ...(resolved!.results as unknown as RequestRow[])].map(
+    toRequestView,
+  );
 }
 
 /** 시리즈 묶음과 속한 경기(경기 시각 → 경기 번호 순). */

@@ -66,6 +66,19 @@ export interface Me {
   loginMethod?: "local" | "oauth" | "fake" | null;
   /** 사이트 운영자(이 서비스의 주인)일 때만 true. 모임 운영자 권한과 무관하다(src/server/siteAdmin.ts). */
   siteAdmin?: boolean;
+  /**
+   * 참가자로 연결한 모임(migrations/0019, 역할 member). 운영하는 모임(groups)과 따로다.
+   * 고르면 조회 링크와 같은 읽기 전용 화면(#/mine/모임ID)이 열린다. 로그인하지 않았거나 예전 서버면 없다.
+   */
+  memberships?: Membership[];
+}
+
+export interface Membership {
+  id: string;
+  name: string;
+  participantId: string;
+  participantName: string;
+  role: "member";
 }
 
 export interface AppValue {
@@ -186,7 +199,7 @@ export function useApp(enabled: boolean): AppValue {
       if (error instanceof ApiFailure) {
         setLoadError(error);
         // 로그인이 만료되면 계정 상태를 비운다. 입력 중인 초안은 그대로 둔다.
-        if (error.status === 401) setMe((m) => (m ? { ...m, accountId: null, groups: [] } : m));
+        if (error.status === 401) setMe((m) => (m ? { ...m, accountId: null, groups: [], memberships: [] } : m));
       }
       return null;
     }
@@ -305,7 +318,7 @@ export function useApp(enabled: boolean): AppValue {
     groupRef.current = null;
     setGroupId(null);
     setSnapshot(null);
-    setMe((m) => (m ? { ...m, accountId: null, groups: [] } : m));
+    setMe((m) => (m ? { ...m, accountId: null, groups: [], memberships: [] } : m));
   }, []);
 
   const ensureGroup = useCallback(async () => {

@@ -11,13 +11,18 @@ interface JoinView {
   open: boolean;
   max: number;
   target: number;
-  entries: { key: string; name: string }[];
+  /** verified: 본인 확인된 신청(본인·운영자만 뺄 수 있음). mine: 로그인한 내가 본인 확인한 신청. */
+  entries: { key: string; name: string; verified?: true; mine?: true }[];
   people: { id: string; name: string }[];
+  /** 로그인한 멤버(이 모임의 참가자와 연결한 계정)면 내 참가자 ID. */
+  me?: { participantId: string };
 }
 
 /**
  * 참가 신청 화면(#/join/토큰). 로그인이 없다. 자기 이름을 눌러 "오늘 참가"를 신청하고, 명단에 없으면 새 이름을 넣는다.
- * 본인 확인 수단이 없으므로 링크를 가진 사람은 누구의 신청이든 넣고 뺄 수 있다(화면에 안내한다).
+ * 익명 신청은 본인 확인 수단이 없으므로 링크를 가진 사람은 누구의 신청이든 넣고 뺄 수 있다(화면에 안내한다).
+ * 본인과 연결한 참가자(멤버)가 로그인한 채 열면 내 이름이 맨 위에 미리 골라져 있고, 신청하면 '본인 확인됨'으로 들어간다.
+ * 본인 확인된 신청은 본인과 운영자만 뺄 수 있어 다른 사람에게는 취소 버튼을 보여주지 않는다(서버도 거절).
  */
 export function Join(props: { token: string; rest: string[] }) {
   const { token } = props;
@@ -101,6 +106,8 @@ export function Join(props: { token: string; rest: string[] }) {
   }
 
   const joined = new Set(view.entries.map((e) => e.key));
+  const myPerson = view.me ? (view.people.find((p) => p.id === view.me!.participantId) ?? null) : null;
+  const myEntry = myPerson ? (view.entries.find((e) => e.key === `p:${myPerson.id}`) ?? null) : null;
   const count = view.entries.length;
   const q = nameKey(query);
   const listed = view.people
@@ -129,13 +136,35 @@ export function Join(props: { token: string; rest: string[] }) {
       )}
       <p className="hint">
         로그인 없이 쓰는 화면이라 본인 확인을 하지 않아요. 다른 사람의 이름은 누르지 말아 주세요. 팀 편성은 운영자가
-        정해요.
+        정해요. 운영자에게 받은 연결 링크로 내 이름을 계정에 연결해 두면, 로그인한 채 신청할 때 '본인 확인됨'으로 들어가요.
       </p>
       <ErrorNote error={error} />
       {done && (
         <p className="note" role="status">
           {done}
         </p>
+      )}
+
+      {myPerson && (
+        <section className="card" aria-label="내 이름으로 신청">
+          <p>
+            로그인한 계정과 연결된 이름: <strong>{myPerson.name}</strong>
+          </p>
+          {myEntry?.mine ? (
+            <p className="hint">본인 확인된 신청이에요. 본인과 운영자만 뺄 수 있어요.</p>
+          ) : view.open ? (
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() =>
+                void send(`/api/join/${token}`, { participantId: myPerson.id }, `${myPerson.name} 님, 본인 확인으로 신청했어요.`)
+              }
+            >
+              {myEntry ? "내 신청을 본인 확인으로 바꾸기" : `${myPerson.name}(으)로 오늘 참가`}
+            </button>
+          ) : null}
+        </section>
       )}
 
       <section aria-label="신청한 사람">
@@ -149,8 +178,9 @@ export function Join(props: { token: string; rest: string[] }) {
                 <span className="name">
                   {i + 1}. {e.name}
                   {i >= view.target && <span className="tag">대기</span>}
+                  {e.verified && <span className="tag">본인 확인됨</span>}
                 </span>
-                {view.open && (
+                {view.open && (!e.verified || e.mine) && (
                   <button
                     type="button"
                     className="link"

@@ -341,7 +341,7 @@ export function viewerPage(
 }
 
 /** 점검 중(백업 복원·모임 삭제 진행 중) 안내. 조회 링크의 모든 화면 맨 위에 둔다. */
-function MaintenanceNote() {
+export function MaintenanceNote() {
   return (
     <p className="note warn viewer-note" role="status">
       운영자가 모임 기록을 점검하는 중이에요(백업 복원 등). 잠시 뒤 새로 고쳐 주세요. 그동안 보이는 내용은
@@ -350,8 +350,11 @@ function MaintenanceNote() {
   );
 }
 
-function ViewerNav(props: { base: string; group: string; current: ViewerTab }) {
-  const item = (tab: ViewerTab, label: string) => (
+/**
+ * 조회 메뉴. member면(참가자로 연결한 모임, src/web/screens/Member.tsx) 맨 앞에 "내 정보"를 둔다.
+ */
+export function ViewerNav(props: { base: string; group: string; current: ViewerTab | "me"; member?: boolean }) {
+  const item = (tab: ViewerTab | "me", label: string) => (
     <button
       type="button"
       className="link"
@@ -365,6 +368,7 @@ function ViewerNav(props: { base: string; group: string; current: ViewerTab }) {
     <nav className="viewer-nav" aria-label="조회 메뉴">
       <strong>{props.group}</strong>
       <span>
+        {props.member && <>{item("me", "내 정보")} </>}
         {item("now", "현재 경기")} {item("home", "요약")} {item("search", "검색")} {item("records", "기록")}
       </span>
     </nav>

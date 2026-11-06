@@ -39,6 +39,10 @@ type Body = Record<string, unknown>;
 /** 모임 행을 지우기 전에 지울 표(외래 키 순서). 데이터 표 다음에 인수 링크·참가 신청 링크·공동 운영자 초대·공동 운영자·복원 작업·운영자. */
 const GROUP_TABLES = [
   ...GROUP_DATA_TABLES,
+  // 참가자 본인 연결·연결 링크·참가자 요청(migrations/0019). 복원은 지우지 않고 모임 삭제만 지운다.
+  "participant_links",
+  "participant_claims",
+  "participant_requests",
   "operator_transfers",
   "join_links",
   "co_operator_invites",
@@ -204,6 +208,9 @@ export async function deleteAccount(env: Env, accountId: string, body: Body): Pr
       ...failureKeys.map((key) => env.DB.prepare("DELETE FROM auth_failures WHERE key = ?1").bind(key)),
       env.DB.prepare("DELETE FROM local_credentials WHERE account_id = ?1").bind(accountId),
       env.DB.prepare("DELETE FROM group_co_operators WHERE account_id = ?1").bind(accountId),
+      // 참가자 본인 연결(migrations/0019): 연결을 지우고 본인 확인 신청 표시를 익명 신청으로 돌린다. 참가자·기록은 모임 것이라 그대로.
+      env.DB.prepare("DELETE FROM participant_links WHERE account_id = ?1").bind(accountId),
+      env.DB.prepare("UPDATE join_requests SET account_id = NULL WHERE account_id = ?1").bind(accountId),
       env.DB.prepare("DELETE FROM accounts WHERE id = ?1").bind(accountId),
     ]);
   } catch (error) {

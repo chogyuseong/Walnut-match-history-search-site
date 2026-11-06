@@ -204,6 +204,54 @@ export interface Snapshot {
   importBatches?: ImportBatchView[];
   /** 중복 참가자 합치기 기록(최근 것부터). 운영자 응답에만 있다. */
   merges?: MergeView[];
+  /** 참가자 본인 연결(migrations/0019). 운영자 응답에만 있다. 계정 정보는 담지 않는다(연결 여부·시각만). */
+  memberLinks?: MemberLinkView[];
+  /** 아직 쓰지 않은 연결 링크(만료 전). 운영자 응답에만 있다. 토큰은 담지 않는다. */
+  memberClaims?: MemberClaimView[];
+  /** 참가자 요청(열린 것 전부 + 최근 처리한 것). 운영자 응답에만 있다. */
+  memberRequests?: MemberRequestView[];
+  /**
+   * 멤버(연결한 참가자) 응답에만 있다. 나머지는 조회 링크 응답과 같다(같은 직렬화 함수).
+   * 내 것만 담는다: 내 참가자 ID, 내 기피 라인, 내 요청.
+   */
+  me?: MemberSelfView;
+}
+
+/** 참가자 ↔ 계정 연결 한 건(운영자용). */
+export interface MemberLinkView {
+  participantId: string;
+  linkedAt: string;
+  /** 지금 기피 라인을 본인이 정했는지(그 뒤 운영자가 고치면 false). */
+  avoidBySelf: boolean;
+}
+
+export interface MemberClaimView {
+  participantId: string;
+  expiresAt: string;
+}
+
+export type MemberRequestKind = "correction" | "erase";
+export type MemberRequestStatus = "open" | "done" | "declined";
+
+export interface MemberRequestView {
+  id: string;
+  participantId: string;
+  kind: MemberRequestKind;
+  /** 정정 요청의 대상 경기. 삭제·익명 요청은 null. */
+  matchId: string | null;
+  text: string;
+  status: MemberRequestStatus;
+  reply: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface MemberSelfView {
+  participantId: string;
+  avoidPositions: Position[];
+  /** 지금 기피 라인을 본인이 정했는지. */
+  avoidBySelf: boolean;
+  requests: MemberRequestView[];
 }
 
 /** 중복 참가자 합치기 한 건. */

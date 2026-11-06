@@ -3344,3 +3344,45 @@ button.row.picked:hover {
   gap: 2px;
   min-width: 0;
 }
+
+/* 참가자 본인 연결 · 멤버 화면 · 참가자 요청(2026-11-06) */
+.request-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.request-row .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tag.muted {
+  opacity: 0.75;
+}
+.dialog-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+.dialog-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.member-request-form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 36rem;
+}
+.member-request-form select,
+.member-request-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.member-request-form fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+.member-home .segmented {
+  flex-wrap: wrap;
+}

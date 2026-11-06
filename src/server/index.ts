@@ -8,6 +8,7 @@ import {
   productionConfigProblem,
   readSession,
   requireAccountId,
+  requireMember,
   requireOperator,
   requireOwner,
   revokeSessions,
@@ -75,6 +76,19 @@ import {
   setJoinOpen,
 } from "./join";
 import { mergeParticipants, previewMerge, undoMerge } from "./merge";
+import {
+  acceptClaim,
+  anonymizeParticipant,
+  claimInfo,
+  createClaimLink,
+  createMemberRequest,
+  listMemberships,
+  memberSnapshot,
+  resolveMemberRequest,
+  setOwnAvoid,
+  unlinkByOperator,
+  unlinkSelf,
+} from "./members";
 import { maintenanceError } from "./mutation";
 import {
   beginLogin,
@@ -178,7 +192,8 @@ app.use("/api/*", async (c, next) => {
       path.startsWith("/api/view/") ||
       path.startsWith("/api/transfer/") ||
       path.startsWith("/api/co-invite/") ||
-      path.startsWith("/api/join/")
+      path.startsWith("/api/join/") ||
+      path.startsWith("/api/claim/")
     ) {
       await hit(c.env, "view-ip", ip);
     } else if (HEAVY_READ.test(path)) {
@@ -345,7 +360,9 @@ app.get("/api/me", async (c) => {
   if (!session) return c.json({ accountId: null, groups: [], authMode, providers, loginMethod: null });
   return c.json({
     accountId: session.id,
+    // 운영하는 모임(대표·공동). 뜻은 그대로다. 참가자로 연결한 모임은 memberships에 따로 준다(migrations/0019).
     groups: await listGroups(c.env, session.id),
+    memberships: await listMemberships(c.env, session.id),
     authMode,
     providers,
     // 화면이 비밀번호 바꾸기를 보여줄지 정하는 데 쓴다. 아이디는 돌려주지 않는다.
@@ -693,15 +710,91 @@ app.post("/api/groups/:gid/join/remove", async (c) => {
   return c.json(await joinAdminView(c.env, gid));
 });
 
-app.get("/api/join/:token", async (c) => c.json(await joinInfo(c.env, c.req.param("token"))));
+// 로그인 없이도 쓴다. 로그인한 멤버면 계정을 넘겨 본인 확인 신청·내 이름 표시에 쓴다(src/server/join.ts).
+app.get("/api/join/:token", async (c) =>
+  c.json(await joinInfo(c.env, c.req.param("token"), (await readSession(c.env, c.req.raw))?.id ?? null)),
+);
 
 app.post("/api/join/:token", async (c) =>
-  c.json(await joinAdd(c.env, c.req.param("token"), await readJsonBody(c.req.raw))),
+  c.json(
+    await joinAdd(
+      c.env,
+      c.req.param("token"),
+      await readJsonBody(c.req.raw),
+      (await readSession(c.env, c.req.raw))?.id ?? null,
+    ),
+  ),
 );
 
 app.post("/api/join/:token/cancel", async (c) =>
-  c.json(await joinCancel(c.env, c.req.param("token"), await readJsonBody(c.req.raw))),
+  c.json(
+    await joinCancel(
+      c.env,
+      c.req.param("token"),
+      await readJsonBody(c.req.raw),
+      (await readSession(c.env, c.req.raw))?.id ?? null,
+    ),
+  ),
 );
+
+/* ---------------------------- 참가자 본인 연결 · 멤버 ---------------------------- */
+// src/server/members.ts. 연결 링크 만들기·끊기·요청 처리·익명 처리는 운영자(대표·공동, 공통 앞단 requireOperator).
+// 멤버 경로(/api/member/:gid/...)는 운영자 경로와 따로 requireMember로만 연다(운영자 경로는 멤버에게 열리지 않는다).
+
+app.post("/api/groups/:gid/participants/:pid/claim-link", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await createClaimLink(c.env, gid, c.req.param("pid")));
+});
+
+app.delete("/api/groups/:gid/participants/:pid/link", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await unlinkByOperator(c.env, gid, c.req.param("pid"));
+  return c.json({ ok: true });
+});
+
+app.post("/api/groups/:gid/participants/:pid/anonymize", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await anonymizeParticipant(c.env, gid, c.req.param("pid"), await readJsonBody(c.req.raw)));
+});
+
+app.post("/api/groups/:gid/member-requests/:rid/resolve", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await resolveMemberRequest(c.env, gid, c.req.param("rid"), await readJsonBody(c.req.raw));
+  return c.json({ ok: true });
+});
+
+app.get("/api/claim/:token", async (c) => c.json(await claimInfo(c.env, c.req.param("token"))));
+
+app.post("/api/claim/:token/accept", async (c) => {
+  const accountId = await requireAccountId(c.env, c.req.raw);
+  return c.json(await acceptClaim(c.env, accountId, c.req.param("token")));
+});
+
+app.get("/api/member/:gid/snapshot", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  return c.json(await memberSnapshot(c.env, ctx));
+});
+
+app.put("/api/member/:gid/avoid", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  await setOwnAvoid(c.env, ctx, await readJsonBody(c.req.raw));
+  return c.json({ ok: true });
+});
+
+app.post("/api/member/:gid/requests", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  return c.json(await createMemberRequest(c.env, ctx, await readJsonBody(c.req.raw)));
+});
+
+app.post("/api/member/:gid/unlink", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  await unlinkSelf(c.env, ctx);
+  return c.json({ ok: true });
+});
 
 const matchActions = {
   "end-later": endLater,

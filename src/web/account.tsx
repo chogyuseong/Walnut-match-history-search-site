@@ -17,6 +17,8 @@ export const LOGIN_ONLY: Record<string, string> = {
   merge: "중복 참가자 합치기",
   priority: "티어 배정",
   delete: "모임 삭제 · 탈퇴",
+  // 참가자로 연결한 모임의 읽기 전용 화면(src/web/screens/Member.tsx).
+  mine: "참가 중인 모임",
 };
 
 /**
@@ -128,6 +130,24 @@ export function AccountControl() {
                   </button>
                 );
               })}
+            </div>
+          )}
+          {(app.me?.memberships?.length ?? 0) > 0 && (
+            // 참가자로 연결한 모임(migrations/0019). 고르면 조회 링크와 같은 읽기 전용 화면이 열린다.
+            <div className="account-groups" role="group" aria-label="참가 중인 모임">
+              {app.me!.memberships!.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className="secondary wide"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    go(`/mine/${m.id}`);
+                  }}
+                >
+                  {m.name} · 참가 중({m.participantName})
+                </button>
+              ))}
             </div>
           )}
           {app.me?.siteAdmin && (

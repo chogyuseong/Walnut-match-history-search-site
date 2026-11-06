@@ -27,6 +27,7 @@ import { Viewer } from "./screens/Viewer";
 import { Demo } from "./screens/Demo";
 import { SiteAdmin } from "./screens/SiteAdmin";
 import { Join } from "./screens/Join";
+import { Claim, Member } from "./screens/Member";
 import { LoginFailed } from "./screens/Login";
 import { Privacy } from "./screens/Privacy";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
@@ -92,7 +93,8 @@ export function App() {
         )}
         <LegalFooter />
       </main>
-      <Tabs current={route[0] ?? ""} />
+      {/* 참가 중인 모임(#/mine/...)은 자기 메뉴(조회 메뉴)를 쓴다. 운영 탭은 다른 모임을 가리키므로 숨긴다. */}
+      {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
       {app.notice && (
         <p className="toast" role="status">
           {app.notice}
@@ -272,6 +274,9 @@ function OperatorScreen(props: { route: string[] }) {
   }
   if (page === "transfer" && id) return <Transfer token={id} />;
   if (page === "co-invite" && id) return <CoInvite token={id} />;
+  // 참가자 본인 연결(migrations/0019): 연결 링크와 참가 중인 모임의 읽기 전용 화면.
+  if (page === "claim" && id) return <Claim token={id} />;
+  if (page === "mine" && id) return <Member gid={id} rest={props.route.slice(2)} />;
   if (page === "records") return <OperatorRecords />;
   if (page === "m" && id) {
     if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;

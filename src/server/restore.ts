@@ -1238,7 +1238,25 @@ async function buildRestorePlan(
     env.DB.prepare(`DELETE FROM ${table} WHERE group_id = ?1`).bind(groupId),
   );
   const nextMatchNo = data.matches.reduce((max, m) => Math.max(max, m.matchNo), 0) + 1;
+  // 참가자 본인 연결·연결 링크·참가자 요청(migrations/0019)은 백업에 없고 복원이 지우지 않는다.
+  // 복원한 기록에 그 참가자(정정 요청이면 그 경기)가 남아 있으면 그대로 두고, 없어졌으면 지운다.
+  const cleanupMembers = [
+    env.DB.prepare(
+      `DELETE FROM participant_links WHERE group_id = ?1
+         AND participant_id NOT IN (SELECT id FROM participants WHERE group_id = ?1)`,
+    ).bind(groupId),
+    env.DB.prepare(
+      `DELETE FROM participant_claims WHERE group_id = ?1
+         AND participant_id NOT IN (SELECT id FROM participants WHERE group_id = ?1)`,
+    ).bind(groupId),
+    env.DB.prepare(
+      `DELETE FROM participant_requests WHERE group_id = ?1
+         AND (participant_id NOT IN (SELECT id FROM participants WHERE group_id = ?1)
+           OR (match_id IS NOT NULL AND match_id NOT IN (SELECT id FROM matches WHERE group_id = ?1)))`,
+    ).bind(groupId),
+  ];
   const finish = [
+    ...cleanupMembers,
     env.DB.prepare(
       `UPDATE groups SET name = ?2, timezone = ?3, settings_version_id = ?4, next_match_no = ?5,
          live_version = live_version + 1, generation = generation + 1, maintenance = 0

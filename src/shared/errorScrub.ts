@@ -14,7 +14,7 @@ export const ERROR_STACK_MAX = 2000;
 export const ERROR_PATH_MAX = 200;
 
 /** 이 낱말 바로 뒤 칸은 그 자체로 권한(토큰)이다. */
-const TOKEN_AFTER = new Set(["v", "view", "join", "transfer", "co-invite"]);
+const TOKEN_AFTER = new Set(["v", "view", "join", "transfer", "co-invite", "claim"]);
 
 /** 화면·API 경로의 한 칸을 남겨도 되는지: 소문자 낱말(화면 이름), 짧은 숫자(경기 번호·연도), 스크립트 파일 이름만. */
 function keepSegment(segment: string): boolean {

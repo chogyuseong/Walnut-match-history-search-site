@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ErrorNote } from "./ui";
-import { useAppValue } from "./useApp";
+import { go, useAppValue } from "./useApp";
 
 /** 계정당 모임 수(대표 + 공동 운영 합계). 서버의 MAX_GROUPS_PER_ACCOUNT와 같다(src/server/groups.ts). */
 export const MAX_GROUPS = 5;
@@ -117,6 +117,39 @@ export function GroupSwitcher() {
       {limitHint}
       {createForm}
       <ErrorNote error={error} />
+    </section>
+  );
+}
+
+/**
+ * 참가 중인 모임(참가자로 연결한 모임, migrations/0019). 운영하는 모임과 따로 보여 준다.
+ * 고르면 조회 링크와 같은 읽기 전용 화면(#/mine/모임ID)이 토큰 없이 열린다. 없으면 그리지 않는다.
+ */
+export function MembershipList() {
+  const app = useAppValue();
+  const list = app.me?.memberships ?? [];
+  if (list.length === 0) return null;
+  return (
+    <section className="card" aria-label="참가 중인 모임">
+      <h2>참가 중인 모임 {list.length}</h2>
+      <ul className="list" aria-label="참가 중인 모임 목록">
+        {list.map((m) => (
+          <li key={m.id} className="list-row static">
+            <span className="name">
+              {m.name} <span className="tag">참가자 · {m.participantName}</span>
+            </span>
+            <button
+              type="button"
+              className="secondary"
+              aria-label={`${m.name}(참가 중) 열기`}
+              onClick={() => go(`/mine/${m.id}`)}
+            >
+              열기
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="hint">참가자로 연결한 모임은 기록을 보고, 내 기피 라인을 정하고, 정정을 요청할 수 있어요. 기록은 운영자만 고쳐요.</p>
     </section>
   );
 }

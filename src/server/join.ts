@@ -2,7 +2,10 @@
  * 참가 신청 링크(migrations/0014_join_requests.sql).
  *
  * - 모임당 링크 1개. 토큰은 해시만 저장한다. 다시 만들면 이전 링크는 바로 열리지 않는다(신청 목록은 그대로).
- * - 링크를 가진 사람은 로그인 없이 신청·취소한다. 본인 확인 수단이 없으므로 누구의 신청이든 넣고 뺄 수 있다.
+ * - 링크를 가진 사람은 로그인 없이 신청·취소한다. 익명 신청은 본인 확인이 없으므로 누구의 신청이든 넣고 뺄 수 있다.
+ * - 본인 확인된 신청(migrations/0019): 자기 참가자와 연결한 계정(멤버)이 로그인한 채 자기 이름으로 신청하면 그 계정을 함께
+ *   저장한다. 그 신청은 본인과 운영자만 뺄 수 있다(다른 사람은 403 JOIN_VERIFIED). 연결된 이름으로 다른 사람이
+ *   익명 신청하는 것은 예전처럼 받는다(본인 확인 표시 없음). 그 뒤 본인이 신청하면 본인 확인 신청으로 바뀐다.
  * - 공개 응답에는 모임 이름, 열림 여부, 신청자 이름, 활성 참가자 이름만 넣는다.
  *   티어(skillGroup)·기피 라인·서포터 횟수·전적은 넣지 않는다(test/join.test.ts가 고정한다).
  * - 신청 최대 MAX_JOIN_ENTRIES명. 닫혀 있으면 신청·취소를 거절한다. 같은 사람은 한 번만.
@@ -12,7 +15,7 @@
  */
 import { resolveMerged } from "../shared/merge";
 import { nameKey } from "../shared/names";
-import { newViewToken } from "./auth";
+import { memberParticipantId, newViewToken, operatorRole } from "./auth";
 import type { Env } from "./env";
 import { parseName } from "./groups";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireString } from "./http";
@@ -48,6 +51,8 @@ export interface JoinEntry {
   participantId: string | null;
   /** 처음 신청한 시각(묶인 행 중 가장 이른 것). */
   createdAt: string;
+  /** 본인 확인된 신청이면 true(멤버가 로그인한 채 자기 이름으로 신청). 익명 신청에는 없다. */
+  verified?: true;
 }
 
 interface PersonRow {
@@ -77,17 +82,26 @@ function activePeople(people: readonly PersonRow[]): PersonRow[] {
 
 interface Grouped extends JoinEntry {
   rowIds: string[];
+  /** 본인 확인한 계정(묶인 행 중 값이 있는 것). 비어 있으면 익명 신청. */
+  accounts: string[];
 }
 
 /** 신청 행을 사람 단위로 묶는다(합쳐진 사람 → 남은 사람, 같은 이름의 새 이름 → 그 참가자). 신청 순. */
 async function loadEntries(env: Env, groupId: string, people?: PersonRow[]): Promise<Grouped[]> {
   const list = people ?? (await loadPeople(env, groupId));
   const rows = await env.DB.prepare(
-    `SELECT id, participant_id, new_name, name_key, created_at FROM join_requests
+    `SELECT id, participant_id, new_name, name_key, created_at, account_id FROM join_requests
      WHERE group_id = ?1 ORDER BY created_at, id`,
   )
     .bind(groupId)
-    .all<{ id: string; participant_id: string | null; new_name: string | null; name_key: string | null; created_at: string }>();
+    .all<{
+      id: string;
+      participant_id: string | null;
+      new_name: string | null;
+      name_key: string | null;
+      created_at: string;
+      account_id: string | null;
+    }>();
   const merged = list.map((p) => ({ id: p.id, mergedInto: p.merged_into ?? undefined }));
   const byId = new Map(list.map((p) => [p.id, p]));
   const activeByKey = new Map(activePeople(list).map((p) => [p.name_key, p]));
@@ -111,8 +125,16 @@ async function loadEntries(env: Env, groupId: string, people?: PersonRow[]): Pro
     const found = groups.get(key);
     if (found) {
       found.rowIds.push(r.id);
+      if (r.account_id && !found.accounts.includes(r.account_id)) found.accounts.push(r.account_id);
     } else {
-      groups.set(key, { key, name, participantId, createdAt: r.created_at, rowIds: [r.id] });
+      groups.set(key, {
+        key,
+        name,
+        participantId,
+        createdAt: r.created_at,
+        rowIds: [r.id],
+        accounts: r.account_id ? [r.account_id] : [],
+      });
     }
   }
   // 행은 시각 순으로 읽었으므로 각 묶음의 첫 행이 가장 이르다. Map은 넣은 순서를 지킨다.
@@ -120,7 +142,14 @@ async function loadEntries(env: Env, groupId: string, people?: PersonRow[]): Pro
 }
 
 function publicEntries(entries: readonly Grouped[]): JoinEntry[] {
-  return entries.map(({ key, name, participantId, createdAt }) => ({ key, name, participantId, createdAt }));
+  return entries.map(({ key, name, participantId, createdAt, accounts }) => ({
+    key,
+    name,
+    participantId,
+    createdAt,
+    // 본인 확인된 신청일 때만 붙인다(익명 신청의 응답 모양은 예전과 같다).
+    ...(accounts.length > 0 ? { verified: true as const } : {}),
+  }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -251,10 +280,15 @@ export interface JoinPublicView {
   open: boolean;
   max: number;
   target: number;
-  /** 신청 순. */
-  entries: { key: string; name: string }[];
+  /**
+   * 신청 순. verified: 본인 확인된 신청(본인·운영자만 뺄 수 있음). mine: 요청한 계정이 본인 확인한 신청.
+   * 둘 다 값이 있을 때만 붙는다(로그인하지 않은 사람의 익명 신청 응답 모양은 예전과 같다).
+   */
+  entries: { key: string; name: string; verified?: true; mine?: true }[];
   /** 신청할 수 있는 명단(활성 참가자). 신청 여부는 entries의 key(p:ID)로 안다. */
   people: { id: string; name: string }[];
+  /** 로그인한 멤버가 이 모임의 참가자와 연결돼 있으면 그 참가자 ID(화면이 내 이름을 미리 고른다). 그 밖에는 없다. */
+  me?: { participantId: string };
 }
 
 interface LinkRow {
@@ -278,21 +312,31 @@ async function findLink(env: Env, token: string): Promise<LinkRow> {
   return row;
 }
 
-async function publicView(env: Env, link: LinkRow): Promise<JoinPublicView> {
+async function publicView(env: Env, link: LinkRow, accountId: string | null): Promise<JoinPublicView> {
   const people = await loadPeople(env, link.group_id);
   const entries = await loadEntries(env, link.group_id, people);
-  return {
+  const active = activePeople(people);
+  const view: JoinPublicView = {
     groupName: link.name,
     open: link.is_open === 1,
     max: MAX_JOIN_ENTRIES,
     target: JOIN_TARGET,
-    entries: entries.map((e) => ({ key: e.key, name: e.name })),
-    people: activePeople(people).map((p) => ({ id: p.id, name: p.name })),
+    entries: entries.map((e) => ({
+      key: e.key,
+      name: e.name,
+      ...(e.accounts.length > 0 ? { verified: true as const } : {}),
+      ...(accountId && e.accounts.includes(accountId) ? { mine: true as const } : {}),
+    })),
+    people: active.map((p) => ({ id: p.id, name: p.name })),
   };
+  const mine = accountId ? await memberParticipantId(env, link.group_id, accountId) : null;
+  if (mine && active.some((p) => p.id === mine)) view.me = { participantId: mine };
+  return view;
 }
 
-export async function joinInfo(env: Env, token: string): Promise<JoinPublicView> {
-  return publicView(env, await findLink(env, token));
+/** 공개 정보. accountId는 로그인한 사람의 계정(없으면 null): 멤버면 내 이름·내 신청 표시가 붙는다. */
+export async function joinInfo(env: Env, token: string, accountId: string | null = null): Promise<JoinPublicView> {
+  return publicView(env, await findLink(env, token), accountId);
 }
 
 /** 링크가 그대로이고 열려 있는지 batch 안에서 다시 확인하는 보호 문장(확인과 저장 사이의 닫기·다시 만들기). */
@@ -323,7 +367,9 @@ async function runGuarded(env: Env, link: LinkRow, statements: D1PreparedStateme
         .bind(link.group_id)
         .first<{ token_hash: string; is_open: number }>();
       if (!now || now.token_hash !== link.token_hash) throw invalidLink();
-      throw closedError();
+      if (now.is_open !== 1) throw closedError();
+      // 링크는 그대로: 본인 확인 신청의 연결이 끊겼거나 신청이 그 사이 본인 확인 신청으로 바뀌었다(migrations/0019).
+      throw new ApiError(409, "VERSION_CONFLICT", "그 사이 신청 내용이 바뀌었어요. 화면을 새로 고친 뒤 다시 해 주세요.");
     }
     if (message.includes("guard_version_conflict")) throw fullError();
     throw error;
@@ -333,8 +379,14 @@ async function runGuarded(env: Env, link: LinkRow, statements: D1PreparedStateme
 /**
  * 신청한다. 본문: { participantId } 또는 { name }(명단에 없는 새 이름). 둘 중 하나만.
  * 같은 사람이 이미 신청했으면 아무것도 바꾸지 않고 지금 상태를 돌려준다.
+ * accountId(로그인한 계정)가 그 참가자와 연결된 멤버면 본인 확인 신청으로 저장한다(이미 익명 신청이 있으면 본인 것으로 바꾼다).
  */
-export async function joinAdd(env: Env, token: string, body: Body): Promise<JoinPublicView> {
+export async function joinAdd(
+  env: Env,
+  token: string,
+  body: Body,
+  accountId: string | null = null,
+): Promise<JoinPublicView> {
   assertOnlyKeys(body, ["participantId", "name"]);
   if ((body.participantId === undefined) === (body.name === undefined)) {
     throw new ApiError(400, "INVALID_FIELD", "participantId와 name 중 하나만 보내 주세요.");
@@ -359,7 +411,27 @@ export async function joinAdd(env: Env, token: string, body: Body): Promise<Join
   }
   const key = participantId ? `p:${participantId}` : `n:${nameKey(newName!)}`;
   const entries = await loadEntries(env, link.group_id, people);
-  if (!entries.some((e) => e.key === key)) {
+  // 본인 확인: 로그인한 계정이 이 참가자와 연결돼 있을 때만.
+  const verifiedBy =
+    accountId && participantId && (await memberParticipantId(env, link.group_id, accountId)) === participantId
+      ? accountId
+      : null;
+  const existing = entries.find((e) => e.key === key);
+  if (existing && verifiedBy && !existing.accounts.includes(verifiedBy)) {
+    // 익명으로 들어 있던 내 이름의 신청을 본인 확인 신청으로 바꾼다. 연결이 그 사이 끊겼으면 바꾸지 않는다.
+    await runGuarded(env, link, [
+      linkGuard(env, link),
+      memberGuard(env, link.group_id, participantId!, verifiedBy),
+      ...existing.rowIds.map((id) =>
+        env.DB.prepare("UPDATE join_requests SET account_id = ?1 WHERE id = ?2 AND group_id = ?3").bind(
+          verifiedBy,
+          id,
+          link.group_id,
+        ),
+      ),
+    ]);
+  }
+  if (!existing) {
     if (entries.length >= MAX_JOIN_ENTRIES) throw fullError();
     await runGuarded(env, link, [
       linkGuard(env, link),
@@ -369,21 +441,61 @@ export async function joinAdd(env: Env, token: string, body: Body): Promise<Join
          SELECT 1 WHERE (SELECT COUNT(*) FROM join_requests WHERE group_id = ?1) >= ?2`,
       ).bind(link.group_id, MAX_JOIN_ENTRIES),
       // 같은 사람·같은 새 이름이 동시에 들어오면 하나만 남는다(고유 색인).
+      ...(verifiedBy ? [memberGuard(env, link.group_id, participantId!, verifiedBy)] : []),
       env.DB.prepare(
-        `INSERT OR IGNORE INTO join_requests (id, group_id, participant_id, new_name, name_key, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
-      ).bind(newId(), link.group_id, participantId, newName, newName ? nameKey(newName) : null, nowIso()),
+        `INSERT OR IGNORE INTO join_requests (id, group_id, participant_id, new_name, name_key, created_at, account_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+      ).bind(newId(), link.group_id, participantId, newName, newName ? nameKey(newName) : null, nowIso(), verifiedBy),
     ]);
   }
-  return publicView(env, link);
+  return publicView(env, link, accountId);
 }
 
-/** 신청을 취소한다. 본문: { key }(공개 응답의 entries[].key). 이미 없으면 그대로 성공. */
-export async function joinCancel(env: Env, token: string, body: Body): Promise<JoinPublicView> {
+/** 멤버 연결이 그대로인지 batch 안에서 다시 확인한다(끊긴 직후의 본인 확인 신청을 막는다). */
+function memberGuard(env: Env, groupId: string, participantId: string, accountId: string): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT INTO guard (state_conflict)
+     SELECT 1 WHERE NOT EXISTS (
+       SELECT 1 FROM participant_links WHERE group_id = ?1 AND participant_id = ?2 AND account_id = ?3
+     )`,
+  ).bind(groupId, participantId, accountId);
+}
+
+/**
+ * 신청을 취소한다. 본문: { key }(공개 응답의 entries[].key). 이미 없으면 그대로 성공.
+ * 익명 신청은 누구나 뺄 수 있다. 본인 확인된 신청은 그 계정(본인)과 이 모임의 운영자만 뺄 수 있다.
+ */
+export async function joinCancel(
+  env: Env,
+  token: string,
+  body: Body,
+  accountId: string | null = null,
+): Promise<JoinPublicView> {
   assertOnlyKeys(body, ["key"]);
   const key = requireString(body.key, "key", 3, 100);
   const link = await writable(env, token);
   const entry = (await loadEntries(env, link.group_id)).find((e) => e.key === key);
-  if (entry) await runGuarded(env, link, [linkGuard(env, link), ...deleteRows(env, link.group_id, entry.rowIds)]);
-  return publicView(env, link);
+  if (entry) {
+    if (entry.accounts.length > 0) {
+      const allowed =
+        accountId !== null &&
+        (entry.accounts.includes(accountId) || (await operatorRole(env, link.group_id, accountId)) !== null);
+      if (!allowed) {
+        throw new ApiError(403, "JOIN_VERIFIED", "본인이 확인한 신청이라 본인이나 운영자만 뺄 수 있어요.");
+      }
+    }
+    await runGuarded(env, link, [
+      linkGuard(env, link),
+      // 확인한 뒤 그 사이 본인 확인 신청으로 바뀌었으면(행의 계정이 달라짐) 막는다.
+      env.DB.prepare(
+        `INSERT INTO guard (state_conflict)
+         SELECT 1 WHERE EXISTS (
+           SELECT 1 FROM join_requests WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2))
+             AND account_id IS NOT NULL AND account_id NOT IN (SELECT value FROM json_each(?3))
+         )`,
+      ).bind(link.group_id, JSON.stringify(entry.rowIds), JSON.stringify(entry.accounts)),
+      ...deleteRows(env, link.group_id, entry.rowIds),
+    ]);
+  }
+  return publicView(env, link, accountId);
 }

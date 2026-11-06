@@ -247,6 +247,37 @@ export async function requireOwner(env: Env, req: Request, groupId: string): Pro
   return accountId;
 }
 
+/**
+ * 멤버(참가자 본인 연결, migrations/0019) 권한. 운영자 권한(operatorRole·requireOperator)과 따로 둔다:
+ * 멤버는 운영자 경로를 하나도 쓸 수 없고, 멤버 경로(/api/member/:gid/...)만 쓴다.
+ * 요청마다 연결 표를 다시 읽는다(캐시하지 않음): 끊긴 연결의 다음 요청은 바로 거절된다.
+ */
+export async function memberParticipantId(env: Env, groupId: string, accountId: string): Promise<string | null> {
+  const row = await env.DB.prepare(
+    "SELECT participant_id FROM participant_links WHERE group_id = ?1 AND account_id = ?2",
+  )
+    .bind(groupId, accountId)
+    .first<{ participant_id: string }>();
+  return row?.participant_id ?? null;
+}
+
+export interface MemberContext {
+  groupId: string;
+  accountId: string;
+  participantId: string;
+}
+
+/**
+ * 이 계정이 모임의 멤버(연결한 참가자)인지 확인한다. 로그인이 없으면 401, 연결이 없거나 모임이 없으면
+ * 운영자 경로와 같은 404(존재 여부를 드러내지 않는다).
+ */
+export async function requireMember(env: Env, req: Request, groupId: string): Promise<MemberContext> {
+  const accountId = await requireAccountId(env, req);
+  const participantId = await memberParticipantId(env, groupId, accountId);
+  if (!participantId) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  return { groupId, accountId, participantId };
+}
+
 /** 조회 토큰으로 모임 ID를 찾는다. */
 export async function groupIdFromViewToken(env: Env, token: string): Promise<string> {
   const row = await env.DB.prepare("SELECT id FROM groups WHERE view_token = ?1")

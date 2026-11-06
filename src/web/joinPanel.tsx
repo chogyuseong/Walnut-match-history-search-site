@@ -8,6 +8,8 @@ export interface JoinEntryView {
   name: string;
   participantId: string | null;
   createdAt: string;
+  /** 본인 확인된 신청(연결한 참가자가 로그인해 직접 신청, migrations/0019). 본인과 운영자만 뺄 수 있다. */
+  verified?: true;
 }
 
 interface AdminView {
@@ -89,7 +91,8 @@ export function JoinPanel(props: {
       </div>
       <p className="hint">
         링크를 보내면 참가자가 로그인 없이 "오늘 참가"를 눌러요. 본인 확인이 없어 링크를 가진 사람은 누구의 신청이든
-        넣고 뺄 수 있어요.
+        넣고 뺄 수 있어요. 본인과 연결한 참가자가 로그인한 채 신청하면 '본인 확인됨'으로 들어가고, 그 신청은 본인과
+        운영자만 뺄 수 있어요.
       </p>
       <ErrorNote error={error} />
       {(view || loading) && (
@@ -142,6 +145,7 @@ export function JoinPanel(props: {
                     <span className="name">
                       {i + 1}. {e.name}
                       {!e.participantId && <span className="tag">새 이름</span>}
+                      {e.verified && <span className="tag">본인 확인됨</span>}
                       {i >= target && <span className="tag">대기</span>}
                       {key && props.selectedKeys.has(key) && <span className="tag">선택됨</span>}
                     </span>

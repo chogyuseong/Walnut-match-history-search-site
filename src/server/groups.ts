@@ -227,26 +227,7 @@ export async function updateParticipant(
   }
   // 기피 라인: 포지션 이름 배열(중복은 지움) 또는 null(지우기). 5개 모두는 거절한다.
   let avoidPositions = existing.avoid_positions;
-  if (body.avoidPositions !== undefined) {
-    if (body.avoidPositions === null) {
-      avoidPositions = null;
-    } else {
-      const list = normalizeAvoidPositions(body.avoidPositions);
-      if (!list) {
-        // 값은 모두 맞는데 서로 다른 라인이 다섯 개면 갈 라인이 없다는 이유를 알려 준다.
-        const tooMany =
-          Array.isArray(body.avoidPositions) &&
-          body.avoidPositions.every((v) => normalizeAvoidPositions([v]) !== null) &&
-          new Set(body.avoidPositions).size > MAX_AVOID;
-        throw new ApiError(
-          400,
-          "INVALID_FIELD",
-          tooMany ? `기피 라인은 ${MAX_AVOID}개까지 정할 수 있어요.` : "avoidPositions 값이 올바르지 않습니다.",
-        );
-      }
-      avoidPositions = encodeAvoid(list);
-    }
-  }
+  if (body.avoidPositions !== undefined) avoidPositions = parseAvoidField(body.avoidPositions);
   if (body.status !== undefined) {
     if (body.status !== "active" && body.status !== "archived") {
       throw new ApiError(400, "INVALID_FIELD", "status 값이 올바르지 않습니다.");
@@ -254,12 +235,20 @@ export async function updateParticipant(
     status = body.status;
   }
   try {
-    await env.DB.prepare(
-      `UPDATE participants SET name = ?1, name_key = ?2, skill_group = ?3, status = ?4, avoid_positions = ?7
-       WHERE id = ?5 AND group_id = ?6`,
-    )
-      .bind(name, key, skillGroup, status, participantId, groupId, avoidPositions)
-      .run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE participants SET name = ?1, name_key = ?2, skill_group = ?3, status = ?4, avoid_positions = ?7
+         WHERE id = ?5 AND group_id = ?6`,
+      ).bind(name, key, skillGroup, status, participantId, groupId, avoidPositions),
+      // 운영자가 기피 라인을 고치면 "본인이 정함" 표시를 지운다(migrations/0019). 보내지 않았으면 그대로.
+      ...(body.avoidPositions !== undefined
+        ? [
+            env.DB.prepare(
+              "UPDATE participant_links SET avoid_self_at = NULL WHERE group_id = ?1 AND participant_id = ?2",
+            ).bind(groupId, participantId),
+          ]
+        : []),
+    ]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("UNIQUE")) {
@@ -267,6 +256,28 @@ export async function updateParticipant(
     }
     throw error;
   }
+}
+
+/**
+ * 기피 라인 값 검증(운영자의 참가자 수정과 멤버의 내 기피 라인이 같이 쓴다). 저장할 글자 또는 NULL을 돌려준다.
+ * 포지션 이름 배열(중복은 지움) 또는 null(지우기). 5개 모두·모르는 값은 거절한다.
+ */
+export function parseAvoidField(value: unknown): string | null {
+  if (value === null) return null;
+  const list = normalizeAvoidPositions(value);
+  if (!list) {
+    // 값은 모두 맞는데 서로 다른 라인이 다섯 개면 갈 라인이 없다는 이유를 알려 준다.
+    const tooMany =
+      Array.isArray(value) &&
+      value.every((v) => normalizeAvoidPositions([v]) !== null) &&
+      new Set(value).size > MAX_AVOID;
+    throw new ApiError(
+      400,
+      "INVALID_FIELD",
+      tooMany ? `기피 라인은 ${MAX_AVOID}개까지 정할 수 있어요.` : "avoidPositions 값이 올바르지 않습니다.",
+    );
+  }
+  return encodeAvoid(list);
 }
 
 /** 설정 스냅샷 검증. 백업 복원(restore.ts)도 같은 규칙으로 검사한다. */

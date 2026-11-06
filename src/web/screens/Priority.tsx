@@ -389,6 +389,8 @@ function AvoidPanel({ app, snapshot, people, inDraft }: PanelProps) {
   const [pending, setPending] = useState<Record<string, Position[]>>({});
   const [error, setError] = useState<unknown>(null);
   const listOf = (p: ParticipantView): Position[] => pending[p.id] ?? p.avoidPositions ?? [];
+  // 본인과 연결한 참가자가 직접 정한 기피 라인(migrations/0019). 운영자가 고치면 표시가 사라진다.
+  const selfSet = new Set((snapshot.memberLinks ?? []).filter((l) => l.avoidBySelf).map((l) => l.participantId));
 
   async function toggle(p: ParticipantView, position: Position) {
     const current = listOf(p);
@@ -441,6 +443,7 @@ function AvoidPanel({ app, snapshot, people, inDraft }: PanelProps) {
                 {p.name}
                 {inDraft.has(p.id) && <span className="tag">이번 편성</span>}
                 {full && <span className="tag">{MAX_AVOID}개 모두 고름</span>}
+                {selfSet.has(p.id) && <span className="tag">본인이 정함</span>}
               </span>
               <span className="segmented" role="group" aria-label={`${p.name}의 기피 라인`}>
                 {POSITIONS.map((position) => {

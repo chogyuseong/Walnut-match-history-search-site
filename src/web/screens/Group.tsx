@@ -12,7 +12,10 @@ import { TitleSettings } from "./TitleSettings";
 import { NewGroupFromBackup, RestoreSection } from "./Restore";
 import { CreateGroupButton, LocalAccountSettings } from "../account";
 import { CoOperatorSelfSection, CoOperatorsSection } from "./CoOperators";
-import { GroupSwitcher } from "../groupSwitcher";
+import { GroupSwitcher, MembershipList } from "../groupSwitcher";
+import { RequestRow } from "./Member";
+import { memoLength } from "../../shared/memo";
+import type { MemberRequestView } from "../../shared/types";
 
 /** 모임 탭 참가자 목록에서 처음 보여주는 사람 수. */
 const PEOPLE_PREVIEW = 10;
@@ -38,6 +41,14 @@ export function Group() {
   const [restoreOverlap, setRestoreOverlap] = useState<{ batchId: string; overlapping: number; restorable: number } | null>(
     null,
   );
+  // 참가자 본인 연결·요청·익명 처리(migrations/0019).
+  const [claimUrl, setClaimUrl] = useState<{ participantId: string; url: string } | null>(null);
+  const [unlinkFor, setUnlinkFor] = useState<ParticipantView | null>(null);
+  const [anonFor, setAnonFor] = useState<ParticipantView | null>(null);
+  const [anonText, setAnonText] = useState("");
+  const [anonResult, setAnonResult] = useState<{ name: string; count: number; memoMatchNos: number[] } | null>(null);
+  const [resolving, setResolving] = useState<{ request: MemberRequestView; status: "done" | "declined" } | null>(null);
+  const [reply, setReply] = useState("");
 
   if (!snapshot) return <NoGroupYet />;
   const gid = snapshot.group.id;
@@ -90,6 +101,13 @@ export function Group() {
   const matchedPeople = peopleKey === "" ? people : people.filter((p) => nameKey(p.name).includes(peopleKey));
   const listedPeople = allPeople || peopleKey !== "" ? matchedPeople : matchedPeople.slice(0, PEOPLE_PREVIEW);
   const rotationEvents = snapshot.rotation?.events.length ?? 0;
+  const linkOf = new Map((snapshot.memberLinks ?? []).map((l) => [l.participantId, l]));
+  const claimOf = new Map((snapshot.memberClaims ?? []).map((c) => [c.participantId, c]));
+  const requests = snapshot.memberRequests ?? [];
+  const openRequests = requests.filter((r) => r.status === "open");
+  const resolvedRequests = requests.filter((r) => r.status !== "open");
+  const matchNoOf = (id: string | null) => snapshot.matches.find((m) => m.id === id)?.matchNo;
+  const tz = snapshot.group.timezone;
 
   return (
     <div className="screen">
@@ -97,6 +115,7 @@ export function Group() {
         <h1>모임</h1>
       </header>
       <GroupSwitcher />
+      <MembershipList />
       {snapshot.group.maintenance && (
         <p className="note warn" role="alert">
           백업 복원이 끝나지 않아 이 모임은 점검 중이에요. 맨 아래 '위험한 작업'의 '백업에서 복원'에서 같은 파일로 다시
@@ -149,6 +168,7 @@ export function Group() {
                 <span className="name">
                   {p.name}
                   {p.status === "archived" && <span className="tag">보관</span>}
+                  {linkOf.has(p.id) && <span className="tag">연결됨</span>}
                 </span>
                 <span className="button-row">
                   <select
@@ -210,6 +230,88 @@ export function Group() {
           <button type="button" className="secondary" onClick={() => go("/merge")}>
             중복 참가자 합치기
           </button>
+          <p className="hint">
+            본인 연결: 사람마다 '수정'에서 연결 링크를 만들어 본인에게 보내면, 본인이 로그인해 자기 이름과 계정을 묶어요. 연결한
+            사람은 내 전적·내 기피 라인·본인 확인 참가 신청·정정 요청을 쓸 수 있고, 기록은 운영자만 고쳐요.
+          </p>
+        </section>
+        <section aria-label="참가자 요청">
+          <h2>
+            참가자 요청{" "}
+            {openRequests.length > 0 && (
+              <span className="badge" aria-label={`처리할 요청 ${openRequests.length}개`}>
+                {openRequests.length}
+              </span>
+            )}
+          </h2>
+          <p className="hint">
+            본인과 연결한 참가자가 남긴 정정·삭제 요청이에요. 기록은 바뀌지 않았어요. 직접 고친 뒤 '처리함'으로, 받아들이지 않으면
+            '반려'로 표시하면 요청한 사람이 상태와 답을 봐요.
+          </p>
+          {openRequests.length === 0 ? (
+            <p className="hint">처리할 요청이 없어요.</p>
+          ) : (
+            <ul className="list" aria-label="처리할 요청">
+              {openRequests.map((r) => (
+                <RequestRow key={r.id} request={r} matchNo={matchNoOf(r.matchId)} tz={tz} who={nameOf(r.participantId)}>
+                  <span className="button-row">
+                    {r.matchId && matchNoOf(r.matchId) !== undefined && (
+                      <button type="button" className="link" onClick={() => go(`/m/${r.matchId}`)}>
+                        {matchNoOf(r.matchId)}경기 보기
+                      </button>
+                    )}
+                    {r.kind === "erase" && (
+                      <button
+                        type="button"
+                        className="link"
+                        onClick={() => {
+                          const person = snapshot.participants.find((x) => x.id === r.participantId);
+                          if (person) {
+                            setAnonText("");
+                            setAnonFor(person);
+                          }
+                        }}
+                      >
+                        익명 처리…
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setReply("");
+                        setResolving({ request: r, status: "done" });
+                      }}
+                    >
+                      처리함
+                    </button>
+                    <button
+                      type="button"
+                      className="link"
+                      disabled={busy}
+                      onClick={() => {
+                        setReply("");
+                        setResolving({ request: r, status: "declined" });
+                      }}
+                    >
+                      반려
+                    </button>
+                  </span>
+                </RequestRow>
+              ))}
+            </ul>
+          )}
+          {resolvedRequests.length > 0 && (
+            <details>
+              <summary>처리한 요청 {resolvedRequests.length}개</summary>
+              <ul className="list" aria-label="처리한 요청">
+                {resolvedRequests.map((r) => (
+                  <RequestRow key={r.id} request={r} matchNo={matchNoOf(r.matchId)} tz={tz} who={nameOf(r.participantId)} />
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
       </GroupBlock>
 
@@ -764,6 +866,207 @@ export function Group() {
               </button>
             </div>
           </form>
+          <section aria-label="본인 연결" className="dialog-section">
+            <h3>본인 연결</h3>
+            {(() => {
+              const link = linkOf.get(editing.id);
+              const claim = claimOf.get(editing.id);
+              if (link) {
+                return (
+                  <>
+                    <p>
+                      <span className="tag">연결됨</span> {formatDate(link.linkedAt, tz)}부터 본인 계정과 연결돼 있어요.
+                    </p>
+                    <button type="button" className="link" disabled={busy} onClick={() => setUnlinkFor(editing)}>
+                      연결 끊기
+                    </button>
+                  </>
+                );
+              }
+              if (claimUrl?.participantId === editing.id) {
+                return (
+                  <>
+                    <p className="hint">
+                      링크를 만들었어요. {editing.name} 님 본인에게만 보내세요. 한 번만 쓸 수 있고 24시간 뒤 만료돼요.
+                    </p>
+                    <CopyButton label="연결 링크 복사" text={() => claimUrl.url} />
+                  </>
+                );
+              }
+              return (
+                <>
+                  <p className="hint">
+                    {claim
+                      ? `보낸 연결 링크가 ${formatDate(claim.expiresAt, tz)} ${formatTime(claim.expiresAt, tz)}까지 유효해요. 링크 주소는 다시 볼 수 없어요. 새로 만들면 이전 링크는 무효가 돼요.`
+                      : "연결 링크를 만들어 본인에게 보내면, 본인이 로그인해 이 이름과 계정을 묶어요(1회용, 24시간)."}
+                  </p>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      const person = editing;
+                      void run(async () => {
+                        const created = await call<{ token: string }>(
+                          "POST",
+                          `/api/groups/${gid}/participants/${person.id}/claim-link`,
+                        );
+                        setClaimUrl({ participantId: person.id, url: `${location.origin}/#/claim/${created.token}` });
+                      });
+                    }}
+                  >
+                    {claim ? "새 연결 링크 만들기" : "연결 링크 만들기"}
+                  </button>
+                </>
+              );
+            })()}
+          </section>
+          <section aria-label="익명 처리" className="dialog-section">
+            <h3>익명 처리</h3>
+            <p className="hint">본인이 기록 삭제를 원할 때 써요. 이름을 지우고 경기 기록은 이름 없이 남겨요. 되돌릴 수 없어요.</p>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                setAnonText("");
+                setAnonFor(editing);
+              }}
+            >
+              익명 처리…
+            </button>
+          </section>
+        </Dialog>
+      )}
+
+      {unlinkFor && (
+        <Dialog title="연결 끊기" onClose={() => setUnlinkFor(null)}>
+          <p>
+            <strong>{unlinkFor.name}</strong>과(와) 연결된 계정의 연결을 끊어요. 그 계정은 바로 이 모임의 내 정보를 볼 수 없게 되고,
+            기록은 그대로예요.
+          </p>
+          <ErrorNote error={error} />
+          <div className="button-row">
+            <button
+              type="button"
+              className="danger"
+              disabled={busy}
+              onClick={() => {
+                const person = unlinkFor;
+                void run(
+                  () => call("DELETE", `/api/groups/${gid}/participants/${person.id}/link`),
+                  "연결을 끊었어요.",
+                ).then((ok) => ok && setUnlinkFor(null));
+              }}
+            >
+              연결 끊기
+            </button>
+            <button type="button" className="secondary" onClick={() => setUnlinkFor(null)}>
+              그대로 두기
+            </button>
+          </div>
+        </Dialog>
+      )}
+
+      {anonFor && (
+        <Dialog title={`${anonFor.name} 익명 처리`} onClose={() => setAnonFor(null)}>
+          <p>
+            <strong>{anonFor.name}</strong>의 이름을 '탈퇴한 참가자 N'으로 바꾸고 보관해요. 계정 연결·기피 라인·티어·이 사람의 요청과
+            참가 신청을 지워요. 이 사람에게 합쳐진 이름도 함께 바꿔요.
+          </p>
+          <p>
+            경기 기록(승패·라인)은 다른 사람의 전적이 깨지지 않게 이름 없이 남아요. <strong>되돌릴 수 없어요.</strong> 예전에
+            내려받은 백업 파일에는 옛 이름이 남아 있고, 그 백업으로 복원하면 옛 이름이 돌아와요.
+          </p>
+          <label>
+            확인 문구 '익명'을 입력해 주세요
+            <input value={anonText} onChange={(e) => setAnonText(e.target.value)} aria-label="익명 처리 확인 문구" />
+          </label>
+          <ErrorNote error={error} />
+          <div className="button-row">
+            <button
+              type="button"
+              className="danger"
+              disabled={busy || anonText.trim() !== "익명"}
+              onClick={() => {
+                const person = anonFor;
+                void run(async () => {
+                  const result = await mutate<{ name: string; count: number; memoMatchNos: number[] }>(
+                    `/api/groups/${gid}/participants/${person.id}/anonymize`,
+                    { requestId: newRequestId(), confirm: "익명" },
+                  );
+                  setAnonResult(result);
+                }).then((ok) => {
+                  if (ok) {
+                    setAnonFor(null);
+                    setEditing(null);
+                  }
+                });
+              }}
+            >
+              익명으로 바꾸기
+            </button>
+            <button type="button" className="secondary" onClick={() => setAnonFor(null)}>
+              그만두기
+            </button>
+          </div>
+        </Dialog>
+      )}
+
+      {anonResult && (
+        <Dialog title="익명 처리 완료" onClose={() => setAnonResult(null)}>
+          <p>
+            '{anonResult.name}'(으)로 바꿨어요{anonResult.count > 1 ? ` (합쳐진 이름 포함 ${anonResult.count}명)` : ""}.
+          </p>
+          {anonResult.memoMatchNos.length > 0 ? (
+            <p className="note warn">
+              경기 메모에 옛 이름이 남아 있어요: {anonResult.memoMatchNos.map((n) => `${n}경기`).join(", ")}. 메모는 자동으로 고치지
+              않아요. 경기 상세에서 직접 고쳐 주세요.
+            </p>
+          ) : (
+            <p className="hint">경기 메모에 옛 이름이 들어 있는 곳은 없어요.</p>
+          )}
+          <p className="hint">이 사람이 남긴 요청도 함께 지워졌어요.</p>
+          <button type="button" className="primary" onClick={() => setAnonResult(null)}>
+            확인
+          </button>
+        </Dialog>
+      )}
+
+      {resolving && (
+        <Dialog title={resolving.status === "done" ? "처리함으로 표시" : "반려"} onClose={() => setResolving(null)}>
+          <p>
+            {nameOf(resolving.request.participantId)}의 요청을 '{resolving.status === "done" ? "처리함" : "반려"}'으로 표시해요. 요청한
+            사람이 상태와 답을 봐요.
+          </p>
+          <label>
+            짧은 답 (선택)
+            <textarea rows={2} value={reply} onChange={(e) => setReply(e.target.value)} aria-label="운영자 답" />
+          </label>
+          <p className={memoLength(reply.trim()) > 200 ? "hint warn" : "hint"}>{memoLength(reply.trim())} / 200자</p>
+          <ErrorNote error={error} />
+          <div className="button-row">
+            <button
+              type="button"
+              className="primary"
+              disabled={busy || memoLength(reply.trim()) > 200}
+              onClick={() => {
+                const target = resolving;
+                void run(
+                  () =>
+                    call("POST", `/api/groups/${gid}/member-requests/${target.request.id}/resolve`, {
+                      status: target.status,
+                      ...(reply.trim() !== "" ? { reply } : {}),
+                    }),
+                  target.status === "done" ? "처리함으로 표시했어요." : "반려했어요.",
+                ).then((ok) => ok && setResolving(null));
+              }}
+            >
+              {resolving.status === "done" ? "처리함으로 표시" : "반려하기"}
+            </button>
+            <button type="button" className="secondary" onClick={() => setResolving(null)}>
+              그만두기
+            </button>
+          </div>
         </Dialog>
       )}
     </div>
@@ -785,6 +1088,7 @@ function NoGroupYet() {
   return (
     <div className="screen">
       <h1>모임</h1>
+      <MembershipList />
       <p>아직 모임이 없어요. 어떻게 시작할지 골라 주세요.</p>
       <section className="card start-card" aria-label="오늘 경기부터">
         <h2>오늘 경기부터</h2>
