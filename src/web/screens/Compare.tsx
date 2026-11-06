@@ -13,6 +13,7 @@ import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, POSITION_LABEL, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
+import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, PosLabel, ScopePicker, StandingNote } from "../ui";
 
 function rateText(t: Tally): string {
@@ -50,6 +51,7 @@ export function Compare(props: {
   const [list, setList] = useState<"against" | "together">("against");
   const [shown, setShown] = useState(FIRST_PAGE);
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
+  const seriesBadge = useSeriesBadges(snapshot);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
   // 고를 수 있는 사람: 확정 경기가 한 번이라도 있는 사람(누적), 이름순.
@@ -316,6 +318,7 @@ export function Compare(props: {
                 focusId={a}
                 highlightIds={[a!, b!]}
                 onOpen={() => props.openMatch(m.id)}
+                seriesBadge={seriesBadge(m.id)}
                 onPerson={props.openPerson}
               />
             ))}

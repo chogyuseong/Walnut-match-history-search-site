@@ -7,7 +7,9 @@ import {
   type Side,
   type Team,
 } from "../../shared/types";
+import { normalizeMemo } from "../../shared/memo";
 import { mutate, newRequestId } from "../api";
+import { MemoField, memoTooLong } from "../memoField";
 import { formatTime, TEAM_MARK, teamName, teamRoster, winnerText } from "../format";
 import { Dialog, ErrorNote } from "../ui";
 import { useAppValue } from "../useApp";
@@ -42,12 +44,16 @@ export function ResultSheet(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState<MatchView | null>(null);
+  // 메모(선택 칸, 결과 입력에서만). 이미 쓴 메모가 있으면 그대로 채워 둔다.
+  const [memo, setMemo] = useState(match.memo ?? "");
+  const memoValue = normalizeMemo(memo);
+  const memoChanged = props.mode === "result" && memoValue !== (match.memo ?? null);
   // 요청 ID는 창을 열 때 한 번 만들고, 내용이 바뀌면 새로 만든다. 재시도에는 같은 값을 쓴다.
   const request = useRef<{ id: string; key: string } | null>(null);
 
   async function save() {
-    if (!winner || !side || !app.groupId) return;
-    const key = `${winner}:${side}`;
+    if (!winner || !side || !app.groupId || memoTooLong(memo)) return;
+    const key = `${winner}:${side}:${memoChanged ? (memoValue ?? "") : "-"}`;
     if (!request.current || request.current.key !== key) {
       request.current = { id: newRequestId(), key };
     }
@@ -65,6 +71,8 @@ export function ResultSheet(props: {
               baseMatchVersion: match.version,
               winnerTeam: winner,
               winnerSide: side,
+              // 메모는 바꿨을 때만 보낸다(빈 글 = 지우기).
+              ...(memoChanged ? { memo: memoValue ?? "" } : {}),
             }
           : {
               requestId: request.current.id,
@@ -183,6 +191,7 @@ export function ResultSheet(props: {
           {side === "unknown" && (
             <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠집니다.</p>
           )}
+          {props.mode === "result" && <MemoField value={memo} onChange={setMemo} />}
         </section>
       )}
 
@@ -190,7 +199,7 @@ export function ResultSheet(props: {
       <button
         type="button"
         className="primary wide"
-        disabled={!winner || !side || busy}
+        disabled={!winner || !side || busy || memoTooLong(memo)}
         onClick={() => void save()}
       >
         {busy ? "저장 중" : "저장"}

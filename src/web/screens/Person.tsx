@@ -22,6 +22,7 @@ import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
+import { useSeriesBadges } from "../seriesPanel";
 import {
   BackLink,
   FormDots,
@@ -76,6 +77,7 @@ export function Person(props: {
     versus: false,
   });
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
+  const seriesBadge = useSeriesBadges(snapshot);
   const person = snapshot.participants.find((p) => p.id === participantId);
 
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
@@ -437,6 +439,7 @@ export function Person(props: {
                 showDate
                 focusId={participantId}
                 onOpen={() => props.openMatch(m.id)}
+                seriesBadge={seriesBadge(m.id)}
                 onPerson={props.openPerson}
               />
             ))}

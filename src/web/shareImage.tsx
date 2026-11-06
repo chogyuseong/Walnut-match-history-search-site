@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { dayRecords } from "../shared/insights";
+import { awardTitle, awardWinnersText, type SeasonSummary } from "../shared/seasonAwards";
 import { isCounted, safeTimeZone } from "../shared/stats";
 import { sideOfTeam, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
 import { formatDate, formatTime, nameMap, POSITION_LABEL, teamName, teamRoster, winnerText } from "./format";
@@ -364,6 +365,126 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
   const day = confirmed[0] ?? matches[0];
   drawFooter(ctx, p, height, snapshot.group.name, day ? formatDate(day.playedAt, tz) : "");
   return toBlob(canvas);
+}
+
+/**
+ * 시즌 요약 이미지: 요약 숫자와 시상 목록(근거 숫자 포함). 티어·기피 라인·조회 링크는 넣지 않는다.
+ * 수상자 글이 길면 줄을 바꿔 모두 싣는다.
+ */
+export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary): Promise<Blob> {
+  const p = palette();
+  await fontsReady(p.font);
+  const nameOf = nameMap(snapshot);
+  const innerW = WIDTH - PAD * 2;
+  const textW = innerW - 48;
+  const lineH = 34;
+
+  const measure = newCanvas(1).ctx;
+  setFont(measure, p, 600, 26);
+  const rows = summary.awards.map((award) => {
+    const text = award.winners.length === 0 ? "해당 없음" : awardWinnersText(award, nameOf);
+    return { title: awardTitle(award), lines: wrapText(measure, text, textW), none: award.winners.length === 0 };
+  });
+  const rowsH = rows.reduce((sum, r) => sum + 56 + r.lines.length * lineH + 12, 0);
+  const height = PAD + 150 + 130 + 56 + rowsH + 48 + 110;
+  const { canvas, ctx } = newCanvas(height);
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, WIDTH, height);
+
+  setFont(ctx, p, 800, 56);
+  ctx.fillStyle = p.text;
+  ctx.fillText(fit(ctx, `${summary.label} 요약`, innerW), PAD, PAD + 34);
+  setFont(ctx, p, 600, 30);
+  ctx.fillStyle = p.muted;
+  ctx.fillText(
+    `${summary.startsOn} ~ ${summary.endsOn}${summary.ongoing ? " · 진행 중" : ""}`,
+    PAD,
+    PAD + 98,
+  );
+
+  let y = PAD + 150;
+  roundRect(ctx, PAD, y, innerW, 110, 16);
+  ctx.fillStyle = p.surface;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = p.line;
+  ctx.stroke();
+  setFont(ctx, p, 800, 30);
+  ctx.fillStyle = p.text;
+  ctx.fillText(`${summary.games}경기 · 참가 ${summary.participants}명 · 내전 ${summary.days}일`, PAD + 24, y + 36);
+  setFont(ctx, p, 600, 24);
+  ctx.fillStyle = p.muted;
+  const blue = summary.sides.known > 0 ? Math.round((summary.sides.blueWins / summary.sides.known) * 100) : null;
+  const busiest = summary.busiestDays[0];
+  ctx.fillText(
+    fit(
+      ctx,
+      [
+        blue !== null ? `블루 : 레드 승률 ${blue}% : ${100 - blue}%` : "진영 기록 없음",
+        busiest ? `가장 많이 한 날 ${busiest.date} (${busiest.games}경기)` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      innerW - 48,
+    ),
+    PAD + 24,
+    y + 78,
+  );
+  y += 130;
+
+  setFont(ctx, p, 800, 32);
+  ctx.fillStyle = p.text;
+  ctx.fillText("시상", PAD, y + 20);
+  y += 56;
+  for (const row of rows) {
+    const h = 56 + row.lines.length * lineH;
+    roundRect(ctx, PAD, y, innerW, h, 16);
+    ctx.fillStyle = p.surface;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = p.line;
+    ctx.stroke();
+    setFont(ctx, p, 800, 26);
+    ctx.fillStyle = p.text;
+    ctx.fillText(row.title, PAD + 24, y + 30);
+    setFont(ctx, p, 600, 26);
+    ctx.fillStyle = row.none ? p.muted : p.text;
+    let lineY = y + 30 + lineH;
+    for (const line of row.lines) {
+      ctx.fillText(line, PAD + 24, lineY);
+      lineY += lineH;
+    }
+    y += h + 12;
+  }
+
+  drawFooter(ctx, p, height, snapshot.group.name, summary.label);
+  return toBlob(canvas);
+}
+
+/** 글을 너비에 맞춰 여러 줄로 나눈다(공백에서 끊고, 한 낱말이 너무 길면 글자에서 끊는다). */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, max: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const next = line === "" ? word : `${line} ${word}`;
+    if (ctx.measureText(next).width <= max) {
+      line = next;
+      continue;
+    }
+    if (line !== "") lines.push(line);
+    line = "";
+    let piece = "";
+    for (const ch of word) {
+      if (ctx.measureText(piece + ch).width > max && piece !== "") {
+        lines.push(piece);
+        piece = "";
+      }
+      piece += ch;
+    }
+    line = piece;
+  }
+  if (line !== "") lines.push(line);
+  return lines.length > 0 ? lines : [""];
 }
 
 type ShareState =

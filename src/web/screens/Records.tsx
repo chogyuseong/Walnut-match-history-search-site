@@ -49,6 +49,8 @@ import {
   teamRoster,
 } from "../format";
 import { MatchCard } from "../matchCard";
+import { MatchMemoSection } from "../memoField";
+import { MatchSeriesSection, SeriesListSection, useSeriesBadges } from "../seriesPanel";
 import { drawMatchImage, fileDate, ShareImageDialog } from "../shareImage";
 import { BackLink, Dialog, ErrorNote, FormDots, KpiStrip, MatchTeams, ScopePicker, StandingNote } from "../ui";
 import type { AppValue } from "../useApp";
@@ -237,8 +239,13 @@ export function Records(props: {
   onResult?: (match: MatchView) => void;
   /** 운영자에게만 있다: 지난 경기 한 건 입력 화면으로 간다. */
   openBackfill?: () => void;
+  /** 시즌·연도 범위에서 시즌 요약과 시상 화면으로 간다. */
+  openSeason?: (scope: Scope) => void;
+  /** 운영자에게만 있다: 시리즈 만들기에 쓴다. */
+  app?: AppValue | null;
 }) {
   const { snapshot } = props;
+  const seriesBadge = useSeriesBadges(snapshot);
   // 최근 세션에 경기가 없으면 "오늘"이 비어 보이므로 전체로 연다.
   const [scope, setScope] = useState<Scope>(() =>
     matchesInScope(snapshot, { kind: "today" }).length > 0 ? { kind: "today" } : { kind: "all" },
@@ -321,6 +328,13 @@ export function Records(props: {
           {season.name}: {season.startsOn} ~ {season.endsOn}
         </p>
       )}
+      {props.openSeason && (scope.kind === "season" || scope.kind === "year") && (
+        <p className="hint">
+          <button type="button" className="link" onClick={() => props.openSeason!(scope)}>
+            {scopeLabel} 요약과 시상 보기
+          </button>
+        </p>
+      )}
 
       <section aria-label="경기 목록">
         <h2>
@@ -366,6 +380,7 @@ export function Records(props: {
                 highlightIds={filter.people}
                 onOpen={() => props.openMatch(m.id)}
                 onPerson={props.openPerson}
+                seriesBadge={seriesBadge(m.id)}
                 action={
                   m.state === "awaiting_result" && props.onResult ? (
                     <button type="button" className="secondary" onClick={() => props.onResult!(m)}>
@@ -506,6 +521,14 @@ export function Records(props: {
         </p>
       </section>
 
+      <SeriesListSection
+        snapshot={snapshot}
+        scoped={scoped}
+        nameOf={nameOf}
+        openMatch={props.openMatch}
+        app={props.app ?? null}
+      />
+
       <details>
         <summary>변경 내역</summary>
         {changeLog.length === 0 ? (
@@ -571,6 +594,8 @@ export function MatchDetail(props: {
   matchId: string;
   app: AppValue | null;
   back: () => void;
+  /** 같은 시리즈의 다른 판으로 간다. */
+  openMatch: (id: string) => void;
 }) {
   const { snapshot, app } = props;
   const match = snapshot.matches.find((m) => m.id === props.matchId) ?? null;
@@ -763,6 +788,16 @@ export function MatchDetail(props: {
         </p>
       )}
       {editing === null && <ErrorNote error={error} />}
+
+      <MatchMemoSection key={`memo-${match.id}`} match={match} app={app} />
+      <MatchSeriesSection
+        key={`series-${match.id}`}
+        snapshot={snapshot}
+        match={match}
+        app={app}
+        nameOf={nameOf}
+        openMatch={props.openMatch}
+      />
 
       <details open={history.length > 0 && history.some((r) => r.kind === "correction")}>
         <summary>변경 이력 {history.length}건</summary>

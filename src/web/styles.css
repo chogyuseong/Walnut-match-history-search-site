@@ -3156,3 +3156,104 @@ button.row.picked:hover {
 .join-screen .list .name .tag {
   margin-left: 6px;
 }
+
+/* 경기 메모·시리즈(2026-11-06). 카드에는 한 줄(넘치면 말줄임), 상세에는 줄바꿈 그대로. */
+.mc-extra {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 2px 2px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.mc-memo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc-memo-label {
+  margin-right: 4px;
+  font-weight: 700;
+}
+.series-badge {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 8px;
+  border: 1px solid var(--ih-border-strong);
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-bg-subtle);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.memo-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.memo-edit textarea {
+  width: 100%;
+  min-height: 5.5em;
+  resize: vertical;
+}
+.memo-count {
+  font-variant-numeric: tabular-nums;
+}
+.memo-count.over {
+  color: var(--ih-loss-text);
+  font-weight: 700;
+}
+.series-games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.series-games li {
+  min-width: 0;
+}
+.series-line {
+  overflow-wrap: anywhere;
+}
+.series-pick {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+/* 시즌 요약과 시상. */
+.award-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.award {
+  padding: 10px 12px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-surface);
+  min-width: 0;
+}
+.award h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+.award .winner {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+.award.is-none .winner {
+  color: var(--muted);
+}

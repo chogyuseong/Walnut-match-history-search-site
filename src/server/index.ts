@@ -58,9 +58,11 @@ import {
   importMatches,
   MAX_IMPORT_BODY_BYTES,
   restoreMatch,
+  saveMemo,
   setImportBatchExcluded,
   startMatch,
 } from "./matches";
+import { addToSeries, createSeries, removeFromSeries, updateSeries } from "./series";
 import { deleteAccount, deleteGroup } from "./deletion";
 import {
   clearJoinEntries,
@@ -672,6 +674,8 @@ const matchActions = {
   exclude: excludeMatch,
   restore: restoreMatch,
   correct: correctMatch,
+  // 경기 메모(migrations/0016). 진행 중·결과 대기·확정 경기.
+  memo: saveMemo,
 } as const;
 
 app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
@@ -685,6 +689,32 @@ app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
   return c.json({
     match: await handler(c.env, gid, c.req.param("mid"), await readJsonBody(c.req.raw)),
   });
+});
+
+/* ---------------------------- 시리즈 묶음 ---------------------------- */
+// src/server/series.ts. 운영자·공동 운영자. 만들기는 확정 경기로, 시작 때 이어가기는 matches/start의 series 필드로.
+
+app.post("/api/groups/:gid/series", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await createSeries(c.env, gid, await readJsonBody(c.req.raw)));
+});
+
+const seriesActions = {
+  add: addToSeries,
+  remove: removeFromSeries,
+  update: updateSeries,
+} as const;
+
+app.post("/api/groups/:gid/series/:sid/:action", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  const action = c.req.param("action");
+  if (!Object.hasOwn(seriesActions, action)) {
+    throw new ApiError(404, "NOT_FOUND", "찾을 수 없습니다.");
+  }
+  const handler = seriesActions[action as keyof typeof seriesActions];
+  return c.json(await handler(c.env, gid, c.req.param("sid"), await readJsonBody(c.req.raw)));
 });
 
 /* ---------------------------- 조회 링크 ---------------------------- */

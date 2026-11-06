@@ -1,5 +1,6 @@
 import { FUTURE_TOLERANCE_MS } from "../shared/backfill";
 import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
+import { MEMO_MAX, memoLength, normalizeMemo } from "../shared/memo";
 import {
   POSITIONS,
   SIDES,
@@ -30,6 +31,7 @@ import {
   runMutation,
   type Plan,
 } from "./mutation";
+import { parseSeriesContinue, seriesContinuePlan, type SeriesContinue } from "./series";
 import { groupFingerprints } from "./sheets";
 import { loadGroup, loadMatch, loadOpenSession, loadSettings } from "./snapshot";
 
@@ -160,6 +162,7 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
     "moveCurrentToAwaiting",
     "newSession",
     "teamASide",
+    "series",
   ]);
   const requestId = requestIdOf(body);
   const baseLiveVersion = requireInt(body.baseLiveVersion, "baseLiveVersion");
@@ -178,11 +181,14 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
       ? null
       : requireString(body.moveCurrentToAwaiting, "moveCurrentToAwaiting", 1, 64);
   const newSession = body.newSession === true;
-  // 진영을 고르지 않은 요청은 예전과 같은 내용으로 해시한다.
-  const payload =
+  // 시리즈로 이어가기(선택, migrations/0017): 직전 경기와 같은 시리즈에 넣는다. 직전 경기가 시리즈에 없으면 새로 만든다.
+  const series: SeriesContinue | null = parseSeriesContinue(body.series);
+  // 진영을 고르지 않은 요청은 예전과 같은 내용으로 해시한다. 시리즈도 고른 요청만 해시에 넣는다.
+  const base =
     teamASide === null
       ? { baseLiveVersion, roster, ackRepeat, moveCurrent, newSession }
       : { baseLiveVersion, roster, ackRepeat, moveCurrent, newSession, teamASide };
+  const payload = series === null ? base : { ...base, series };
 
   const { stored } = await runMutation(env, {
     groupId,
@@ -294,6 +300,9 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
         ...insertRoster(env, groupId, matchId, roster),
         insertRevision(env, groupId, matchId, "start", {}, now),
       );
+      if (series !== null) {
+        statements.push(...(await seriesContinuePlan(env, groupId, series, matchId, roster, now)));
+      }
 
       // 서포터 순환: 차례 소비는 여기서만 일어난다. 기기의 추첨 기록을 믿지 않고 다시 검사한다.
       const settings = await loadSettings(env, group.settings_version_id);
@@ -402,17 +411,22 @@ export async function confirmResult(
   matchId: string,
   body: Body,
 ): Promise<MatchView> {
-  assertOnlyKeys(body, ["requestId", "baseMatchVersion", "winnerTeam", "winnerSide"]);
+  assertOnlyKeys(body, ["requestId", "baseMatchVersion", "winnerTeam", "winnerSide", "memo"]);
   const requestId = requestIdOf(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   const winnerTeam = requireOneOf<Team>(body.winnerTeam, TEAMS, "winnerTeam");
   const winnerSide = requireOneOf<Side>(body.winnerSide, SIDES, "winnerSide");
   const teamASide = teamASideFromWinner(winnerTeam, winnerSide);
+  // 메모(선택). 보낸 요청만 메모를 바꾼다(빈 글 = 지우기). 보내지 않은 요청은 예전과 같은 내용으로 해시한다.
+  const memo = body.memo === undefined ? undefined : parseMemo(body.memo);
   await runMutation(env, {
     groupId,
     requestId,
     op: "result",
-    payload: { matchId, baseMatchVersion, winnerTeam, winnerSide },
+    payload:
+      memo === undefined
+        ? { matchId, baseMatchVersion, winnerTeam, winnerSide }
+        : { matchId, baseMatchVersion, winnerTeam, winnerSide, memo },
     conflictDetails: () => matchConflictDetails(env, groupId, matchId),
     build: async () => {
       const match = await loadMatch(env, groupId, matchId);
@@ -439,9 +453,85 @@ export async function confirmResult(
           now,
         ),
       ];
+      // 메모는 정정 이력에 남기지 않는다(migrations/0016).
+      if (memo !== undefined) {
+        statements.push(
+          env.DB.prepare("UPDATE matches SET memo = ?1 WHERE id = ?2 AND group_id = ?3").bind(memo, matchId, groupId),
+        );
+      }
       // 진행 중이던 경기가 끝나면 "진행 중 1개" 자리가 비므로 진행 상태가 바뀐다.
       if (match.state === "in_progress") statements.push(bumpLiveVersion(env, groupId));
       return { stored: { matchId }, statements };
+    },
+  });
+  return loadMatch(env, groupId, matchId);
+}
+
+/* ------------------------------------------------------------------ */
+/* 경기 메모                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 메모 입력을 검증하고 저장할 모양으로 바꾼다. 빈 글·null은 null(지우기). */
+function parseMemo(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || value.length > MEMO_MAX * 4) {
+    throw new ApiError(400, "INVALID_FIELD", "memo 값이 올바르지 않습니다.");
+  }
+  const memo = normalizeMemo(value);
+  if (memo !== null && memoLength(memo) > MEMO_MAX) {
+    throw new ApiError(400, "MEMO_TOO_LONG", `메모는 ${MEMO_MAX}자까지 쓸 수 있어요.`);
+  }
+  return memo;
+}
+
+/** 메모를 쓰고 고칠 수 있는 경기 상태. 미진행 취소·전적 제외 경기는 막는다. */
+const MEMO_STATES = ["in_progress", "awaiting_result", "confirmed"] as const;
+
+/**
+ * 경기 메모를 쓰거나 고친다(비우면 지운다). 운영자·공동 운영자.
+ * - 승패 정정 이력에 남기지 않고 경기 버전도 올리지 않는다(migrations/0016). 그래서 다른 기기에서 열어 둔
+ *   결과 입력·정정 창이 메모 때문에 충돌하지 않는다.
+ * - 대신 화면이 본 메모(baseMemo)와 지금 메모가 다르면 거절한다(다른 기기에서 먼저 고친 메모를 덮어쓰지 않게).
+ */
+export async function saveMemo(env: Env, groupId: string, matchId: string, body: Body): Promise<MatchView> {
+  assertOnlyKeys(body, ["requestId", "memo", "baseMemo"]);
+  const requestId = requestIdOf(body);
+  const memo = parseMemo(body.memo);
+  if (body.baseMemo !== null && typeof body.baseMemo !== "string") {
+    throw new ApiError(400, "INVALID_FIELD", "baseMemo 값이 올바르지 않습니다.");
+  }
+  const baseMemo = body.baseMemo === null ? null : normalizeMemo(body.baseMemo);
+  await runMutation(env, {
+    groupId,
+    requestId,
+    op: "memo",
+    payload: { matchId, memo, baseMemo },
+    conflictDetails: () => matchConflictDetails(env, groupId, matchId),
+    build: async () => {
+      const match = await loadMatch(env, groupId, matchId);
+      assertState(match, MEMO_STATES);
+      if ((match.memo ?? null) !== baseMemo) {
+        throw new ApiError(
+          409,
+          "VERSION_CONFLICT",
+          "그 사이 다른 기기에서 메모가 바뀌었어요. 최신 메모를 확인한 뒤 다시 저장해 주세요.",
+          { memo: match.memo ?? null },
+        );
+      }
+      return {
+        stored: { matchId },
+        statements: [
+          // 확인과 저장 사이에 메모·상태가 바뀌었으면 batch 전체를 실패시킨다.
+          env.DB.prepare(
+            `INSERT INTO guard (version_conflict)
+             SELECT 1 WHERE NOT EXISTS (
+               SELECT 1 FROM matches WHERE id = ?1 AND group_id = ?2 AND memo IS ?3
+                 AND state IN ('in_progress', 'awaiting_result', 'confirmed')
+             )`,
+          ).bind(matchId, groupId, baseMemo),
+          env.DB.prepare("UPDATE matches SET memo = ?1 WHERE id = ?2 AND group_id = ?3").bind(memo, matchId, groupId),
+        ],
+      };
     },
   });
   return loadMatch(env, groupId, matchId);

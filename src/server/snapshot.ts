@@ -7,6 +7,8 @@ import {
   type Position,
   type RevisionView,
   type RotationView,
+  type SeriesFormat,
+  type SeriesView,
   type SessionView,
   type Settings,
   type Side,
@@ -102,13 +104,14 @@ interface MatchRow {
   winner_team: Team | null;
   team_a_side: Side | null;
   version: number;
+  memo: string | null;
 }
 
 const MATCH_COLUMNS = `id, match_no, session_id, state, source, started_at, ended_at, played_at,
-  confirmed_at, winner_team, team_a_side, version`;
+  confirmed_at, winner_team, team_a_side, version, memo`;
 
 function toMatchView(row: MatchRow): MatchView {
-  return {
+  const view: MatchView = {
     id: row.id,
     matchNo: row.match_no,
     sessionId: row.session_id,
@@ -123,6 +126,9 @@ function toMatchView(row: MatchRow): MatchView {
     version: row.version,
     roster: [],
   };
+  // 메모는 있을 때만 넣는다(없는 경기의 응답 모양은 예전과 같다). 공개 정보라 조회 응답에도 나간다.
+  if (row.memo !== null) view.memo = row.memo;
+  return view;
 }
 
 /** 경기 하나를 명단과 함께 읽는다. 다른 모임의 경기는 찾지 못한다. */
@@ -230,6 +236,8 @@ export async function buildSnapshot(
     .bind(groupId)
     .all<{ id: string; name: string; starts_on: string; ends_on: string }>();
 
+  const series = await loadSeries(env, groupId);
+
   const snapshot: Snapshot = {
     role,
     serverTime: nowIso(),
@@ -253,6 +261,8 @@ export async function buildSnapshot(
       startsOn: s.starts_on,
       endsOn: s.ends_on,
     })),
+    // 시리즈 묶음은 공개 정보다(이름·형식·속한 경기). 조회 응답에도 나간다.
+    series,
   };
   if (includePrivate) {
     snapshot.group.settingsVersionId = group.settings_version_id ?? undefined;
@@ -311,6 +321,28 @@ export async function buildSnapshot(
     }));
   }
   return snapshot;
+}
+
+/** 시리즈 묶음과 속한 경기(경기 시각 → 경기 번호 순). */
+export async function loadSeries(env: Env, groupId: string): Promise<SeriesView[]> {
+  const [rows, members] = await env.DB.batch([
+    env.DB.prepare(
+      "SELECT id, name, format, created_at FROM match_series WHERE group_id = ?1 ORDER BY created_at, id",
+    ).bind(groupId),
+    env.DB.prepare(
+      `SELECT s.series_id, s.match_id FROM match_series_members s
+       JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
+       WHERE s.group_id = ?1 ORDER BY m.played_at, m.match_no`,
+    ).bind(groupId),
+  ]);
+  const byId = new Map<string, SeriesView>();
+  for (const r of rows!.results as unknown as { id: string; name: string | null; format: SeriesFormat; created_at: string }[]) {
+    byId.set(r.id, { id: r.id, name: r.name, format: r.format, createdAt: r.created_at, matchIds: [] });
+  }
+  for (const m of members!.results as unknown as { series_id: string; match_id: string }[]) {
+    byId.get(m.series_id)?.matchIds.push(m.match_id);
+  }
+  return [...byId.values()];
 }
 
 /** 스냅숏에 싣는 변경 이력 수. 모임당 수천 경기여도 응답 크기가 일정하도록 상한을 둔다. */

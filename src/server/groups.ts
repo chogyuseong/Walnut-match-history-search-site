@@ -512,6 +512,8 @@ export async function regenerateViewToken(env: Env, groupId: string): Promise<st
  * 1: 첫 형식. 2: 복원용 값 추가. 3: 중복 참가자 합치기 기록(participantMerges) 추가.
  * 4: 일괄 입력 출처(importBatches)와 경기의 가져오기 지문(importFingerprint, importRowKey) 추가.
  * src/server/restore.ts가 1~4를 모두 읽는다.
+ * 형식 번호를 올리지 않고 더한 항목(없는 예전 백업도 복원된다): 서포터 횟수 보정값(supportAdjustments),
+ * 기피 라인(참가자 avoidPositions), 경기 메모(경기 memo), 시리즈 묶음(series).
  */
 export const BACKUP_FORMAT_VERSION = 4;
 
@@ -609,6 +611,8 @@ export async function exportBackup(env: Env, groupId: string): Promise<Record<st
     matchCount: snapshot.matches.length,
     participants: snapshot.participants.map((p) => ({ ...p, createdAt: createdById.get(p.id) })),
     seasons: snapshot.seasons,
+    // 시리즈 묶음(2026-11-06). 경기 메모는 경기 항목(memo)에 들어 있다. 둘 다 없는 예전 백업도 복원된다.
+    series: snapshot.series ?? [],
     matches: snapshot.matches.map((m) => {
       const extra = extraById.get(m.id);
       return {

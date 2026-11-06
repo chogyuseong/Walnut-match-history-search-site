@@ -18,6 +18,7 @@ import { Prep } from "./screens/Prep";
 import { PriorityScreen } from "./screens/Priority";
 import { MatchDetail, Records } from "./screens/Records";
 import { ResultSheet } from "./screens/ResultSheet";
+import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./screens/SeasonSummary";
 import { Search } from "./screens/Search";
 import { Today } from "./screens/Today";
 import { Transfer } from "./screens/Transfer";
@@ -200,7 +201,7 @@ function LoadFailed() {
 }
 
 /** 기록(스냅숏)이 있어야 그릴 수 있는 화면. */
-const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill", "priority"]);
+const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill", "priority", "season"]);
 
 function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
@@ -257,7 +258,24 @@ function OperatorScreen(props: { route: string[] }) {
   if (page === "m" && id) {
     if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
     return (
-      <MatchDetail snapshot={app.snapshot} matchId={id} app={app} back={() => go("/records")} />
+      <MatchDetail
+        snapshot={app.snapshot}
+        matchId={id}
+        app={app}
+        back={() => go("/records")}
+        openMatch={(matchId) => go(`/m/${matchId}`)}
+      />
+    );
+  }
+  if (page === "season") {
+    if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
+    return (
+      <SeasonSummaryScreen
+        snapshot={app.snapshot}
+        scope={seasonScopeFromRoute(props.route.slice(1))}
+        back={() => go("/records")}
+        choose={(scope) => go(`/season/${seasonRoutePart(scope)}`)}
+      />
     );
   }
   if (page === "graphs") {
@@ -333,6 +351,8 @@ function OperatorRecords() {
         openGraphs={() => go("/graphs")}
         openBackfill={app.me?.accountId ? () => go("/backfill") : undefined}
         onResult={setResultFor}
+        openSeason={(scope) => go(`/season/${seasonRoutePart(scope)}`)}
+        app={app.me?.accountId ? app : null}
       />
       {resultFor && (
         <ResultSheet
@@ -352,6 +372,7 @@ function Tabs(props: { current: string }) {
   const tab =
     props.current === "records" ||
     props.current === "m" ||
+    props.current === "season" ||
     props.current === "p" ||
     props.current === "compare"
       ? "records"

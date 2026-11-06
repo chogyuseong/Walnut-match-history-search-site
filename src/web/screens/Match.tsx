@@ -8,12 +8,19 @@ import { CopyButton, Dialog, ErrorNote, MatchTeams, StickyAction } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
-/** 다음 판 준비(후보 A): 초안이 없으면 같은 팀으로 만들고, 있으면 그 초안을 연다. */
-export function prepareNext(app: AppValue, from: MatchView): void {
+/**
+ * 다음 판 준비(후보 A): 초안이 없으면 같은 팀으로 만들고, 있으면 그 초안을 연다.
+ * series가 true면 "시리즈로 이어가기"를 골라 둔다(직전 경기가 시리즈에 없으면 3판 2선승으로 새로 만든다. 준비 화면에서 바꿀 수 있다).
+ */
+export function prepareNext(app: AppValue, from: MatchView, options: { series?: boolean } = {}): void {
+  const series = options.series ? { format: "bo3" as const, name: "" } : null;
+  if (app.draft && app.draft.sourceMatchId === from.id && options.series) {
+    // 같은 경기에서 이미 만든 초안: 이어가기만 켠다.
+    app.setDraft({ ...app.draft, series: app.draft.series ?? series });
+  }
   if (!app.draft && app.snapshot) {
     const nameOf = nameMap(app.snapshot);
-    app.setDraft(
-      draftFromMatch(from, nameOf, {
+    const draft = draftFromMatch(from, nameOf, {
         groupId: app.snapshot.group.id,
         baseLiveVersion: app.snapshot.group.liveVersion,
         seed: (Math.random() * 0xffffffff) >>> 0,
@@ -23,8 +30,8 @@ export function prepareNext(app: AppValue, from: MatchView): void {
           from.roster.map((r) => ({ key: `p:${r.participantId}`, participantId: r.participantId })),
           app.snapshot.participants,
         ),
-      }),
-    );
+      });
+    app.setDraft({ ...draft, sourceMatchId: from.id, series });
   }
   go("/prep");
 }
@@ -71,6 +78,9 @@ export function Match() {
         <div className="button-row">
           <button type="button" className="primary" onClick={() => prepareNext(app, saved)}>
             다음 경기 준비
+          </button>
+          <button type="button" className="secondary" onClick={() => prepareNext(app, saved, { series: true })}>
+            시리즈로 이어가기
           </button>
           <button type="button" className="link" onClick={() => go("/records")}>
             기록 보기

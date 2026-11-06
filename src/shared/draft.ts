@@ -1,5 +1,5 @@
 import { satisfies, type TeamConstraint } from "./recommend";
-import { POSITIONS, TEAMS, type MatchView, type Position, type Team } from "./types";
+import { POSITIONS, TEAMS, type MatchView, type Position, type SeriesFormat, type Team } from "./types";
 
 /**
  * 편성 초안. 기기에만 보관하고 서버에는 저장하지 않는다(docs/P2 P2-1).
@@ -55,6 +55,16 @@ export interface Draft {
    * 예전 초안에는 없거나 "red"일 수 있어 읽을 때 normalizeDraftSide로 맞춘다. 형식 번호는 그대로다.
    */
   teamASide?: "blue" | "red";
+  /**
+   * "다음 경기 준비"로 만든 초안이면 그 경기의 ID(2026-11-06, 선택 필드라 형식 번호는 그대로).
+   * 시리즈로 이어가기의 직전 경기가 된다.
+   */
+  sourceMatchId?: string;
+  /**
+   * 시리즈로 이어가기를 골랐으면 값이 있다. 직전 경기가 아직 시리즈에 없을 때 새로 만들 시리즈의 형식·이름.
+   * 시작할 때 서버에 series 필드로 보낸다(src/server/series.ts). 없거나 null이면 이어가지 않는다.
+   */
+  series?: { format: SeriesFormat; name: string } | null;
 }
 
 /** 시드로 재현할 수 있는 난수. */
@@ -399,6 +409,9 @@ export function keepMatchPositions(
     constraints: (draft.constraints ?? []).filter((c) => keys.has(c.a) && keys.has(c.b)),
     previousSlots: samePeople ? draft.slots : null,
   };
+  // 시리즈로 이어가기 선택(선택 필드)은 그대로 둔다.
+  if (draft.sourceMatchId !== undefined) next.sourceMatchId = draft.sourceMatchId;
+  if (draft.series !== undefined) next.series = draft.series;
   return next;
 }
 

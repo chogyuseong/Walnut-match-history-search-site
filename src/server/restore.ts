@@ -17,7 +17,9 @@
  */
 import { encodeAvoid, normalizeAvoidPositions } from "../shared/avoid";
 import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
+import { MEMO_MAX, memoLength, normalizeMemo } from "../shared/memo";
 import { MAX_NAME_LENGTH, cleanName, nameKey } from "../shared/names";
+import { SERIES_NAME_MAX } from "../shared/series";
 import { isValidTimeZone } from "../shared/stats";
 import type { Env } from "./env";
 import { accountGroupCount, MAX_GROUPS_PER_ACCOUNT, parseSettings, tooManyGroupsError } from "./groups";
@@ -37,12 +39,15 @@ export const GROUP_DATA_TABLES = [
   "join_requests",
   "support_adjustments",
   "rotation_events",
+  // 시리즈에 속한 경기(migrations/0017). 경기·시리즈보다 먼저 지운다.
+  "match_series_members",
   "match_revisions",
   "match_roster",
   "participant_merges",
   "import_batches",
   "rotation_cycles",
   "matches",
+  "match_series",
   "sessions",
   "seasons",
   "participants",
@@ -220,6 +225,16 @@ interface MRow {
   importRowKey: string | null;
   version: number;
   roster: RosterRow[];
+  /** 경기 메모(migrations/0016). 이 항목이 없는 예전 백업은 null. */
+  memo: string | null;
+}
+/** 시리즈 묶음(migrations/0017). 이 항목이 없는 예전 백업은 빈 목록. */
+interface SeriesRowB {
+  id: string;
+  name: string | null;
+  format: "bo3" | "bo5" | "free";
+  createdAt: string;
+  matchIds: string[];
 }
 /** 일괄 입력 묶음의 출처(형식 4). */
 interface IBRow {
@@ -307,6 +322,7 @@ export interface BackupData {
   settingsVersions: VRow[];
   merges: MergeRow[];
   importBatches: IBRow[];
+  series: SeriesRowB[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -545,6 +561,13 @@ export function validateBackup(
       return p.add(`${at}: 가져오기 줄 위치 값 오류`);
     }
     if (!Number.isInteger(r.version) || (r.version as number) < 1) return p.add(`${at}: 경기 버전 오류`);
+    // 경기 메모(2026-11-06). 없으면(예전 백업) 없음.
+    let memo: string | null = null;
+    if (r.memo !== undefined && r.memo !== null) {
+      if (typeof r.memo !== "string") return p.add(`${at}: 메모 값 오류`);
+      memo = normalizeMemo(r.memo);
+      if (memo !== null && memoLength(memo) > MEMO_MAX) return p.add(`${at}: 메모가 ${MEMO_MAX}자를 넘습니다.`);
+    }
 
     // 명단: 경기당 10명, 팀당 5명, 같은 사람 두 번 없음, 팀 안 포지션 중복 없음, 모두 파일의 참가자.
     if (!Array.isArray(r.roster) || r.roster.length !== 10) return p.add(`${at}: 명단이 10명이 아닙니다.`);
@@ -587,6 +610,7 @@ export function validateBackup(
       importRowKey: importRowKey as string | null,
       version: r.version as number,
       roster,
+      memo,
     });
   });
   if (inProgress > 1) p.add("진행 중 경기가 둘 이상입니다.");
@@ -838,6 +862,33 @@ export function validateBackup(
     });
   });
 
+  // 시리즈 묶음(2026-11-06). 속한 경기는 모두 파일에 있어야 하고 한 경기는 한 시리즈에만 들어간다.
+  // 팀 구성이 같은지는 다시 보지 않는다(화면이 구성 다른 판을 점수에서 빼고 알린다).
+  const series: SeriesRowB[] = [];
+  const seriesIds = new Set<string>();
+  const inSeries = new Set<string>();
+  arrayField(raw, "series", p).forEach((r, i) => {
+    const at = `시리즈 ${i + 1}번째`;
+    if (!isObj(r) || !isId(r.id) || !isTime(r.createdAt) || !Array.isArray(r.matchIds)) return p.add(`${at}: 형식 오류`);
+    if (seriesIds.has(r.id)) return p.add(`${at}: ID가 중복됩니다.`);
+    seriesIds.add(r.id);
+    if (!oneOf(r.format, ["bo3", "bo5", "free"] as const)) return p.add(`${at}: 형식 값 오류`);
+    let name: string | null = null;
+    if (r.name !== undefined && r.name !== null) {
+      if (typeof r.name !== "string") return p.add(`${at}: 이름 오류`);
+      name = cleanName(r.name) || null;
+      if (name !== null && [...name].length > SERIES_NAME_MAX) return p.add(`${at}: 이름 오류`);
+    }
+    const ids = r.matchIds as unknown[];
+    if (ids.length === 0) return p.add(`${at}: 속한 경기가 없습니다.`);
+    for (const id of ids) {
+      if (typeof id !== "string" || !mids.has(id)) return p.add(`${at}: 속한 경기가 파일에 없습니다.`);
+      if (inSeries.has(id)) return p.add(`${at}: 한 경기가 두 시리즈에 들어 있습니다.`);
+      inSeries.add(id);
+    }
+    series.push({ id: r.id, name, format: r.format, createdAt: iso(r.createdAt), matchIds: ids as string[] });
+  });
+
   if (p.list.length > 0) return { ok: false, problems: p.list };
   const createdAt = iso(raw.createdAt as string);
   // 형식 1에는 참가자 생성 시각이 없다: 파일 순서를 지키도록 백업 시각에서 1밀리초씩 늘려 채운다.
@@ -863,6 +914,7 @@ export function validateBackup(
       settingsVersions,
       merges,
       importBatches,
+      series,
     },
   };
 }
@@ -908,6 +960,7 @@ async function foreignIdCollision(env: Env, groupId: string, data: BackupData): 
     ["seasons", data.seasons.map((r) => r.id)],
     ["settings_versions", data.settingsVersions.map((r) => r.id)],
     ["participant_merges", data.merges.map((r) => r.id)],
+    ["match_series", data.series.map((r) => r.id)],
   ];
   for (const [table, ids] of checks) {
     if (ids.length === 0) continue;
@@ -1124,13 +1177,18 @@ async function buildRestorePlan(
     ...insertStatements(env, groupId, "matches",
       ["id", "match_no", "session_id", "state", "prev_state", "source", "started_at", "ended_at",
         "played_at", "confirmed_at", "winner_team", "team_a_side", "settings_version_id", "version",
-        "import_batch_id", "import_fingerprint", "import_row_key"],
+        "import_batch_id", "import_fingerprint", "import_row_key", "memo"],
       data.matches.map((m) => [
         map(m.id), m.matchNo, m.sessionId === null ? null : map(m.sessionId), m.state, m.prevState,
         m.source, m.startedAt, m.endedAt, m.playedAt, m.confirmedAt, m.winnerTeam, m.teamASide,
         m.settingsVersionId === null ? null : map(m.settingsVersionId), m.version + versionOffset,
-        batchId(m.importBatchId), m.importFingerprint, m.importRowKey,
+        batchId(m.importBatchId), m.importFingerprint, m.importRowKey, m.memo,
       ]), maxBytes),
+    // 시리즈 묶음: 경기 뒤에 넣는다(경기 외래 키). 시리즈 ID·경기 ID도 같은 대응표로 바꾼다.
+    ...insertStatements(env, groupId, "match_series", ["id", "name", "format", "created_at"],
+      data.series.map((r) => [map(r.id), r.name, r.format, r.createdAt]), maxBytes),
+    ...insertStatements(env, groupId, "match_series_members", ["series_id", "match_id", "added_at"],
+      data.series.flatMap((r) => r.matchIds.map((id) => [map(r.id), map(id), r.createdAt])), maxBytes),
     // 일괄 입력 출처: 묶음 ID는 경기의 import_batch_id와 같은 대응표로 바꾼다.
     ...insertStatements(env, groupId, "import_batches", ["id", "kind", "source_key", "label", "created_at", "options"],
       data.importBatches.map((b) => [

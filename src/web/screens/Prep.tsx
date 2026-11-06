@@ -31,7 +31,15 @@ import {
   supportCounts,
   type DrawResult,
 } from "../../shared/rotation";
-import { POSITIONS, TEAMS, type MatchView, type Snapshot, type Team } from "../../shared/types";
+import {
+  sameComposition,
+  SERIES_FORMAT_LABEL,
+  SERIES_NAME_MAX,
+  seriesIndex,
+  seriesLine,
+  seriesScore,
+} from "../../shared/series";
+import { POSITIONS, SERIES_FORMATS, TEAMS, type MatchView, type SeriesFormat, type Snapshot, type Team } from "../../shared/types";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { draftRosterText, josa, POSITION_LABEL, TEAM_MARK, teamBoxClass, teamName } from "../format";
 import { SupportCountEditor } from "../supportCountEditor";
@@ -50,6 +58,15 @@ interface StartAsk {
   /** 이미 갔지만 팀에서 가장 적게 간 사람이라 공평한 반복. 묻지 않고 ackRepeat에 넣는다. */
   fairRepeatIds: string[];
   askSession: boolean;
+}
+
+/** 초안의 명단(참가자 ID가 없는 새 이름은 초안 키로 둔다. 지난 경기와 구성을 견줄 때만 쓴다). */
+function draftRoster(draft: Draft) {
+  return draft.slots.map((s) => ({
+    participantId: draft.people.find((p) => p.key === s.key)?.participantId ?? s.key,
+    team: s.team,
+    position: s.position,
+  }));
 }
 
 /** 준비 화면의 팀 이름. 팀 A(왼쪽)는 항상 블루팀, 팀 B(오른쪽)는 레드팀이다(src/shared/draft.ts teamASide). */
@@ -291,6 +308,14 @@ export function Prep() {
   }
 
   async function sendStart(current: Draft, plan: StartAsk, wantNewSession: boolean) {
+    // 시리즈로 이어가기: 직전 경기와 두 팀 구성이 같을 때만 보낸다(다르면 화면에 미리 알렸다).
+    const from = current.sourceMatchId
+      ? plan.snapshot.matches.find((m) => m.id === current.sourceMatchId)
+      : undefined;
+    const series =
+      current.series && from && sameComposition(from.roster, draftRoster(current))
+        ? { fromMatchId: from.id, format: current.series.format, name: current.series.name.trim() || null }
+        : null;
     const attempt = async () => {
       setBusy(true);
       setError(null);
@@ -309,6 +334,7 @@ export function Prep() {
           newSession: plan.askSession && wantNewSession,
           // 준비 화면은 팀 A가 항상 블루팀이다.
           teamASide: current.teamASide ?? "blue",
+          ...(series ? { series } : {}),
         } as { requestId: string });
         setAsk(null);
         app.setDraft(null);
@@ -339,6 +365,13 @@ export function Prep() {
     .map((p) => ({ key: `p:${p.id}`, name: p.name, participantId: p.id }));
 
   const complete = isCompleteDraft(draft);
+  // 시리즈로 이어가기: "다음 경기 준비"로 만든 초안이고 그 경기가 아직 기록에 살아 있을 때만.
+  const seriesFrom = draft.sourceMatchId
+    ? (app.snapshot?.matches.find((m) => m.id === draft.sourceMatchId) ?? null)
+    : null;
+  const seriesFromUsable = seriesFrom !== null && seriesFrom.state !== "canceled" && seriesFrom.state !== "excluded";
+  const seriesSameTeams = seriesFrom !== null && sameComposition(seriesFrom.roster, draftRoster(draft));
+  const seriesNow = seriesFrom ? (seriesIndex(app.snapshot?.series).get(seriesFrom.id) ?? null) : null;
   // 서포터 횟수 목록: 이번 주기에 한 번이라도 간 사람(많이 간 순). 이름은 모임 참가자 이름.
   const participantName = new Map((app.snapshot?.participants ?? []).map((p) => [p.id, p.name]));
   const countRows = [...supportCounts(ctx).entries()]
@@ -764,6 +797,67 @@ export function Prep() {
             </button>
           </div>
         </Dialog>
+      )}
+
+      {seriesFromUsable && seriesFrom && (
+        <section className="prep-tools" aria-label="시리즈">
+          <h2>시리즈</h2>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={!!draft.series}
+              disabled={!draft.series && !seriesSameTeams}
+              onChange={(e) =>
+                update({ ...draft, series: e.target.checked ? { format: "bo3", name: "" } : null })
+              }
+            />{" "}
+            시리즈로 이어가기
+          </label>
+          {!seriesSameTeams ? (
+            <p className={draft.series ? "note warn" : "hint"} role={draft.series ? "alert" : undefined}>
+              팀 구성이 {seriesFrom.matchNo}경기와 달라 시리즈로 이어갈 수 없어요(진영은 달라도 되지만 같은 사람들끼리여야
+              해요).{draft.series ? " 이대로 시작하면 시리즈에 넣지 않아요." : ""}
+            </p>
+          ) : seriesNow ? (
+            <p className="hint">
+              {draft.series ? "다음 판으로 넣어요: " : "지금 시리즈: "}
+              {seriesLine(seriesScore(seriesNow, app.snapshot?.matches ?? []))}
+            </p>
+          ) : draft.series ? (
+            <div className="filter-row">
+              <label>
+                형식
+                <select
+                  aria-label="시리즈 형식"
+                  value={draft.series.format}
+                  onChange={(e) => update({ ...draft, series: { ...draft.series!, format: e.target.value as SeriesFormat } })}
+                >
+                  {SERIES_FORMATS.map((f) => (
+                    <option key={f} value={f}>
+                      {SERIES_FORMAT_LABEL[f]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                이름(선택)
+                <input
+                  type="text"
+                  aria-label="시리즈 이름"
+                  placeholder="예: 결승"
+                  maxLength={SERIES_NAME_MAX}
+                  value={draft.series.name}
+                  onChange={(e) => update({ ...draft, series: { ...draft.series!, name: e.target.value } })}
+                />
+              </label>
+            </div>
+          ) : (
+            <p className="hint">{seriesFrom.matchNo}경기와 같은 팀이면 한 시리즈(예: 3판 2선승)로 묶어 점수를 보여 줘요.</p>
+          )}
+          {draft.series && seriesSameTeams && !seriesNow && (
+            <p className="hint">{seriesFrom.matchNo}경기와 이번 경기를 새 시리즈로 묶어요.</p>
+          )}
+        </section>
       )}
 
       <div className="button-row">

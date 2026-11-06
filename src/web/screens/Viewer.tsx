@@ -12,6 +12,7 @@ import { Person } from "./Person";
 import { Privacy } from "./Privacy";
 import { MatchDetail, Records } from "./Records";
 import { Search } from "./Search";
+import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./SeasonSummary";
 
 /**
  * 화면 7 — 조회 화면(링크). 로그인이 없고 읽기만 한다.
@@ -101,7 +102,19 @@ export function Viewer(props: { token: string; rest: string[] }) {
           openMatch={(id) => go(`${base}/d/${id}`)}
           openPerson={(id) => go(`${base}/p/${id}`)}
           openGraphs={() => go(`${base}/graphs`)}
+          openSeason={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
         />,
+    );
+  }
+  if (rest[0] === "season") {
+    return shell(
+      "records",
+      <SeasonSummaryScreen
+        snapshot={snapshot}
+        scope={seasonScopeFromRoute(rest.slice(1))}
+        back={() => go(`${base}/records`)}
+        choose={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
+      />,
     );
   }
   if (rest[0] === "search") {
@@ -176,6 +189,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
         matchId={rest[1]}
         app={null}
         back={() => go(`${base}/records`)}
+        openMatch={(id) => go(`${base}/d/${id}`)}
       />,
     );
   }

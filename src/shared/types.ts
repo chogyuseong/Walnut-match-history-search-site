@@ -35,6 +35,26 @@ export interface MatchView {
   teamASide: Side | null;
   version: number;
   roster: RosterEntry[];
+  /**
+   * 경기 메모(최대 200자, 줄바꿈 허용, migrations/0016). 있을 때만 들어 있다.
+   * 공개 정보다: 조회 링크 응답·백업에도 들어간다. 화면은 글자로만 그린다(HTML로 해석하지 않는다).
+   */
+  memo?: string;
+}
+
+/** 시리즈 형식. bo3: 3판 2선승, bo5: 5판 3선승, free: 자유. */
+export type SeriesFormat = "bo3" | "bo5" | "free";
+export const SERIES_FORMATS: readonly SeriesFormat[] = ["bo3", "bo5", "free"];
+
+/** 시리즈 묶음(migrations/0017). 조회 링크 응답·백업에도 들어간다. */
+export interface SeriesView {
+  id: string;
+  /** 선택(예: "결승"). 없으면 null. */
+  name: string | null;
+  format: SeriesFormat;
+  createdAt: string;
+  /** 속한 경기 ID. 경기 시각 → 경기 번호 순. */
+  matchIds: string[];
 }
 
 export interface ParticipantView {
@@ -178,6 +198,8 @@ export interface Snapshot {
   matches: MatchView[];
   revisions: RevisionView[];
   seasons: SeasonView[];
+  /** 시리즈 묶음(migrations/0017). 운영자·조회 응답 모두에 있다. 예전 서버 응답에는 없을 수 있다. */
+  series?: SeriesView[];
   /** 표 일괄 입력 기록. 운영자 응답에만 있다. */
   importBatches?: ImportBatchView[];
   /** 중복 참가자 합치기 기록(최근 것부터). 운영자 응답에만 있다. */

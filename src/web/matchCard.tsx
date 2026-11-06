@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { memoOneLine } from "../shared/memo";
 import { isCounted } from "../shared/stats";
 import { POSITIONS, TEAMS, type MatchView, type Team } from "../shared/types";
 import {
@@ -38,6 +39,8 @@ export function MatchCard(props: {
   showDate?: boolean;
   /** 카드 머리 오른쪽에 둘 동작(예: 결과 입력). */
   action?: ReactNode;
+  /** 이 경기가 속한 시리즈의 짧은 표시(예: "결승 · 2:1"). 없으면 배지를 그리지 않는다. */
+  seriesBadge?: string | null;
 }) {
   const { match, nameOf, focusId } = props;
   const confirmed = isCounted(match);
@@ -67,6 +70,18 @@ export function MatchCard(props: {
         </button>
         {props.action && <span className="mc-action">{props.action}</span>}
       </div>
+      {(props.seriesBadge || match.memo) && (
+        // 시리즈 배지와 메모 한 줄(넘치면 말줄임). 메모는 글자로만 그린다(HTML로 해석하지 않음).
+        <p className="mc-extra">
+          {props.seriesBadge && <span className="series-badge">{props.seriesBadge}</span>}
+          {match.memo && (
+            <span className="mc-memo" title={match.memo}>
+              <span className="mc-memo-label">메모</span> 
+              {memoOneLine(match.memo)}
+            </span>
+          )}
+        </p>
+      )}
       <div className={withPositions ? "mc-grid with-pos" : "mc-grid"}>
         {withPositions && (
           <div className="mc-roles" aria-hidden="true">
