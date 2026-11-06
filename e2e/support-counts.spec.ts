@@ -44,7 +44,8 @@ test("첫 경기 전에 서포터 횟수를 직접 넣고, 서포터만 바꾸�
 
   await page.getByText(/^서포터 횟수: /).click();
   await expect(editor.getByRole("listitem")).toHaveCount(10);
-  await expect(reset).toBeDisabled();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   await expect(save).toBeDisabled();
 
   // 팀 A의 탑·정글 두 사람을 1회, 2회로 올린다(＋ 버튼과 숫자 칸 직접 입력).
@@ -58,7 +59,8 @@ test("첫 경기 전에 서포터 횟수를 직접 넣고, 서포터만 바꾸�
   await expect(rows(team(page, "A")).filter({ hasText: top! })).toContainText("서폿 1회");
   await expect(rows(team(page, "A")).filter({ hasText: jungle! })).toContainText("서폿 2회");
   await expect(save).toBeDisabled();
-  await expect(reset).toBeDisabled();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   const dir = process.env.PREP_SHOTS;
   if (dir) {
     mkdirSync(dir, { recursive: true });
@@ -92,6 +94,7 @@ test("첫 경기 전에 서포터 횟수를 직접 넣고, 서포터만 바꾸�
   await save.click();
   await expect(page.locator(".toast")).toHaveText("서포터 횟수를 저장했어요.");
   await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("모두 서포터를 배정받았어요");
   const beforeA = await rows(team(page, "A")).allInnerTexts();
   await page.getByRole("region", { name: "섞기" }).getByRole("button", { name: "서포터만 바꾸기" }).click();
   await expect(page.locator(".note").filter({ hasText: "블루팀은 모두 서포터를 배정받았어요." })).toBeVisible();
@@ -103,7 +106,8 @@ test("첫 경기 전에 서포터 횟수를 직접 넣고, 서포터만 바꾸�
   await page.getByRole("dialog", { name: "서포터 횟수 초기화" }).getByRole("button", { name: "초기화" }).click();
   await expect(page.locator(".teams").getByText(/서폿 \d+회/)).toHaveCount(0);
   if (!(await reset.isVisible())) await page.getByText(/^서포터 횟수: /).click();
-  await expect(reset).toBeDisabled();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   for (const name of afterDraw) {
     await expect(page.getByRole("spinbutton", { name: `${name} 서포터 횟수` })).toHaveValue("0");
   }

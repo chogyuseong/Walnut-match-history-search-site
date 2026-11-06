@@ -179,8 +179,11 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
     }
     if (game > 1) {
       if (!(await reset.isVisible())) await page.getByText(/^서포터 횟수: /).click();
-      if (anyFull) await expect(reset).toBeEnabled();
-      else await expect(reset).toBeDisabled();
+      // 초기화 버튼은 항상 누를 수 있다(2026-11-06 변경). 상태는 옆의 이유 글로 구분한다.
+      await expect(reset).toBeEnabled();
+      await expect(page.locator("#reset-counts-why")).toContainText(
+        anyFull ? "모두 서포터를 배정받았어요" : "아직 서포터를 안 간 사람이 있어요",
+      );
       if (game === 2) await shots(page, "03-counts-reset-disabled");
       if (anyFull) await shots(page, "06-reset-enabled");
     }
@@ -228,7 +231,8 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await page.getByRole("dialog", { name: "서포터 횟수 초기화" }).getByRole("button", { name: "초기화" }).click();
   await expect(page.locator(".teams").getByText(/서폿 \d+회/)).toHaveCount(0);
   await page.getByText("서포터 횟수: 아직 없음").click();
-  await expect(reset).toBeDisabled();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   await shots(page, "07-after-reset");
   await noHorizontalOverflow(page);
 });

@@ -179,11 +179,26 @@ test("올랜덤 + 서포터 공평하게 → 시작 → 결과 → 다음 준비
     await expect(rows(team).nth(4)).not.toContainText(/서폿 \d회/);
   }
 
-  // 서포터 횟수 보기: 두 사람 1회. 아직 안 간 사람이 팀마다 있어 초기화 버튼은 꺼져 있고 이유를 글로 보여준다.
-  // (모두 배정받은 팀이 생겼을 때 켜지고 누르면 다시 꺼지는 흐름은 scenarios.spec.ts 21번에서 본다.)
+  // 서포터 횟수 보기: 두 사람 1회. 아직 안 간 사람이 팀마다 있어도 초기화 버튼은 누를 수 있고(2026-11-06 변경),
+  // 옆의 이유 글과 확인 창의 경고로 알린다.
   await page.getByText(/^서포터 횟수: 2명 기록/).click();
   const list = page.getByRole("list", { name: "서포터 횟수 목록" });
   await expect(list.getByRole("listitem")).toHaveCount(2);
-  await expect(page.getByRole("button", { name: "서포터 횟수 초기화" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "서포터 횟수 초기화" })).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   await expect(page.getByText("아직 서포터를 안 간 사람이 있어요.", { exact: false })).toBeVisible();
+
+  // 누르면 바로 지워지지 않고 경고가 든 확인 창이 뜬다. "그대로 두기"면 횟수가 남는다.
+  await page.getByRole("button", { name: "서포터 횟수 초기화" }).click();
+  const dialog = page.getByRole("dialog", { name: "서포터 횟수 초기화" });
+  await expect(dialog.getByRole("alert")).toContainText("아직 서포터를 안 간 사람이 있어요");
+  await dialog.getByRole("button", { name: "그대로 두기" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+
+  // 동의하면 모두 0이 된다.
+  await page.getByRole("button", { name: "서포터 횟수 초기화" }).click();
+  await dialog.getByRole("button", { name: "초기화", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText(/서폿 \d회/)).toHaveCount(0);
 });

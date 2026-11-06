@@ -768,7 +768,7 @@ export function Prep() {
               <button
                 type="button"
                 className="secondary"
-                disabled={busy || !resetReady}
+                disabled={busy}
                 aria-describedby="reset-counts-why"
                 onClick={() => setResetOpen(true)}
               >
@@ -777,7 +777,7 @@ export function Prep() {
               <span id="reset-counts-why" className="hint">
                 {resetReady
                   ? "한 팀이 모두 서포터를 배정받았어요. 초기화하면 다시 처음부터 돌아가요."
-                  : "아직 서포터를 안 간 사람이 있어요. 팀 하나가 모두 배정받으면 누를 수 있어요."}
+                  : "아직 서포터를 안 간 사람이 있어요. 그래도 초기화할 수 있어요(누르면 한 번 더 물어봐요)."}
               </span>
             </div>
           )}
@@ -787,6 +787,12 @@ export function Prep() {
       {resetOpen && (
         <Dialog title="서포터 횟수 초기화" onClose={() => setResetOpen(false)}>
           <p>모든 사람의 서포터 횟수를 0으로 되돌립니다. 경기 기록과 전적은 그대로예요.</p>
+          {!resetReady && (
+            <p className="note" role="alert">
+              아직 서포터를 안 간 사람이 있어요. 지금 초기화하면 이미 간 사람이 다시 서포터로 뽑힐 수 있어요. 되돌릴 수
+              없어요.
+            </p>
+          )}
           <ErrorNote error={error} />
           <div className="button-row">
             <button type="button" className="danger" disabled={busy} onClick={() => void resetCounts()}>

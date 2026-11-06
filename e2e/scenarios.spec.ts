@@ -302,12 +302,14 @@ test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸
   await teamA.getByRole("button", { name: /선수01/ }).click();
   await expect(teamB.getByRole("button", { name: /선수01/ })).toBeVisible();
   await page.getByText(/^서포터 횟수: /).click();
-  await expect(reset).toBeDisabled();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   await expect(page.getByText("아직 서포터를 안 간 사람이 있어요.", { exact: false })).toBeVisible();
   // 되돌리면(팀 B가 다시 모두 간 사람) 초안에서 바로 다시 계산해 켜진다.
   await page.getByRole("button", { name: "직전 편성으로" }).click();
   await expect(teamB.getByRole("button", { name: /선수06/ })).toBeVisible();
   await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("모두 서포터를 배정받았어요");
 
   const rows = async () => [await teamA.getByRole("button").allInnerTexts(), await teamB.getByRole("button").allInnerTexts()];
   const before = await rows();
@@ -329,13 +331,15 @@ test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸
 
   // 초기화 버튼이 켜져 있다 → 누르면 횟수 표시가 사라지고 버튼은 다시 꺼진다.
   await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("모두 서포터를 배정받았어요");
   await reset.click();
   const dialog = page.getByRole("dialog", { name: "서포터 횟수 초기화" });
   await dialog.getByRole("button", { name: "초기화" }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator(".teams").getByRole("button").filter({ hasText: /서폿 \d회/ })).toHaveCount(0);
   await page.getByText("서포터 횟수: 아직 없음").click();
-  await expect(reset).toBeDisabled();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
 });
 
 test("29: 클립보드가 거절되면 선택 가능한 글 상자, 진영 미확인이면 '팀 A·B'로만", async ({ page }) => {
