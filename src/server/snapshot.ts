@@ -181,7 +181,7 @@ export async function buildSnapshot(
   const participants: ParticipantView[] = participantRows.results.map((p) => {
     const view: ParticipantView = { id: p.id, name: p.name, status: p.status };
     if (includeGroups) view.skillGroup = p.skill_group;
-    // 기피 라인은 운영자에게만(우선순위 공개 설정과 무관). 없으면 필드를 넣지 않는다.
+    // 기피 라인은 운영자에게만(티어 공개 설정과 무관). 없으면 필드를 넣지 않는다.
     if (includePrivate) {
       const avoid = decodeAvoid(p.avoid_positions);
       if (avoid.length > 0) view.avoidPositions = avoid;

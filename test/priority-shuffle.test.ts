@@ -19,7 +19,7 @@ import {
 import { recommendTeams } from "../src/shared/recommend";
 import type { Team } from "../src/shared/types";
 
-// 우선순위(skillGroup)와 "팀까지 올랜덤"(src/shared/priority.ts).
+// 티어(skillGroup)와 "팀까지 올랜덤"(src/shared/priority.ts).
 
 const now = "2026-11-06T00:00:00.000Z";
 const W: [number, number, number, number] = [4, 3, 2, 1];
@@ -34,7 +34,7 @@ function base(seed: number): Draft {
   return createDraft(people(), { groupId: "g", baseLiveVersion: 0, seed, now, teamOf });
 }
 
-/** 순서대로 id0, id1, … 에 순위를 준다. */
+/** 순서대로 id0, id1, … 에 티어를 준다. */
 function priorities(values: (number | null)[]): PriorityMap {
   return Object.fromEntries(values.map((v, i) => [`p:id${i}`, v]));
 }
@@ -52,8 +52,8 @@ const LAYOUTS: (number | null)[][] = [
   [4, 4, 4, 4, 4, 4, 4, 4, 4, 1],
 ];
 
-describe("팀까지 올랜덤: 순위 균형", () => {
-  it("여러 배치 × 시드 300개: 10명·5:5·팀 안 포지션 5개, 모든 순위 칸에서 인원 차 ≤ 1", () => {
+describe("팀까지 올랜덤: 티어 균형", () => {
+  it("여러 배치 × 시드 300개: 10명·5:5·팀 안 포지션 5개, 모든 티어 칸에서 인원 차 ≤ 1", () => {
     for (const layout of LAYOUTS) {
       const map = priorities(layout);
       for (let seed = 1; seed <= 300; seed++) {
@@ -66,7 +66,7 @@ describe("팀까지 올랜덤: 순위 균형", () => {
     }
   });
 
-  it("1순위 두 명은 항상 다른 팀이다", () => {
+  it("1티어 두 명은 항상 다른 팀이다", () => {
     const map = priorities([1, 1, 2, 2, 3, 3, null, null, 4, 4]);
     let d = base(7);
     for (let i = 0; i < 500; i++) {
@@ -75,7 +75,7 @@ describe("팀까지 올랜덤: 순위 균형", () => {
     }
   });
 
-  it("남는 한 명들이 한 팀에 몰리지 않는다: 1·2·3·4순위 한 명씩 + 미지정 6명이면 1·4순위와 2·3순위가 같은 팀", () => {
+  it("남는 한 명들이 한 팀에 몰리지 않는다: 1·2·3·4티어 한 명씩 + 미지정 6명이면 1·4티어와 2·3티어가 같은 팀", () => {
     // 미지정 가중치 = 지정된 사람 가중치(4,3,2,1)의 중앙값 2.5. 합 차 최소는 {4,1} vs {3,2}.
     const map = priorities([1, 2, 3, 4, null, null, null, null, null, null]);
     for (let seed = 1; seed <= 200; seed++) {
@@ -107,18 +107,18 @@ describe("팀까지 올랜덤: 순위 균형", () => {
 });
 
 describe("팀까지 올랜덤: 지정자 없음 · 조건 · 결정성 · 되돌리기", () => {
-  it("우선순위를 정한 사람이 없으면 126개 분할이 모두 후보(완전 무작위 5:5)이고 문구가 다르다", () => {
+  it("티어를 정한 사람이 없으면 126개 분할이 모두 후보(완전 무작위 5:5)이고 문구가 다르다", () => {
     const result = shuffleTeamsByPriority(base(5), {}, W);
     expect(result.assigned).toBe(0);
     expect(result.candidates).toBe(126);
-    expect(teamShuffleText(result)).toBe("우선순위를 정한 사람이 없어 무작위로 나눴어요.");
+    expect(teamShuffleText(result)).toBe("티어를 정한 사람이 없어 무작위로 나눴어요.");
   });
 
-  it("알림 문구는 순위별 인원을 적는다", () => {
+  it("알림 문구는 티어별 인원을 적는다", () => {
     const map = priorities([1, 1, 2, 2, 2, null, null, null, null, null]);
     const result = shuffleTeamsByPriority(base(9), map, W);
     const text = teamShuffleText(result);
-    expect(text).toMatch(/^1순위 1:1 · 2순위 [12]:[12] · 미지정 [23]:[23](으로|로) 나눴어요\(블루팀:레드팀\)\.$/);
+    expect(text).toMatch(/^1티어 1:1 · 2티어 [12]:[12] · 미지정 [23]:[23](으로|로) 나눴어요\(블루팀:레드팀\)\.$/);
     // 받침에 맞는 조사: 마지막 숫자가 3이면 "으로", 2면 "로".
     expect(text.endsWith(":3으로 나눴어요(블루팀:레드팀).") || text.endsWith(":2로 나눴어요(블루팀:레드팀).")).toBe(true);
   });
@@ -136,8 +136,8 @@ describe("팀까지 올랜덤: 지정자 없음 · 조건 · 결정성 · 되돌
     }
   });
 
-  it("조건이 순위 균형과 부딪히면 순위 균형을 먼저 지키고 조건을 어겼다고 알린다", () => {
-    // 1순위 두 명을 같은 팀으로 묶는 조건은 순위 균형과 함께 지킬 수 없다.
+  it("조건이 티어 균형과 부딪히면 티어 균형을 먼저 지키고 조건을 어겼다고 알린다", () => {
+    // 1티어 두 명을 같은 팀으로 묶는 조건은 티어 균형과 함께 지킬 수 없다.
     const map = priorities([1, 1, 2, 2, 3, 3, 4, 4, null, null]);
     for (let seed = 1; seed <= 100; seed++) {
       const d = addConstraint(base(seed), { kind: "same", a: "p:id0", b: "p:id1" });
@@ -192,7 +192,7 @@ describe("팀까지 올랜덤: 지정자 없음 · 조건 · 결정성 · 되돌
 });
 
 describe("팀까지 올랜덤: 치우침", () => {
-  it("우선순위가 없으면 각 사람이 팀 A에 갈 비율이 50% 근처이고, 두 사람이 같은 팀일 비율은 4/9 근처다", () => {
+  it("티어가 없으면 각 사람이 팀 A에 갈 비율이 50% 근처이고, 두 사람이 같은 팀일 비율은 4/9 근처다", () => {
     const N = 6000;
     const inA = new Array<number>(10).fill(0);
     let together = 0;
@@ -206,8 +206,8 @@ describe("팀까지 올랜덤: 치우침", () => {
     expect(Math.abs(together / N - 4 / 9)).toBeLessThan(0.03);
   });
 
-  it("순위가 있어도 같은 순위 안에서 누가 어느 팀에 갈지는 고르다", () => {
-    // 2순위 세 명(id2·id3·id4): 각자 1순위 id0과 같은 팀일 비율이 같아야 한다.
+  it("티어가 있어도 같은 티어 안에서 누가 어느 팀에 갈지는 고르다", () => {
+    // 2티어 세 명(id2·id3·id4): 각자 1티어 id0과 같은 팀일 비율이 같아야 한다.
     const map = priorities([1, 1, 2, 2, 2, 3, 3, 4, 4, 4]);
     const N = 6000;
     const withTop = [0, 0, 0];
@@ -224,11 +224,11 @@ describe("팀까지 올랜덤: 치우침", () => {
   });
 });
 
-describe("팀 추천 문구도 우선순위로 부른다", () => {
-  it("지정자 없음 / 1순위 인원", () => {
+describe("팀 추천 문구도 티어로 부른다", () => {
+  it("지정자 없음 / 1티어 인원", () => {
     const none = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, skillGroup: null }));
-    expect(recommendTeams(none, W, 1)[0]!.reason).toBe("우선순위를 정한 사람이 없어 무작위로 나눴어요.");
+    expect(recommendTeams(none, W, 1)[0]!.reason).toBe("티어를 정한 사람이 없어 무작위로 나눴어요.");
     const some = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, skillGroup: (i % 4) + 1 }));
-    expect(recommendTeams(some, W, 1)[0]!.reason).toMatch(/^우선순위 합계 차 \d+ · 1순위 \d:\d$/);
+    expect(recommendTeams(some, W, 1)[0]!.reason).toMatch(/^티어 합계 차 \d+ · 1티어 \d:\d$/);
   });
 });

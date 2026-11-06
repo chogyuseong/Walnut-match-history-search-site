@@ -990,7 +990,7 @@ button.bar-row:hover {
   flex: none;
   justify-content: flex-end;
 }
-/* 우선순위 배정: 좁은 화면에서는 1·2·3·4·미정 버튼 줄이 이름 아래로 내려간다. 버튼은 44px 이상. */
+/* 티어 배정: 좁은 화면에서는 1·2·3·4·미정 버튼 줄이 이름 아래로 내려간다. 버튼은 44px 이상. */
 .list-row.priority-row {
   flex-wrap: wrap;
 }

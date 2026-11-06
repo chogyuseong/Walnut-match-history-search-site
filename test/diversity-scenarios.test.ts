@@ -162,7 +162,7 @@ describe("팀 추천의 조합 다양성", () => {
     // 직전 팀 5명 중 3명·2명으로 섞는 것이 최소(같은 팀 반복 쌍 3+1, 두 팀 합계 8). 그대로면 20.
     expect(best!.repeatPairs).toBe(8);
     expect(splitOf(best!)).not.toBe("k0,k1,k2,k3,k4");
-    expect(best!.reason).toBe("우선순위를 정한 사람이 없어 최근 조합을 피해 나눴어요. · 최근 1경기 같은 팀 반복 8번");
+    expect(best!.reason).toBe("티어를 정한 사람이 없어 최근 조합을 피해 나눴어요. · 최근 1경기 같은 팀 반복 8번");
     const all = recommendTeams(input, weights, 4, 126, [], diversity);
     expect(all.find((c) => splitOf(c) === "k0,k1,k2,k3,k4")!.repeatPairs).toBe(20);
     expect(all[all.length - 1]!.repeatPairs).toBe(20);

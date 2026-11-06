@@ -15,7 +15,7 @@ export const LOGIN_ONLY: Record<string, string> = {
   "legacy-import": "기존 사이트 기록 가져오기",
   backfill: "지난 경기 입력",
   merge: "중복 참가자 합치기",
-  priority: "우선순위 배정",
+  priority: "티어 배정",
   delete: "모임 삭제 · 탈퇴",
 };
 

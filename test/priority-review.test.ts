@@ -8,7 +8,7 @@ import {
 } from "../src/shared/priorityReview";
 import type { MatchState, MatchView, ParticipantView, RosterEntry } from "../src/shared/types";
 
-// 우선순위 자동 제안·순위 점검(src/shared/priorityReview.ts). 순수 계산만.
+// 티어 자동 제안·티어 점검(src/shared/priorityReview.ts). 순수 계산만.
 
 let no = 0;
 function match(teamA: string[], teamB: string[], winner: "A" | "B", state: MatchState = "confirmed"): MatchView {
@@ -51,7 +51,7 @@ function recordsOf(spec: Record<string, [number, number]>): MatchView[] {
   return list;
 }
 
-describe("우선순위 제안", () => {
+describe("티어 제안", () => {
   it("보정 승률 = (승 + 5) / (경기 + 10)", () => {
     expect(adjustedRate(10, 10)).toBeCloseTo(0.75);
     expect(adjustedRate(0, 10)).toBeCloseTo(0.25);
@@ -108,14 +108,14 @@ describe("우선순위 제안", () => {
     expect(result.rows.map((r) => r.suggested)).toEqual([1, 2, 3, 4]);
   });
 
-  it("4등분: i번째는 floor(i×4/n)+1순위(10명이면 3·2·3·2명)", () => {
+  it("4등분: i번째는 floor(i×4/n)+1티어(10명이면 3·2·3·2명)", () => {
     const ids = Array.from({ length: 10 }, (_, i) => `p${i}`);
     const spec = Object.fromEntries(ids.map((id, i) => [id, [20, 19 - i] as [number, number]]));
     const result = suggestPriorities(ids.map((id) => person(id)), recordsOf(spec));
     expect(result.rows.map((r) => r.suggested)).toEqual([1, 1, 1, 2, 2, 3, 3, 3, 4, 4]);
   });
 
-  it("동점: 보정 승률이 같으면 경기 수 많은 순 → ID 순, 똑같은 성적은 같은 순위. 입력 순서가 달라도 결과가 같다", () => {
+  it("동점: 보정 승률이 같으면 경기 수 많은 순 → ID 순, 똑같은 성적은 같은 티어. 입력 순서가 달라도 결과가 같다", () => {
     // b·c는 같은 경기·같은 승(완전 동점), d는 경기 수는 적지만 보정 승률이 같다(모두 50%).
     const spec: Record<string, [number, number]> = {
       a: [10, 9],
@@ -127,7 +127,7 @@ describe("우선순위 제안", () => {
     const parts = ["e", "d", "c", "b", "a"].map((id) => person(id));
     const first = suggestPriorities(parts, recordsOf(spec));
     expect(first.rows.map((r) => r.participantId)).toEqual(["a", "b", "c", "d", "e"]);
-    // n=5: 순서 0..4 → 1,1,2,3,4 이지만 b·c·d는 보정 승률이 같아 b의 순위(1)를 함께 받는다.
+    // n=5: 순서 0..4 → 1,1,2,3,4 이지만 b·c·d는 보정 승률이 같아 b의 티어(1)를 함께 받는다.
     expect(first.rows.map((r) => r.suggested)).toEqual([1, 1, 1, 1, 4]);
     const again = suggestPriorities([...parts].reverse(), recordsOf(spec).reverse());
     expect(again).toEqual(first);
@@ -140,7 +140,7 @@ describe("우선순위 제안", () => {
   });
 });
 
-describe("순위 점검", () => {
+describe("티어 점검", () => {
   const weights: [number, number, number, number] = [4, 3, 2, 1];
 
   it("합이 높은 팀이 이긴 비율과 합이 같았던 경기 수. 확정 경기만 센다", () => {
@@ -171,7 +171,7 @@ describe("순위 점검", () => {
     });
   });
 
-  it("순위와 성적이 2단계 이상 다른 사람과, 배치 완료인데 아직 안 정한 사람", () => {
+  it("티어와 성적이 2단계 이상 다른 사람과, 배치 완료인데 아직 안 정한 사람", () => {
     const parts = [person("a", 4), person("b", 2), person("c", 1), person("d", 1), person("e", null), person("f", null)];
     const result = suggestPriorities(
       parts,

@@ -8,7 +8,7 @@ import type { MatchView, Settings } from "./types";
  */
 export interface RecommendPerson {
   key: string;
-  /** 우선순위(화면 이름, 예전 "실력 그룹"). 1(가장 잘함)~4 또는 null(미지정). 미지정은 낮은 실력이 아니다. */
+  /** 티어(화면 이름, 예전 "실력 그룹"). 1(가장 잘함)~4 또는 null(미지정). 미지정은 낮은 실력이 아니다. */
   skillGroup: number | null;
 }
 
@@ -133,7 +133,7 @@ function median(values: number[]): number {
 }
 
 /**
- * 사람별 가중치. 지정된 사람은 그 순위의 가중치, 미지정은 지정된 사람 가중치의 중앙값(아무도 없으면 0).
+ * 사람별 가중치. 지정된 사람은 그 티어의 가중치, 미지정은 지정된 사람 가중치의 중앙값(아무도 없으면 0).
  * 팀 추천과 팀까지 올랜덤(src/shared/priority.ts)이 같이 쓴다.
  */
 export function priorityWeightOf(
@@ -161,7 +161,7 @@ function count(people: RecommendPerson[], group: number | null): number {
  * 추천 후보를 좋은 순으로 돌려준다(최대 limit개).
  * 같은 팀·다른 팀 조건을 어기는 분할은 비교하기 전에 뺀다.
  * 비교 순서(앞 기준이 같을 때만 뒤 기준을 본다):
- *   1) 가중치 합의 차  2) 1순위 인원 차  3) 4순위 인원 차
+ *   1) 가중치 합의 차  2) 1티어 인원 차  3) 4티어 인원 차
  *   4) 미지정 인원 차  5) 조합 다양성(diversity를 넘겼을 때만) 6) 시드로 정한 순서
  * 다양성은 1~4가 모두 같은 후보(균형 허용 폭 0) 사이에서만 순서를 정하므로 균형을 희생하지 않는다.
  * diversity를 넘기지 않으면 예전과 똑같은 결과다(시드 순서 값도 같은 순서로 뽑는다).
@@ -227,9 +227,9 @@ export function recommendTeams(
     const base =
       assigned.length === 0
         ? diversityShown
-          ? "우선순위를 정한 사람이 없어 최근 조합을 피해 나눴어요."
-          : "우선순위를 정한 사람이 없어 무작위로 나눴어요."
-        : `우선순위 합계 차 ${c.sumDiff} · 1순위 ${c.topCount[0]}:${c.topCount[1]}` +
+          ? "티어를 정한 사람이 없어 최근 조합을 피해 나눴어요."
+          : "티어를 정한 사람이 없어 무작위로 나눴어요."
+        : `티어 합계 차 ${c.sumDiff} · 1티어 ${c.topCount[0]}:${c.topCount[1]}` +
           (c.unassignedCount[0] + c.unassignedCount[1] > 0
             ? ` · 미지정 ${c.unassignedCount[0]}:${c.unassignedCount[1]}`
             : "");

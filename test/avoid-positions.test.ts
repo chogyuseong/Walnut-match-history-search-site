@@ -231,7 +231,7 @@ describe("기피 라인 저장", () => {
     expect(avoidOf(await snapshot(g), pid)).toEqual(["adc"]);
   });
 
-  it("조회 링크 응답에는 우선순위 공개 설정과 상관없이 기피 라인이 없다", async () => {
+  it("조회 링크 응답에는 티어 공개 설정과 상관없이 기피 라인이 없다", async () => {
     const g = await setupGroup();
     await patch(g, g.people[0]!.id, { avoidPositions: ["support"], skillGroup: 1 });
     let snap = await snapshot(g);
@@ -239,7 +239,7 @@ describe("기피 라인 저장", () => {
     let view = await api<Snapshot>(null, "GET", `/api/view/${token}`);
     expect(view.status).toBe(200);
     expect(JSON.stringify(view.body)).not.toContain("avoidPositions");
-    // 우선순위를 공개해도 기피 라인은 나가지 않는다.
+    // 티어를 공개해도 기피 라인은 나가지 않는다.
     const saved = await api(g.cookie, "PUT", `/api/groups/${g.gid}/settings`, {
       requestId: requestId(),
       baseSettingsVersionId: snap.group.settingsVersionId,

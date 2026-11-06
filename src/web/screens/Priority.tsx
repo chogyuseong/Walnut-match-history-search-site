@@ -18,17 +18,17 @@ import { Dialog, ErrorNote, PosLabel } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 
 /**
- * 우선순위 배정(#/priority)과 기피 라인(#/priority/avoid). 로그인한 운영자·공동 운영자만(App.tsx LOGIN_ONLY). 조회 링크에는 없다.
- * 우선순위: 1·2·3·4순위·미지정 다섯 칸에 활성 참가자를 보여 주고, 사람마다 버튼으로 칸을 바꾼다.
+ * 티어 배정(#/priority)과 기피 라인(#/priority/avoid). 로그인한 운영자·공동 운영자만(App.tsx LOGIN_ONLY). 조회 링크에는 없다.
+ * 티어: 1·2·3·4티어·미지정 다섯 칸에 활성 참가자를 보여 주고, 사람마다 버튼으로 칸을 바꾼다.
  *   저장은 모임 탭과 같은 참가자 수정 API(PATCH …/participants/:id, skillGroup)다. 공개 설정(groupsPublic)은 모임 탭에 있다.
- *   "기록으로 제안받기"(승률로 4등분한 참고값, 고른 사람만 적용)와 "순위 점검"(지금 순위를 지난 경기에 적용한 계산)이 함께 있다.
+ *   "기록으로 제안받기"(승률로 4등분한 참고값, 고른 사람만 적용)와 "티어 점검"(지금 티어를 지난 경기에 적용한 계산)이 함께 있다.
  * 기피 라인: 사람마다 탑·정글·미드·원딜·서폿 토글(0~4개). 같은 API의 avoidPositions로 바로 저장한다.
  */
 export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
   const app = useAppValue();
   const snapshot = app.snapshot;
   const tab = props.tab ?? "priority";
-  const title = tab === "avoid" ? "기피 라인" : "우선순위 배정";
+  const title = tab === "avoid" ? "기피 라인" : "티어 배정";
 
   const back = app.draft ? (
     <button type="button" className="link" onClick={() => go("/prep")}>
@@ -41,10 +41,10 @@ export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
   );
 
   const tabs = (
-    <div className="segmented" role="tablist" aria-label="우선순위 또는 기피 라인">
+    <div className="segmented" role="tablist" aria-label="티어 또는 기피 라인">
       {(
         [
-          ["priority", "우선순위", "/priority"],
+          ["priority", "티어", "/priority"],
           ["avoid", "기피 라인", "/priority/avoid"],
         ] as const
       ).map(([value, label, path]) => (
@@ -135,7 +135,7 @@ function PriorityPanel({ app, snapshot, people, inDraft }: PanelProps) {
   return (
     <>
       <p className="hint">
-        1순위가 가장 잘하는 사람이에요. 같은 순위끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은 못하는 사람이
+        1티어가 가장 잘하는 사람이에요. 같은 티어끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은 못하는 사람이
         아니라 아직 안 정한 사람이에요.
       </p>
       <p className="hint">
@@ -169,7 +169,7 @@ function PriorityPanel({ app, snapshot, people, inDraft }: PanelProps) {
                       {p.name}
                       {inDraft.has(p.id) && <span className="tag">이번 편성</span>}
                     </span>
-                    <span className="segmented" role="group" aria-label={`${p.name}의 우선순위`}>
+                    <span className="segmented" role="group" aria-label={`${p.name}의 티어`}>
                       {PRIORITY_CLASSES.map((value) => (
                         <button
                           key={priorityLabel(value)}
@@ -230,7 +230,7 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
         done += 1;
       }
       await app.refreshAfterOwnChange();
-      app.setNotice(`${done}명의 우선순위를 바꿨어요.`);
+      app.setNotice(`${done}명의 티어를 바꿨어요.`);
       props.onClose();
     } catch (e) {
       setError(e);
@@ -320,7 +320,7 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
   );
 }
 
-/** 순위 점검: 지금 순위를 지난 확정 경기에 적용해 본 계산. 운영자만 보는 화면이다. */
+/** 티어 점검: 지금 티어를 지난 확정 경기에 적용해 본 계산. 운영자만 보는 화면이다. */
 function PriorityCheck(props: { snapshot: Snapshot }) {
   const { snapshot } = props;
   const balance = useMemo(
@@ -334,26 +334,26 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
   const far = mismatches.filter((m) => m.kind === "far");
   const unset = mismatches.filter((m) => m.kind === "unset");
   return (
-    <section className="prep-tools" aria-label="순위 점검">
-      <h2>순위 점검</h2>
-      <p className="hint">경기 당시의 순위는 저장하지 않아요. 지금 순위를 지난 경기에 적용해 계산한 값이에요.</p>
-      <h3>순위 합이 높은 팀이 이긴 비율</h3>
+    <section className="prep-tools" aria-label="티어 점검">
+      <h2>티어 점검</h2>
+      <p className="hint">경기 당시의 티어는 저장하지 않아요. 지금 티어를 지난 경기에 적용해 계산한 값이에요.</p>
+      <h3>티어 점수 합이 높은 팀이 이긴 비율</h3>
       {balance.small ? (
         <p>
-          자료 적음 <span className="hint">(두 팀 순위 합이 달랐던 경기 {balance.uneven}경기, {SMALL_SAMPLE}경기부터 보여 줘요)</span>
+          자료 적음 <span className="hint">(두 팀 티어 점수 합이 달랐던 경기 {balance.uneven}경기, {SMALL_SAMPLE}경기부터 보여 줘요)</span>
         </p>
       ) : (
         <p>
-          두 팀 순위 합이 달랐던 {balance.uneven}경기 중 합이 높은 팀이 {balance.higherWon}승 (
+          두 팀 티어 점수 합이 달랐던 {balance.uneven}경기 중 합이 높은 팀이 {balance.higherWon}승 (
           {percent(balance.higherWon, balance.uneven)})
         </p>
       )}
       <p className="hint">합이 같았던 경기 {balance.even}경기는 빼고 셌어요.</p>
-      <h3>순위와 성적이 어긋나는 사람</h3>
+      <h3>티어와 성적이 어긋나는 사람</h3>
       {far.length === 0 ? (
-        <p className="hint">지금 순위와 기록 제안이 2단계 이상 다른 사람은 없어요.</p>
+        <p className="hint">지금 티어와 기록 제안이 2단계 이상 다른 사람은 없어요.</p>
       ) : (
-        <ul className="list" aria-label="순위와 성적이 어긋나는 사람">
+        <ul className="list" aria-label="티어와 성적이 어긋나는 사람">
           {far.map(({ row }) => (
             <li key={row.participantId} className="list-row static">
               <span className="name">{row.name}</span>

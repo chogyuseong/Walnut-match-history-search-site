@@ -185,14 +185,14 @@ describe("참가 신청: 공개 링크", () => {
     ).rejects.toThrow();
   });
 
-  it("공개 응답에는 이름·신청 여부만 있다: 우선순위·기피 라인·서포터 횟수·전적·ID 밖의 값 없음", async () => {
+  it("공개 응답에는 이름·신청 여부만 있다: 티어·기피 라인·서포터 횟수·전적·ID 밖의 값 없음", async () => {
     const g = await setupGroup();
     const p = g.people[0]!;
     await api(g.cookie, "PATCH", `/api/groups/${g.gid}/participants/${p.id}`, {
       skillGroup: 1,
       avoidPositions: ["support", "jungle"],
     });
-    // 우선순위 공개 설정을 켜도 신청 응답에는 넣지 않는다.
+    // 티어 공개 설정을 켜도 신청 응답에는 넣지 않는다.
     const snap = await snapshot(g);
     await api(
       g.cookie,

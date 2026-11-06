@@ -454,7 +454,7 @@ export function ShareImageDialog(props: {
         <>
           <img className="share-preview" src={state.url} alt={`${props.title} 미리보기`} />
           <p className="hint">
-            우선순위·조회 링크는 이미지에 넣지 않았어요. 버튼이 안 되면 이미지를 길게 눌러(컴퓨터는
+            티어·조회 링크는 이미지에 넣지 않았어요. 버튼이 안 되면 이미지를 길게 눌러(컴퓨터는
             오른쪽 클릭) 저장해 주세요.
           </p>
           <div className="button-row">

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// 우선순위 제안(기록으로 제안받기 → 고른 사람만 적용) · 순위 점검 · 기피 라인(지정 → 섞기에서 피함).
+// 티어 제안(기록으로 제안받기 → 고른 사람만 적용) · 티어 점검 · 기피 라인(지정 → 섞기에서 피함).
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -23,7 +23,7 @@ async function lineup(page: Page): Promise<Map<string, [string, string]>> {
   return result;
 }
 
-test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기피 라인 지정 → 팀 확정·팀·라인 모두 섞기이 피함", async ({ page }) => {
+test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기피 라인 지정 → 팀 확정·팀·라인 모두 섞기가 피함", async ({ page }) => {
   test.setTimeout(180000);
   const login = await page.request.post("/api/auth/fake-login", {
     data: { subject: `e2e-avoid-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
@@ -47,12 +47,12 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
     expect(res.ok()).toBe(true);
   }
 
-  // ---------- 우선순위: 기록으로 제안받기
+  // ---------- 티어: 기록으로 제안받기
   await page.goto("/#/priority");
-  await expect(page.getByRole("heading", { name: "우선순위 배정" })).toBeVisible();
-  // 순위 점검: 아직 아무도 안 정했으므로 합은 모두 같고, 배치 완료 10명이 "아직 안 정함"이다.
-  const check = page.getByRole("region", { name: "순위 점검" });
-  await expect(check).toContainText("경기 당시의 순위는 저장하지 않아요. 지금 순위를 지난 경기에 적용해 계산한 값이에요.");
+  await expect(page.getByRole("heading", { name: "티어 배정" })).toBeVisible();
+  // 티어 점검: 아직 아무도 안 정했으므로 합은 모두 같고, 배치 완료 10명이 "아직 안 정함"이다.
+  const check = page.getByRole("region", { name: "티어 점검" });
+  await expect(check).toContainText("경기 당시의 티어는 저장하지 않아요. 지금 티어를 지난 경기에 적용해 계산한 값이에요.");
   await expect(check).toContainText("자료 적음");
   await expect(check.getByRole("list", { name: "아직 안 정함" }).getByRole("listitem")).toHaveCount(10);
 
@@ -62,10 +62,10 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
   const boxes = dialog.getByRole("list", { name: "제안 목록" }).getByRole("checkbox");
   await expect(boxes).toHaveCount(10);
   for (const box of await boxes.all()) await expect(box).toBeChecked();
-  // 앞 다섯 명(75%)은 1순위, 뒤 다섯 명(25%)은 3순위로 제안(같은 성적은 같은 순위).
+  // 앞 다섯 명(75%)은 1티어, 뒤 다섯 명(25%)은 3티어로 제안(같은 성적은 같은 티어).
   await expect(dialog.getByText(/기피01/).first()).toBeVisible();
-  await expect(dialog.getByRole("listitem").filter({ hasText: "기피01" })).toContainText("미지정 → 1순위");
-  await expect(dialog.getByRole("listitem").filter({ hasText: "기피06" })).toContainText("미지정 → 3순위");
+  await expect(dialog.getByRole("listitem").filter({ hasText: "기피01" })).toContainText("미지정 → 1티어");
+  await expect(dialog.getByRole("listitem").filter({ hasText: "기피06" })).toContainText("미지정 → 3티어");
   await expect(dialog.getByRole("listitem").filter({ hasText: "기피06" })).toContainText("12경기 · 승률 25%");
   await expect(dialog.getByText("기록이 적어 제안 없음 2명")).toBeVisible();
   await noHorizontalOverflow(page);
@@ -73,13 +73,13 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
   await dialog.getByRole("listitem").filter({ hasText: "기피10" }).getByRole("checkbox").uncheck();
   await dialog.getByRole("button", { name: "선택한 9명 적용" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.locator(".toast")).toHaveText("9명의 우선순위를 바꿨어요.");
+  await expect(page.locator(".toast")).toHaveText("9명의 티어를 바꿨어요.");
   const section = (label: string) => page.getByRole("region", { name: label, exact: true });
-  await expect(section("1순위").getByRole("listitem")).toHaveCount(5);
-  await expect(section("3순위").getByRole("listitem")).toHaveCount(4);
+  await expect(section("1티어").getByRole("listitem")).toHaveCount(5);
+  await expect(section("3티어").getByRole("listitem")).toHaveCount(4);
   await expect(check.getByRole("list", { name: "아직 안 정함" }).getByRole("listitem")).toHaveCount(1);
   await expect(check.getByRole("list", { name: "아직 안 정함" })).toContainText("기피10");
-  // 이제 두 팀 순위 합이 달랐던 12경기 중 합이 높은 팀이 9승.
+  // 이제 두 팀 티어 점수 합이 달랐던 12경기 중 합이 높은 팀이 9승.
   await expect(check).toContainText("12경기 중 합이 높은 팀이 9승 (75%)");
   await noHorizontalOverflow(page);
 

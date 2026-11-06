@@ -152,22 +152,22 @@ export function Group() {
                 </span>
                 <span className="button-row">
                   <select
-                    aria-label={`${p.name}의 우선순위`}
+                    aria-label={`${p.name}의 티어`}
                     value={p.skillGroup ?? ""}
                     disabled={busy}
                     onChange={(e) =>
                       void patchParticipant(
                         p.id,
                         { skillGroup: e.target.value === "" ? null : Number(e.target.value) },
-                        `${p.name}의 우선순위를 바꿨어요.`,
+                        `${p.name}의 티어를 바꿨어요.`,
                       )
                     }
                   >
                     <option value="">미지정</option>
-                    <option value="1">1순위</option>
-                    <option value="2">2순위</option>
-                    <option value="3">3순위</option>
-                    <option value="4">4순위</option>
+                    <option value="1">1티어</option>
+                    <option value="2">2티어</option>
+                    <option value="3">3티어</option>
+                    <option value="4">4티어</option>
                   </select>
                   <button
                     type="button"
@@ -200,11 +200,11 @@ export function Group() {
             보관한 참가자도 보기
           </label>
           <p className="hint">
-            우선순위: 1순위가 가장 잘하는 사람이에요. 같은 순위끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은
+            티어: 1티어가 가장 잘하는 사람이에요. 같은 티어끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은
             못하는 사람이 아니라 아직 안 정한 사람이에요.
           </p>
           <button type="button" className="secondary" onClick={() => go("/priority")}>
-            우선순위 배정
+            티어 배정
           </button>
           <p className="hint">같은 사람이 다른 이름으로 두 번 들어갔나요?</p>
           <button type="button" className="secondary" onClick={() => go("/merge")}>
@@ -286,14 +286,14 @@ export function Group() {
                 )
               }
             />{" "}
-            우선순위 균형이 같은 후보 중에서 최근 8경기에 같은 팀이었던 사람끼리 덜 묶이는 조합을 먼저 추천합니다
+            티어 균형이 같은 후보 중에서 최근 8경기에 같은 팀이었던 사람끼리 덜 묶이는 조합을 먼저 추천합니다
           </label>
-          <p className="hint">균형(우선순위 합계·인원)과 같은 팀·다른 팀 조건이 항상 먼저입니다.</p>
+          <p className="hint">균형(티어 합계·인원)과 같은 팀·다른 팀 조건이 항상 먼저입니다.</p>
         </section>
-        <section aria-label="우선순위 공개">
-          <h2>우선순위 공개</h2>
+        <section aria-label="티어 공개">
+          <h2>티어 공개</h2>
           <p className="hint">
-            우선순위는 팀 추천·팀·라인 모두 섞기에 쓰는 운영 기준이며 공식 등급이 아닙니다. 공개 여부는 추천·섞기 결과를
+            티어는 팀 추천·팀·라인 모두 섞기에 쓰는 운영 기준이며 공식 등급이 아닙니다. 공개 여부는 추천·섞기 결과를
             바꾸지 않습니다.
           </p>
           <p>
@@ -600,10 +600,10 @@ export function Group() {
 
 
       {previewPublic && (
-        <Dialog title="우선순위 공개 설정" onClose={() => setPreviewPublic(false)}>
+        <Dialog title="티어 공개 설정" onClose={() => setPreviewPublic(false)}>
           {settings.groupsPublic ? (
             <p>
-              비공개로 바꾸면 조회자에게 우선순위가 보이지 않습니다. 이미 본 사람에게는 소용이
+              비공개로 바꾸면 조회자에게 티어가 보이지 않습니다. 이미 본 사람에게는 소용이
               없습니다.
             </p>
           ) : (
@@ -616,7 +616,7 @@ export function Group() {
                   .map((p) => (
                     <li key={p.id} className="list-row static">
                       <span>{p.name}</span>
-                      <span>{p.skillGroup ? `${p.skillGroup}순위` : "미지정"}</span>
+                      <span>{p.skillGroup ? `${p.skillGroup}티어` : "미지정"}</span>
                     </li>
                   ))}
               </ul>

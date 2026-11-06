@@ -71,7 +71,7 @@ export function Prep() {
   const [resetOpen, setResetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  // 팀·라인 모두 섞기을 눌렀는데 우선순위를 정한 사람이 없으면 섞기 구역에 배정 화면 링크를 남긴다(다음 조작 때 지운다).
+  // 팀·라인 모두 섞기을 눌렀는데 티어를 정한 사람이 없으면 섞기 구역에 배정 화면 링크를 남긴다(다음 조작 때 지운다).
   const [noPriorityNote, setNoPriorityNote] = useState(false);
   // 라인 섞기에서 기피 라인을 모두 피하지 못했으면 섞기 구역에 남긴다(다음 조작 때 지운다).
   const [avoidNote, setAvoidNote] = useState<string | null>(null);
@@ -150,7 +150,7 @@ export function Prep() {
     }
   }
 
-  /** 초안 키 → 우선순위(skillGroup). 아직 참가자 ID가 없는 새 이름은 미지정. */
+  /** 초안 키 → 티어(skillGroup). 아직 참가자 ID가 없는 새 이름은 미지정. */
   function priorityMap(): PriorityMap {
     const groupOf = new Map((app.snapshot?.participants ?? []).map((p) => [p.id, p.skillGroup]));
     return Object.fromEntries(
@@ -175,7 +175,7 @@ export function Prep() {
     setDrawNote(result);
   }
 
-  /** 팀·라인 모두 섞기: 같은 우선순위끼리 양 팀에 고르게 나누고 라인도 무작위(src/shared/priority.ts). */
+  /** 팀·라인 모두 섞기: 같은 티어끼리 양 팀에 고르게 나누고 라인도 무작위(src/shared/priority.ts). */
   function runTeamShuffle() {
     const weights = app.snapshot?.group.settings.groupWeights ?? [4, 3, 2, 1];
     const result = shuffleTeamsByPriority(draft!, priorityMap(), weights, avoidMap);
@@ -517,7 +517,7 @@ export function Prep() {
         <p className="hint">
           고정한 포지션은 어떤 섞기에서도 지켜요. 잘못 눌렀으면 "직전 편성으로"로 되돌릴 수 있어요.{" "}
           <button type="button" className="link" onClick={() => go("/priority")}>
-            우선순위 배정
+            티어 배정
           </button>{" "}
           ·{" "}
           <button type="button" className="link" onClick={() => go("/priority/avoid")}>
@@ -537,20 +537,20 @@ export function Prep() {
         )}
         {noPriorityNote && (
           <p className="note" role="status">
-            우선순위를 정한 사람이 없어 무작위로 나눴어요.{" "}
+            티어를 정한 사람이 없어 무작위로 나눴어요.{" "}
             <button type="button" className="link" onClick={() => go("/priority")}>
-              우선순위 배정하기
+              티어 배정하기
             </button>
           </p>
         )}
         <p className="hint">
-          <strong>팀을 새로 짜기</strong> — 같은 우선순위끼리는 양 팀에 나뉘어요.
+          <strong>팀을 새로 짜기</strong> — 같은 티어끼리는 양 팀에 나뉘어요.
         </p>
         <div className="button-row">
           <button
             type="button"
             className="secondary"
-            title="10명을 두 팀으로 새로 나누고 라인도 섞어요. 같은 우선순위끼리는 양 팀에 고르게 나뉘어요."
+            title="10명을 두 팀으로 새로 나누고 라인도 섞어요. 같은 티어끼리는 양 팀에 고르게 나뉘어요."
             onClick={runTeamShuffle}
           >
             팀·라인 모두 섞기
@@ -558,7 +558,7 @@ export function Prep() {
           <button
             type="button"
             className="secondary"
-            title="우선순위 합이 비슷한 편성 3개를 보여 줘요. 골라서 적용해요."
+            title="티어 합이 비슷한 편성 3개를 보여 줘요. 골라서 적용해요."
             onClick={showRecommendations}
           >
             균형 팀 추천
@@ -680,7 +680,7 @@ export function Prep() {
             })}
           </ul>
           <p className="hint">
-            조건은 팀 추천과 팀·라인 모두 섞기에 적용됩니다(팀·라인 모두 섞기은 우선순위 균형이 먼저예요). 손으로 자리를 바꾸는 것은
+            조건은 팀 추천과 팀·라인 모두 섞기에 적용됩니다(팀·라인 모두 섞기는 티어 균형이 먼저예요). 손으로 자리를 바꾸는 것은
             막지 않습니다.
           </p>
         </details>

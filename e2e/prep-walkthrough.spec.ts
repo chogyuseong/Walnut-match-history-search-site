@@ -109,7 +109,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await page.getByRole("button", { name: "직전 편성으로" }).click();
   expect(await readTeam(page, "B")).toEqual(beforeUndo);
 
-  // 같은 팀 조건을 걸어도 라인만 섞기은 팀원을 바꾸지 않는다(조건은 팀 추천·팀·라인 모두 섞기에만 쓴다).
+  // 같은 팀 조건을 걸어도 라인만 섞기는 팀원을 바꾸지 않는다(조건은 팀 추천·팀·라인 모두 섞기에만 쓴다).
   const [p1, p2] = [(await readTeam(page, "A"))[1]!.name, (await readTeam(page, "B"))[1]!.name];
   await rows(team(page, "A")).nth(1).click();
   await page.getByRole("button", { name: "같은 팀으로 묶기" }).click();
