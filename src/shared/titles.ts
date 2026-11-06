@@ -11,6 +11,8 @@ import type { MatchView, Settings, TitleBand } from "./types";
 export const DEFAULT_TITLE_BANDS: readonly TitleBand[] = [
   { minRate: 65, name: "전장의 지배자" },
   { minRate: 55, name: "승리 설계자" },
+  // 50~55% 구간(2026-11-06 사용자 요청으로 추가). "든든한 전우"는 45~50%로 좁혔다.
+  { minRate: 50, name: "떠오르는 강자" },
   { minRate: 45, name: "든든한 전우" },
   { minRate: 35, name: "끈질긴 전사" },
   { minRate: 0, name: "불굴의 개척자" },

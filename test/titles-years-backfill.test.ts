@@ -131,7 +131,7 @@ describe("칭호 구간 (P2-11)", () => {
   it("저장한 적 없으면 기본값, 빈 목록으로 저장했으면 빈 채로 둔다", () => {
     expect(titleBandsOf({})).toBe(DEFAULT_TITLE_BANDS);
     expect(titleBandsOf({ titleBands: [] })).toEqual([]);
-    expect(DEFAULT_TITLE_BANDS.map((b) => b.minRate)).toEqual([65, 55, 45, 35, 0]);
+    expect(DEFAULT_TITLE_BANDS.map((b) => b.minRate)).toEqual([65, 55, 50, 45, 35, 0]);
   });
 
   it("구간 값을 검사하고 높은 구간부터 정렬한다", () => {
@@ -167,7 +167,11 @@ describe("칭호 구간 (P2-11)", () => {
     const bands = DEFAULT_TITLE_BANDS;
     expect(bandRangeText(bands, 0)).toBe("65% 이상");
     expect(bandRangeText(bands, 1)).toBe("55% 이상 65% 미만");
-    expect(bandRangeText(bands, 4)).toBe("35% 미만");
+    // 50~55% 구간이 추가되고 "든든한 전우"는 45~50%가 됐다(2026-11-06).
+    expect(bandRangeText(bands, 2)).toBe("50% 이상 55% 미만");
+    expect(bands[3]).toEqual({ minRate: 45, name: "든든한 전우" });
+    expect(bandRangeText(bands, 3)).toBe("45% 이상 50% 미만");
+    expect(bandRangeText(bands, 5)).toBe("35% 미만");
   });
 });
 
