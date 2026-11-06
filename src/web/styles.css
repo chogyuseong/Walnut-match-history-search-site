@@ -3127,3 +3127,31 @@ button.row.picked:hover {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+
+/* 모임 고르기(2026-11-06): 모임 탭 맨 위 목록·접힌 "새 모임 만들기", 계정 메뉴의 모임 바꾸기 버튼. */
+.group-switch-compact {
+  margin: 0 0 12px;
+}
+.group-switch-compact > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--muted);
+}
+.account-groups {
+  display: grid;
+  gap: 6px;
+}
+.account-groups button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* 참가 신청(고르기 화면 위 구역, 공개 신청 화면). */
+.join-panel .section-head h2 {
+  margin: 0;
+}
+.join-list .name .tag,
+.join-screen .list .name .tag {
+  margin-left: 6px;
+}

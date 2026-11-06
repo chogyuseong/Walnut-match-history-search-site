@@ -3,12 +3,14 @@
  *
  * - 대표 운영자가 1회용 초대 링크를 만든다: 24시간, 토큰은 해시만 저장, 새로 만들면 쓰지 않은 이전 링크는 지운다.
  * - 로그인한 다른 계정이 수락하면 공동 운영자가 된다. 모임당 최대 MAX_CO_OPERATORS명.
- * - 이미 모임이 있는 계정(대표든 공동이든)은 수락할 수 없다. 화면이 계정당 모임 하나를 연다(모임을 고르는 화면이 없다).
+ * - 이미 다른 모임이 있는 계정도 수락할 수 있다(화면의 "모임 고르기"로 바꿔 연다). 단 계정당 모임 수
+ *   (대표 + 공동 운영 합계 MAX_GROUPS_PER_ACCOUNT)를 넘으면 거절한다(2026-11-06, 예전에는 HAS_GROUP으로 거절).
  * - 대표 운영자는 목록을 보고 내보낼 수 있고, 공동 운영자는 스스로 나갈 수 있다.
  * - 권한 확인은 요청마다 표를 다시 읽으므로(auth.ts operatorRole) 내보낸 계정의 다음 요청은 바로 거절된다.
  */
 import { newViewToken } from "./auth";
 import type { Env } from "./env";
+import { accountGroupCount, MAX_GROUPS_PER_ACCOUNT, tooManyGroupsError } from "./groups";
 import { ApiError, nowIso } from "./http";
 import { sha256Hex } from "./mutation";
 
@@ -25,30 +27,11 @@ function fullError(): ApiError {
   );
 }
 
-function hasGroupError(): ApiError {
-  return new ApiError(
-    409,
-    "HAS_GROUP",
-    "이 계정은 이미 운영 중인 모임이 있어 공동 운영자가 될 수 없어요. 한 계정은 모임 하나만 운영할 수 있어요. 다른 계정으로 로그인해 수락하거나, 지금 모임을 넘기거나 삭제한 뒤 다시 열어 주세요.",
-  );
-}
-
 async function coCount(env: Env, groupId: string): Promise<number> {
   const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM group_co_operators WHERE group_id = ?1")
     .bind(groupId)
     .first<{ n: number }>();
   return row?.n ?? 0;
-}
-
-/** 이 계정이 대표든 공동이든 운영하는 모임이 있는지. */
-async function hasAnyGroup(env: Env, accountId: string): Promise<boolean> {
-  const row = await env.DB.prepare(
-    `SELECT 1 AS ok FROM group_operators WHERE account_id = ?1
-     UNION ALL SELECT 1 AS ok FROM group_co_operators WHERE account_id = ?1 LIMIT 1`,
-  )
-    .bind(accountId)
-    .first<{ ok: number }>();
-  return row !== null;
 }
 
 /** 초대 링크를 만든다. 대표 운영자 확인은 앞단(index.ts requireOwner)에서 끝났다. */
@@ -89,7 +72,7 @@ export async function coInviteInfo(env: Env, token: string): Promise<{ groupName
 }
 
 /**
- * 초대를 수락한다. 확인(링크 유효, 인원, 계정의 모임 없음)과 저장을 한 batch로 실행해
+ * 초대를 수락한다. 확인(링크 유효, 인원, 계정의 모임 수 한도)과 저장을 한 batch로 실행해
  * 사이에 다른 수락·인원 변경이 끼어들어도 규칙이 깨지지 않게 한다.
  */
 export async function acceptCoInvite(env: Env, accountId: string, token: string): Promise<{ groupId: string }> {
@@ -106,7 +89,7 @@ export async function acceptCoInvite(env: Env, accountId: string, token: string)
     .bind(row.group_id, accountId)
     .first<{ ok: number }>();
   if (already) throw new ApiError(409, "ALREADY_OPERATOR", "이미 이 모임의 공동 운영자예요.");
-  if (await hasAnyGroup(env, accountId)) throw hasGroupError();
+  if ((await accountGroupCount(env, accountId)) >= MAX_GROUPS_PER_ACCOUNT) throw tooManyGroupsError();
   if ((await coCount(env, row.group_id)) >= MAX_CO_OPERATORS) throw fullError();
 
   const now = nowIso();
@@ -119,13 +102,13 @@ export async function acceptCoInvite(env: Env, accountId: string, token: string)
            SELECT 1 FROM co_operator_invites WHERE token_hash = ?1 AND used_at IS NULL AND expires_at > ?2
          )`,
       ).bind(row.token_hash, now),
-      // 그 사이 인원이 찼거나 이 계정에 모임이 생겼으면 막는다.
+      // 그 사이 인원이 찼거나 이 계정의 모임 수가 한도에 닿았으면 막는다.
       env.DB.prepare(
         `INSERT INTO guard (version_conflict)
          SELECT 1 WHERE (SELECT COUNT(*) FROM group_co_operators WHERE group_id = ?1) >= ?3
-           OR EXISTS (SELECT 1 FROM group_operators WHERE account_id = ?2)
-           OR EXISTS (SELECT 1 FROM group_co_operators WHERE account_id = ?2)`,
-      ).bind(row.group_id, accountId, MAX_CO_OPERATORS),
+           OR (SELECT COUNT(*) FROM group_operators WHERE account_id = ?2)
+              + (SELECT COUNT(*) FROM group_co_operators WHERE account_id = ?2) >= ?4`,
+      ).bind(row.group_id, accountId, MAX_CO_OPERATORS, MAX_GROUPS_PER_ACCOUNT),
       env.DB.prepare(
         "INSERT INTO group_co_operators (group_id, account_id, created_at) VALUES (?1, ?2, ?3)",
       ).bind(row.group_id, accountId, now),
@@ -136,7 +119,7 @@ export async function acceptCoInvite(env: Env, accountId: string, token: string)
     if (message.includes("guard_state_conflict")) throw new ApiError(404, "INVITE_INVALID", INVITE_INVALID_MESSAGE);
     if (message.includes("guard_version_conflict")) {
       if ((await coCount(env, row.group_id)) >= MAX_CO_OPERATORS) throw fullError();
-      throw hasGroupError();
+      throw tooManyGroupsError();
     }
     throw error;
   }

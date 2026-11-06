@@ -257,7 +257,7 @@ export function CoInvite(props: { token: string }) {
       try {
         localStorage.setItem("naejeon.group", result.groupId);
       } catch {
-        // 보관하지 못해도 첫 모임으로 열린다(공동 운영자는 모임이 하나뿐이다).
+        // 보관하지 못하면 첫 모임이 열린다. 모임 탭의 "내 모임"에서 바꿀 수 있다.
       }
       location.hash = "/";
       location.reload();
@@ -288,7 +288,8 @@ export function CoInvite(props: { token: string }) {
             </p>
             <p className="hint">
               수락하면 이 계정으로 경기 시작·결과 저장·정정·설정을 할 수 있어요. 운영자 넘기기, 모임 삭제, 백업에서 복원,
-              공동 운영자 초대는 대표 운영자만 할 수 있어요. 이미 운영 중인 모임이 있는 계정은 수락할 수 없어요.
+              공동 운영자 초대는 대표 운영자만 할 수 있어요. 이미 다른 모임이 있어도 수락할 수 있고, 모임 탭의 "내 모임"에서
+              바꿔 열어요(한 계정은 대표·공동 운영을 합쳐 모임 5개까지).
             </p>
             <p className="hint">
               링크 만료: {formatDate(info.expiresAt)} {formatTime(info.expiresAt)}

@@ -62,6 +62,16 @@ import {
   startMatch,
 } from "./matches";
 import { deleteAccount, deleteGroup } from "./deletion";
+import {
+  clearJoinEntries,
+  createJoinLink,
+  joinAdd,
+  joinAdminView,
+  joinCancel,
+  joinInfo,
+  removeJoinEntry,
+  setJoinOpen,
+} from "./join";
 import { mergeParticipants, previewMerge, undoMerge } from "./merge";
 import { maintenanceError } from "./mutation";
 import {
@@ -151,7 +161,12 @@ app.use("/api/*", async (c, next) => {
       throw error;
     }
   } else if (method === "GET") {
-    if (path.startsWith("/api/view/") || path.startsWith("/api/transfer/") || path.startsWith("/api/co-invite/")) {
+    if (
+      path.startsWith("/api/view/") ||
+      path.startsWith("/api/transfer/") ||
+      path.startsWith("/api/co-invite/") ||
+      path.startsWith("/api/join/")
+    ) {
       await hit(c.env, "view-ip", ip);
     } else if (HEAVY_READ.test(path)) {
       // 비싼 읽기(모임 전체를 읽음): IP·계정별로 센다. 운영자 스냅숏과 /api/me는 화면이 자주 부르는
@@ -161,6 +176,8 @@ app.use("/api/*", async (c, next) => {
       if (session) await hit(c.env, "heavy-account", session.id);
     }
   } else if (method !== "HEAD" && method !== "OPTIONS") {
+    // 참가 신청(로그인 없음, 토큰이 권한)은 조회 토큰 한도도 함께 센다.
+    if (path.startsWith("/api/join/")) await hit(c.env, "view-ip", ip);
     await hit(c.env, "write-ip", ip);
     const session = await readSession(c.env, c.req.raw);
     if (session) await hit(c.env, "write-account", session.id);
@@ -600,6 +617,53 @@ app.post("/api/co-invite/:token/accept", async (c) => {
   const accountId = await requireAccountId(c.env, c.req.raw);
   return c.json(await acceptCoInvite(c.env, accountId, c.req.param("token")));
 });
+
+/* ---------------------------- 참가 신청 링크 ---------------------------- */
+// src/server/join.ts. 운영 경로는 대표·공동 운영자, 공개 경로(/api/join/:token)는 로그인 없음.
+
+app.get("/api/groups/:gid/join", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+// 만들기·다시 만들기(이전 링크 무효). 토큰 원문은 이 응답에서 한 번만 준다.
+app.post("/api/groups/:gid/join/link", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await createJoinLink(c.env, gid));
+});
+
+app.post("/api/groups/:gid/join/open", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await setJoinOpen(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+app.post("/api/groups/:gid/join/clear", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await clearJoinEntries(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+app.post("/api/groups/:gid/join/remove", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await removeJoinEntry(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+app.get("/api/join/:token", async (c) => c.json(await joinInfo(c.env, c.req.param("token"))));
+
+app.post("/api/join/:token", async (c) =>
+  c.json(await joinAdd(c.env, c.req.param("token"), await readJsonBody(c.req.raw))),
+);
+
+app.post("/api/join/:token/cancel", async (c) =>
+  c.json(await joinCancel(c.env, c.req.param("token"), await readJsonBody(c.req.raw))),
+);
 
 const matchActions = {
   "end-later": endLater,

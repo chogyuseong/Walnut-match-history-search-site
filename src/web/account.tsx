@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { PASSWORD_RULE, passwordProblem } from "../shared/account";
 import { call } from "./api";
 import { LoginDialog, PasswordField, RecoveryCodeStep } from "./screens/Login";
+import { ROLE_LABEL } from "./groupSwitcher";
 import { ErrorNote } from "./ui";
 import { go, useAppValue } from "./useApp";
 
@@ -105,6 +106,30 @@ export function AccountControl() {
       {menuOpen && (
         <div id="account-menu" className="account-menu" role="group" aria-label="로그인 상태">
           <p>이 기기에서 운영자로 로그인돼 있어요.</p>
+          {(app.me?.groups.length ?? 0) > 1 && (
+            <div className="account-groups" role="group" aria-label="모임 바꾸기">
+              {app.me!.groups.map((g) => {
+                const label =
+                  g.id === app.snapshot?.group.id ? app.snapshot.group.name : g.name;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className="secondary wide"
+                    aria-pressed={g.id === app.groupId}
+                    disabled={app.switching}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      if (g.id === app.groupId) return;
+                      void app.switchGroup(g.id).then(() => app.setNotice(`'${label}' 모임으로 바꿨어요.`));
+                    }}
+                  >
+                    {label} · {ROLE_LABEL[g.role ?? "owner"]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <ErrorNote error={error} />
           <button
             type="button"

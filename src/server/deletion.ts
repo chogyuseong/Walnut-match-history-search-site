@@ -36,10 +36,11 @@ export const deletionHooks: { afterStage: ((index: number) => void | Promise<voi
 
 type Body = Record<string, unknown>;
 
-/** 모임 행을 지우기 전에 지울 표(외래 키 순서). 데이터 표 다음에 인수 링크·공동 운영자 초대·공동 운영자·복원 작업·운영자. */
+/** 모임 행을 지우기 전에 지울 표(외래 키 순서). 데이터 표 다음에 인수 링크·참가 신청 링크·공동 운영자 초대·공동 운영자·복원 작업·운영자. */
 const GROUP_TABLES = [
   ...GROUP_DATA_TABLES,
   "operator_transfers",
+  "join_links",
   "co_operator_invites",
   "group_co_operators",
   "restore_jobs",

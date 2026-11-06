@@ -94,10 +94,10 @@ export function assertSameOrigin(req: Request, publicOrigin: string | undefined)
 
 /**
  * 로그에 남길 경로. 조회 토큰(/api/view/:token), 인수 링크 토큰(/api/transfer/:token),
- * 공동 운영자 초대 토큰(/api/co-invite/:token)은 그 자체로 권한이라 가린다(검토 L8).
+ * 공동 운영자 초대 토큰(/api/co-invite/:token), 참가 신청 토큰(/api/join/:token)은 그 자체로 권한이라 가린다(검토 L8).
  */
 export function pathForLog(path: string): string {
-  return path.replace(/^\/api\/(view|transfer|co-invite)\/[^/]+/, "/api/$1/[token]");
+  return path.replace(/^\/api\/(view|transfer|co-invite|join)\/[^/]+/, "/api/$1/[token]");
 }
 
 /** 허용한 필드만 있는지 확인한다. */

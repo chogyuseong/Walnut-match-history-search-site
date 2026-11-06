@@ -20,7 +20,7 @@ import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shar
 import { MAX_NAME_LENGTH, cleanName, nameKey } from "../shared/names";
 import { isValidTimeZone } from "../shared/stats";
 import type { Env } from "./env";
-import { parseSettings } from "./groups";
+import { accountGroupCount, MAX_GROUPS_PER_ACCOUNT, parseSettings, tooManyGroupsError } from "./groups";
 import { ApiError, assertOnlyKeys, nowIso, readJsonBody, requireInt, requireString } from "./http";
 import { runMutation, sha256Hex, type Plan } from "./mutation";
 import { newViewToken } from "./auth";
@@ -33,6 +33,8 @@ export const RESTORE_CONFIRM_TEXT = "복원";
  * 운영자·조회 토큰·인수 링크·복원 작업 표는 들어가지 않는다(복원이 바꾸지 않는 것).
  */
 export const GROUP_DATA_TABLES = [
+  // 참가 신청(migrations/0014). 그날그날 쓰는 임시 자료라 백업에 넣지 않고, 복원하면 비워진다.
+  "join_requests",
   "support_adjustments",
   "rotation_events",
   "match_revisions",
@@ -50,7 +52,6 @@ export const GROUP_DATA_TABLES = [
 export const MAX_RESTORE_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_PARTICIPANTS = 200;
 const MAX_MATCHES = 10_000;
-const MAX_GROUPS_PER_ACCOUNT = 5;
 const MAX_PROBLEMS = 30;
 /** json_each로 넘기는 값 하나의 크기 상한. D1 문자열 한도 2MB보다 충분히 작게. */
 const CHUNK_BYTES = 512 * 1024;
@@ -1327,12 +1328,8 @@ export async function importAsNewGroup(
     }
   }
   if (!existing) {
-    const owned = await env.DB.prepare("SELECT COUNT(*) AS n FROM group_operators WHERE account_id = ?1")
-      .bind(accountId)
-      .first<{ n: number }>();
-    if ((owned?.n ?? 0) >= MAX_GROUPS_PER_ACCOUNT) {
-      throw new ApiError(409, "TOO_MANY_GROUPS", "만들 수 있는 모임 수를 넘었습니다.");
-    }
+    // 계정당 모임 수(대표 + 공동 운영 합계) 한도. src/server/groups.ts
+    if ((await accountGroupCount(env, accountId)) >= MAX_GROUPS_PER_ACCOUNT) throw tooManyGroupsError();
     const now = nowIso();
     // 빈 모임을 점검 상태로 먼저 만든다. 가져오기가 끝나야 점검이 풀린다.
     await env.DB.batch([

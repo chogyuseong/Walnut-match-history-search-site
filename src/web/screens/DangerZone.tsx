@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ApiFailure, call } from "../api";
 import { ErrorNote } from "../ui";
-import { go, useAppValue } from "../useApp";
+import { forgetGroupStorage, go, useAppValue } from "../useApp";
 import { downloadJson } from "./Restore";
 
 /** 서버의 확인 문구(src/server/deletion.ts). */
@@ -76,6 +76,7 @@ export function DangerZone() {
       try {
         localStorage.removeItem("naejeon.group");
         localStorage.removeItem("naejeon.draft.v1");
+        forgetGroupStorage(gid);
       } catch {
         // 저장소를 못 써도 삭제는 끝났다.
       }

@@ -20,12 +20,34 @@ import {
 import { bumpLiveVersion, liveVersionGuard, runMutation, sha256Hex } from "./mutation";
 import { buildSnapshot, loadGroup, loadOpenSession } from "./snapshot";
 
-const MAX_GROUPS_PER_ACCOUNT = 5;
+/** 한 계정이 맡을 수 있는 모임 수(대표 + 공동 운영 합계). 만들기·백업으로 새 모임·넘겨받기·공동 운영자 수락이 함께 지킨다. */
+export const MAX_GROUPS_PER_ACCOUNT = 5;
 const MAX_PARTICIPANTS_PER_GROUP = 200;
 
 type Body = Record<string, unknown>;
 
-function parseName(value: unknown): string {
+/** 이 계정이 대표 또는 공동 운영자로 맡은 모임 수. */
+export async function accountGroupCount(env: Env, accountId: string): Promise<number> {
+  const row = await env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM group_operators WHERE account_id = ?1)
+          + (SELECT COUNT(*) FROM group_co_operators WHERE account_id = ?1) AS n`,
+  )
+    .bind(accountId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** 계정당 모임 수를 넘었을 때의 오류. */
+export function tooManyGroupsError(): ApiError {
+  return new ApiError(
+    409,
+    "TOO_MANY_GROUPS",
+    `한 계정은 대표·공동 운영을 합쳐 모임 ${MAX_GROUPS_PER_ACCOUNT}개까지 맡을 수 있어요. 쓰지 않는 모임을 넘기거나 삭제하거나, 공동 운영에서 나간 뒤 다시 해 주세요.`,
+  );
+}
+
+/** 이름 검증(참가자·모임·시즌 이름 공통). 참가 신청의 새 이름도 같은 규칙을 쓴다(src/server/join.ts). */
+export function parseName(value: unknown): string {
   if (typeof value !== "string") {
     throw new ApiError(400, "INVALID_NAME", "이름이 올바르지 않습니다.");
   }
@@ -46,14 +68,7 @@ export async function createGroup(
 ): Promise<{ id: string; name: string }> {
   assertOnlyKeys(body, ["name"]);
   const name = body.name === undefined ? "내 내전 모임" : parseName(body.name);
-  const owned = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM group_operators WHERE account_id = ?1",
-  )
-    .bind(accountId)
-    .first<{ n: number }>();
-  if ((owned?.n ?? 0) >= MAX_GROUPS_PER_ACCOUNT) {
-    throw new ApiError(409, "TOO_MANY_GROUPS", "만들 수 있는 모임 수를 넘었습니다.");
-  }
+  if ((await accountGroupCount(env, accountId)) >= MAX_GROUPS_PER_ACCOUNT) throw tooManyGroupsError();
   const id = newId();
   const settingsId = newId();
   const now = nowIso();
@@ -726,13 +741,14 @@ export async function acceptTransfer(
   if (current?.account_id === accountId) {
     throw new ApiError(409, "ALREADY_OPERATOR", "이미 이 모임의 운영자입니다.");
   }
-  const owned = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM group_operators WHERE account_id = ?1",
+  // 이 모임의 공동 운영자였으면 그 행이 지워지므로 맡은 모임 수는 그대로다.
+  const coHere = await env.DB.prepare(
+    "SELECT 1 AS ok FROM group_co_operators WHERE group_id = ?1 AND account_id = ?2",
   )
-    .bind(accountId)
-    .first<{ n: number }>();
-  if ((owned?.n ?? 0) >= MAX_GROUPS_PER_ACCOUNT) {
-    throw new ApiError(409, "TOO_MANY_GROUPS", "맡을 수 있는 모임 수를 넘었습니다.");
+    .bind(row.group_id, accountId)
+    .first<{ ok: number }>();
+  if ((await accountGroupCount(env, accountId)) - (coHere ? 1 : 0) >= MAX_GROUPS_PER_ACCOUNT) {
+    throw tooManyGroupsError();
   }
   const now = nowIso();
   try {

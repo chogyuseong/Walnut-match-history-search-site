@@ -23,6 +23,7 @@ import { Today } from "./screens/Today";
 import { Transfer } from "./screens/Transfer";
 import { CoInvite } from "./screens/CoOperators";
 import { Viewer } from "./screens/Viewer";
+import { Join } from "./screens/Join";
 import { LoginFailed } from "./screens/Login";
 import { Privacy } from "./screens/Privacy";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
@@ -32,8 +33,22 @@ import { AppContext, go, useApp, useAppValue, useRoute } from "./useApp";
 export function App() {
   const route = useRoute();
   const isViewer = route[0] === "v" && typeof route[1] === "string";
-  const app = useApp(!isViewer);
+  // 참가 신청(#/join/토큰)도 로그인 없이 여는 화면이라 운영자 상태를 읽지 않는다.
+  const isJoin = route[0] === "join" && typeof route[1] === "string";
+  const app = useApp(!isViewer && !isJoin);
   useKeyboardFlag();
+
+  if (isJoin) {
+    return (
+      <>
+        <TopBar />
+        <main>
+          <Join token={route[1]!} rest={route.slice(2)} />
+          <LegalFooter privacyHref={`#/join/${route[1]}/privacy`} />
+        </main>
+      </>
+    );
+  }
 
   if (isViewer) {
     return (
@@ -52,7 +67,12 @@ export function App() {
     <AppContext.Provider value={app}>
       <TopBar homeLink actions={<AccountControl />} />
       <main>
-        {!app.ready ? <p className="screen">불러오는 중…</p> : <OperatorScreen route={route} />}
+        {!app.ready || app.switching ? (
+          <p className="screen">불러오는 중…</p>
+        ) : (
+          // 모임을 바꾸면 화면을 새로 그린다(앞 모임에서 입력하던 상태가 남지 않게).
+          <OperatorScreen key={app.switchSeq} route={route} />
+        )}
         <LegalFooter />
       </main>
       <Tabs current={route[0] ?? ""} />

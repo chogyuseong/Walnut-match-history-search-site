@@ -125,20 +125,86 @@ describe("공동 운영자 초대", () => {
     expect(late.body.error.code).toBe("CO_OPERATORS_FULL");
   });
 
-  it("이미 모임이 있는 계정·대표 본인·로그인 안 한 사람은 수락할 수 없다", async () => {
+  it("대표 본인·로그인 안 한 사람은 수락할 수 없다", async () => {
     const g = await setupGroup();
     const token = await invite(g);
     expect((await api(null, "POST", `/api/co-invite/${token}/accept`)).status).toBe(401);
     const self = await api(g.cookie, "POST", `/api/co-invite/${token}/accept`);
     expect(self.status).toBe(409);
     expect(self.body.error.code).toBe("ALREADY_OPERATOR");
-    const other = await setupGroup();
-    const busy = await api(other.cookie, "POST", `/api/co-invite/${token}/accept`);
-    expect(busy.status).toBe(409);
-    expect(busy.body.error.code).toBe("HAS_GROUP");
-    expect(busy.body.error.message).toContain("이미 운영 중인 모임");
     // 거절된 뒤에도 링크는 남아 다른 계정이 쓸 수 있다.
     expect((await api(await login(), "POST", `/api/co-invite/${token}/accept`)).status).toBe(200);
+  });
+
+  // 2026-11-06 의도해서 바꿈: 예전에는 이미 모임이 있는 계정을 HAS_GROUP으로 거절했다. 모임 고르기 화면이 생겨
+  // 이제 수락되고, 계정당 모임 수(대표 + 공동 합계 5)를 넘을 때만 거절한다.
+  it("이미 모임이 있는 계정도 수락할 수 있고, /api/me에 두 모임이 역할과 함께 보인다", async () => {
+    const g = await setupGroup();
+    const other = await setupGroup();
+    const token = await invite(g);
+    const accepted = await api(other.cookie, "POST", `/api/co-invite/${token}/accept`);
+    expect(accepted.status).toBe(200);
+    expect(accepted.body.groupId).toBe(g.gid);
+    expect((await api(other.cookie, "GET", "/api/me")).body.groups).toEqual([
+      { id: other.gid, name: "내 내전 모임", role: "owner" },
+      { id: g.gid, name: "내 내전 모임", role: "co" },
+    ]);
+    // 이미 공동 운영자인 모임의 새 초대는 지금처럼 ALREADY_OPERATOR.
+    const again = await api(other.cookie, "POST", `/api/co-invite/${await invite(g)}/accept`);
+    expect(again.status).toBe(409);
+    expect(again.body.error.code).toBe("ALREADY_OPERATOR");
+  });
+
+  it("계정당 모임은 대표 + 공동 합계 5개까지: 넘으면 수락·만들기를 이해할 수 있는 문구로 거절한다", async () => {
+    const me = await login();
+    // 대표 3개 + 공동 2개 = 5개.
+    for (let i = 0; i < 3; i++) expect((await api(me, "POST", "/api/groups", { name: `내 모임${i}` })).status).toBe(200);
+    for (let i = 0; i < 2; i++) {
+      const g = await setupGroup();
+      expect((await api(me, "POST", `/api/co-invite/${await invite(g)}/accept`)).status).toBe(200);
+    }
+    expect((await api(me, "GET", "/api/me")).body.groups).toHaveLength(5);
+    const sixth = await setupGroup();
+    const token = await invite(sixth);
+    const refused = await api(me, "POST", `/api/co-invite/${token}/accept`);
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.code).toBe("TOO_MANY_GROUPS");
+    expect(refused.body.error.message).toContain("5개까지");
+    // 새 모임 만들기도 같은 한도(공동 운영 포함)로 거절한다.
+    const create = await api(me, "POST", "/api/groups", {});
+    expect(create.status).toBe(409);
+    expect(create.body.error.code).toBe("TOO_MANY_GROUPS");
+    // 링크는 남아 있어 한 곳에서 나간 뒤 다시 수락할 수 있다.
+    const groups = (await api(me, "GET", "/api/me")).body.groups as { id: string; role: string }[];
+    const coGroup = groups.find((x) => x.role === "co")!;
+    expect((await api(me, "POST", `/api/groups/${coGroup.id}/co-operators/leave`)).status).toBe(200);
+    expect((await api(me, "POST", `/api/co-invite/${token}/accept`)).status).toBe(200);
+    expect((await api(me, "GET", "/api/me")).body.groups).toHaveLength(5);
+  });
+
+  it("여러 모임 계정의 권한은 모임마다의 역할을 따른다", async () => {
+    const mine = await setupGroup();
+    const theirs = await setupGroup();
+    const token = await invite(theirs);
+    expect((await api(mine.cookie, "POST", `/api/co-invite/${token}/accept`)).status).toBe(200);
+    // 내 모임에서는 대표 전용 작업이 된다.
+    expect((await api(mine.cookie, "GET", `/api/groups/${mine.gid}/co-operators`)).status).toBe(200);
+    expect((await api(mine.cookie, "POST", `/api/groups/${mine.gid}/transfer`)).status).toBe(200);
+    // 공동 운영 모임에서는 일반 쓰기는 되고 대표 전용은 403 OWNER_ONLY.
+    expect((await api(mine.cookie, "GET", `/api/groups/${theirs.gid}/snapshot`)).status).toBe(200);
+    expect((await api(mine.cookie, "POST", `/api/groups/${theirs.gid}/participants`, { names: ["가"] })).status).toBe(200);
+    for (const [method, path] of [
+      ["POST", `/api/groups/${theirs.gid}/transfer`],
+      ["GET", `/api/groups/${theirs.gid}/co-operators`],
+      ["POST", `/api/groups/${theirs.gid}/co-operators/invite`],
+    ] as const) {
+      const res = await api(mine.cookie, method, path);
+      expect(res.status, path).toBe(403);
+      expect(res.body.error.code).toBe("OWNER_ONLY");
+    }
+    // 세 번째 모임(관계 없음)은 지금처럼 404.
+    const stranger = await setupGroup();
+    expect((await api(mine.cookie, "GET", `/api/groups/${stranger.gid}/snapshot`)).status).toBe(404);
   });
 
   it("없는 링크는 모임 정보를 드러내지 않는다", async () => {

@@ -12,6 +12,7 @@ import { TitleSettings } from "./TitleSettings";
 import { NewGroupFromBackup, RestoreSection } from "./Restore";
 import { CreateGroupButton, LocalAccountSettings } from "../account";
 import { CoOperatorSelfSection, CoOperatorsSection } from "./CoOperators";
+import { GroupSwitcher } from "../groupSwitcher";
 
 /** 모임 탭 참가자 목록에서 처음 보여주는 사람 수. */
 const PEOPLE_PREVIEW = 10;
@@ -95,6 +96,7 @@ export function Group() {
       <header className="screen-head">
         <h1>모임</h1>
       </header>
+      <GroupSwitcher />
       {snapshot.group.maintenance && (
         <p className="note warn" role="alert">
           백업 복원이 끝나지 않아 이 모임은 점검 중이에요. 맨 아래 '위험한 작업'의 '백업에서 복원'에서 같은 파일로 다시
