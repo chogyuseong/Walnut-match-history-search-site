@@ -24,7 +24,7 @@ async function admin(g: TestGroup, cookie = g.cookie) {
   const res = await api(cookie, "GET", `/api/groups/${g.gid}/join`);
   expect(res.status).toBe(200);
   return res.body as {
-    link: { open: boolean } | null;
+    link: { open: boolean; token: string | null } | null;
     entries: { key: string; name: string; participantId: string | null }[];
     max: number;
   };
@@ -148,13 +148,20 @@ describe("참가 신청: 공개 링크", () => {
     const info = await api(null, "GET", `/api/join/${fresh}`);
     expect(info.body.entries).toHaveLength(1);
     expect((await join(fresh, { participantId: g.people[1]!.id })).body.entries).toHaveLength(2);
-    // 토큰은 해시만 저장한다.
-    const row = await env.DB.prepare("SELECT token_hash FROM join_links WHERE group_id = ?1")
+    // 조회는 해시로 하고, 원문도 저장해 운영자 응답으로 다시 준다(migrations/0015). 이전 링크는 남지 않는다.
+    const row = await env.DB.prepare("SELECT token_hash, token FROM join_links WHERE group_id = ?1")
       .bind(g.gid)
-      .first<{ token_hash: string }>();
+      .first<{ token_hash: string; token: string | null }>();
     expect(row!.token_hash).not.toBe(fresh);
     expect(row!.token_hash).toMatch(/^[0-9a-f]{64}$/);
-    expect((await admin(g)).link).not.toHaveProperty("token");
+    expect(row!.token).toBe(fresh);
+    expect((await admin(g)).link!.token).toBe(fresh);
+    // 공개 응답에는 토큰이 다시 나가지 않는다.
+    expect(JSON.stringify(info.body)).not.toContain(fresh);
+    // 0015 이전에 만든 링크(원문 없음)는 token이 null이고 링크는 그대로 열린다.
+    await env.DB.prepare("UPDATE join_links SET token = NULL WHERE group_id = ?1").bind(g.gid).run();
+    expect((await admin(g)).link!.token).toBeNull();
+    expect((await api(null, "GET", `/api/join/${fresh}`)).status).toBe(200);
   });
 
   it("다른 모임·보관·합쳐진 참가자로는 신청할 수 없다", async () => {
@@ -257,7 +264,8 @@ describe("참가 신청: 운영자", () => {
     }
     expect((await admin(g, co)).link).toBeNull();
     const token = await makeLink(g, co);
-    expect((await admin(g)).link).toMatchObject({ open: true });
+    // 공동 운영자가 만든 링크를 대표도 그대로 받는다(다른 기기에서도 같은 주소).
+    expect((await admin(g)).link).toMatchObject({ open: true, token });
     for (const p of g.people.slice(0, 3)) await join(token, { participantId: p.id });
     await join(token, { name: "새친구" });
 

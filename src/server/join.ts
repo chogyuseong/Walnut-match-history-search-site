@@ -128,19 +128,22 @@ function publicEntries(entries: readonly Grouped[]): JoinEntry[] {
 /* ------------------------------------------------------------------ */
 
 export interface JoinAdminView {
-  /** 링크가 없으면 null. 토큰은 해시만 저장하므로 돌려주지 않는다(만들 때 한 번만 준다). */
-  link: { open: boolean; createdAt: string } | null;
+  /**
+   * 링크가 없으면 null. token은 링크 원문(migrations/0015)이라 운영자·공동 운영자가 어느 기기에서든 다시 복사할 수 있다.
+   * 0015 이전에 만든 링크는 token이 null이다(다시 만들어야 주소를 볼 수 있다).
+   */
+  link: { open: boolean; createdAt: string; token: string | null } | null;
   entries: JoinEntry[];
   max: number;
   target: number;
 }
 
 export async function joinAdminView(env: Env, groupId: string): Promise<JoinAdminView> {
-  const link = await env.DB.prepare("SELECT is_open, created_at FROM join_links WHERE group_id = ?1")
+  const link = await env.DB.prepare("SELECT is_open, created_at, token FROM join_links WHERE group_id = ?1")
     .bind(groupId)
-    .first<{ is_open: number; created_at: string }>();
+    .first<{ is_open: number; created_at: string; token: string | null }>();
   return {
-    link: link ? { open: link.is_open === 1, createdAt: link.created_at } : null,
+    link: link ? { open: link.is_open === 1, createdAt: link.created_at, token: link.token } : null,
     entries: publicEntries(await loadEntries(env, groupId)),
     max: MAX_JOIN_ENTRIES,
     target: JOIN_TARGET,
@@ -160,11 +163,11 @@ export async function createJoinLink(env: Env, groupId: string): Promise<{ token
   const token = newViewToken();
   const now = nowIso();
   await env.DB.prepare(
-    `INSERT INTO join_links (group_id, token_hash, is_open, created_at, updated_at) VALUES (?1, ?2, 1, ?3, ?3)
-     ON CONFLICT (group_id) DO UPDATE SET token_hash = excluded.token_hash, is_open = 1,
+    `INSERT INTO join_links (group_id, token_hash, is_open, created_at, updated_at, token) VALUES (?1, ?2, 1, ?3, ?3, ?4)
+     ON CONFLICT (group_id) DO UPDATE SET token_hash = excluded.token_hash, token = excluded.token, is_open = 1,
        created_at = excluded.created_at, updated_at = excluded.updated_at`,
   )
-    .bind(groupId, await sha256Hex(token), now)
+    .bind(groupId, await sha256Hex(token), now, token)
     .run();
   return { token };
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiFailure, call, mutate, newRequestId } from "./api";
+import { call, mutate, newRequestId } from "./api";
 import { CopyButton, Dialog, ErrorNote } from "./ui";
 
 /** 운영자용 신청 한 사람(src/server/join.ts JoinEntry). */
@@ -11,35 +11,11 @@ export interface JoinEntryView {
 }
 
 interface AdminView {
-  link: { open: boolean; createdAt: string } | null;
+  /** token: 링크 원문(서버 저장, migrations/0015). 그 전에 만든 링크는 null이라 다시 만들어야 복사할 수 있다. */
+  link: { open: boolean; createdAt: string; token: string | null } | null;
   entries: JoinEntryView[];
   max: number;
   target: number;
-}
-
-/**
- * 신청 링크 토큰은 서버에 해시만 있어 만들 때 한 번만 받는다. 이 기기에서 다시 복사할 수 있게 모임마다 기억한다.
- * 다른 기기(다른 공동 운영자)에서 다시 만들면 여기 기억한 토큰은 무효가 되므로 열 때 확인해 지운다.
- */
-function tokenKey(groupId: string): string {
-  return `naejeon.joinToken.${groupId}`;
-}
-
-function readToken(groupId: string): string | null {
-  try {
-    return localStorage.getItem(tokenKey(groupId));
-  } catch {
-    return null;
-  }
-}
-
-function writeToken(groupId: string, token: string | null): void {
-  try {
-    if (token) localStorage.setItem(tokenKey(groupId), token);
-    else localStorage.removeItem(tokenKey(groupId));
-  } catch {
-    // 기억하지 못하면 이번 화면에서만 복사할 수 있다.
-  }
 }
 
 export function joinLink(token: string): string {
@@ -54,7 +30,6 @@ export function JoinPanel(props: {
 }) {
   const { groupId } = props;
   const [view, setView] = useState<AdminView | null>(null);
-  const [token, setToken] = useState<string | null>(() => readToken(groupId));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [confirm, setConfirm] = useState<null | "regenerate" | "clear">(null);
@@ -70,15 +45,11 @@ export function JoinPanel(props: {
 
   useEffect(() => {
     void load();
-    // 기억한 토큰이 아직 유효한지 확인한다(다른 기기에서 다시 만들었으면 지운다).
-    const stored = readToken(groupId);
-    if (stored) {
-      call("GET", `/api/join/${stored}`).catch((e) => {
-        if (e instanceof ApiFailure && e.status === 404) {
-          writeToken(groupId, null);
-          setToken(null);
-        }
-      });
+    // 예전에는 링크 주소를 기기에 기억했다. 이제 서버가 주므로 남은 값을 지운다.
+    try {
+      localStorage.removeItem(`naejeon.joinToken.${groupId}`);
+    } catch {
+      // 저장소를 못 써도 동작에는 영향이 없다.
     }
   }, [groupId, load]);
 
@@ -98,15 +69,14 @@ export function JoinPanel(props: {
 
   const createLink = () =>
     run(async () => {
-      const created = await call<{ token: string }>("POST", `/api/groups/${groupId}/join/link`);
-      writeToken(groupId, created.token);
-      setToken(created.token);
+      await call<{ token: string }>("POST", `/api/groups/${groupId}/join/link`);
       setConfirm(null);
     });
 
   const entries = view?.entries ?? [];
   const target = view?.target ?? 10;
   const link = view?.link ?? null;
+  const token = link?.token ?? null;
 
   return (
     <section className="card join-panel" aria-label="참가 신청">
@@ -133,7 +103,7 @@ export function JoinPanel(props: {
                 {token ? (
                   <CopyButton label="신청 링크 복사" text={() => joinLink(token)} />
                 ) : (
-                  <span className="hint">이 기기에는 링크 주소가 없어요. 다시 만들면 복사할 수 있어요.</span>
+                  <span className="hint">예전에 만든 링크라 주소를 보여줄 수 없어요. 다시 만들면 복사할 수 있어요.</span>
                 )}
                 <button type="button" className="link" disabled={busy} onClick={() => setConfirm("regenerate")}>
                   링크 다시 만들기
