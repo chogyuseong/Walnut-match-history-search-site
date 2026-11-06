@@ -39,7 +39,7 @@ import {
   seriesLine,
   seriesScore,
 } from "../../shared/series";
-import { POSITIONS, SERIES_FORMATS, TEAMS, type MatchView, type SeriesFormat, type Snapshot, type Team } from "../../shared/types";
+import { DEFAULT_SETTINGS, POSITIONS, SERIES_FORMATS, TEAMS, type MatchView, type SeriesFormat, type Snapshot, type Team } from "../../shared/types";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { draftRosterText, josa, POSITION_LABEL, TEAM_MARK, teamBoxClass, teamName } from "../format";
 import { SupportCountEditor } from "../supportCountEditor";
@@ -178,7 +178,7 @@ export function Prep() {
   function showRecommendations() {
     const priorities = priorityMap();
     const people = draft!.people.map((p) => ({ key: p.key, skillGroup: priorities[p.key] ?? null }));
-    const weights = app.snapshot?.group.settings.groupWeights ?? [4, 3, 2, 1];
+    const weights = app.snapshot?.group.settings.groupWeights ?? DEFAULT_SETTINGS.groupWeights;
     // 조합 다양성(모임 설정, 기본 켜짐): 균형이 같은 후보 중 최근 경기와 덜 겹치는 조합을 먼저.
     const diversity = app.snapshot
       ? diversityFor({ matches: app.snapshot.matches, settings: app.snapshot.group.settings }, draft!.people)
@@ -194,7 +194,7 @@ export function Prep() {
 
   /** 팀·라인 모두 섞기: 같은 티어끼리 양 팀에 고르게 나누고 라인도 무작위(src/shared/priority.ts). */
   function runTeamShuffle() {
-    const weights = app.snapshot?.group.settings.groupWeights ?? [4, 3, 2, 1];
+    const weights = app.snapshot?.group.settings.groupWeights ?? DEFAULT_SETTINGS.groupWeights;
     const result = shuffleTeamsByPriority(draft!, priorityMap(), weights, avoidMap);
     setSelectedKey(null);
     setPairMode(null);

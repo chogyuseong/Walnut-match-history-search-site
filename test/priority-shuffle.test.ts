@@ -17,12 +17,12 @@ import {
   type PriorityMap,
 } from "../src/shared/priority";
 import { recommendTeams } from "../src/shared/recommend";
-import type { Team } from "../src/shared/types";
+import type { GroupWeights, Team } from "../src/shared/types";
 
 // 티어(skillGroup)와 "팀까지 올랜덤"(src/shared/priority.ts).
 
 const now = "2026-11-06T00:00:00.000Z";
-const W: [number, number, number, number] = [4, 3, 2, 1];
+const W: GroupWeights = [5, 4, 3, 2, 1];
 
 function people(): DraftPerson[] {
   return Array.from({ length: 10 }, (_, i) => ({ key: `p:id${i}`, name: `참가자${i}`, participantId: `id${i}` }));
@@ -50,7 +50,24 @@ const LAYOUTS: (number | null)[][] = [
   [1, 1, 1, 1, 1, 2, 2, 2, 2, 2],
   [1, 2, 2, 3, 3, 3, 4, 4, 4, 4],
   [4, 4, 4, 4, 4, 4, 4, 4, 4, 1],
+  // 5티어(2026-11-06 추가)가 든 배치.
+  [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],
+  [1, 2, 3, 4, 5, null, null, null, null, null],
+  [5, 5, 5, 5, 5, 5, 5, 1, 2, null],
+  [1, 2, 2, 3, 4, 4, 5, 5, 5, null],
 ];
+
+/** 티어 칸 6개(1~5·미지정)에 10명을 나누는 모든 인원 배치(중복조합 C(15,5) = 3003가지). */
+function allLayouts(): (number | null)[][] {
+  const classes: (number | null)[] = [1, 2, 3, 4, 5, null];
+  const out: (number | null)[][] = [];
+  const walk = (i: number, left: number, acc: (number | null)[]) => {
+    if (i === classes.length - 1) return void out.push([...acc, ...Array<number | null>(left).fill(classes[i]!)]);
+    for (let n = 0; n <= left; n++) walk(i + 1, left - n, [...acc, ...Array<number | null>(n).fill(classes[i]!)]);
+  };
+  walk(0, 10, []);
+  return out;
+}
 
 describe("팀까지 올랜덤: 티어 균형", () => {
   it("여러 배치 × 시드 300개: 10명·5:5·팀 안 포지션 5개, 모든 티어 칸에서 인원 차 ≤ 1", () => {
@@ -66,6 +83,33 @@ describe("팀까지 올랜덤: 티어 균형", () => {
     }
   });
 
+  it("티어 칸 6개의 모든 인원 배치(3003가지) × 시드 3개: 항상 후보가 있고 모든 칸에서 인원 차 ≤ 1", () => {
+    // 근거: 인원이 홀수인 칸은 합 10이 짝수라 짝수 개다. 칸마다 반씩 나누고 남는 한 명들을 두 팀에 반씩 주면 5:5.
+    const layouts = allLayouts();
+    expect(layouts).toHaveLength(3003);
+    for (const layout of layouts) {
+      const map = priorities(layout);
+      for (const seed of [1, 2, 3]) {
+        const result = shuffleTeamsByPriority(base(seed), map, W);
+        expect(result.candidates).toBeGreaterThan(0);
+        expect(result.counts).toHaveLength(6);
+        for (const c of result.counts) expect(Math.abs(c.a - c.b), `${layout} seed ${seed}`).toBeLessThanOrEqual(1);
+        expect(result.draft.slots.filter((s) => s.team === "A")).toHaveLength(5);
+      }
+    }
+  });
+
+  it("5티어 두 명도 항상 다른 팀이고, 알림에 5티어 인원이 나온다", () => {
+    const map = priorities([1, 1, 2, 2, 3, 3, null, null, 5, 5]);
+    let d = base(17);
+    for (let i = 0; i < 300; i++) {
+      const result = shuffleTeamsByPriority(d, map, W);
+      d = result.draft;
+      expect(teamOf(d, "p:id8")).not.toBe(teamOf(d, "p:id9"));
+      expect(teamShuffleText(result)).toContain("5티어 1:1");
+    }
+  });
+
   it("1티어 두 명은 항상 다른 팀이다", () => {
     const map = priorities([1, 1, 2, 2, 3, 3, null, null, 4, 4]);
     let d = base(7);
@@ -76,7 +120,7 @@ describe("팀까지 올랜덤: 티어 균형", () => {
   });
 
   it("남는 한 명들이 한 팀에 몰리지 않는다: 1·2·3·4티어 한 명씩 + 미지정 6명이면 1·4티어와 2·3티어가 같은 팀", () => {
-    // 미지정 가중치 = 지정된 사람 가중치(4,3,2,1)의 중앙값 2.5. 합 차 최소는 {4,1} vs {3,2}.
+    // 미지정 가중치 = 지정된 사람 가중치(5,4,3,2)의 중앙값 3.5. 합 차 최소는 {5,2} vs {4,3}.
     const map = priorities([1, 2, 3, 4, null, null, null, null, null, null]);
     for (let seed = 1; seed <= 200; seed++) {
       const { draft } = shuffleTeamsByPriority(base(seed), map, W);
@@ -86,7 +130,24 @@ describe("팀까지 올랜덤: 티어 균형", () => {
     }
   });
 
+  it("남는 한 명들이 한 팀에 몰리지 않는다(5티어): 1~5티어 한 명씩 + 미지정 5명이면 합 차가 허용 폭 안이다", () => {
+    // 가중치 5·4·3·2·1, 미지정 = 중앙값 3. 지정 5명은 한 팀 3명·다른 팀 2명이 되고, 미지정이 채운다.
+    // 가능한 최소 합 차는 0({5,1}+미지정 3명 = 15 vs {4,3,2}+미지정 2명 = 15), 허용 폭 1이라 차 0~1만 나온다.
+    const map = priorities([1, 2, 3, 4, 5, null, null, null, null, null]);
+    const weight = (k: string) => {
+      const v = map[k];
+      return v === null || v === undefined ? 3 : W[v - 1]!;
+    };
+    for (let seed = 1; seed <= 200; seed++) {
+      const { draft } = shuffleTeamsByPriority(base(seed), map, W);
+      const sum = (t: Team) => draft.slots.filter((s) => s.team === t).reduce((s, x) => s + weight(x.key), 0);
+      expect(Math.abs(sum("A") - sum("B"))).toBeLessThanOrEqual(1);
+    }
+  });
+
   it("허용 폭은 가장 작은 가중치 간격이다", () => {
+    expect(priorityTolerance([5, 4, 3, 2, 1])).toBe(1);
+    expect(priorityTolerance([10, 6, 3, 1, 0])).toBe(1);
     expect(priorityTolerance([4, 3, 2, 1])).toBe(1);
     expect(priorityTolerance([10, 6, 3, 1])).toBe(2);
     expect(priorityTolerance([1, 1, 1, 1])).toBe(0);
@@ -228,7 +289,7 @@ describe("팀 추천 문구도 티어로 부른다", () => {
   it("지정자 없음 / 1티어 인원", () => {
     const none = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, skillGroup: null }));
     expect(recommendTeams(none, W, 1)[0]!.reason).toBe("티어를 정한 사람이 없어 무작위로 나눴어요.");
-    const some = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, skillGroup: (i % 4) + 1 }));
+    const some = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, skillGroup: (i % 5) + 1 }));
     expect(recommendTeams(some, W, 1)[0]!.reason).toMatch(/^티어 합계 차 \d+ · 1티어 \d:\d$/);
   });
 });

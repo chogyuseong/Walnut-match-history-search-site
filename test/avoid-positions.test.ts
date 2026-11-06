@@ -70,7 +70,7 @@ describe("기피 라인 배정", () => {
         applyTeams(d, people.slice(3, 8).map((p) => p.key)),
       );
       expect(shuffleDraft(d, { fairSupport: true, avoid: {} }, none)).toEqual(shuffleDraft(d, { fairSupport: true }, none));
-      expect(shuffleTeamsByPriority(d, {}, [4, 3, 2, 1], {})).toEqual(shuffleTeamsByPriority(d, {}, [4, 3, 2, 1]));
+      expect(shuffleTeamsByPriority(d, {}, [5, 4, 3, 2, 1], {})).toEqual(shuffleTeamsByPriority(d, {}, [5, 4, 3, 2, 1]));
     }
   });
 
@@ -92,7 +92,7 @@ describe("기피 라인 배정", () => {
       expect(avoidViolations(shuffleDraft(d, { fairSupport: false, avoid }, none), avoid)).toEqual([]);
       const keys = rngFromSeed(seed)() < 0.5 ? people.slice(0, 5) : people.slice(2, 7);
       expect(avoidViolations(applyTeams(d, keys.map((p) => p.key), avoid), avoid)).toEqual([]);
-      const team = shuffleTeamsByPriority(d, {}, [4, 3, 2, 1], avoid).draft;
+      const team = shuffleTeamsByPriority(d, {}, [5, 4, 3, 2, 1], avoid).draft;
       // 팀까지 올랜덤은 팀을 새로 나눈다. 같은 팀에 서폿만 되는 id0와 서폿 기피 둘이 함께여도 피할 수 있는 조합이다.
       expect(avoidViolations(team, avoid)).toEqual([]);
       expect(slot(created, "p:id0").position).toBe("support");

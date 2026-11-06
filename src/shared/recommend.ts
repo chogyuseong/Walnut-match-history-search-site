@@ -1,5 +1,5 @@
 import { rngFromSeed } from "./draft";
-import type { MatchView, Settings } from "./types";
+import { MAX_SKILL_GROUP, type GroupWeights, type MatchView, type Settings } from "./types";
 
 /**
  * 팀 추천(docs/P2 P2-6).
@@ -8,7 +8,7 @@ import type { MatchView, Settings } from "./types";
  */
 export interface RecommendPerson {
   key: string;
-  /** 티어(화면 이름, 예전 "실력 그룹"). 1(가장 잘함)~4 또는 null(미지정). 미지정은 낮은 실력이 아니다. */
+  /** 티어(화면 이름, 예전 "실력 그룹"). 1(가장 잘함)~5 또는 null(미지정). 미지정은 낮은 실력이 아니다. */
   skillGroup: number | null;
 }
 
@@ -138,7 +138,7 @@ function median(values: number[]): number {
  */
 export function priorityWeightOf(
   people: readonly RecommendPerson[],
-  groupWeights: readonly [number, number, number, number],
+  groupWeights: Readonly<GroupWeights>,
 ): (p: RecommendPerson) => number {
   const assigned = people.filter((p) => p.skillGroup !== null);
   const fallback =
@@ -161,14 +161,14 @@ function count(people: RecommendPerson[], group: number | null): number {
  * 추천 후보를 좋은 순으로 돌려준다(최대 limit개).
  * 같은 팀·다른 팀 조건을 어기는 분할은 비교하기 전에 뺀다.
  * 비교 순서(앞 기준이 같을 때만 뒤 기준을 본다):
- *   1) 가중치 합의 차  2) 1티어 인원 차  3) 4티어 인원 차
+ *   1) 가중치 합의 차  2) 1티어 인원 차  3) 최하위(5티어) 인원 차
  *   4) 미지정 인원 차  5) 조합 다양성(diversity를 넘겼을 때만) 6) 시드로 정한 순서
- * 다양성은 1~4가 모두 같은 후보(균형 허용 폭 0) 사이에서만 순서를 정하므로 균형을 희생하지 않는다.
+ * 다양성은 1~4번 기준이 모두 같은 후보(균형 허용 폭 0) 사이에서만 순서를 정하므로 균형을 희생하지 않는다.
  * diversity를 넘기지 않으면 예전과 똑같은 결과다(시드 순서 값도 같은 순서로 뽑는다).
  */
 export function recommendTeams(
   people: RecommendPerson[],
-  groupWeights: readonly [number, number, number, number],
+  groupWeights: Readonly<GroupWeights>,
   seed: number,
   limit = 3,
   constraints: readonly TeamConstraint[] = [],
@@ -191,7 +191,7 @@ export function recommendTeams(
     const sumA = teamA.reduce((s, p) => s + weightOf(p), 0);
     const sumB = teamB.reduce((s, p) => s + weightOf(p), 0);
     const topCount: [number, number] = [count(teamA, 1), count(teamB, 1)];
-    const bottomCount: [number, number] = [count(teamA, 4), count(teamB, 4)];
+    const bottomCount: [number, number] = [count(teamA, MAX_SKILL_GROUP), count(teamB, MAX_SKILL_GROUP)];
     const unassignedCount: [number, number] = [count(teamA, null), count(teamB, null)];
     const repeat = diversity
       ? repeatScore(teamA.map((p) => p.key), diversity) + repeatScore(teamB.map((p) => p.key), diversity)

@@ -61,7 +61,7 @@ export interface ParticipantView {
   id: string;
   name: string;
   status: "active" | "archived";
-  /** 1~4 또는 null(미지정). 비공개 모임의 조회 응답에는 이 필드가 없다. */
+  /** 1~5 또는 null(미지정). 비공개 모임의 조회 응답에는 이 필드가 없다. */
   skillGroup?: number | null;
   /**
    * 기피 라인(라인 섞기에서 되도록 피할 포지션, 0~4개, 탑~서폿 순서). 운영자 응답·백업에만, 있을 때만 들어 있다.
@@ -80,8 +80,11 @@ export interface Settings {
   rotationEnabled: boolean;
   /** 실력 그룹을 조회자에게 공개하는지. 기본은 비공개다. */
   groupsPublic: boolean;
-  /** 그룹 1~4의 가중치. 미확인·가정값이며 모임 설정이다. */
-  groupWeights: [number, number, number, number];
+  /**
+   * 티어 1~5의 가중치. 미확인·가정값이며 모임 설정이다.
+   * 4단계 시절(2026-11-06 전)에 저장한 4개짜리 값은 읽을 때 upgradeGroupWeights로 5개로 맞춘다.
+   */
+  groupWeights: GroupWeights;
   /**
    * 칭호 구간(docs/P2 P2-11). 공개 정보라 조회 응답에도 나간다.
    * 없음(undefined) = 한 번도 저장하지 않음 → 기본 구간을 쓴다.
@@ -103,11 +106,37 @@ export interface TitleBand {
   name: string;
 }
 
+/** 가장 낮은 티어 번호(티어는 1~이 값). 2026-11-06에 4에서 5로 늘었다(migrations/0020). */
+export const MAX_SKILL_GROUP = 5;
+
+/** 티어 1~5의 가중치(1티어가 첫 값). */
+export type GroupWeights = [number, number, number, number, number];
+
 export const DEFAULT_SETTINGS: Settings = {
   rotationEnabled: true,
   groupsPublic: false,
-  groupWeights: [4, 3, 2, 1],
+  groupWeights: [5, 4, 3, 2, 1],
 };
+
+/** 4단계 시절의 기본 가중치. 이 값 그대로였던 모임은 새 기본값 [5,4,3,2,1]을 받는다. */
+const OLD_DEFAULT_WEIGHTS = [4, 3, 2, 1] as const;
+
+/**
+ * 저장된 가중치를 5개로 맞춘다. 5개면 그대로(복사본), 4개면(티어 4단계 시절 저장분):
+ * - 예전 기본값 [4,3,2,1] 그대로면 새 기본값 [5,4,3,2,1].
+ * - 직접 바꾼 값이면 네 값은 그대로 두고 다섯째를 "넷째 − (셋째 − 넷째)"로 채운다(같은 간격으로 한 칸 더). 0 미만이면 0, 1000 초과면 1000.
+ * 그 밖의 길이는 호출하는 쪽이 먼저 거른다(parseSettings).
+ */
+export function upgradeGroupWeights(weights: readonly number[]): GroupWeights {
+  if (weights.length === 4) {
+    if (weights.every((w, i) => w === OLD_DEFAULT_WEIGHTS[i])) return [...DEFAULT_SETTINGS.groupWeights];
+    const [a, b, c, d] = weights as [number, number, number, number];
+    // 소수 가중치의 부동소수 오차(0.3 − 0.2 = 0.09999…)는 셋째 자리에서 반올림해 없앤다.
+    const fifth = Math.min(1000, Math.max(0, Math.round((d - (c - d)) * 1000) / 1000));
+    return [a, b, c, d, fifth];
+  }
+  return [...weights] as GroupWeights;
+}
 
 export interface RotationEventView {
   matchId: string;

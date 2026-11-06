@@ -21,6 +21,7 @@ import { MEMO_MAX, memoLength, normalizeMemo } from "../shared/memo";
 import { MAX_NAME_LENGTH, cleanName, nameKey } from "../shared/names";
 import { SERIES_NAME_MAX } from "../shared/series";
 import { isValidTimeZone } from "../shared/stats";
+import { MAX_SKILL_GROUP } from "../shared/types";
 import type { Env } from "./env";
 import { accountGroupCount, MAX_GROUPS_PER_ACCOUNT, parseSettings, tooManyGroupsError } from "./groups";
 import { ApiError, assertOnlyKeys, nowIso, readJsonBody, requireInt, requireString } from "./http";
@@ -409,7 +410,7 @@ export function validateBackup(
     if (name === "" || [...name].length > MAX_NAME_LENGTH) return p.add(`${at}: 이름이 올바르지 않습니다.`);
     if (r.status !== "active" && r.status !== "archived") return p.add(`${at}: 상태 값 오류`);
     const sg = r.skillGroup ?? null;
-    if (sg !== null && !(Number.isInteger(sg) && (sg as number) >= 1 && (sg as number) <= 4)) {
+    if (sg !== null && !(Number.isInteger(sg) && (sg as number) >= 1 && (sg as number) <= MAX_SKILL_GROUP)) {
       return p.add(`${at}: 실력 그룹 값 오류`);
     }
     // 기피 라인(2026-11-06). 없으면(예전 백업) 없음으로 본다.

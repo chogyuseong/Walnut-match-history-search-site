@@ -990,12 +990,13 @@ button.bar-row:hover {
   flex: none;
   justify-content: flex-end;
 }
-/* 티어 배정: 좁은 화면에서는 1·2·3·4·미정 버튼 줄이 이름 아래로 내려간다. 버튼은 44px 이상. */
+/* 티어 배정: 좁은 화면에서는 1·2·3·4·5·미정 버튼 줄(6칸 × 44px + 간격 = 294px)이 이름 아래로 내려간다.
+   버튼은 44px 이상. 390px 화면의 줄 안쪽 폭(약 330px)에 한 줄로 들어간다. */
 .list-row.priority-row {
   flex-wrap: wrap;
 }
 .priority-row > .segmented {
-  flex: 1 1 260px;
+  flex: 1 1 294px;
 }
 .priority-row > .segmented button {
   min-width: 44px;

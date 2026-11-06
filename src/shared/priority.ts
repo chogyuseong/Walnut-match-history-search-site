@@ -1,20 +1,21 @@
 import { applyTeams, nextSeed, rngFromSeed, type AvoidMap, type Draft } from "./draft";
 import { chooseFour, priorityWeightOf, satisfies, type RecommendPerson } from "./recommend";
+import type { GroupWeights } from "./types";
 
 /**
  * 티어(화면 이름. 코드·DB 이름은 skillGroup / skill_group 그대로)와 "팀까지 올랜덤".
  * 1티어가 가장 잘하는 사람이고 미지정은 못하는 사람이 아니라 아직 안 정한 사람이다.
  */
 
-/** 티어 칸: 1~4와 미지정(null). */
-export const PRIORITY_CLASSES = [1, 2, 3, 4, null] as const;
+/** 티어 칸: 1~5와 미지정(null). 5티어는 2026-11-06에 더했다(migrations/0020). */
+export const PRIORITY_CLASSES = [1, 2, 3, 4, 5, null] as const;
 export type Priority = (typeof PRIORITY_CLASSES)[number];
 
-/** 초안 키 → 티어. 없거나 1~4가 아닌 값은 미지정. */
+/** 초안 키 → 티어. 없거나 1~5가 아닌 값은 미지정. */
 export type PriorityMap = Readonly<Record<string, number | null | undefined>>;
 
 export function normalizePriority(value: number | null | undefined): Priority {
-  return value === 1 || value === 2 || value === 3 || value === 4 ? value : null;
+  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5 ? value : null;
 }
 
 export interface PriorityCount {
@@ -25,7 +26,7 @@ export interface PriorityCount {
   b: number;
 }
 
-/** 지금 편성에서 티어 칸마다 팀 A·B 인원. 5칸 모두 돌려준다(0명 포함). */
+/** 지금 편성에서 티어 칸마다 팀 A·B 인원. 6칸 모두 돌려준다(0명 포함). */
 export function priorityCounts(draft: Draft, priorityOf: PriorityMap): PriorityCount[] {
   return PRIORITY_CLASSES.map((priority) => {
     const slots = draft.slots.filter((s) => normalizePriority(priorityOf[s.key]) === priority);
@@ -38,7 +39,7 @@ export function priorityCounts(draft: Draft, priorityOf: PriorityMap): PriorityC
 }
 
 /**
- * 가중치 합 차의 허용 폭: 서로 다른 가중치 사이의 가장 작은 간격(기본 [4,3,2,1]이면 1).
+ * 가중치 합 차의 허용 폭: 서로 다른 가중치 사이의 가장 작은 간격(기본 [5,4,3,2,1]이면 1).
  * 가중치가 모두 같으면 0. 티어별 인원 차 ≤ 1을 지키면 합 차는 "남는 한 명"들을 어느 팀에 두느냐로만 달라지므로,
  * 최소값 + 이 폭 안의 후보만 남겨 남는 사람이 한 팀에 몰리지 않게 한다. 같은 티어 안에서 누가 어느 팀에 가는지는
  * 여전히 자유라 후보는 충분히 많다.
@@ -52,7 +53,7 @@ export function priorityTolerance(groupWeights: readonly number[]): number {
 
 export interface TeamShuffleResult {
   draft: Draft;
-  /** 섞은 뒤 티어 칸마다 팀 A·B 인원(5칸). */
+  /** 섞은 뒤 티어 칸마다 팀 A·B 인원(6칸). */
   counts: PriorityCount[];
   /** 티어를 정한 사람 수(0이면 완전 무작위). */
   assigned: number;
@@ -64,7 +65,8 @@ export interface TeamShuffleResult {
 
 /**
  * 팀까지 올랜덤: 10명을 두 팀으로 다시 나누고 라인도 팀마다 무작위로 정한다.
- * 1) 5:5의 126개 분할 중 모든 티어 칸(1·2·3·4·미지정)에서 두 팀 인원 차가 1 이하인 것만 후보(합이 10이라 항상 있다).
+ * 1) 5:5의 126개 분할 중 모든 티어 칸(1·2·3·4·5·미지정)에서 두 팀 인원 차가 1 이하인 것만 후보(항상 있다:
+ *    인원이 홀수인 칸은 합 10이 짝수라 짝수 개이므로, 그 칸들의 "남는 한 명"을 두 팀에 반씩 주면 5:5가 된다).
  * 2) 같은 팀·다른 팀 조건을 모두 지키는 후보가 있으면 그 안에서만. 없으면 조건을 어기더라도 티어 균형을 지킨다
  *    (화면은 violatedConstraints로 알린다).
  * 3) 가중치 합 차(미지정은 recommendTeams와 같은 중앙값)가 최소 + priorityTolerance 이하인 후보만.
@@ -77,7 +79,7 @@ export interface TeamShuffleResult {
 export function shuffleTeamsByPriority(
   draft: Draft,
   priorityOf: PriorityMap,
-  groupWeights: readonly [number, number, number, number],
+  groupWeights: Readonly<GroupWeights>,
   avoid?: AvoidMap,
 ): TeamShuffleResult {
   if (draft.people.length !== 10) throw new Error("팀까지 올랜덤은 10명이어야 합니다.");

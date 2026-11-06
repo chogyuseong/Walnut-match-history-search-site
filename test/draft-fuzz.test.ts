@@ -35,7 +35,7 @@ import {
   type RotationContext,
 } from "../src/shared/rotation";
 import { priorityCounts, shuffleTeamsByPriority, type PriorityMap } from "../src/shared/priority";
-import { POSITIONS, TEAMS, type Position, type RotationView, type Team } from "../src/shared/types";
+import { POSITIONS, TEAMS, type GroupWeights, type Position, type RotationView, type Team } from "../src/shared/types";
 
 // 준비 화면의 라인 섞기·서포터·고정·조건·되돌리기를 무작위 순서로 수천 번 눌러 보고 매 단계 불변식을 확인한다.
 // 팀까지 올랜덤(티어 균형)도 조작 목록에 넣는다. 순수 로직만 쓴다(화면 점검은 e2e). 시드가 같으면 결과가 같으므로 실패하면 시드로 그대로 재현된다.
@@ -145,9 +145,9 @@ interface Step {
   after: Draft;
 }
 
-const WEIGHTS: [number, number, number, number] = [4, 3, 2, 1];
+const WEIGHTS: GroupWeights = [5, 4, 3, 2, 1];
 
-/** 무작위 티어(사람마다 1~4 또는 미지정). 가끔은 아무도 정하지 않는다. 새 이름(참가자 ID 없음)은 미지정. */
+/** 무작위 티어(사람마다 1~5 또는 미지정). 가끔은 아무도 정하지 않는다. 새 이름(참가자 ID 없음)은 미지정. */
 function randomPriorities(ps: readonly DraftPerson[], rng: () => number): PriorityMap {
   const none = rng() < 0.15;
   return Object.fromEntries(

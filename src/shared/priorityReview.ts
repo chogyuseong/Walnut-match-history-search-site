@@ -1,7 +1,7 @@
 import { normalizePriority, type Priority } from "./priority";
 import { priorityWeightOf } from "./recommend";
 import { isCounted, personRecords, PLACEMENT_GAMES, SMALL_SAMPLE } from "./stats";
-import type { MatchView, ParticipantView } from "./types";
+import { MAX_SKILL_GROUP, type GroupWeights, type MatchView, type ParticipantView } from "./types";
 
 /**
  * 티어 자동 제안과 티어 점검(배정 화면 #/priority). 서버·저장 형식은 바꾸지 않고 스냅숏에서 매번 계산한다.
@@ -15,8 +15,8 @@ import type { MatchView, ParticipantView } from "./types";
  */
 export const SUGGEST_PRIOR_GAMES = 10;
 
-/** 제안에 필요한 최소 인원(4등분이므로). */
-export const SUGGEST_MIN_PEOPLE = 4;
+/** 제안에 필요한 최소 인원(5등분이므로 티어마다 한 명은 있게). */
+export const SUGGEST_MIN_PEOPLE = MAX_SKILL_GROUP;
 
 export interface SuggestRow {
   participantId: string;
@@ -25,7 +25,7 @@ export interface SuggestRow {
   wins: number;
   /** 지금 티어. */
   current: Priority;
-  /** 제안 티어. 기록이 적거나(10경기 미만) 대상이 4명 미만이면 null. */
+  /** 제안 티어. 기록이 적거나(10경기 미만) 대상이 5명 미만이면 null. */
   suggested: Priority;
   /** 보정한 승률(0~1). */
   score: number;
@@ -34,7 +34,7 @@ export interface SuggestRow {
 }
 
 export interface SuggestResult {
-  /** 대상(배치 완료 활성 참가자)이 4명 이상이라 제안을 냈는지. */
+  /** 대상(배치 완료 활성 참가자)이 5명 이상이라 제안을 냈는지. */
   ready: boolean;
   /** 배치 완료 활성 참가자 수. */
   eligible: number;
@@ -53,9 +53,9 @@ function byText(a: string, b: string): number {
 
 /**
  * 티어 제안. 대상: 활성(보관·합쳐짐 제외)이고 모임 전체 누적 확정 경기가 10경기 이상인 사람.
- * 보정 승률 높은 순으로 줄 세워 4등분한다: i번째(0부터) 사람은 floor(i × 4 / n) + 1티어.
+ * 보정 승률 높은 순으로 줄 세워 5등분한다: i번째(0부터) 사람은 floor(i × 5 / n) + 1티어(2026-11-06 전에는 4등분).
  * 정렬 순서(동점 처리): 보정 승률 → 경기 수 많은 순 → 참가자 ID 순. 보정 승률이 똑같은 사람들은
- * 그 무리의 첫 사람 티어를 함께 받는다(같은 성적이면 같은 티어). 대상이 4명 미만이면 아무도 제안하지 않는다.
+ * 그 무리의 첫 사람 티어를 함께 받는다(같은 성적이면 같은 티어). 대상이 5명 미만이면 아무도 제안하지 않는다.
  * 승률만 본 참고값이다(라인·상대·최근 흐름은 보지 않는다).
  */
 export function suggestPriorities(
@@ -92,7 +92,7 @@ export function suggestPriorities(
     eligible.forEach((row, i) => {
       const prev = eligible[i - 1];
       const same = prev !== undefined && Math.abs(prev.score - row.score) < 1e-12;
-      if (!same) tier = (Math.floor((i * 4) / n) + 1) as Priority;
+      if (!same) tier = (Math.floor((i * MAX_SKILL_GROUP) / n) + 1) as Priority;
       row.suggested = tier;
     });
   }
@@ -123,7 +123,7 @@ export interface BalanceCheck {
 export function balanceCheck(
   participants: readonly ParticipantView[],
   matches: readonly MatchView[],
-  groupWeights: readonly [number, number, number, number],
+  groupWeights: Readonly<GroupWeights>,
 ): BalanceCheck {
   const priorityOf = new Map(participants.map((p) => [p.id, normalizePriority(p.skillGroup)]));
   let uneven = 0;

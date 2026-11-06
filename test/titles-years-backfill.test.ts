@@ -79,7 +79,7 @@ function snap(matches: MatchView[], seasons: Snapshot["seasons"] = []): Snapshot
       name: "모임",
       timezone: "Asia/Seoul",
       liveVersion: 0,
-      settings: { rotationEnabled: true, groupsPublic: false, groupWeights: [0, 0, 0, 0] },
+      settings: { rotationEnabled: true, groupsPublic: false, groupWeights: [0, 0, 0, 0, 0] },
     },
     participants: Array.from({ length: 10 }, (_, i) => ({
       id: `id${i}`,
@@ -400,7 +400,7 @@ describe("칭호 설정 (서버)", () => {
     const text = JSON.stringify(view.body);
     expect(text).not.toContain(after.group.viewToken!);
     expect(text).not.toContain(after.group.settingsVersionId!);
-    expect(view.body.group.settings.groupWeights).toEqual([0, 0, 0, 0]);
+    expect(view.body.group.settings.groupWeights).toEqual([0, 0, 0, 0, 0]);
     expect(view.body.participants[0]).not.toHaveProperty("skillGroup");
 
     // 다른 설정만 바꿔도 칭호는 그대로 이어진다(전체 스냅샷 저장).

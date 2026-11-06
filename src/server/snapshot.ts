@@ -1,5 +1,6 @@
 import {
   DEFAULT_SETTINGS,
+  upgradeGroupWeights,
   type MatchState,
   type MatchSource,
   type MemberRequestKind,
@@ -54,7 +55,9 @@ export async function loadSettings(env: Env, settingsVersionId: string | null): 
     .bind(settingsVersionId)
     .first<{ payload: string }>();
   if (!row) return { ...DEFAULT_SETTINGS };
-  return JSON.parse(row.payload) as Settings;
+  const settings = JSON.parse(row.payload) as Settings;
+  // 티어 4단계 시절에 저장한 버전은 가중치가 4개다. 저장 행은 그대로 두고 읽을 때 5개로 맞춘다.
+  return { ...settings, groupWeights: upgradeGroupWeights(settings.groupWeights) };
 }
 
 export async function loadOpenSession(env: Env, groupId: string): Promise<SessionView | null> {
@@ -537,7 +540,7 @@ function viewerSettings(settings: Settings): Settings {
   const view: Settings = {
     rotationEnabled: settings.rotationEnabled,
     groupsPublic: settings.groupsPublic,
-    groupWeights: settings.groupsPublic ? settings.groupWeights : [0, 0, 0, 0],
+    groupWeights: settings.groupsPublic ? settings.groupWeights : [0, 0, 0, 0, 0],
   };
   if (settings.titleBands !== undefined) view.titleBands = settings.titleBands;
   return view;

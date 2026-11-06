@@ -188,6 +188,7 @@ export function Group() {
                     <option value="2">2티어</option>
                     <option value="3">3티어</option>
                     <option value="4">4티어</option>
+                    <option value="5">5티어</option>
                   </select>
                   <button
                     type="button"

@@ -14,7 +14,7 @@ import {
   type TeamConstraint,
 } from "../src/shared/recommend";
 import { drawStatus, drawSupport, type RotationContext } from "../src/shared/rotation";
-import type { MatchView, ParticipantView, RevisionView, Snapshot, Team } from "../src/shared/types";
+import type { GroupWeights, MatchView, ParticipantView, RevisionView, Snapshot, Team } from "../src/shared/types";
 import {
   api,
   matchAction,
@@ -41,7 +41,7 @@ const loadFormat = (): Promise<FormatModule> => {
   return import(/* @vite-ignore */ path) as Promise<FormatModule>;
 };
 
-const weights: [number, number, number, number] = [4, 3, 2, 1];
+const weights: GroupWeights = [5, 4, 3, 2, 1];
 const keys = Array.from({ length: 10 }, (_, i) => `k${i}`);
 const rec = (groups: (number | null)[]): RecommendPerson[] =>
   groups.map((skillGroup, i) => ({ key: keys[i]!, skillGroup }));
@@ -217,21 +217,21 @@ describe("조회 응답(허용 목록)과 점검 표시", () => {
     await api(g.cookie, "PUT", `/api/groups/${g.gid}/settings`, {
       requestId: requestId(),
       baseSettingsVersionId: snap.group.settingsVersionId,
-      settings: { ...snap.group.settings, groupWeights: [9, 7, 5, 3], titleBands: bands, teamDiversity: false },
+      settings: { ...snap.group.settings, groupWeights: [9, 7, 5, 3, 1], titleBands: bands, teamDiversity: false },
     });
     const token = snap.group.viewToken!;
     const view = await api<Snapshot>(null, "GET", `/api/view/${token}`);
     expect(view.body.group.settings).toEqual({
       rotationEnabled: true,
       groupsPublic: false,
-      groupWeights: [0, 0, 0, 0],
+      groupWeights: [0, 0, 0, 0, 0],
       titleBands: bands,
     });
     expect(view.body.group.maintenance).toBe(false);
     const text = JSON.stringify(view.body);
     expect(text).not.toContain("skillGroup");
     expect(text).not.toContain(token);
-    expect(text).not.toContain("9,7,5,3");
+    expect(text).not.toContain("9,7,5,3,1");
     expect(view.body.group.generation).toBeUndefined();
 
     await env.DB.prepare("UPDATE groups SET maintenance = 1 WHERE id = ?1").bind(g.gid).run();

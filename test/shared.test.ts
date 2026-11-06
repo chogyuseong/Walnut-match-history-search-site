@@ -30,6 +30,7 @@ import { personRecords, placements, PLACEMENT_GAMES } from "../src/shared/stats"
 import {
   sideOfTeam,
   teamASideFromWinner,
+  type GroupWeights,
   type MatchView,
   type Position,
   type Team,
@@ -378,7 +379,7 @@ describe("팀 추천", () => {
   function rec(groups: (number | null)[]): RecommendPerson[] {
     return groups.map((skillGroup, i) => ({ key: `k${i}`, skillGroup }));
   }
-  const weights: [number, number, number, number] = [4, 3, 2, 1];
+  const weights: GroupWeights = [5, 4, 3, 2, 1];
 
   it("126개 분할 중에서 고르고 두 팀은 겹치지 않는 5명씩이다", () => {
     const candidates = recommendTeams(rec([1, 1, 2, 2, 3, 3, 4, 4, null, null]), weights, 1, 200);
@@ -394,7 +395,7 @@ describe("팀 추천", () => {
 
   it("가중치 합의 차가 가장 작은 분할이 먼저 나온다", () => {
     const candidates = recommendTeams(rec([1, 1, 2, 2, 3, 3, 4, 4, 2, 3]), weights, 1, 126);
-    // 가중치 합이 25(홀수)라 가능한 최소 차는 1이다.
+    // 가중치(5·4·3·2·1) 합이 35(홀수)라 가능한 최소 차는 1이다.
     expect(candidates[0]!.sumDiff).toBe(1);
     for (let i = 1; i < candidates.length; i++) {
       expect(candidates[i]!.sumDiff).toBeGreaterThanOrEqual(candidates[i - 1]!.sumDiff);
@@ -410,6 +411,24 @@ describe("팀 추천", () => {
     const [best] = recommendTeams(rec([1, 1, 1, 1, 4, 4, 4, 4, null, null]), weights, 1);
     expect(best!.sumDiff).toBe(0);
     expect(best!.unassignedCount).toEqual([1, 1]);
+  });
+
+  it("합계·1티어가 같으면 최하위(5티어) 인원이 고르게 나뉜 분할이 먼저다", () => {
+    // 4티어와 5티어 가중치를 같게 두면 {4,4} vs {5,5}처럼 합은 같아도 5티어가 한 팀에 몰린 후보가 생긴다.
+    const all = recommendTeams(rec([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]), [4, 3, 2, 1, 1], 1, 126);
+    const best = all[0]!;
+    expect(best.sumDiff).toBe(0);
+    expect(best.topCount).toEqual([1, 1]);
+    expect(best.bottomCount).toEqual([1, 1]);
+    // 같은 합 차·같은 1티어 차인데 5티어가 2:0인 후보가 실제로 있고, 1:1인 후보보다 뒤에 온다.
+    const tiedLopsided = all.findIndex(
+      (c) => c.sumDiff === 0 && c.topCount[0] === 1 && Math.abs(c.bottomCount[0] - c.bottomCount[1]) === 2,
+    );
+    const evenIdx = all.flatMap((c, i) => (c.sumDiff === 0 && c.topCount[0] === 1 && c.bottomCount[0] === 1 ? [i] : []));
+    const lastEven = Math.max(...evenIdx);
+    expect(tiedLopsided).toBeGreaterThan(0);
+    expect(tiedLopsided).toBeGreaterThan(lastEven);
+    expect(best.reason).toBe("티어 합계 차 0 · 1티어 1:1");
   });
 
   it("같은 시드는 같은 추천을 만든다", () => {
@@ -478,7 +497,7 @@ describe("같은 팀·다른 팀 조건", () => {
   function rec(groups: (number | null)[]): RecommendPerson[] {
     return groups.map((skillGroup, i) => ({ key: `k${i}`, skillGroup }));
   }
-  const weights: [number, number, number, number] = [4, 3, 2, 1];
+  const weights: GroupWeights = [5, 4, 3, 2, 1];
   const input = rec([1, 1, 2, 2, 3, 3, 4, 4, 2, 3]);
 
   it("추천 후보는 모두 조건을 만족한다", () => {

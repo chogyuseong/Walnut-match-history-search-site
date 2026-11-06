@@ -6,6 +6,7 @@ import {
   changedSuggestions,
   priorityMismatches,
   suggestPriorities,
+  SUGGEST_MIN_PEOPLE,
   SUGGEST_PRIOR_GAMES,
   type SuggestResult,
   type SuggestRow,
@@ -19,9 +20,9 @@ import { go, useAppValue, type AppValue } from "../useApp";
 
 /**
  * 티어 배정(#/priority)과 기피 라인(#/priority/avoid). 로그인한 운영자·공동 운영자만(App.tsx LOGIN_ONLY). 조회 링크에는 없다.
- * 티어: 1·2·3·4티어·미지정 다섯 칸에 활성 참가자를 보여 주고, 사람마다 버튼으로 칸을 바꾼다.
+ * 티어: 1·2·3·4·5티어·미지정 여섯 칸에 활성 참가자를 보여 주고, 사람마다 버튼으로 칸을 바꾼다.
  *   저장은 모임 탭과 같은 참가자 수정 API(PATCH …/participants/:id, skillGroup)다. 공개 설정(groupsPublic)은 모임 탭에 있다.
- *   "기록으로 제안받기"(승률로 4등분한 참고값, 고른 사람만 적용)와 "티어 점검"(지금 티어를 지난 경기에 적용한 계산)이 함께 있다.
+ *   "기록으로 제안받기"(승률로 5등분한 참고값, 고른 사람만 적용)와 "티어 점검"(지금 티어를 지난 경기에 적용한 계산)이 함께 있다.
  * 기피 라인: 사람마다 탑·정글·미드·원딜·서폿 토글(0~4개). 같은 API의 avoidPositions로 바로 저장한다.
  */
 export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
@@ -139,7 +140,7 @@ function PriorityPanel({ app, snapshot, people, inDraft }: PanelProps) {
         아니라 아직 안 정한 사람이에요.
       </p>
       <p className="hint">
-        사람 옆의 1·2·3·4·미정 중 하나를 누르면 바로 저장돼요. 공식 등급이 아니라 운영 기준이에요.
+        사람 옆의 1·2·3·4·5·미정 중 하나를 누르면 바로 저장돼요. 공식 등급이 아니라 운영 기준이에요.
         {snapshot.group.settings.groupsPublic
           ? " 지금 조회자에게도 공개돼 있어요(모임 탭에서 바꿀 수 있어요)."
           : " 운영자만 봐요."}
@@ -244,11 +245,11 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
     <Dialog title="기록으로 제안받기" onClose={props.onClose}>
       <p className="hint">
         제안은 승률만 본 참고값이에요(라인·상대·최근 흐름은 보지 않아요). 누적 {PLACEMENT_GAMES}경기 이상인 사람만, 경기가
-        적을수록 승률을 50% 쪽으로 당겨({SUGGEST_PRIOR_GAMES}경기만큼) 줄 세운 뒤 4등분했어요.
+        적을수록 승률을 50% 쪽으로 당겨({SUGGEST_PRIOR_GAMES}경기만큼) 줄 세운 뒤 5등분했어요.
       </p>
       {!result.ready ? (
         <p className="note" role="status">
-          누적 {PLACEMENT_GAMES}경기 이상인 사람이 4명 이상이어야 제안할 수 있어요. 지금 {result.eligible}명이에요.
+          누적 {PLACEMENT_GAMES}경기 이상인 사람이 {SUGGEST_MIN_PEOPLE}명 이상이어야 제안할 수 있어요. 지금 {result.eligible}명이에요.
         </p>
       ) : (
         <>
