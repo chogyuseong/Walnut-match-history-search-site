@@ -130,14 +130,19 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   await expect(sides.getByRole("listitem").filter({ hasText: "레드" })).toContainText("(3경기)");
   await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
 
-  // 시너지: 한 번만 함께한 선수11에는 "자료 적음"이 붙는다.
+  // 비교 지표: 선수02는 누적 11경기라 동료·상대·같은 팀·상대 팀 자리에 값 대신 안내가 나온다.
+  // (누적 30경기 이상일 때의 목록·"자료 적음" 검사는 person-visual.spec.ts에 있다.)
+  const locked = "누적 30경기부터 보여줘요 (지금 11경기)";
   const synergy = page.getByRole("region", { name: "시너지" });
-  // 같은 팀이었던 사람은 5명이라 처음 6명 안에 모두 보인다("더 보기" 없음).
-  await expect(synergy.getByRole("listitem")).toHaveCount(5);
-  await expect(synergy.getByRole("listitem").filter({ hasText: "선수11" })).toContainText("자료 적음");
-  await expect(synergy.getByRole("listitem").filter({ hasText: "선수03" })).not.toContainText(
-    "자료 적음",
-  );
+  await expect(synergy).toContainText(locked);
+  await expect(synergy.getByRole("listitem")).toHaveCount(0);
+  const versus = page.getByRole("region", { name: "상대 전적" });
+  await expect(versus).toContainText(locked);
+  await expect(versus.getByRole("listitem")).toHaveCount(0);
+  const tiles = page.getByRole("region", { name: "요약" }).locator(".ps-tiles");
+  await expect(tiles.locator("div").filter({ hasText: "잘 맞는 동료" })).toContainText(locked);
+  await expect(tiles.locator("div").filter({ hasText: "어려운 상대" })).toContainText(locked);
+  await expect(page.getByRole("group", { name: "시너지·상대 전적 순서" })).toHaveCount(0);
 
   // 화면 순서: 요약 → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 참여 경기(맨 아래).
   const order = await page

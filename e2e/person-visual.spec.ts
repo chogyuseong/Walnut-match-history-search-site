@@ -166,6 +166,16 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   await expect(summary.locator(".ring")).toContainText("33%");
   await expect(summary).toContainText("33% · 20승 40패 (60경기)");
   await expect(summary.locator(".ps-tiles .meter").first()).toBeVisible();
+  // 라인 타일 두 개: 가장 많이 플레이한 라인 · 가장 승률 높은 라인(정글만 뛰어 같은 라인).
+  const tile = (label: string) => summary.locator(".ps-tiles > div").filter({ hasText: label });
+  await expect(summary.locator(".ps-tiles > div")).toHaveCount(4);
+  await expect(tile("가장 많이 플레이한 라인")).toContainText("정글");
+  await expect(tile("가장 많이 플레이한 라인")).toContainText("33% · 60경기");
+  await expect(tile("가장 승률 높은 라인")).toContainText("정글");
+  await expect(tile("가장 승률 높은 라인")).toContainText("33% · 60경기");
+  await expect(summary).not.toContainText("주 라인");
+  // 연속 기록은 요약 머리에 있다(예전 "지금" 타일).
+  await expect(summary.locator(".ps-streak")).toContainText("10연승 중");
 
   const recent = page.getByRole("region", { name: "최근" });
   await expect(recent.locator(".wl-bar")).toHaveCount(2);
@@ -191,10 +201,20 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   await expect(sides.locator(".meter-fill.tone-red")).toHaveCount(1);
   await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("경기)");
 
+  // 비교 지표: 선수02는 누적 60경기. 누적 10경기인 선수11·12는 같은 팀·상대 팀 목록과 동료·상대에서 빠진다.
   const synergy = page.getByRole("region", { name: "시너지" });
   await expect(synergy.getByRole("listitem").first().locator(".meter")).toBeVisible();
+  await expect(synergy).toContainText("누적 30경기 이상인 사람만 보여줘요.");
+  const pairNames = async (region: typeof synergy) =>
+    (await region.getByRole("listitem").allInnerTexts()).map((t) => t.match(/선수\d\d/)?.[0]).sort();
+  expect(await pairNames(synergy)).toEqual(["선수01", "선수03", "선수04", "선수05"]);
   const versus = page.getByRole("region", { name: "상대 전적" });
   await expect(versus.getByRole("listitem").first().locator(".meter")).toBeVisible();
+  await expect(versus).toContainText("누적 30경기 이상인 사람만 보여줘요.");
+  expect(await pairNames(versus)).toEqual(["선수06", "선수07", "선수08", "선수09", "선수10"]);
+  await expect(tile("잘 맞는 동료")).not.toContainText("선수11");
+  await expect(tile("잘 맞는 동료").getByRole("button")).toHaveText(/선수0[1345]/);
+  await expect(tile("어려운 상대").getByRole("button")).toHaveText(/선수(0[6-9]|10)/);
 
   // 그림은 화면 읽기에서 숨기고 숫자를 읽힌다.
   expect(
@@ -219,6 +239,40 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   const linesBox = await page.getByRole("region", { name: "라인별" }).boundingBox();
   expect(Math.abs(recentBox!.y - linesBox!.y)).toBeLessThan(2);
   expect(linesBox!.x).toBeGreaterThan(recentBox!.x + recentBox!.width - 1);
+  // 진영별은 최근 바로 아래 왼쪽 칸에 붙는다(키 큰 라인별 옆이 비지 않게).
+  const sidesBox = await page.getByRole("region", { name: "진영별" }).boundingBox();
+  expect(Math.abs(sidesBox!.x - recentBox!.x)).toBeLessThan(2);
+  expect(sidesBox!.y).toBeLessThan(linesBox!.y + linesBox!.height);
+  // 요약 타일 4개가 한 줄에 놓인다.
+  const tileTops = await page
+    .locator(".ps-tiles > div")
+    .evaluateAll((nodes) => nodes.map((n) => Math.round(n.getBoundingClientRect().top)));
+  expect(new Set(tileTops).size).toBe(1);
+
+  // 누적 30경기 미만인 사람(선수11: 누적 10경기)은 비교 지표 자리에 안내만 보인다. 390·1440px.
+  const few = s.people[10]!;
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/#/p/${few.id}`);
+    await expect(page.getByRole("heading", { name: "선수11", level: 1 })).toBeVisible();
+    const locked = "누적 30경기부터 보여줘요 (지금 10경기)";
+    const fewSummary = page.getByRole("region", { name: "요약" });
+    for (const label of ["잘 맞는 동료", "어려운 상대"]) {
+      await expect(fewSummary.locator(".ps-tiles > div").filter({ hasText: label })).toContainText(locked);
+    }
+    // 라인 타일은 경기 수와 무관하게 보인다(선수11은 탑만 10경기).
+    await expect(fewSummary.locator(".ps-tiles > div").filter({ hasText: "가장 승률 높은 라인" })).toContainText(
+      "100% · 10경기",
+    );
+    for (const name of ["시너지", "상대 전적"]) {
+      const region = page.getByRole("region", { name });
+      await expect(region).toContainText(locked);
+      await expect(region.getByRole("listitem")).toHaveCount(0);
+    }
+    await playedIsLast(page);
+    await noHorizontalOverflow(page);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   // 320px: 랭킹·검색 화면도 가로로 넘치지 않는다.
   await page.setViewportSize({ width: 320, height: 700 });
@@ -258,5 +312,18 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
         .screenshot({ path: join(dir, `ranking-${theme}-390.png`) });
     }
   }
-  void s;
+
+  // 함께 뛴 경기가 적은 짝은 누적 기준을 넘어도 "자료 적음"이다: 선수01·06이 처음으로 2경기 같은 팀.
+  // (위 검사들이 끝난 뒤에 넣는다. 선수01의 시너지에서 선수06은 2경기 · 자료 적음, 선수03은 아니다.)
+  const p = (n: number) => s.people[n - 1]!;
+  const together = [p(1), p(6), p(3), p(4), p(5), p(2), p(7), p(8), p(9), p(10)];
+  for (let i = 0; i < 2; i++) await play(page.request, s, together, "A", "blue");
+  await page.goto(`/#/p/${p(1).id}`);
+  // 주소의 # 뒤만 바뀌면 화면이 예전 자료를 쓰므로 새로 읽는다.
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "선수01", level: 1 })).toBeVisible();
+  const synergy01 = page.getByRole("region", { name: "시너지" });
+  await expect(synergy01.getByRole("listitem").filter({ hasText: "선수06" })).toContainText("(2경기)");
+  await expect(synergy01.getByRole("listitem").filter({ hasText: "선수06" })).toContainText("자료 적음");
+  await expect(synergy01.getByRole("listitem").filter({ hasText: "선수03" })).not.toContainText("자료 적음");
 });

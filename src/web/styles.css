@@ -2290,6 +2290,38 @@ button.row.picked:hover {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+/* 요약 머리의 연속 기록 줄(예전 "지금" 타일). */
+.ps-streak {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+/* 개인 통계: 720px부터 두 단. 키 큰 "라인별"이 오른쪽에서 두 줄을 차지하고
+   왼쪽에 짧은 "최근"·"진영별"을 쌓아 한쪽 아래가 길게 비지 않게 한다.
+   (공통 .screen.cols의 1024px 2단 규칙은 다른 화면용으로 그대로 둔다.) */
+@media (min-width: 720px) {
+  .screen.cols.person-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 16px;
+    align-items: start;
+  }
+  .screen.cols.person-screen > :not(section),
+  .screen.cols.person-screen > .full {
+    grid-column: 1 / -1;
+  }
+  .screen.cols.person-screen > section {
+    min-width: 0;
+  }
+  .screen.cols.person-screen > .person-lines {
+    grid-row: span 2;
+  }
+  /* 라인별: 비중·승률 막대를 한 줄에 나란히(줄마다 한 줄씩 줄어든다). */
+  .person-lines .meters {
+    grid-template-columns: auto minmax(0, 1fr) 2.5rem auto minmax(0, 1fr) 2.5rem;
+  }
+}
 
 /* 누적 승률 추이(작은 선 그래프) */
 .trend {

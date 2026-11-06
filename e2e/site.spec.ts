@@ -282,6 +282,8 @@ test("두 사람 비교: 개인 통계·검색에서 들어가고 조회 링크�
   await expect(page.getByRole("heading", { level: 1, name: "두 사람 비교" })).toBeVisible();
   await page.getByLabel("두 번째 사람").selectOption({ label: "선수07" });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("선수02 vs 선수07");
+  // 직접 고른 두 사람은 누적 30경기 미만이어도 막지 않고, 표본이 적다고만 알린다.
+  await expect(page.getByRole("note")).toContainText("표본이 적어요: 선수02, 선수07 님이 누적 30경기 미만");
   const side = page.getByRole("region", { name: "나란히 보기" });
   await expect(side.getByRole("row").filter({ hasText: "승률" })).toContainText("73%");
   await expect(side.getByRole("row").filter({ hasText: "승률" })).toContainText("27%");
