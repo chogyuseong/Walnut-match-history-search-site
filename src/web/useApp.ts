@@ -64,6 +64,8 @@ export interface Me {
   providers?: ("local" | "kakao" | "google")[];
   /** 지금 세션의 로그인 수단. 아이디·식별자는 서버가 돌려주지 않는다. */
   loginMethod?: "local" | "oauth" | "fake" | null;
+  /** 사이트 운영자(이 서비스의 주인)일 때만 true. 모임 운영자 권한과 무관하다(src/server/siteAdmin.ts). */
+  siteAdmin?: boolean;
 }
 
 export interface AppValue {

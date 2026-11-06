@@ -94,105 +94,8 @@ export function Viewer(props: { token: string; rest: string[] }) {
     </>
   );
 
-  if (rest[0] === "records") {
-    return shell(
-      "records",
-        <Records
-          snapshot={snapshot}
-          openMatch={(id) => go(`${base}/d/${id}`)}
-          openPerson={(id) => go(`${base}/p/${id}`)}
-          openGraphs={() => go(`${base}/graphs`)}
-          openSeason={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
-        />,
-    );
-  }
-  if (rest[0] === "season") {
-    return shell(
-      "records",
-      <SeasonSummaryScreen
-        snapshot={snapshot}
-        scope={seasonScopeFromRoute(rest.slice(1))}
-        back={() => go(`${base}/records`)}
-        choose={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
-      />,
-    );
-  }
-  if (rest[0] === "search") {
-    return shell(
-      "search",
-        <Search
-          snapshot={snapshot}
-          openPerson={(id) => go(`${base}/p/${id}`)}
-          openCompare={(a, b) => go(`${base}/compare/${a}/${b}`)}
-        />,
-    );
-  }
-  if (rest[0] === "home") {
-    return shell(
-      "home",
-        <div className="screen">
-          <header className="screen-head">
-            <h1>{snapshot.group.name} 요약</h1>
-          </header>
-          <KpiStrip snapshot={snapshot} />
-          <Dashboard
-            snapshot={snapshot}
-            openMatch={(id) => go(`${base}/d/${id}`)}
-            openPerson={(id) => go(`${base}/p/${id}`)}
-            openRanking={() => go(`${base}/records`)}
-          />
-        </div>,
-    );
-  }
-  if (rest[0] === "compare") {
-    return shell(
-      "records",
-        <Compare
-          snapshot={snapshot}
-          a={rest[1] ?? null}
-          b={rest[2] ?? null}
-          choose={(a, b) => go(`${base}/compare/${a ?? "-"}/${b ?? "-"}`)}
-          openMatch={(id) => go(`${base}/d/${id}`)}
-          openPerson={(id) => go(`${base}/p/${id}`)}
-          back={() => go(`${base}/records`)}
-        />,
-    );
-  }
-  if (rest[0] === "graphs") {
-    return shell(
-      "records",
-      <Graphs
-        snapshot={snapshot}
-        openPerson={(id) => go(`${base}/p/${id}`)}
-        back={() => go(`${base}/records`)}
-      />,
-    );
-  }
-  if (rest[0] === "p" && rest[1]) {
-    return shell(
-      "records",
-      <Person
-        snapshot={snapshot}
-        participantId={rest[1]}
-        back={() => go(`${base}/records`)}
-        openMatch={(id) => go(`${base}/d/${id}`)}
-        openPerson={(id) => go(`${base}/p/${id}`)}
-        openCompare={(id) => go(`${base}/compare/${id}/-`)}
-      />,
-    );
-  }
-  if (rest[0] === "d" && rest[1]) {
-    return shell(
-      "records",
-      <MatchDetail
-        snapshot={snapshot}
-        matchId={rest[1]}
-        app={null}
-        back={() => go(`${base}/records`)}
-        openMatch={(id) => go(`${base}/d/${id}`)}
-      />,
-    );
-  }
+  const shared = viewerPage(snapshot, base, rest);
+  if (shared) return shell(shared.tab, shared.body);
 
   const current =
     snapshot.matches.find((m) => m.state === "in_progress") ??
@@ -307,7 +210,135 @@ export function Viewer(props: { token: string; rest: string[] }) {
   );
 }
 
-type ViewerTab = "now" | "home" | "search" | "records";
+export type ViewerTab = "now" | "home" | "search" | "records";
+
+/**
+ * 조회 링크와 예시 모임(#/demo, src/web/screens/Demo.tsx)이 같이 쓰는 읽기 전용 화면들.
+ * 주소의 나머지(rest)에 맞는 화면이 없으면 null(조회 링크의 "현재 경기"처럼 각자 그린다).
+ */
+export function viewerPage(
+  snapshot: Snapshot,
+  base: string,
+  rest: string[],
+): { tab: ViewerTab; body: React.ReactNode } | null {
+  if (rest[0] === "records") {
+    return {
+      tab: "records",
+      body: (
+        <Records
+          snapshot={snapshot}
+          openMatch={(id) => go(`${base}/d/${id}`)}
+          openPerson={(id) => go(`${base}/p/${id}`)}
+          openGraphs={() => go(`${base}/graphs`)}
+          openSeason={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
+        />
+      ),
+    };
+  }
+  if (rest[0] === "season") {
+    return {
+      tab: "records",
+      body: (
+      <SeasonSummaryScreen
+        snapshot={snapshot}
+        scope={seasonScopeFromRoute(rest.slice(1))}
+        back={() => go(`${base}/records`)}
+        choose={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
+      />
+      ),
+    };
+  }
+  if (rest[0] === "search") {
+    return {
+      tab: "search",
+      body: (
+        <Search
+          snapshot={snapshot}
+          openPerson={(id) => go(`${base}/p/${id}`)}
+          openCompare={(a, b) => go(`${base}/compare/${a}/${b}`)}
+        />
+      ),
+    };
+  }
+  if (rest[0] === "home") {
+    return {
+      tab: "home",
+      body: (
+        <div className="screen">
+          <header className="screen-head">
+            <h1>{snapshot.group.name} 요약</h1>
+          </header>
+          <KpiStrip snapshot={snapshot} />
+          <Dashboard
+            snapshot={snapshot}
+            openMatch={(id) => go(`${base}/d/${id}`)}
+            openPerson={(id) => go(`${base}/p/${id}`)}
+            openRanking={() => go(`${base}/records`)}
+          />
+        </div>
+      ),
+    };
+  }
+  if (rest[0] === "compare") {
+    return {
+      tab: "records",
+      body: (
+        <Compare
+          snapshot={snapshot}
+          a={rest[1] ?? null}
+          b={rest[2] ?? null}
+          choose={(a, b) => go(`${base}/compare/${a ?? "-"}/${b ?? "-"}`)}
+          openMatch={(id) => go(`${base}/d/${id}`)}
+          openPerson={(id) => go(`${base}/p/${id}`)}
+          back={() => go(`${base}/records`)}
+        />
+      ),
+    };
+  }
+  if (rest[0] === "graphs") {
+    return {
+      tab: "records",
+      body: (
+      <Graphs
+        snapshot={snapshot}
+        openPerson={(id) => go(`${base}/p/${id}`)}
+        back={() => go(`${base}/records`)}
+      />
+      ),
+    };
+  }
+  if (rest[0] === "p" && rest[1]) {
+    return {
+      tab: "records",
+      body: (
+      <Person
+        snapshot={snapshot}
+        participantId={rest[1]}
+        back={() => go(`${base}/records`)}
+        openMatch={(id) => go(`${base}/d/${id}`)}
+        openPerson={(id) => go(`${base}/p/${id}`)}
+        openCompare={(id) => go(`${base}/compare/${id}/-`)}
+      />
+      ),
+    };
+  }
+  if (rest[0] === "d" && rest[1]) {
+    return {
+      tab: "records",
+      body: (
+      <MatchDetail
+        snapshot={snapshot}
+        matchId={rest[1]}
+        app={null}
+        back={() => go(`${base}/records`)}
+        openMatch={(id) => go(`${base}/d/${id}`)}
+      />
+      ),
+    };
+  }
+
+  return null;
+}
 
 /** 점검 중(백업 복원·모임 삭제 진행 중) 안내. 조회 링크의 모든 화면 맨 위에 둔다. */
 function MaintenanceNote() {

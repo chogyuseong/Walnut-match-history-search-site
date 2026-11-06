@@ -3257,3 +3257,90 @@ button.row.picked:hover {
 .award.is-none .winner {
   color: var(--muted);
 }
+/* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). */
+.intro h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.intro p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.intro-features {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.intro-features li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-elevated);
+  overflow-wrap: anywhere;
+}
+.intro-features span {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+@media (min-width: 720px) {
+  .intro-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .intro-features {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* 예시 모임(#/demo) 위 안내. 데이터와 상관없이 바로 그려 높이가 바뀌지 않는다. */
+.demo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 16px;
+  background: var(--ih-warn-bg);
+  border-bottom: 1px solid var(--ih-border-subtle);
+}
+.demo-banner p {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* 예시 데이터를 만드는 동안 자리를 잡아 둔다(아래 푸터가 크게 튀지 않게). */
+.demo-loading,
+.site-admin-loading {
+  min-height: 60vh;
+}
+/* 사이트 현황의 오류 스택. */
+.error-log details {
+  min-width: 0;
+}
+.error-log summary {
+  overflow-wrap: anywhere;
+}
+.error-stack {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ih-bg-elevated);
+  border-radius: var(--ih-radius-sm);
+}
+.error-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}

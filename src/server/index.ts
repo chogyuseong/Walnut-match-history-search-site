@@ -101,13 +101,17 @@ import { applyRestore, importAsNewGroup, previewRestore } from "./restore";
 import { fixturesEnabled, listImportFingerprints, readSheet, registerFixture } from "./sheets";
 import { readLegacy, registerLegacyFixture } from "./legacy";
 import { buildSnapshot } from "./snapshot";
+import { recordClientError, recordServerError } from "./errorLog";
+import { clearErrorLogs, isSiteAdmin, requireSiteAdmin, siteOverview } from "./siteAdmin";
 
 const app = new Hono<{ Bindings: Env }>();
 
 /** 요청 수를 세는 비싼 GET 경로: 백업 내려받기, 합치기 미리보기, 가져오기 지문 목록. */
 const HEAVY_READ = /^\/api\/groups\/[^/]+\/(export|merges\/preview|imports\/fingerprints)$/;
+/** 화면 오류 보고 경로(src/server/errorLog.ts). */
+const CLIENT_ERRORS_PATH = "/api/client-errors";
 
-app.onError((error, c) => {
+app.onError(async (error, c) => {
   if (error instanceof ApiError) {
     if (error.status === 429) {
       const retryAfter = (error.details as { retryAfter?: number } | undefined)?.retryAfter;
@@ -120,6 +124,13 @@ app.onError((error, c) => {
   }
   // 예상하지 못한 오류: 내부 내용을 응답에 싣지 않는다.
   console.error(JSON.stringify({ at: nowIso(), path: pathForLog(c.req.path), error: String(error) }));
+  // 오류 기록 표에도 넣는다(가린 값만, src/server/errorLog.ts). 넣다가 실패해도 응답은 그대로다.
+  // 사용자 실수(ApiError: 4xx·점검 503)는 위에서 돌아가므로 여기 오지 않는다.
+  try {
+    await recordServerError(c.env, c.req.path, error);
+  } catch {
+    // 무시
+  }
   return c.json({ error: { code: "INTERNAL", message: "서버 오류가 발생했습니다." } }, 500);
 });
 
@@ -177,6 +188,9 @@ app.use("/api/*", async (c, next) => {
       const session = await readSession(c.env, c.req.raw);
       if (session) await hit(c.env, "heavy-account", session.id);
     }
+  } else if (method === "POST" && path === CLIENT_ERRORS_PATH) {
+    // 화면 오류 보고(로그인 없음): 자기 한도만 센다. 쓰기 한도를 쓰면 오류가 잦은 화면에서 저장까지 막힌다.
+    await hit(c.env, "client-error-ip", ip);
   } else if (method !== "HEAD" && method !== "OPTIONS") {
     // 참가 신청(로그인 없음, 토큰이 권한)은 조회 토큰 한도도 함께 센다.
     if (path.startsWith("/api/join/")) await hit(c.env, "view-ip", ip);
@@ -336,7 +350,29 @@ app.get("/api/me", async (c) => {
     providers,
     // 화면이 비밀번호 바꾸기를 보여줄지 정하는 데 쓴다. 아이디는 돌려주지 않는다.
     loginMethod: session.provider === LOCAL_PROVIDER ? "local" : session.provider === "fake" ? "fake" : "oauth",
+    // 사이트 운영자(src/server/siteAdmin.ts)에게만 붙인다. 화면이 현황 메뉴를 보여줄지 정한다.
+    ...((await isSiteAdmin(c.env, c.req.raw)) ? { siteAdmin: true } : {}),
   });
+});
+
+/* ---------------------------- 오류 기록 · 사이트 운영자 현황 ---------------------------- */
+
+// 화면 오류 보고. 로그인 없이 받는다. 공통 앞단에서 Origin 확인과 IP별 한도(client-error-ip)를 거친다.
+// 본문은 JSON만, 16KB까지. 계정·IP·쿠키는 저장하지 않는다(src/server/errorLog.ts).
+app.post(CLIENT_ERRORS_PATH, async (c) => {
+  await recordClientError(c.env, c.req.raw);
+  return c.json({ ok: true });
+});
+
+// 사이트 운영자만. 아니면 없는 경로처럼 404. 전체 수치와 오류 기록만 돌려준다(모임 안의 자료는 없음).
+app.get("/api/admin/overview", async (c) => {
+  await requireSiteAdmin(c.env, c.req.raw);
+  return c.json(await siteOverview(c.env));
+});
+
+app.post("/api/admin/errors/clear", async (c) => {
+  await requireSiteAdmin(c.env, c.req.raw);
+  return c.json({ cleared: await clearErrorLogs(c.env) });
 });
 
 /* ---------------------------- 모임 ---------------------------- */

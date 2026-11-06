@@ -40,6 +40,15 @@ export interface Env {
   RATE_SIGNUP_PER_IP?: string;
   RATE_LOGIN_PER_IP?: string;
   RATE_RECOVER_PER_IP?: string;
+  /** 화면 오류 보고(POST /api/client-errors, 로그인 없음)의 IP별 한도(창당). 기본 10. */
+  RATE_CLIENT_ERROR_PER_IP?: string;
+
+  /**
+   * 사이트 운영자(이 서비스의 주인. 모임 운영자와 다르다). 쉼표로 구분한 계정 ID 목록.
+   * 비어 있으면 아무도 현황 화면(#/admin, GET /api/admin/overview)을 못 본다(src/server/siteAdmin.ts).
+   * 로컬 가짜 로그인에서만 "fake:로그인이름" 꼴도 받는다(가짜 로그인이 열려 있을 때만 맞춰 본다).
+   */
+  SITE_ADMIN_ACCOUNT_IDS?: string;
 
   /**
    * 자체 계정(아이디 + 비밀번호). "off"면 가입·로그인·복구·비밀번호 바꾸기 경로가 모두 404이고 화면에서도 숨는다.

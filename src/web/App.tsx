@@ -24,6 +24,8 @@ import { Today } from "./screens/Today";
 import { Transfer } from "./screens/Transfer";
 import { CoInvite } from "./screens/CoOperators";
 import { Viewer } from "./screens/Viewer";
+import { Demo } from "./screens/Demo";
+import { SiteAdmin } from "./screens/SiteAdmin";
 import { Join } from "./screens/Join";
 import { LoginFailed } from "./screens/Login";
 import { Privacy } from "./screens/Privacy";
@@ -36,7 +38,9 @@ export function App() {
   const isViewer = route[0] === "v" && typeof route[1] === "string";
   // 참가 신청(#/join/토큰)도 로그인 없이 여는 화면이라 운영자 상태를 읽지 않는다.
   const isJoin = route[0] === "join" && typeof route[1] === "string";
-  const app = useApp(!isViewer && !isJoin);
+  // 예시 모임(#/demo)은 기기에서 만든 합성 데이터만 보여 주므로 운영자 상태를 읽지 않는다.
+  const isDemo = route[0] === "demo";
+  const app = useApp(!isViewer && !isJoin && !isDemo);
   useKeyboardFlag();
 
   if (isJoin) {
@@ -46,6 +50,18 @@ export function App() {
         <main>
           <Join token={route[1]!} rest={route.slice(2)} />
           <LegalFooter privacyHref={`#/join/${route[1]}/privacy`} />
+        </main>
+      </>
+    );
+  }
+
+  if (isDemo) {
+    return (
+      <>
+        <TopBar homeLink />
+        <main>
+          <Demo rest={route.slice(1)} />
+          <LegalFooter />
         </main>
       </>
     );
@@ -224,6 +240,8 @@ function OperatorScreen(props: { route: string[] }) {
     if (!app.me && app.loadError) return <LoadFailed />;
     return <LoginRequired title={LOGIN_ONLY[page]!} />;
   }
+  // 사이트 운영자 현황. 사이트 운영자가 아니면 없는 화면처럼 첫 화면을 보여 준다(메뉴에도 없다).
+  if (page === "admin" && app.me?.siteAdmin) return <SiteAdmin />;
   if (page === "pick") return <Pick />;
   if (page === "prep") return <Prep />;
   if (page === "priority") return <PriorityScreen tab={id === "avoid" ? "avoid" : "priority"} />;

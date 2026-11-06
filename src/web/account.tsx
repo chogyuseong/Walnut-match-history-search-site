@@ -130,6 +130,19 @@ export function AccountControl() {
               })}
             </div>
           )}
+          {app.me?.siteAdmin && (
+            // 사이트 운영자(서비스 주인)에게만 보인다. 모임 운영자 권한과 무관하다.
+            <button
+              type="button"
+              className="secondary wide"
+              onClick={() => {
+                setMenuOpen(false);
+                go("/admin");
+              }}
+            >
+              사이트 현황
+            </button>
+          )}
           <ErrorNote error={error} />
           <button
             type="button"

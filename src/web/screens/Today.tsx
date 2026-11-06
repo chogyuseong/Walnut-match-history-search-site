@@ -8,6 +8,7 @@ import { drawDayImage, fileDate, ShareImageDialog } from "../shareImage";
 import { ErrorNote, KpiStrip, StandingNote } from "../ui";
 import { Dashboard, DashboardEmpty } from "./Dashboard";
 import { go, useAppValue } from "../useApp";
+import { Intro, isFirstVisit } from "./Intro";
 import { LoginDialog } from "./Login";
 import { ResultSheet } from "./ResultSheet";
 import type { MatchView } from "../../shared/types";
@@ -23,6 +24,9 @@ export function Today() {
   // "버리기" 직후에만 쓰는 되돌리기.
   const [undo, setUndo] = useState<(() => void) | null>(null);
   const [imageOpen, setImageOpen] = useState(false);
+  // 처음 온 방문자(로그인 안 함, 기기에 기억한 모임·조회 링크·편성 없음)에게만 소개를 맨 위에 붙인다.
+  // 이 화면이 열릴 때 한 번만 정한다(소개가 중간에 사라지거나 생겨 화면이 밀리지 않게).
+  const [firstVisit] = useState(() => !app.draft && isFirstVisit());
 
   const snapshot = app.snapshot;
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
@@ -76,6 +80,8 @@ export function Today() {
           </span>
         )}
       </header>
+
+      {app.ready && !app.me?.accountId && firstVisit && <Intro />}
 
       {snapshot && <KpiStrip snapshot={snapshot} />}
 
