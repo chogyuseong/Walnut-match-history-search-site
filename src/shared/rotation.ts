@@ -200,7 +200,7 @@ function applyRecord(draft: Draft, team: Team, record: DrawRecord): Draft {
 
 export interface TeamDrawOutcome {
   team: Team;
-  /** drawn: 새로 뽑음. kept: 같은 조건이라 기존 결과를 유지. blocked: 뽑을 수 없음. */
+  /** drawn: 새로 뽑음. blocked: 뽑을 수 없음. kept는 예전 동작(같은 조건이면 유지)의 값으로 지금은 나오지 않는다. */
   kind: "drawn" | "kept" | "blocked";
   record?: DrawRecord;
   block?: CandidateBlock;
@@ -213,10 +213,8 @@ function planTeamDraw(
   ctx: RotationContext,
   rng: () => number,
 ): TeamDrawOutcome {
-  const status = drawStatus(draft, team, ctx);
-  if (status === "applied" || status === "reapplicable") {
-    return { team, kind: "kept", record: draft.draws[team]! };
-  }
+  // 누를 때마다 새로 뽑는다(2026-11-06 사용자 결정). 예전에는 같은 조건이면 기존 결과를 유지했다.
+  // 후보에서 지금 서포터를 빼므로, 안 간 사람이 둘 이상이면 누를 때마다 서포터가 바뀐다.
   const { candidates, block } = drawCandidates(draft, team, ctx);
   const outKey = supporterKey(draft, team);
   if (block || outKey === null) return { team, kind: "blocked", block: block ?? "only-current" };
@@ -246,7 +244,7 @@ export interface DrawResult {
  * 서포터만 바꾸기(이전 이름 "서포터 추첨").
  * 팀마다 아직 서포터를 안 간 사람(fairSupportPool) 중 지금 서포터가 아닌 사람을 뽑아
  * 새 서포터와 기존 서포터의 포지션만 맞바꾸고 나머지 8명은 유지한다.
- * 같은 조건에서 다시 누르면 같은 결과를 돌려준다.
+ * 누를 때마다 새로 뽑는다: 안 간 사람이 둘 이상이면 매번 다른 사람이 서포터가 된다(같은 시드·같은 편성이면 결과는 같다).
  * 두 팀을 따로 판단한다: 바꿀 수 없는 팀(모두 배정받음·고정·지금 서포터만 남음)은 그대로 두고
  * 바꿀 수 있는 팀만 바로 적용한다(묻지 않는다).
  */

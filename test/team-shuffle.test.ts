@@ -203,16 +203,27 @@ describe("서포터만 바꾸기", () => {
     expect(result.allAssigned).toEqual([]);
   });
 
-  it("같은 조건이면 같은 결과, 이 팀 사람의 횟수가 바뀌면 다시 확인 대상이다", () => {
+  // 2026-11-06 변경: 누를 때마다 새로 뽑는다(예전에는 같은 조건이면 같은 결과를 유지했다).
+  it("다시 누르면 두 팀 모두 아직 안 간 다른 사람으로 바뀐다. 이미 간 사람은 계속 뽑히지 않는다", () => {
     const d = fixedDraft();
     const ctx = ctxOf({ id0: 1 });
-    const first = drawSupport(d, ["A", "B"], ctx);
-    const again = drawSupport(first.draft, ["A", "B"], ctx);
-    expect(again.outcomes.every((o) => o.kind === "kept")).toBe(true);
-    expect(again.draft.slots).toEqual(first.draft.slots);
-    // 다른 팀 사람의 횟수만 바뀌면 팀 A의 결과는 그대로다.
-    const otherTeam = ctxOf({ id0: 1, id5: 3 });
-    expect(drawSupport(first.draft, ["A"], otherTeam).outcomes[0]!.kind).toBe("kept");
+    const sup = (draft: Draft, team: "A" | "B") =>
+      draft.slots.find((s) => s.team === team && s.position === "support")!.key;
+    let current = drawSupport(d, ["A", "B"], ctx).draft;
+    for (let i = 0; i < 12; i++) {
+      const next = drawSupport(current, ["A", "B"], ctx);
+      expect(next.outcomes.every((o) => o.kind === "drawn")).toBe(true);
+      for (const team of ["A", "B"] as const) {
+        expect(sup(next.draft, team)).not.toBe(sup(current, team));
+        expect(sup(next.draft, team)).not.toBe("p:id0");
+      }
+      // 팀 구성은 그대로이고, 팀마다 두 사람의 포지션만 바뀐다.
+      expect(next.draft.slots.map((s) => `${s.key}:${s.team}`)).toEqual(current.slots.map((s) => `${s.key}:${s.team}`));
+      expect(next.draft.slots.filter((s, idx) => s.position !== current.slots[idx]!.position)).toHaveLength(4);
+      current = next.draft;
+    }
+    // 같은 편성·같은 시드에서 누르면 결과가 같다(결정적).
+    expect(drawSupport(current, ["A", "B"], ctx).draft.slots).toEqual(drawSupport(current, ["A", "B"], ctx).draft.slots);
   });
 });
 

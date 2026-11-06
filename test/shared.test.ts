@@ -239,22 +239,33 @@ describe("서포터 추첨", () => {
     }
   });
 
-  it("다시 눌러도, 보관했다 다시 읽어도 같은 결과다 (17)", () => {
+  // 2026-11-06 변경: 누를 때마다 새로 뽑는다(예전에는 같은 조건이면 같은 결과를 유지했다).
+  it("다시 누르면 아직 안 간 다른 사람으로 바뀐다. 보관했다 다시 읽어도 같은 편성·같은 시드면 결과가 같다 (17)", () => {
+    const supA = (d: Draft) => d.slots.find((s) => s.team === "A" && s.position === "support")!.key;
     const first = drawSupport(fixedDraft(), ["A"], ctx());
+    let current = first.draft;
+    for (let i = 0; i < 6; i++) {
+      const next = drawSupport(current, ["A"], ctx());
+      expect(next.outcomes[0]!.kind).toBe("drawn");
+      expect(supA(next.draft)).not.toBe(supA(current));
+      // 서포터와 맞바꾼 사람 말고는 그대로다.
+      const moved = next.draft.slots.filter((s, idx) => s.position !== current.slots[idx]!.position);
+      expect(moved).toHaveLength(2);
+      current = next.draft;
+    }
     const again = drawSupport(first.draft, ["A"], ctx());
-    expect(again.outcomes[0]!.kind).toBe("kept");
-    expect(again.draft.slots).toEqual(first.draft.slots);
     const reloaded = parseStoredDraft(JSON.stringify(first.draft))!;
-    const afterReload = drawSupport(reloaded, ["A"], ctx());
-    expect(afterReload.draft.slots).toEqual(first.draft.slots);
+    expect(drawSupport(reloaded, ["A"], ctx()).draft.slots).toEqual(again.draft.slots);
   });
 
-  it("되돌린 뒤 다시 누르면 새로 뽑지 않고 같은 결과를 다시 적용한다", () => {
+  it("되돌린 뒤 다시 눌러도 새로 뽑는다(추첨 전 서포터가 아닌 사람이 된다)", () => {
+    const supA = (d: Draft) => d.slots.find((s) => s.team === "A" && s.position === "support")!.key;
     const first = drawSupport(fixedDraft(), ["A"], ctx());
     const undone = undoDraft(first.draft);
     expect(drawStatus(undone, "A", ctx())).toBe("reapplicable");
     const again = drawSupport(undone, ["A"], ctx());
-    expect(again.draft.slots).toEqual(first.draft.slots);
+    expect(again.outcomes[0]!.kind).toBe("drawn");
+    expect(supA(again.draft)).not.toBe(supA(undone));
   });
 
   it("참가자를 바꾸면 그 팀의 추첨만 다시 확인 대상이 된다 (18)", () => {

@@ -102,14 +102,16 @@ test.describe("첫 이용 흐름 (390px)", () => {
     await expect(teamA.getByRole("button").first()).toContainText(firstB);
     await expect(teamB.getByRole("button").first()).toContainText(firstA);
 
-    // 서포터 추첨: 누가 어디로 갔는지 이름으로 보여주고, 다시 눌러도 같은 결과다. (17)
+    // 서포터만 바꾸기: 누가 어디로 갔는지 이름으로 보여주고, 다시 누르면 아직 안 간 다른 사람으로 또 바뀐다. (17)
+    // (2026-11-06 변경: 예전에는 같은 조건이면 같은 결과를 유지했다.)
     await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
     const drawLine = page.getByText(/^블루팀: .+→서포터, .+ 서포터→.+, 나머지 유지/);
     await expect(drawLine).toBeVisible();
-    const firstDraw = (await drawLine.innerText()).replace(/ \(같은 조건.*$/, "");
+    const firstDraw = await drawLine.innerText();
     await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
-    await expect(page.getByText(/같은 조건이라 결과를 유지했어요/).first()).toBeVisible();
-    expect((await drawLine.innerText()).startsWith(firstDraw)).toBe(true);
+    await expect(drawLine).toBeVisible();
+    await expect(drawLine).not.toHaveText(firstDraw);
+    await expect(page.getByText(/같은 조건이라 결과를 유지했어요/)).toHaveCount(0);
 
     // 이 팀으로 시작: 여기서 처음 로그인한다.
     await page.getByRole("button", { name: "이 팀으로 시작" }).click();

@@ -1097,7 +1097,7 @@ function DrawSummary(props: {
             {prepTeamName(outcome.team)}: {nameOf(outcome.record!.inKey)}{" "}
             {POSITION_LABEL[outcome.record!.fromPosition]}→서포터, {nameOf(outcome.record!.outKey)}{" "}
             서포터→{POSITION_LABEL[outcome.record!.fromPosition]}, 나머지 유지
-            {outcome.kind === "kept" ? " (같은 조건이라 결과를 유지했어요)" : ""}
+            
           </p>
         ),
       )}

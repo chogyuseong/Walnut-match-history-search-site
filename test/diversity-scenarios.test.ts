@@ -404,10 +404,13 @@ describe("한 팀만 바꿀 수 있으면 그 팀만 바로 바꾼다 (21)", () 
     expect(both.draft.previousSlots).toEqual(draft.slots);
     expect(drawStatus(both.draft, "A", ctx)).toBe("applied");
 
-    // 다시 누르면: A는 같은 결과를 유지, B는 여전히 그대로. 초안은 바뀌지 않는다.
+    // 다시 누르면(2026-11-06 변경: 누를 때마다 새로 뽑는다): A는 아직 안 간 다른 사람으로 또 바뀌고, B는 여전히 그대로다.
+    const supA = (d: Draft) => d.slots.find((s) => s.team === "A" && s.position === "support")!.key;
     const again = drawSupport(both.draft, ["A", "B"], ctx);
-    expect(again.draft).toBe(both.draft);
-    expect(again.outcomes.find((o) => o.team === "A")!.kind).toBe("kept");
+    expect(again.outcomes.find((o) => o.team === "A")!.kind).toBe("drawn");
+    expect(supA(again.draft)).not.toBe(supA(both.draft));
+    expect(again.outcomes.find((o) => o.team === "B")).toMatchObject({ kind: "blocked", block: "only-current" });
+    expect(again.draft.slots.filter((s) => s.team === "B")).toEqual(draft.slots.filter((s) => s.team === "B"));
   });
 
   it("반대로 팀 A가 막히면 팀 B만 바로 바뀐다", () => {

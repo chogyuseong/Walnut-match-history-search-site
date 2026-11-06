@@ -128,12 +128,24 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await page.getByRole("button", { name: "조건 지우기" }).click();
   await noHorizontalOverflow(page);
 
-  // 연타: 서포터만 바꾸기를 빠르게 여러 번 눌러도 같은 결과(같은 조건이면 같은 결과).
+  // 서포터만 바꾸기는 누를 때마다 새로 뽑는다(2026-11-06 변경. 예전에는 같은 조건이면 같은 결과였다).
+  // 아직 아무도 서포터를 안 갔으므로 누를 때마다 두 팀 서포터가 다른 사람으로 바뀌고, 팀원은 그대로다.
+  const supportOf = (rows: { name: string; position?: string }[]) => JSON.stringify(rows);
+  const teamNames = async () => [
+    (await readTeam(page, "A")).map((r) => r.name).sort(),
+    (await readTeam(page, "B")).map((r) => r.name).sort(),
+  ];
+  const namesBefore = await teamNames();
   await tools.getByRole("button", { name: "서포터만 바꾸기" }).click();
-  const drawn = [await readTeam(page, "A"), await readTeam(page, "B")];
-  for (let i = 0; i < 5; i++) await tools.getByRole("button", { name: "서포터만 바꾸기" }).click({ delay: 0 });
-  expect([await readTeam(page, "A"), await readTeam(page, "B")]).toEqual(drawn);
-  await expect(page.getByText("같은 조건이라 결과를 유지했어요").first()).toBeVisible();
+  let lineup = supportOf([...(await readTeam(page, "A")), ...(await readTeam(page, "B"))]);
+  for (let i = 0; i < 5; i++) {
+    await tools.getByRole("button", { name: "서포터만 바꾸기" }).click();
+    const next = supportOf([...(await readTeam(page, "A")), ...(await readTeam(page, "B"))]);
+    expect(next).not.toBe(lineup);
+    lineup = next;
+  }
+  expect(await teamNames()).toEqual(namesBefore);
+  await expect(page.getByText("같은 조건이라 결과를 유지했어요")).toHaveCount(0);
 
   // 공평 섞기로 6경기. 팀원은 매 경기 그대로(다음 경기 준비는 같은 팀)라 6번째에 두 팀 모두 다 배정받는다.
   const supportedBefore = new Set<string>();
