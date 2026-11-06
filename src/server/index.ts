@@ -1,3 +1,4 @@
+import { saveSupportCounts } from "./supportCounts";
 import { Hono } from "hono";
 import {
   clearSessionCookie,
@@ -7,11 +8,20 @@ import {
   productionConfigProblem,
   readSession,
   requireAccountId,
+  requireMember,
   requireOperator,
+  requireOwner,
   revokeSessions,
   sessionCookie,
   upsertAccount,
 } from "./auth";
+import {
+  acceptCoInvite,
+  coInviteInfo,
+  createCoInvite,
+  listCoOperators,
+  removeCoOperator,
+} from "./coOperators";
 import type { Env } from "./env";
 import {
   acceptTransfer,
@@ -49,11 +59,36 @@ import {
   importMatches,
   MAX_IMPORT_BODY_BYTES,
   restoreMatch,
+  saveMemo,
   setImportBatchExcluded,
   startMatch,
 } from "./matches";
+import { addToSeries, createSeries, removeFromSeries, updateSeries } from "./series";
 import { deleteAccount, deleteGroup } from "./deletion";
+import {
+  clearJoinEntries,
+  createJoinLink,
+  joinAdd,
+  joinAdminView,
+  joinCancel,
+  joinInfo,
+  removeJoinEntry,
+  setJoinOpen,
+} from "./join";
 import { mergeParticipants, previewMerge, undoMerge } from "./merge";
+import {
+  acceptClaim,
+  anonymizeParticipant,
+  claimInfo,
+  createClaimLink,
+  createMemberRequest,
+  listMemberships,
+  memberSnapshot,
+  resolveMemberRequest,
+  setOwnAvoid,
+  unlinkByOperator,
+  unlinkSelf,
+} from "./members";
 import { maintenanceError } from "./mutation";
 import {
   beginLogin,
@@ -80,13 +115,17 @@ import { applyRestore, importAsNewGroup, previewRestore } from "./restore";
 import { fixturesEnabled, listImportFingerprints, readSheet, registerFixture } from "./sheets";
 import { readLegacy, registerLegacyFixture } from "./legacy";
 import { buildSnapshot } from "./snapshot";
+import { recordClientError, recordServerError } from "./errorLog";
+import { clearErrorLogs, isSiteAdmin, requireSiteAdmin, siteOverview } from "./siteAdmin";
 
 const app = new Hono<{ Bindings: Env }>();
 
 /** 요청 수를 세는 비싼 GET 경로: 백업 내려받기, 합치기 미리보기, 가져오기 지문 목록. */
 const HEAVY_READ = /^\/api\/groups\/[^/]+\/(export|merges\/preview|imports\/fingerprints)$/;
+/** 화면 오류 보고 경로(src/server/errorLog.ts). */
+const CLIENT_ERRORS_PATH = "/api/client-errors";
 
-app.onError((error, c) => {
+app.onError(async (error, c) => {
   if (error instanceof ApiError) {
     if (error.status === 429) {
       const retryAfter = (error.details as { retryAfter?: number } | undefined)?.retryAfter;
@@ -99,6 +138,15 @@ app.onError((error, c) => {
   }
   // 예상하지 못한 오류: 내부 내용을 응답에 싣지 않는다.
   console.error(JSON.stringify({ at: nowIso(), path: pathForLog(c.req.path), error: String(error) }));
+  // 오류 기록 표에도 넣는다(가린 값만, src/server/errorLog.ts). 넣다가 실패해도 응답은 그대로다.
+  // 사용자 실수(ApiError: 4xx·점검 503)는 위에서 돌아가므로 여기 오지 않는다.
+  // 응답을 늦추지 않게 Workers의 waitUntil로 넘긴다(실행 문맥이 없는 직접 호출·테스트에서는 기다린다).
+  const recording = recordServerError(c.env, c.req.path, error).catch(() => undefined);
+  try {
+    c.executionCtx.waitUntil(recording);
+  } catch {
+    await recording;
+  }
   return c.json({ error: { code: "INTERNAL", message: "서버 오류가 발생했습니다." } }, 500);
 });
 
@@ -142,7 +190,13 @@ app.use("/api/*", async (c, next) => {
       throw error;
     }
   } else if (method === "GET") {
-    if (path.startsWith("/api/view/") || path.startsWith("/api/transfer/")) {
+    if (
+      path.startsWith("/api/view/") ||
+      path.startsWith("/api/transfer/") ||
+      path.startsWith("/api/co-invite/") ||
+      path.startsWith("/api/join/") ||
+      path.startsWith("/api/claim/")
+    ) {
       await hit(c.env, "view-ip", ip);
     } else if (HEAVY_READ.test(path)) {
       // 비싼 읽기(모임 전체를 읽음): IP·계정별로 센다. 운영자 스냅숏과 /api/me는 화면이 자주 부르는
@@ -151,7 +205,12 @@ app.use("/api/*", async (c, next) => {
       const session = await readSession(c.env, c.req.raw);
       if (session) await hit(c.env, "heavy-account", session.id);
     }
+  } else if (method === "POST" && path === CLIENT_ERRORS_PATH) {
+    // 화면 오류 보고(로그인 없음): 자기 한도만 센다. 쓰기 한도를 쓰면 오류가 잦은 화면에서 저장까지 막힌다.
+    await hit(c.env, "client-error-ip", ip);
   } else if (method !== "HEAD" && method !== "OPTIONS") {
+    // 참가 신청(로그인 없음, 토큰이 권한)은 조회 토큰 한도도 함께 센다.
+    if (path.startsWith("/api/join/")) await hit(c.env, "view-ip", ip);
     await hit(c.env, "write-ip", ip);
     const session = await readSession(c.env, c.req.raw);
     if (session) await hit(c.env, "write-account", session.id);
@@ -303,12 +362,36 @@ app.get("/api/me", async (c) => {
   if (!session) return c.json({ accountId: null, groups: [], authMode, providers, loginMethod: null });
   return c.json({
     accountId: session.id,
+    // 운영하는 모임(대표·공동). 뜻은 그대로다. 참가자로 연결한 모임은 memberships에 따로 준다(migrations/0019).
     groups: await listGroups(c.env, session.id),
+    memberships: await listMemberships(c.env, session.id),
     authMode,
     providers,
     // 화면이 비밀번호 바꾸기를 보여줄지 정하는 데 쓴다. 아이디는 돌려주지 않는다.
     loginMethod: session.provider === LOCAL_PROVIDER ? "local" : session.provider === "fake" ? "fake" : "oauth",
+    // 사이트 운영자(src/server/siteAdmin.ts)에게만 붙인다. 화면이 현황 메뉴를 보여줄지 정한다.
+    ...((await isSiteAdmin(c.env, c.req.raw)) ? { siteAdmin: true } : {}),
   });
+});
+
+/* ---------------------------- 오류 기록 · 사이트 운영자 현황 ---------------------------- */
+
+// 화면 오류 보고. 로그인 없이 받는다. 공통 앞단에서 Origin 확인과 IP별 한도(client-error-ip)를 거친다.
+// 본문은 JSON만, 16KB까지. 계정·IP·쿠키는 저장하지 않는다(src/server/errorLog.ts).
+app.post(CLIENT_ERRORS_PATH, async (c) => {
+  await recordClientError(c.env, c.req.raw);
+  return c.json({ ok: true });
+});
+
+// 사이트 운영자만. 아니면 없는 경로처럼 404. 전체 수치와 오류 기록만 돌려준다(모임 안의 자료는 없음).
+app.get("/api/admin/overview", async (c) => {
+  await requireSiteAdmin(c.env, c.req.raw);
+  return c.json(await siteOverview(c.env));
+});
+
+app.post("/api/admin/errors/clear", async (c) => {
+  await requireSiteAdmin(c.env, c.req.raw);
+  return c.json({ cleared: await clearErrorLogs(c.env) });
 });
 
 /* ---------------------------- 모임 ---------------------------- */
@@ -360,6 +443,14 @@ app.post("/api/groups/:gid/rotation/new-cycle", async (c) => {
   return c.json({ ok: true });
 });
 
+// 서포터 횟수 직접 입력: 여러 사람의 횟수를 한 번에 정한다(운영자·공동 운영자).
+app.post("/api/groups/:gid/rotation/counts", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await saveSupportCounts(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json({ ok: true });
+});
+
 app.post("/api/groups/:gid/session/close", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);
@@ -388,17 +479,17 @@ app.post("/api/groups/:gid/view-token", async (c) => {
 
 /* ---------------------------- 백업 복원 ---------------------------- */
 
-// 검증과 요약만 한다(아무것도 쓰지 않음).
+// 검증과 요약만 한다(아무것도 쓰지 않음). 복원은 대표 운영자만 한다.
 app.post("/api/groups/:gid/restore/preview", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await previewRestore(c.env, gid, c.req.raw));
 });
 
-// 같은 모임 복구. 운영자·조회 토큰은 바뀌지 않는다.
+// 같은 모임 복구. 운영자·공동 운영자·조회 토큰은 바뀌지 않는다. 대표 운영자만.
 app.post("/api/groups/:gid/restore", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await applyRestore(c.env, gid, c.req.raw));
 });
 
@@ -410,10 +501,10 @@ app.post("/api/restore/new-group", async (c) => {
 
 /* ---------------------------- 모임·계정 삭제 ---------------------------- */
 
-// 모임 삭제(되돌릴 수 없음). 화면이 실행 직전에 백업을 내려받는다.
+// 모임 삭제(되돌릴 수 없음). 화면이 실행 직전에 백업을 내려받는다. 대표 운영자만.
 app.post("/api/groups/:gid/delete", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await deleteGroup(c.env, gid, await readJsonBody(c.req.raw)));
 });
 
@@ -536,7 +627,7 @@ app.post("/api/groups/:gid/imports/:bid", async (c) => {
 
 app.post("/api/groups/:gid/transfer", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  await requireOwner(c.env, c.req.raw, gid);
   return c.json(await createTransfer(c.env, gid));
 });
 
@@ -547,6 +638,166 @@ app.post("/api/transfer/:token/accept", async (c) => {
   return c.json(await acceptTransfer(c.env, accountId, c.req.param("token")));
 });
 
+/* ---------------------------- 공동 운영자 ---------------------------- */
+// src/server/coOperators.ts. 초대·목록·내보내기는 대표 운영자만, 나가기는 공동 운영자 본인.
+
+app.get("/api/groups/:gid/co-operators", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOwner(c.env, c.req.raw, gid);
+  return c.json(await listCoOperators(c.env, gid));
+});
+
+app.post("/api/groups/:gid/co-operators/invite", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOwner(c.env, c.req.raw, gid);
+  return c.json(await createCoInvite(c.env, gid));
+});
+
+// 공동 운영자가 스스로 나간다. 대표 운영자는 나갈 수 없다(넘기거나 삭제).
+app.post("/api/groups/:gid/co-operators/leave", async (c) => {
+  const gid = c.req.param("gid");
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
+  await removeCoOperator(c.env, gid, accountId);
+  return c.json({ ok: true });
+});
+
+app.delete("/api/groups/:gid/co-operators/:aid", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOwner(c.env, c.req.raw, gid);
+  await removeCoOperator(c.env, gid, c.req.param("aid"));
+  return c.json({ ok: true });
+});
+
+app.get("/api/co-invite/:token", async (c) => c.json(await coInviteInfo(c.env, c.req.param("token"))));
+
+app.post("/api/co-invite/:token/accept", async (c) => {
+  const accountId = await requireAccountId(c.env, c.req.raw);
+  return c.json(await acceptCoInvite(c.env, accountId, c.req.param("token")));
+});
+
+/* ---------------------------- 참가 신청 링크 ---------------------------- */
+// src/server/join.ts. 운영 경로는 대표·공동 운영자, 공개 경로(/api/join/:token)는 로그인 없음.
+
+app.get("/api/groups/:gid/join", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+// 만들기·다시 만들기(이전 링크 무효). 토큰 원문은 이 응답에서 한 번만 준다.
+app.post("/api/groups/:gid/join/link", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await createJoinLink(c.env, gid));
+});
+
+app.post("/api/groups/:gid/join/open", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await setJoinOpen(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+app.post("/api/groups/:gid/join/clear", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await clearJoinEntries(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+app.post("/api/groups/:gid/join/remove", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await removeJoinEntry(c.env, gid, await readJsonBody(c.req.raw));
+  return c.json(await joinAdminView(c.env, gid));
+});
+
+// 로그인 없이도 쓴다. 로그인한 멤버면 계정을 넘겨 본인 확인 신청·내 이름 표시에 쓴다(src/server/join.ts).
+app.get("/api/join/:token", async (c) =>
+  c.json(await joinInfo(c.env, c.req.param("token"), (await readSession(c.env, c.req.raw))?.id ?? null)),
+);
+
+app.post("/api/join/:token", async (c) =>
+  c.json(
+    await joinAdd(
+      c.env,
+      c.req.param("token"),
+      await readJsonBody(c.req.raw),
+      (await readSession(c.env, c.req.raw))?.id ?? null,
+    ),
+  ),
+);
+
+app.post("/api/join/:token/cancel", async (c) =>
+  c.json(
+    await joinCancel(
+      c.env,
+      c.req.param("token"),
+      await readJsonBody(c.req.raw),
+      (await readSession(c.env, c.req.raw))?.id ?? null,
+    ),
+  ),
+);
+
+/* ---------------------------- 참가자 본인 연결 · 멤버 ---------------------------- */
+// src/server/members.ts. 연결 링크 만들기·끊기·요청 처리·익명 처리는 운영자(대표·공동, 공통 앞단 requireOperator).
+// 멤버 경로(/api/member/:gid/...)는 운영자 경로와 따로 requireMember로만 연다(운영자 경로는 멤버에게 열리지 않는다).
+
+app.post("/api/groups/:gid/participants/:pid/claim-link", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await createClaimLink(c.env, gid, c.req.param("pid")));
+});
+
+app.delete("/api/groups/:gid/participants/:pid/link", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await unlinkByOperator(c.env, gid, c.req.param("pid"));
+  return c.json({ ok: true });
+});
+
+app.post("/api/groups/:gid/participants/:pid/anonymize", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await anonymizeParticipant(c.env, gid, c.req.param("pid"), await readJsonBody(c.req.raw)));
+});
+
+app.post("/api/groups/:gid/member-requests/:rid/resolve", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await resolveMemberRequest(c.env, gid, c.req.param("rid"), await readJsonBody(c.req.raw));
+  return c.json({ ok: true });
+});
+
+app.get("/api/claim/:token", async (c) => c.json(await claimInfo(c.env, c.req.param("token"))));
+
+app.post("/api/claim/:token/accept", async (c) => {
+  const accountId = await requireAccountId(c.env, c.req.raw);
+  return c.json(await acceptClaim(c.env, accountId, c.req.param("token")));
+});
+
+app.get("/api/member/:gid/snapshot", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  return c.json(await memberSnapshot(c.env, ctx));
+});
+
+app.put("/api/member/:gid/avoid", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  await setOwnAvoid(c.env, ctx, await readJsonBody(c.req.raw));
+  return c.json({ ok: true });
+});
+
+app.post("/api/member/:gid/requests", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  return c.json(await createMemberRequest(c.env, ctx, await readJsonBody(c.req.raw)));
+});
+
+app.post("/api/member/:gid/unlink", async (c) => {
+  const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  await unlinkSelf(c.env, ctx);
+  return c.json({ ok: true });
+});
+
 const matchActions = {
   "end-later": endLater,
   result: confirmResult,
@@ -554,6 +805,8 @@ const matchActions = {
   exclude: excludeMatch,
   restore: restoreMatch,
   correct: correctMatch,
+  // 경기 메모(migrations/0016). 진행 중·결과 대기·확정 경기.
+  memo: saveMemo,
 } as const;
 
 app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
@@ -567,6 +820,32 @@ app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
   return c.json({
     match: await handler(c.env, gid, c.req.param("mid"), await readJsonBody(c.req.raw)),
   });
+});
+
+/* ---------------------------- 시리즈 묶음 ---------------------------- */
+// src/server/series.ts. 운영자·공동 운영자. 만들기는 확정 경기로, 시작 때 이어가기는 matches/start의 series 필드로.
+
+app.post("/api/groups/:gid/series", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await createSeries(c.env, gid, await readJsonBody(c.req.raw)));
+});
+
+const seriesActions = {
+  add: addToSeries,
+  remove: removeFromSeries,
+  update: updateSeries,
+} as const;
+
+app.post("/api/groups/:gid/series/:sid/:action", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  const action = c.req.param("action");
+  if (!Object.hasOwn(seriesActions, action)) {
+    throw new ApiError(404, "NOT_FOUND", "찾을 수 없습니다.");
+  }
+  const handler = seriesActions[action as keyof typeof seriesActions];
+  return c.json(await handler(c.env, gid, c.req.param("sid"), await readJsonBody(c.req.raw)));
 });
 
 /* ---------------------------- 조회 링크 ---------------------------- */

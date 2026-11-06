@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import { headToHead, mainLine, resultsOf, streakOf, streakText } from "../../shared/insights";
+import {
+  COMPARE_MIN_GAMES,
+  headToHead,
+  mainLine,
+  resultsOf,
+  streakOf,
+  streakText,
+} from "../../shared/insights";
 import {
   matchesInScope,
   personDetail,
@@ -13,6 +20,7 @@ import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, POSITION_LABEL, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
+import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, PosLabel, ScopePicker, StandingNote } from "../ui";
 
 function rateText(t: Tally): string {
@@ -50,6 +58,7 @@ export function Compare(props: {
   const [list, setList] = useState<"against" | "together">("against");
   const [shown, setShown] = useState(FIRST_PAGE);
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
+  const seriesBadge = useSeriesBadges(snapshot);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
   // 고를 수 있는 사람: 확정 경기가 한 번이라도 있는 사람(누적), 이름순.
@@ -126,6 +135,8 @@ export function Compare(props: {
   const mainA = mainLine(da.byPosition);
   const mainB = mainLine(db.byPosition);
   const matches = list === "against" ? h2h.againstMatches : h2h.togetherMatches;
+  // 직접 고른 두 사람이라 막지 않는다. 한쪽이라도 누적 기준 미만이면 표본이 적다고만 알린다.
+  const fewer = [a!, b!].filter((id) => (standings.get(id)?.games ?? 0) < COMPARE_MIN_GAMES);
 
   const cell = (t: Tally) => (
     <>
@@ -156,6 +167,12 @@ export function Compare(props: {
           setShown(FIRST_PAGE);
         }}
       />
+      {fewer.length > 0 && (
+        <p className="hint" role="note">
+          표본이 적어요: {fewer.map(nameOf).join(", ")} 님이 누적 {COMPARE_MIN_GAMES}경기 미만이라 비교 결과가
+          우연에 크게 흔들릴 수 있어요.
+        </p>
+      )}
 
       <section className="card" aria-label="나란히 보기">
         <h2>나란히 보기 ({scopeLabel})</h2>
@@ -203,7 +220,7 @@ export function Compare(props: {
               <td>{sb.longestWinStreak}연승</td>
             </tr>
             <tr>
-              <th scope="row">주 라인</th>
+              <th scope="row">가장 많이 플레이한 라인</th>
               <td>{mainA ? POSITION_LABEL[mainA.position] : "기록 없음"}</td>
               <td>{mainB ? POSITION_LABEL[mainB.position] : "기록 없음"}</td>
             </tr>
@@ -316,6 +333,7 @@ export function Compare(props: {
                 focusId={a}
                 highlightIds={[a!, b!]}
                 onOpen={() => props.openMatch(m.id)}
+                seriesBadge={seriesBadge(m.id)}
                 onPerson={props.openPerson}
               />
             ))}

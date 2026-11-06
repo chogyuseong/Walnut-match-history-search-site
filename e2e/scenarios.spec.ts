@@ -123,7 +123,7 @@ test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [확�
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: `${match.matchNo}경기 결과` });
   await sheet.getByRole("radio", { name: /팀 A/ }).check();
-  await sheet.getByRole("radio", { name: "블루" }).check();
+  await sheet.getByRole("radio", { name: "블루", exact: true }).check();
 
   // 서버는 요청을 처리하지만 응답은 기기에 오지 않는다(같은 요청 ID로 다시 보내는 재시도도 모두).
   let delivered = 0;
@@ -138,13 +138,13 @@ test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [확�
   await expect(check).toBeVisible();
   // 확인 전에는 "저장됨"을 쓰지 않는다. 입력은 그대로다.
   await expect(sheet.getByText(/저장됨/)).toHaveCount(0);
-  await expect(sheet.getByRole("radio", { name: "블루" })).toBeChecked();
+  await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
   expect(delivered).toBeGreaterThanOrEqual(1);
 
   // 서버에는 이미 저장돼 있다. 확인하기는 같은 요청 ID로 다시 묻고, 그 응답을 받은 뒤에만 "저장됨"이다.
   await page.unroute("**/matches/*/result");
   await check.click();
-  await expect(sheet.getByText(`${match.matchNo}경기 저장됨 · 팀 A 승 · 블루`)).toBeVisible();
+  await expect(sheet.getByText(`${match.matchNo}경기 저장됨 · 블루팀 승`)).toBeVisible();
 
   const snap = await getSnapshot(page.request, s.groupId);
   const saved = snap.matches.find((m: { id: string }) => m.id === match.id);
@@ -215,7 +215,7 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
   expect(Math.abs(top1 - top0)).toBeLessThanOrEqual(1);
 });
 
-test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 시작하면 서버 명단도 바뀐 대로", async ({ page }) => {
+test("19: 추첨 적용 → 진영 바꾸기 → 두 팀 '적용됨' 유지 → 시작하면 서버 명단도 바뀐 대로(팀 A = 블루)", async ({ page }) => {
   const s = await setup(page);
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });
@@ -223,23 +223,23 @@ test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 
   await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
 
-  const teamA = page.getByRole("region", { name: "팀 A" });
-  const teamB = page.getByRole("region", { name: "팀 B" });
-  await page.getByRole("button", { name: "서포터 추첨" }).click();
-  await expect(teamA.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(teamB.getByText("서포터 추첨 적용됨")).toBeVisible();
+  const teamA = page.getByRole("region", { name: "블루팀" });
+  const teamB = page.getByRole("region", { name: "레드팀" });
+  await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
+  await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(teamB.getByText("서포터 바꾸기 적용됨")).toBeVisible();
 
   const rows = (team: Locator) => team.getByRole("button").allInnerTexts();
   const beforeA = await rows(teamA);
   const beforeB = await rows(teamB);
 
-  await page.getByRole("button", { name: "좌우 바꾸기" }).click();
-  // 사람·포지션은 그대로 자리만 바뀌고, 두 팀 모두 추첨이 유지된다.
+  await page.getByRole("button", { name: "진영 바꾸기" }).click();
+  // 블루팀과 레드팀의 사람이 통째로 바뀌고(포지션은 사람을 따라감), 두 팀 모두 추첨이 유지된다.
   expect(await rows(teamA)).toEqual(beforeB);
   expect(await rows(teamB)).toEqual(beforeA);
-  await expect(teamA.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(teamB.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(page.getByText("서포터 추첨 다시 확인 필요")).toHaveCount(0);
+  await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(teamB.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(page.getByText("서포터 바꾸기 다시 확인 필요")).toHaveCount(0);
 
   // 시작하면 서버에 저장된 명단의 팀도 바꾼 대로다.
   await page.getByRole("button", { name: "이 팀으로 시작" }).click();
@@ -251,6 +251,7 @@ test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 
 
   const snap = await getSnapshot(page.request, s.groupId);
   const live = snap.matches.find((m: { state: string }) => m.state === "in_progress");
+  expect(live.teamASide).toBe("blue");
   const nameOf = new Map(s.people.map((p) => [p.id, p.name]));
   const serverA = live.roster
     .filter((r: { team: string }) => r.team === "A")
@@ -267,49 +268,78 @@ test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 
   expect(shownSupportA && lastWord(shownSupportA)).toBe(nameOf.get(supportA.participantId));
 });
 
-test("21: 팀 B에 추첨 후보가 없으면 아무것도 바꾸지 않고 '팀 A만 적용 / 취소'", async ({ page }) => {
+// 서포터 규칙(2026-11-06 개정): 새 서포터는 아직 안 간 사람(0회)만. 두 팀을 따로 판단해
+// 안 간 사람이 없는 팀은 그대로 두고 다른 팀만 바로 바꾼다(예전의 "팀 A만 적용 / 취소" 선택은 없앴다).
+test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸고 알린다 → 초기화 버튼이 켜지고, 누르면 다시 꺼진다", async ({
+  page,
+}) => {
   const s = await setup(page);
   const P = s.people;
-  // 1~4경기: 팀 B의 서포터 자리에 선수06~09가 한 번씩 선다(차례 사용). 팀 A 서포터는 선수11로 반복 허용.
-  for (let k = 0; k < 4; k++) {
-    // 팀 B 다섯째(서포터)가 선수06+k다. 앞 넷은 나머지 선수06~10으로 채운다.
-    const others = [P[5]!, P[6]!, P[7]!, P[8]!, P[9]!].filter((p) => p.id !== P[5 + k]!.id);
-    const roster = [P[0]!, P[1]!, P[2]!, P[3]!, P[10]!, ...others, P[5 + k]!];
-    const m = await start(page.request, s, roster, k > 0 ? [P[10]!.id] : []);
+  // 1~8경기: 팀 B의 서포터 자리에 선수06~09가 두 번씩 선다. 팀 A 서포터는 선수11로 반복.
+  for (let k = 0; k < 8; k++) {
+    // 팀 B 다섯째(서포터)가 선수06+(k%4)다. 앞 넷은 나머지 선수06~10으로 채운다.
+    const sup = P[5 + (k % 4)]!;
+    const others = [P[5]!, P[6]!, P[7]!, P[8]!, P[9]!].filter((p) => p.id !== sup.id);
+    const roster = [P[0]!, P[1]!, P[2]!, P[3]!, P[10]!, ...others, sup];
+    const ack = [...(k > 0 ? [P[10]!.id] : []), ...(k >= 4 ? [sup.id] : [])];
+    const m = await start(page.request, s, roster, ack);
     await finish(page.request, s, m, "A", "blue");
   }
-  // 5경기 진행 중: 팀 B 다섯 명(선수06~10) 모두 이번 순환에서 차례를 썼다(선수10은 시작하며 씀).
+  // 9경기 진행 중: 팀 B 서포터는 선수10(이번이 1회), 선수06~09는 2회씩 → 팀 B 다섯 명 모두 1회 이상.
+  // 팀 A는 선수05만 1회(이번 경기), 선수01~04는 0회.
   await start(page.request, s, [...P.slice(0, 5), ...P.slice(5, 10)]);
 
   await page.goto("/#/match");
   await page.getByRole("button", { name: "다음 경기 준비" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
-  const teamA = page.getByRole("region", { name: "팀 A" });
-  const teamB = page.getByRole("region", { name: "팀 B" });
+  await page.getByRole("button", { name: "포지션 유지" }).click();
+  const teamA = page.getByRole("region", { name: "블루팀" });
+  const teamB = page.getByRole("region", { name: "레드팀" });
+  const reset = page.getByRole("button", { name: "서포터 횟수 초기화" });
+
+  // 팀 B에 안 간 사람(선수01)을 넣으면 모두 배정받은 팀이 없어 초기화 버튼은 꺼져 있고 이유를 글로 보여준다.
+  await teamB.getByRole("button", { name: /선수06/ }).click();
+  await teamA.getByRole("button", { name: /선수01/ }).click();
+  await expect(teamB.getByRole("button", { name: /선수01/ })).toBeVisible();
+  await page.getByText(/^서포터 횟수: /).click();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
+  await expect(page.getByText("아직 서포터를 안 간 사람이 있어요.", { exact: false })).toBeVisible();
+  // 되돌리면(팀 B가 다시 모두 간 사람) 초안에서 바로 다시 계산해 켜진다.
+  await page.getByRole("button", { name: "직전 편성으로" }).click();
+  await expect(teamB.getByRole("button", { name: /선수06/ })).toBeVisible();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("모두 서포터를 배정받았어요");
+
   const rows = async () => [await teamA.getByRole("button").allInnerTexts(), await teamB.getByRole("button").allInnerTexts()];
   const before = await rows();
 
-  await page.getByRole("button", { name: "서포터 추첨" }).click();
-  const note = page.getByRole("status").filter({ hasText: "아직 아무것도 바꾸지 않았어요" });
-  await expect(note).toContainText("팀 B는");
-  await expect(note.getByRole("button", { name: "팀 A만 적용" })).toBeVisible();
-  await expect(note.getByRole("button", { name: "취소" })).toBeVisible();
-  expect(await rows()).toEqual(before);
-
-  // 취소: 안내만 닫히고 편성은 그대로다.
-  await note.getByRole("button", { name: "취소" }).click();
-  await expect(note).toHaveCount(0);
-  expect(await rows()).toEqual(before);
-
-  // 다시 추첨 → 팀 A만 적용: 팀 A만 바뀌고 적용됨 표시, 팀 B는 그대로.
-  await page.getByRole("button", { name: "서포터 추첨" }).click();
-  await page.getByRole("button", { name: "팀 A만 적용" }).click();
-  await expect(teamA.getByText("서포터 추첨 적용됨")).toBeVisible();
-  await expect(teamB.getByText("서포터 추첨 적용됨")).toHaveCount(0);
+  // 서포터만 바꾸기: 묻지 않고 팀 A만 바뀐다. 팀 B는 그대로이고 알림이 뜬다.
+  await page.getByRole("region", { name: "섞기" }).getByRole("button", { name: "서포터만 바꾸기" }).click();
+  const note = page.getByRole("status").filter({ hasText: "모두 서포터를 배정받았어요" });
+  await expect(note).toContainText("레드팀은 모두 서포터를 배정받았어요.");
+  await expect(note).toContainText("서포터 횟수 초기화를 누르면 다시 처음부터 돌아가요.");
+  await expect(note.getByRole("button")).toHaveCount(0);
+  await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
+  await expect(teamB.getByText("서포터 바꾸기 적용됨")).toHaveCount(0);
   const after = await rows();
   expect(after[1]).toEqual(before[1]);
   expect(after[0]).not.toEqual(before[0]);
-  await expect(page.getByText(/^팀 A: .+→서포터/)).toBeVisible();
+  await expect(page.getByText(/^블루팀: .+→서포터/)).toBeVisible();
+  // 팀 A의 새 서포터는 아직 안 간 사람(서폿 표시 없음)이다.
+  await expect(teamA.getByRole("button").nth(4)).not.toContainText(/서폿 \d회/);
+
+  // 초기화 버튼이 켜져 있다 → 누르면 횟수 표시가 사라지고 버튼은 다시 꺼진다.
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("모두 서포터를 배정받았어요");
+  await reset.click();
+  const dialog = page.getByRole("dialog", { name: "서포터 횟수 초기화" });
+  await dialog.getByRole("button", { name: "초기화" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".teams").getByRole("button").filter({ hasText: /서폿 \d회/ })).toHaveCount(0);
+  await page.getByText("서포터 횟수: 아직 없음").click();
+  await expect(reset).toBeEnabled();
+  await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
 });
 
 test("29: 클립보드가 거절되면 선택 가능한 글 상자, 진영 미확인이면 '팀 A·B'로만", async ({ page }) => {
@@ -376,7 +406,8 @@ test("30: 변경 내역에 정정·전적 제외·복구가 경기·시각·항�
     await expect(items.nth(i)).toContainText("현재: ");
     await expect(items.nth(i)).toContainText(/\d{1,2}:\d{2}/);
   }
-  await expect(items.nth(0)).toContainText("팀 A 승");
+  // 진영을 레드로 정정한 경기라 팀 A는 "레드팀"이다.
+  await expect(items.nth(0)).toContainText("레드팀 승");
   // 변경 주체(계정)는 보이지 않는다.
   await expect(log).not.toContainText(s.user);
   // 각 줄은 그 경기로 가는 링크다.
@@ -440,7 +471,7 @@ test("오류 안내: 429·503·409·로그인 만료는 쉬운 문구로, 입력
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: `${match.matchNo}경기 결과` });
   await sheet.getByRole("radio", { name: /팀 B/ }).check();
-  await sheet.getByRole("radio", { name: "레드" }).check();
+  await sheet.getByRole("radio", { name: "레드", exact: true }).check();
 
   const cases = [
     { status: 429, code: "RATE_LIMITED", message: "요청이 너무 잦아요. 30초 뒤에 다시 시도해 주세요. 입력한 내용은 그대로 있어요.", shown: "요청이 너무 잦아요" },
@@ -454,7 +485,7 @@ test("오류 안내: 429·503·409·로그인 만료는 쉬운 문구로, 입력
     );
     await sheet.getByRole("button", { name: "저장" }).click();
     await expect(sheet.getByRole("alert")).toContainText(c.shown);
-    await expect(sheet.getByRole("radio", { name: "레드" })).toBeChecked();
+    await expect(sheet.getByRole("radio", { name: "레드", exact: true })).toBeChecked();
     await expect(sheet.getByText(/저장됨/)).toHaveCount(0);
     await page.unroute("**/matches/*/result");
   }
@@ -612,7 +643,7 @@ test.describe("39: 화면 키보드 열림과 200% 확대", () => {
       await page.getByRole("button", { name: "결과 입력" }).click();
       const sheet = page.getByRole("dialog", { name: /경기 결과/ });
       await sheet.getByRole("radio", { name: /팀 A/ }).check();
-      await sheet.getByRole("radio", { name: "블루" }).check();
+      await sheet.getByRole("radio", { name: "블루", exact: true }).check();
       await notCovered(sheet.getByRole("button", { name: "저장" }), "결과 입력 저장");
       await notCovered(sheet.getByRole("button", { name: "닫기" }), "결과 입력 닫기");
       await sheet.getByRole("button", { name: "닫기" }).click();
@@ -620,7 +651,7 @@ test.describe("39: 화면 키보드 열림과 200% 확대", () => {
       // 준비: 교체 창의 검색 칸은 없으므로 준비 화면의 시작 버튼이 탭에 가리지 않는지 본다.
       await page.getByRole("button", { name: "다음 경기 준비" }).click();
       await notCovered(page.getByRole("button", { name: "이 팀으로 시작" }), "준비 시작");
-      await notCovered(page.getByRole("button", { name: "좌우 바꾸기" }), "준비 좌우 바꾸기");
+      await notCovered(page.getByRole("button", { name: "진영 바꾸기" }), "준비 진영 바꾸기");
 
       // 지난 경기 입력: 마지막 이름 칸에 초점, 저장 버튼.
       await page.goto("/#/backfill");
@@ -682,7 +713,7 @@ test.describe("39: 화면 키보드 열림과 200% 확대", () => {
       await page.getByRole("button", { name: "결과 입력" }).click();
       const sheet = page.getByRole("dialog", { name: /경기 결과/ });
       await sheet.getByRole("radio", { name: /팀 B/ }).check();
-      await sheet.getByRole("radio", { name: "레드" }).check();
+      await sheet.getByRole("radio", { name: "레드", exact: true }).check();
       await notCovered(sheet.getByRole("button", { name: "저장" }), "결과 저장");
       await noHorizontalOverflow(page);
       await sheet.getByRole("button", { name: "닫기" }).click();

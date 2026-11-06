@@ -117,9 +117,32 @@ export const RANKING_SORT_LABEL: Record<RankingSort, string> = {
   wins: "승수",
 };
 
+/** 랭킹에서 이 경기 수(모임 전체 누적) 이상인 사람은 그보다 적은 사람보다 항상 위에 둔다. 배치와는 별개다. */
+export const RANKING_VETERAN_GAMES = 50;
+
+/** 랭킹 묶음. 0: 누적 50경기 이상, 1: 배치 완료(50경기 미만), 2: 배치 진행 중. 항상 누적 기준이다. */
+export type RankingGroup = 0 | 1 | 2;
+
+export const RANKING_GROUP_LABEL: Record<RankingGroup, string> = {
+  0: `누적 ${RANKING_VETERAN_GAMES}경기 이상`,
+  1: `배치 완료 · ${RANKING_VETERAN_GAMES}경기 미만`,
+  2: "배치 진행 중",
+};
+
+export function rankingGroup(
+  placement: ReadonlyMap<string, Placement>,
+  participantId: string,
+): RankingGroup {
+  const p = placement.get(participantId);
+  if (!p) return 2;
+  if (p.games >= RANKING_VETERAN_GAMES) return 0;
+  return p.done ? 1 : 2;
+}
+
 /**
- * 랭킹 정렬. 배치 완료자(누적 기준)를 먼저 두고, 그 안에서 고른 기준으로 정렬한다.
- * - 승률: 승률 → 경기 수 → 이름 → ID (stats.sortRanking과 같다)
+ * 랭킹 정렬. 누적 50경기 이상 → 배치 완료 → 배치 진행 중 순으로 묶고(모두 모임 전체 누적 기준),
+ * 묶음 안에서 고른 기준으로 정렬한다.
+ * - 승률: 승률 → 경기 수 → 이름 → ID (묶음 안에서는 stats.sortRanking과 같다)
  * - 경기 수: 경기 수 → 승률 → 이름 → ID
  * - 승수: 승수 → 승률 → 경기 수 → 이름 → ID
  */
@@ -130,17 +153,17 @@ export function sortRankingBy(
   sort: RankingSort,
 ): PersonRecord[] {
   const rate = (r: PersonRecord) => (r.games === 0 ? 0 : r.wins / r.games);
-  const done = (r: PersonRecord) => (placement.get(r.participantId)?.done ? 0 : 1);
+  const group = (r: PersonRecord) => rankingGroup(placement, r.participantId);
   const byName = (a: PersonRecord, b: PersonRecord) =>
     nameOf(a.participantId).localeCompare(nameOf(b.participantId), "ko") ||
     a.participantId.localeCompare(b.participantId);
   if (sort === "rate") {
     const sorted = sortByWinRate([...records], nameOf);
-    return sorted.sort((a, b) => done(a) - done(b));
+    return sorted.sort((a, b) => group(a) - group(b));
   }
   return [...records].sort(
     (a, b) =>
-      done(a) - done(b) ||
+      group(a) - group(b) ||
       (sort === "games"
         ? b.games - a.games || rate(b) - rate(a)
         : b.wins - a.wins || rate(b) - rate(a) || b.games - a.games) ||
@@ -256,7 +279,7 @@ export interface MainLine {
   tally: Tally;
 }
 
-/** 가장 많이 뛴 라인. 같으면 승률 → 라인 순서. 포지션 기록이 없으면 null. */
+/** 가장 많이 뛴 라인(화면 이름 "가장 많이 플레이한 라인"). 같으면 승률 → 라인 순서. 포지션 기록이 없으면 null. */
 export function mainLine(byPosition: Partial<Record<string, Tally>>): MainLine | null {
   let best: MainLine | null = null;
   for (const position of POSITIONS) {
@@ -271,6 +294,76 @@ export function mainLine(byPosition: Partial<Record<string, Tally>>): MainLine |
     }
   }
   return best;
+}
+
+/**
+ * 그 사람이 SMALL_SAMPLE경기 이상 뛴 라인 중 승률이 가장 높은 라인.
+ * 같은 승률이면 경기 수가 많은 라인 → 라인 순서(탑~서폿). 그런 라인이 없으면 null.
+ * 가장 많이 플레이한 라인(mainLine)과 같은 라인일 수 있다.
+ */
+export function bestLine(
+  byPosition: Partial<Record<string, Tally>>,
+  minGames = SMALL_SAMPLE,
+): MainLine | null {
+  let best: MainLine | null = null;
+  for (const position of POSITIONS) {
+    const tally = byPosition[position];
+    if (!tally || tally.games < minGames) continue;
+    if (!best) {
+      best = { position, tally };
+      continue;
+    }
+    // 승률 비교는 곱셈으로(소수 오차 없이).
+    const diff = tally.wins * best.tally.games - best.tally.wins * tally.games;
+    if (diff > 0 || (diff === 0 && tally.games > best.tally.games)) best = { position, tally };
+  }
+  return best;
+}
+
+/**
+ * 다른 사람과 비교하는 지표(잘 맞는 동료·어려운 상대·같은 팀일 때·상대 팀일 때)는
+ * 모임 전체 누적 이 경기 수 이상인 사람끼리만 보여준다. 경기 수가 적으면 우연에 크게 휘둘린다.
+ * 화면에서 고른 범위(시즌·연도)의 경기 수가 아니라 배치·랭킹 묶음과 같은 누적 기준이다.
+ */
+export const COMPARE_MIN_GAMES = 30;
+
+export interface CompareMetrics {
+  /** 보고 있는 사람이 누적 기준을 넘었는지. false면 목록·동료·상대는 비어 있다. */
+  ready: boolean;
+  /** 보고 있는 사람의 누적 유효 확정 경기 수. */
+  games: number;
+  /** 누적 기준을 넘는 사람만 남긴 같은 팀·상대 팀 목록(순서는 그대로). */
+  synergy: PairTally[];
+  versus: PairTally[];
+  /** pickPair(표본 SMALL_SAMPLE경기 이상)를 걸러진 목록에 적용한 결과. */
+  buddy: PairTally | null;
+  rival: PairTally | null;
+}
+
+/**
+ * 비교 지표. pairs는 범위가 적용된 personDetail의 시너지·상대 전적이고,
+ * cumulative는 모임 전체 누적 경기 수(standings·placements)다.
+ */
+export function compareMetrics(
+  detail: { participantId: string; synergy: readonly PairTally[]; versus: readonly PairTally[] },
+  cumulative: ReadonlyMap<string, { games: number }>,
+  minGames = COMPARE_MIN_GAMES,
+): CompareMetrics {
+  const games = cumulative.get(detail.participantId)?.games ?? 0;
+  if (games < minGames) {
+    return { ready: false, games, synergy: [], versus: [], buddy: null, rival: null };
+  }
+  const enough = (p: PairTally) => (cumulative.get(p.participantId)?.games ?? 0) >= minGames;
+  const synergy = detail.synergy.filter(enough);
+  const versus = detail.versus.filter(enough);
+  return {
+    ready: true,
+    games,
+    synergy,
+    versus,
+    buddy: pickPair(synergy, "best"),
+    rival: pickPair(versus, "worst"),
+  };
 }
 
 /**

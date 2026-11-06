@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { avoidMapFor } from "../../shared/avoid";
 import { applyTeams, createDraft, type DraftPerson } from "../../shared/draft";
 import { nameKey, parseNameList } from "../../shared/names";
 import { participation } from "../../shared/insights";
@@ -8,13 +9,19 @@ import { diversityFor, recommendTeams } from "../../shared/recommend";
 import { latestSessionId } from "../../shared/stats";
 import { formatDate } from "../format";
 import { StickyAction } from "../ui";
-import { go, useAppValue } from "../useApp";
+import { JoinPanel, type JoinEntryView } from "../joinPanel";
+import { go, pickKey, useAppValue } from "../useApp";
 
-const PICK_KEY = "naejeon.pick.v1";
-
-function readPick(): DraftPerson[] {
+/** 고른 목록은 모임마다 따로 기억한다(모임 고르기). 예전 키(모임 구분 없음)에 남은 목록은 처음 연 모임으로 옮긴다. */
+function readPick(groupId: string | null): DraftPerson[] {
   try {
-    const value = JSON.parse(localStorage.getItem(PICK_KEY) ?? "[]") as DraftPerson[];
+    const key = pickKey(groupId);
+    let raw = localStorage.getItem(key);
+    if (raw === null && groupId) {
+      raw = localStorage.getItem(pickKey(null));
+      if (raw !== null) localStorage.removeItem(pickKey(null));
+    }
+    const value = JSON.parse(raw ?? "[]") as DraftPerson[];
     return Array.isArray(value) ? value.filter((p) => typeof p?.key === "string") : [];
   } catch {
     return [];
@@ -25,18 +32,20 @@ function readPick(): DraftPerson[] {
 export function Pick() {
   const app = useAppValue();
   // 고르던 중에 화면을 닫아도 선택이 남도록 기기에 보관한다.
-  const [selected, setSelected] = useState<DraftPerson[]>(readPick);
+  const [selected, setSelected] = useState<DraftPerson[]>(() => readPick(app.groupId));
+  // 참가 신청에서 불러왔을 때 11번째부터의 신청자(대기). 표시만 하고 고르지 않는다.
+  const [waiting, setWaiting] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [suggest, setSuggest] = useState<{ typed: string; existing: DraftPerson } | null>(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(PICK_KEY, JSON.stringify(selected));
+      localStorage.setItem(pickKey(app.groupId), JSON.stringify(selected));
     } catch {
       // 보관하지 못해도 선택은 화면에 남아 있다.
     }
-  }, [selected]);
+  }, [selected, app.groupId]);
 
   // 합치기 뒤 최신 상태를 받으면 화면에 든 고른 목록의 합쳐진 사람도 남은 사람으로 바꾼다
   // (기기 보관분은 useApp이 바꾸지만 이미 열린 화면의 상태는 여기서 바꿔야 한다).
@@ -111,6 +120,32 @@ export function Pick() {
     return existing ?? { key: `n:${nameKey(name)}`, name, participantId: null };
   }
 
+  /** 참가 신청 불러오기: 신청 순으로 앞 10명을 고른 상태로 만들고(새 이름은 새 이름으로), 나머지는 대기로 보여준다. */
+  function loadJoined(entries: readonly JoinEntryView[]) {
+    const people: DraftPerson[] = [];
+    const rest: string[] = [];
+    for (const entry of entries) {
+      const person: DraftPerson = entry.participantId
+        ? (known.find((p) => p.participantId === entry.participantId) ?? {
+            key: `p:${entry.participantId}`,
+            name: entry.name,
+            participantId: entry.participantId,
+          })
+        : toPerson(entry.name);
+      if (people.some((p) => p.key === person.key || nameKey(p.name) === nameKey(person.name))) continue;
+      if (people.length < 10) people.push(person);
+      else rest.push(person.name);
+    }
+    setSelected(people);
+    setWaiting(rest);
+    setSuggest(null);
+    setMessages([
+      rest.length > 0
+        ? `신청 순으로 ${people.length}명을 골랐어요. 대기 ${rest.length}명(${rest.join(", ")})은 넣지 않았어요. 손으로 바꿀 수 있어요.`
+        : `신청자 ${people.length}명을 골랐어요. 손으로 바꿀 수 있어요.`,
+    ]);
+  }
+
   function submitText(raw: string, skipSuggest = false) {
     const parsed = parseNameList(raw);
     const notes: string[] = [];
@@ -145,11 +180,14 @@ export function Pick() {
   function buildTeams() {
     const now = new Date().toISOString();
     const seed = (Math.random() * 0xffffffff) >>> 0;
+    // 기피 라인을 정한 사람은 처음 라인을 뽑을 때도 되도록 피한다(없으면 예전과 같다).
+    const avoid = avoidMapFor(selected, app.snapshot?.participants);
     let draft = createDraft(selected, {
       groupId: app.groupId,
       baseLiveVersion: app.snapshot?.group.liveVersion ?? null,
       seed,
       now,
+      avoid,
     });
     // 실력 그룹을 지정한 사람이 있으면 기본 추천으로 팀을 나눈다.
     const groupOf = new Map((app.snapshot?.participants ?? []).map((p) => [p.id, p.skillGroup]));
@@ -171,7 +209,7 @@ export function Pick() {
         [],
         diversity,
       );
-      if (best) draft = { ...applyTeams(draft, best.teamA), previousSlots: null };
+      if (best) draft = { ...applyTeams(draft, best.teamA, avoid), previousSlots: null };
     }
     app.setDraft(draft);
     setSelected([]);
@@ -205,6 +243,16 @@ export function Pick() {
           {selected.length}/10
         </strong>
       </header>
+
+      {app.me?.accountId && app.groupId && (
+        <JoinPanel groupId={app.groupId} selectedKeys={selectedKeys} onLoad={loadJoined} />
+      )}
+
+      {waiting.length > 0 && (
+        <p className="note" role="status">
+          대기 {waiting.length}명: {waiting.join(", ")}
+        </p>
+      )}
 
       {last && (
         <button

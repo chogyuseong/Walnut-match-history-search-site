@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { resolveMerged } from "../../shared/merge";
 import type { Snapshot } from "../../shared/types";
 import { ApiFailure, call } from "../api";
-import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL } from "../format";
+import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
 import { Dialog, KpiStrip, MatchTeams } from "../ui";
 import { go } from "../useApp";
 import { Compare } from "./Compare";
@@ -12,6 +12,7 @@ import { Person } from "./Person";
 import { Privacy } from "./Privacy";
 import { MatchDetail, Records } from "./Records";
 import { Search } from "./Search";
+import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./SeasonSummary";
 
 /**
  * 화면 7 — 조회 화면(링크). 로그인이 없고 읽기만 한다.
@@ -93,92 +94,8 @@ export function Viewer(props: { token: string; rest: string[] }) {
     </>
   );
 
-  if (rest[0] === "records") {
-    return shell(
-      "records",
-        <Records
-          snapshot={snapshot}
-          openMatch={(id) => go(`${base}/d/${id}`)}
-          openPerson={(id) => go(`${base}/p/${id}`)}
-          openGraphs={() => go(`${base}/graphs`)}
-        />,
-    );
-  }
-  if (rest[0] === "search") {
-    return shell(
-      "search",
-        <Search
-          snapshot={snapshot}
-          openPerson={(id) => go(`${base}/p/${id}`)}
-          openCompare={(a, b) => go(`${base}/compare/${a}/${b}`)}
-        />,
-    );
-  }
-  if (rest[0] === "home") {
-    return shell(
-      "home",
-        <div className="screen">
-          <header className="screen-head">
-            <h1>{snapshot.group.name} 요약</h1>
-          </header>
-          <KpiStrip snapshot={snapshot} />
-          <Dashboard
-            snapshot={snapshot}
-            openMatch={(id) => go(`${base}/d/${id}`)}
-            openPerson={(id) => go(`${base}/p/${id}`)}
-            openRanking={() => go(`${base}/records`)}
-          />
-        </div>,
-    );
-  }
-  if (rest[0] === "compare") {
-    return shell(
-      "records",
-        <Compare
-          snapshot={snapshot}
-          a={rest[1] ?? null}
-          b={rest[2] ?? null}
-          choose={(a, b) => go(`${base}/compare/${a ?? "-"}/${b ?? "-"}`)}
-          openMatch={(id) => go(`${base}/d/${id}`)}
-          openPerson={(id) => go(`${base}/p/${id}`)}
-          back={() => go(`${base}/records`)}
-        />,
-    );
-  }
-  if (rest[0] === "graphs") {
-    return shell(
-      "records",
-      <Graphs
-        snapshot={snapshot}
-        openPerson={(id) => go(`${base}/p/${id}`)}
-        back={() => go(`${base}/records`)}
-      />,
-    );
-  }
-  if (rest[0] === "p" && rest[1]) {
-    return shell(
-      "records",
-      <Person
-        snapshot={snapshot}
-        participantId={rest[1]}
-        back={() => go(`${base}/records`)}
-        openMatch={(id) => go(`${base}/d/${id}`)}
-        openPerson={(id) => go(`${base}/p/${id}`)}
-        openCompare={(id) => go(`${base}/compare/${id}/-`)}
-      />,
-    );
-  }
-  if (rest[0] === "d" && rest[1]) {
-    return shell(
-      "records",
-      <MatchDetail
-        snapshot={snapshot}
-        matchId={rest[1]}
-        app={null}
-        back={() => go(`${base}/records`)}
-      />,
-    );
-  }
+  const shared = viewerPage(snapshot, base, rest);
+  if (shared) return shell(shared.tab, shared.body);
 
   const current =
     snapshot.matches.find((m) => m.state === "in_progress") ??
@@ -230,7 +147,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
             <section className="card">
               {mySeat ? (
                 <p>
-                  <strong>{nameOf(mySeat.participantId)}</strong> 님 · 팀 {mySeat.team} ·{" "}
+                  <strong>{nameOf(mySeat.participantId)}</strong> 님 · {teamName(mySeat.team, match.teamASide)} ·{" "}
                   {mySeat.position ? POSITION_LABEL[mySeat.position] : "포지션 없음"}
                 </p>
               ) : meId ? (
@@ -293,10 +210,138 @@ export function Viewer(props: { token: string; rest: string[] }) {
   );
 }
 
-type ViewerTab = "now" | "home" | "search" | "records";
+export type ViewerTab = "now" | "home" | "search" | "records";
+
+/**
+ * 조회 링크와 예시 모임(#/demo, src/web/screens/Demo.tsx)이 같이 쓰는 읽기 전용 화면들.
+ * 주소의 나머지(rest)에 맞는 화면이 없으면 null(조회 링크의 "현재 경기"처럼 각자 그린다).
+ */
+export function viewerPage(
+  snapshot: Snapshot,
+  base: string,
+  rest: string[],
+): { tab: ViewerTab; body: React.ReactNode } | null {
+  if (rest[0] === "records") {
+    return {
+      tab: "records",
+      body: (
+        <Records
+          snapshot={snapshot}
+          openMatch={(id) => go(`${base}/d/${id}`)}
+          openPerson={(id) => go(`${base}/p/${id}`)}
+          openGraphs={() => go(`${base}/graphs`)}
+          openSeason={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
+        />
+      ),
+    };
+  }
+  if (rest[0] === "season") {
+    return {
+      tab: "records",
+      body: (
+      <SeasonSummaryScreen
+        snapshot={snapshot}
+        scope={seasonScopeFromRoute(rest.slice(1))}
+        back={() => go(`${base}/records`)}
+        choose={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
+      />
+      ),
+    };
+  }
+  if (rest[0] === "search") {
+    return {
+      tab: "search",
+      body: (
+        <Search
+          snapshot={snapshot}
+          openPerson={(id) => go(`${base}/p/${id}`)}
+          openCompare={(a, b) => go(`${base}/compare/${a}/${b}`)}
+        />
+      ),
+    };
+  }
+  if (rest[0] === "home") {
+    return {
+      tab: "home",
+      body: (
+        <div className="screen">
+          <header className="screen-head">
+            <h1>{snapshot.group.name} 요약</h1>
+          </header>
+          <KpiStrip snapshot={snapshot} />
+          <Dashboard
+            snapshot={snapshot}
+            openMatch={(id) => go(`${base}/d/${id}`)}
+            openPerson={(id) => go(`${base}/p/${id}`)}
+            openRanking={() => go(`${base}/records`)}
+          />
+        </div>
+      ),
+    };
+  }
+  if (rest[0] === "compare") {
+    return {
+      tab: "records",
+      body: (
+        <Compare
+          snapshot={snapshot}
+          a={rest[1] ?? null}
+          b={rest[2] ?? null}
+          choose={(a, b) => go(`${base}/compare/${a ?? "-"}/${b ?? "-"}`)}
+          openMatch={(id) => go(`${base}/d/${id}`)}
+          openPerson={(id) => go(`${base}/p/${id}`)}
+          back={() => go(`${base}/records`)}
+        />
+      ),
+    };
+  }
+  if (rest[0] === "graphs") {
+    return {
+      tab: "records",
+      body: (
+      <Graphs
+        snapshot={snapshot}
+        openPerson={(id) => go(`${base}/p/${id}`)}
+        back={() => go(`${base}/records`)}
+      />
+      ),
+    };
+  }
+  if (rest[0] === "p" && rest[1]) {
+    return {
+      tab: "records",
+      body: (
+      <Person
+        snapshot={snapshot}
+        participantId={rest[1]}
+        back={() => go(`${base}/records`)}
+        openMatch={(id) => go(`${base}/d/${id}`)}
+        openPerson={(id) => go(`${base}/p/${id}`)}
+        openCompare={(id) => go(`${base}/compare/${id}/-`)}
+      />
+      ),
+    };
+  }
+  if (rest[0] === "d" && rest[1]) {
+    return {
+      tab: "records",
+      body: (
+      <MatchDetail
+        snapshot={snapshot}
+        matchId={rest[1]}
+        app={null}
+        back={() => go(`${base}/records`)}
+        openMatch={(id) => go(`${base}/d/${id}`)}
+      />
+      ),
+    };
+  }
+
+  return null;
+}
 
 /** 점검 중(백업 복원·모임 삭제 진행 중) 안내. 조회 링크의 모든 화면 맨 위에 둔다. */
-function MaintenanceNote() {
+export function MaintenanceNote() {
   return (
     <p className="note warn viewer-note" role="status">
       운영자가 모임 기록을 점검하는 중이에요(백업 복원 등). 잠시 뒤 새로 고쳐 주세요. 그동안 보이는 내용은
@@ -305,8 +350,11 @@ function MaintenanceNote() {
   );
 }
 
-function ViewerNav(props: { base: string; group: string; current: ViewerTab }) {
-  const item = (tab: ViewerTab, label: string) => (
+/**
+ * 조회 메뉴. member면(참가자로 연결한 모임, src/web/screens/Member.tsx) 맨 앞에 "내 정보"를 둔다.
+ */
+export function ViewerNav(props: { base: string; group: string; current: ViewerTab | "me"; member?: boolean }) {
+  const item = (tab: ViewerTab | "me", label: string) => (
     <button
       type="button"
       className="link"
@@ -320,6 +368,7 @@ function ViewerNav(props: { base: string; group: string; current: ViewerTab }) {
     <nav className="viewer-nav" aria-label="조회 메뉴">
       <strong>{props.group}</strong>
       <span>
+        {props.member && <>{item("me", "내 정보")} </>}
         {item("now", "현재 경기")} {item("home", "요약")} {item("search", "검색")} {item("records", "기록")}
       </span>
     </nav>

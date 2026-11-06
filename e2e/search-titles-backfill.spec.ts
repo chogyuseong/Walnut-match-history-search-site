@@ -262,7 +262,8 @@ test("지난 경기 한 건 입력: 폼으로 넣고 세션·순환·진행 상�
   await page.getByRole("radio", { name: "팀 B 승" }).check();
   await page.getByRole("radio", { name: /^팀 A가 레드/ }).check();
   await page.getByRole("button", { name: "이 경기 저장" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "경기 저장됨" })).toContainText("팀 B 승");
+  // 팀 A가 레드였으므로 이긴 팀 B는 블루팀이다.
+  await expect(page.getByRole("status").filter({ hasText: "경기 저장됨" })).toContainText("블루팀 승");
 
   const after = await getSnapshot(page.request, s.groupId);
   expect(after.session).toEqual(before.session);

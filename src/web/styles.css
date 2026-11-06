@@ -37,11 +37,35 @@
   --ih-loss-border: rgba(239, 68, 68, 0.35);
   --ih-loss-text: #f87171;
 
-  /* 키트의 KDA 구간 색. 이 사이트에는 KDA가 없어 승률 구간에 쓴다. */
-  --ih-kda-under3: #94a3b8;
-  --ih-kda-3plus: #10b981;
-  --ih-kda-4plus: #3b82f6;
-  --ih-kda-5plus: #f59e0b;
+  /* 승률 색 단계(format.ts의 rateHeat). 0은 기준(45~55%), h1~h4는 높을수록 붉게(주황빛 다홍 —
+     패배·레드팀의 빨강과 색조를 띄운다), l1~l4는 낮을수록 가라앉게.
+     막대(bar)는 막대 바탕(--viz-track #262b36) 대비 3:1 이상, 글자(text)는 바탕 대비 4.5:1 이상.
+     다크·바이올렛이 같은 값을 쓴다(값과 대비는 docs/구현현황.md "승률 그래프 색 단계"). */
+  --heat-bar-h4: #ff6a1f;
+  --heat-bar-h3: #fb7a2e;
+  --heat-bar-h2: #f39445;
+  --heat-bar-h1: #e8b06a;
+  --heat-bar-0: #3987e5;
+  --heat-bar-l1: #3d80d4;
+  --heat-bar-l2: #4679be;
+  --heat-bar-l3: #5276a2;
+  --heat-bar-l4: #63778f;
+  --heat-text-h4: #ff7a3a;
+  --heat-text-h3: #fb8a45;
+  --heat-text-h2: #f9a660;
+  --heat-text-h1: #f5c48a;
+  --heat-text-0: #f1f5f9;
+  --heat-text-l1: #cbd5e1;
+  --heat-text-l2: #b4c0cf;
+  --heat-text-l3: #9eabbd;
+  --heat-text-l4: #8b99ad;
+
+  /* 칭호 등급 색(titles.ts의 titleGrade). 1(최상)이 가장 뜨겁고 5(최하)는 차분한 보라 — 회색으로 낮추지 않는다. */
+  --grade-1: #ff8f4f;
+  --grade-2: #f5c04a;
+  --grade-3: #5fd38d;
+  --grade-4: #6cb6ff;
+  --grade-5: #b4a7ff;
 
   --ih-radius-sm: 6px;
   --ih-radius-md: 10px;
@@ -82,7 +106,6 @@
   --ih-loss-bg-hover: rgba(244, 63, 94, 0.18);
   --ih-loss-border: rgba(244, 63, 94, 0.38);
   --ih-loss-text: #fb7185;
-  --ih-kda-4plus: #22d3ee;
   --ih-brand-fill: #4f46e5;
   --ih-brand-fill-hover: #4338ca;
   --ih-link: #a5b4fc;
@@ -115,10 +138,32 @@
   --ih-loss-text: #b91c1c;
   /* 흰 바탕에서 글자 대비 4.5:1을 넘도록 키트 값보다 어둡게 둔다. */
   --ih-accent-gold: #b45309;
-  --ih-kda-under3: #475569;
-  --ih-kda-3plus: #047857;
-  --ih-kda-4plus: #2563eb;
-  --ih-kda-5plus: #b45309;
+  /* 밝은 테마의 승률 색 단계. 막대는 바탕 막대(#e1e0d9) 대비 3:1 이상이 되도록 붉은 쪽도 어둡게 두고,
+     낮은 쪽은 짙은 남회색으로 어두워진다. 글자는 밝은 바탕 대비 4.5:1 이상이고
+     낮은 쪽 글자는 검정에서 회색으로 가라앉는다. */
+  --heat-bar-h4: #cc4b0c;
+  --heat-bar-h3: #c2520e;
+  --heat-bar-h2: #b65d14;
+  --heat-bar-h1: #a8671c;
+  --heat-bar-0: #2a78d6;
+  --heat-bar-l1: #2b5f9e;
+  --heat-bar-l2: #2c4c78;
+  --heat-bar-l3: #2f3d57;
+  --heat-bar-l4: #283244;
+  --heat-text-h4: #b0440a;
+  --heat-text-h3: #ab4b0a;
+  --heat-text-h2: #9e520c;
+  --heat-text-h1: #8f5a0e;
+  --heat-text-0: #0f172a;
+  --heat-text-l1: #334155;
+  --heat-text-l2: #475569;
+  --heat-text-l3: #56637a;
+  --heat-text-l4: #5f6b7f;
+  --grade-1: #b4460a;
+  --grade-2: #8a6100;
+  --grade-3: #157a43;
+  --grade-4: #1d68c2;
+  --grade-5: #5b4bc4;
   --ih-shadow-card: 0 2px 10px rgba(15, 23, 42, 0.06);
   --ih-brand-fill: #2563eb;
   --ih-brand-fill-hover: #1d4ed8;
@@ -740,15 +785,12 @@ input[type="search"] {
 }
 
 /* ---------- 그래프 분석 ----------
-   색은 역할로 쓴다. 한 계열 막대는 한 색, 진영은 블루·레드(글자와 함께),
-   플레이어×라인은 50%를 중립 회색으로 둔 양극(파랑↔주황) 다섯 구간.
-   조합은 색각 구분 검사를 밝은·어두운 화면 모두에서 통과한 값이다. */
+   색은 역할로 쓴다. 승률 막대·표 칸은 승률 색 단계(heat-*), 진영은 블루·레드(글자와 함께). */
 .viz-root {
   --viz-surface: var(--ih-bg-surface);
   --viz-series: #3987e5;
   --viz-blue: #3987e5;
   --viz-red: #e66767;
-  --viz-low: #d95926;
   --viz-mid: #33363d;
   --viz-track: #262b36;
   --viz-axis: #898781;
@@ -758,7 +800,6 @@ input[type="search"] {
   --viz-series: #2a78d6;
   --viz-blue: #2a78d6;
   --viz-red: #e34948;
-  --viz-low: #eb6834;
   --viz-mid: #f0efec;
   --viz-track: #e1e0d9;
   --viz-axis: #898781;
@@ -824,7 +865,7 @@ button.bar-row:hover {
   color: var(--muted);
   font-size: 0.8125rem;
 }
-/* 값은 본문 색으로 쓴다. 막대 색을 글자에 입히지 않는다. */
+/* 값은 본문 색으로 쓰고, 승률 숫자(.rate)만 막대와 같은 색 단계를 따른다. */
 .bar-value {
   flex: none;
   color: var(--text);
@@ -882,21 +923,6 @@ button.bar-row:hover {
   border-radius: 3px;
   border: 1px solid var(--line);
 }
-.band-low2 {
-  background: color-mix(in oklab, var(--viz-low) 50%, var(--viz-surface));
-}
-.band-low1 {
-  background: color-mix(in oklab, var(--viz-low) 22%, var(--viz-surface));
-}
-.band-mid {
-  background: var(--viz-mid);
-}
-.band-high1 {
-  background: color-mix(in oklab, var(--viz-blue) 22%, var(--viz-surface));
-}
-.band-high2 {
-  background: color-mix(in oklab, var(--viz-blue) 50%, var(--viz-surface));
-}
 .band-none,
 .band-empty {
   background: var(--viz-surface);
@@ -940,9 +966,11 @@ button.bar-row:hover {
   color: var(--muted);
   font-size: 0.75rem;
 }
-/* 진한 칸에서는 보조 글자 색의 대비가 4.5:1에 못 미친다. 본문 색을 쓴다. */
-.band-low2 .cell-games,
-.band-high2 .cell-games {
+/* 표 칸: 막대 색을 45% 섞은 옅은 바탕. 색 칸에서는 보조 글자 대비가 모자라 본문 색을 쓴다. */
+.matrix td[class*="heat-"] {
+  background: color-mix(in oklab, var(--heat-bar) 45%, var(--viz-surface));
+}
+.matrix td[class*="heat-"] .cell-games {
   color: var(--text);
 }
 
@@ -989,6 +1017,36 @@ button.bar-row:hover {
 .list-row.static > .button-row {
   flex: none;
   justify-content: flex-end;
+}
+/* 티어 배정: 좁은 화면에서는 1·2·3·4·5·미정 버튼 줄(6칸 × 44px + 간격 = 294px)이 이름 아래로 내려간다.
+   버튼은 44px 이상. 390px 화면의 줄 안쪽 폭(약 330px)에 한 줄로 들어간다. */
+.list-row.priority-row {
+  flex-wrap: wrap;
+}
+.priority-row > .segmented {
+  flex: 1 1 294px;
+}
+.priority-row > .segmented button {
+  min-width: 44px;
+  padding: 8px 4px;
+}
+/* 기피 라인 토글: 라인 아이콘 + 이름. 다섯 칸이 390px 안에 들어가게 칸을 똑같이 나누고 글자를 줄이지 않는다. */
+.avoid-row > .segmented button {
+  flex: 1 1 0;
+  min-width: 44px;
+  display: inline-flex;
+  justify-content: center;
+}
+.avoid-row > .segmented .pos,
+.avoid-row > .segmented .role-icon {
+  color: inherit;
+}
+.avoid-row > .segmented button[aria-disabled="true"] {
+  opacity: 0.5;
+}
+/* 준비 화면 명단: 기피 라인에 서 있는 사람 표시(글자 + 점선 테두리, 색만으로 구분하지 않는다). */
+.tag.avoid-tag {
+  border: 1px dashed var(--ih-text-secondary);
 }
 
 /* 넓은 화면: 탭을 상단 바 가운데로 올리고 본문 폭을 읽기 좋은 너비로 줄인다. */
@@ -1258,7 +1316,8 @@ li.match-row.tone-red:hover {
   font-weight: 800;
 }
 
-/* 팀 상자: 진영이 정해진 경기는 블루·레드 색을 입힌다. 진영을 모르면 중립 표면. */
+/* 팀 상자: 진영이 정해진 경기(준비 화면은 항상)는 블루·레드 색과 테두리, 제목은 "블루팀"/"레드팀"(format.ts teamName).
+   진영을 모르면 중립 표면에 "팀 A"/"팀 B". */
 .team {
   padding: 12px;
 }
@@ -1266,10 +1325,14 @@ li.match-row.tone-red:hover {
   margin: 0 0 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--ih-border-subtle);
+  /* "● 블루팀"·"■ 레드팀"이 좁은 화면에서도 한 줄로 보이게. */
+  white-space: nowrap;
 }
 .team.side-blue {
   background: var(--ih-win-bg);
-  border-color: var(--ih-win-border);
+  /* 진영 색 테두리. 테두리 1px + 안쪽 1px 그림자로 2px처럼 보이게 해 자리(레이아웃)는 그대로 둔다. */
+  border-color: var(--ih-win-accent);
+  box-shadow: inset 0 0 0 1px var(--ih-win-accent);
 }
 .team.side-blue h3 {
   color: var(--ih-win-text);
@@ -1277,15 +1340,13 @@ li.match-row.tone-red:hover {
 }
 .team.side-red {
   background: var(--ih-loss-bg);
-  border-color: var(--ih-loss-border);
+  /* 진영 색 테두리. 테두리 1px + 안쪽 1px 그림자로 2px처럼 보이게 해 자리(레이아웃)는 그대로 둔다. */
+  border-color: var(--ih-loss-accent);
+  box-shadow: inset 0 0 0 1px var(--ih-loss-accent);
 }
 .team.side-red h3 {
   color: var(--ih-loss-text);
   border-bottom-color: var(--ih-loss-border);
-}
-.team .side {
-  color: inherit;
-  font-weight: 800;
 }
 button.row {
   background: var(--ih-bg-elevated);
@@ -1369,6 +1430,17 @@ button.row.picked:hover {
   background: var(--picked);
   color: var(--text);
 }
+/* 펼친 목록(시즌·연도 등)의 글자: select의 반투명 바탕·흐린 글자색을 물려받으면 읽기 어렵다.
+   목록 줄은 불투명한 바탕에 본문 글자 색으로 고정한다(다크 16:1, 바이올렛 15:1, 라이트 16:1 안팎). */
+select option,
+select optgroup {
+  background-color: var(--ih-bg-elevated);
+  color: var(--ih-text-primary);
+  font-weight: 500;
+}
+select option:disabled {
+  color: var(--ih-text-muted);
+}
 
 /* 순위와 승률 구간 */
 .stat,
@@ -1386,17 +1458,53 @@ button.row.picked:hover {
 .rate {
   font-weight: 800;
 }
-.rate-normal {
-  color: var(--ih-kda-under3);
+/* 승률 색 단계(format.ts의 heatClass). 한 클래스가 막대 색과 글자 색을 함께 정한다. */
+.heat-h4 {
+  --heat-bar: var(--heat-bar-h4);
+  --heat-text: var(--heat-text-h4);
 }
-.rate-good {
-  color: var(--ih-kda-3plus);
+.heat-h3 {
+  --heat-bar: var(--heat-bar-h3);
+  --heat-text: var(--heat-text-h3);
 }
-.rate-great {
-  color: var(--ih-kda-4plus);
+.heat-h2 {
+  --heat-bar: var(--heat-bar-h2);
+  --heat-text: var(--heat-text-h2);
 }
-.rate-god {
-  color: var(--ih-kda-5plus);
+.heat-h1 {
+  --heat-bar: var(--heat-bar-h1);
+  --heat-text: var(--heat-text-h1);
+}
+.heat-0 {
+  --heat-bar: var(--heat-bar-0);
+  --heat-text: var(--heat-text-0);
+}
+.heat-l1 {
+  --heat-bar: var(--heat-bar-l1);
+  --heat-text: var(--heat-text-l1);
+}
+.heat-l2 {
+  --heat-bar: var(--heat-bar-l2);
+  --heat-text: var(--heat-text-l2);
+}
+.heat-l3 {
+  --heat-bar: var(--heat-bar-l3);
+  --heat-text: var(--heat-text-l3);
+}
+.heat-l4 {
+  --heat-bar: var(--heat-bar-l4);
+  --heat-text: var(--heat-text-l4);
+}
+.rate[class*="heat-"] {
+  color: var(--heat-text);
+}
+.meter-fill[class*="heat-"],
+.bar-fill[class*="heat-"],
+.swatch[class*="heat-"] {
+  background: var(--heat-bar);
+}
+.ring-fill[class*="heat-"] {
+  stroke: var(--heat-bar);
 }
 .summary-line {
   font-size: 1.125rem;
@@ -1608,10 +1716,12 @@ button.row.picked:hover {
 }
 
 /* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
-/* 새 색을 만들지 않고 키트 토큰만 쓴다. 칭호 표식은 승률 색(rate-*)과 겹치지 않게
-   색 없이 본문 글자 + 옅은 바탕 + 테두리로만 구분한다(세 테마 모두 본문 대비 그대로). */
+/* 칭호 표식: 엠블럼 + 이름. 등급(grade-1~5, 구간 순서로 정함)이 있으면 글자·테두리·엠블럼을 등급 색으로,
+   바탕은 카드 바탕으로 둔다(글자 대비 4.5:1, 테두리 3:1 이상). 등급이 없으면 예전처럼 본문 글자 + 옅은 바탕. */
 .title-chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   max-width: 100%;
   padding: 0 8px;
   border: 1px solid var(--ih-border-strong);
@@ -1625,6 +1735,52 @@ button.row.picked:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
+}
+.title-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grade-1 {
+  --grade: var(--grade-1);
+}
+.grade-2 {
+  --grade: var(--grade-2);
+}
+.grade-3 {
+  --grade: var(--grade-3);
+}
+.grade-4 {
+  --grade: var(--grade-4);
+}
+.grade-5 {
+  --grade: var(--grade-5);
+}
+.title-chip[class*="grade-"] {
+  padding-left: 5px;
+  border-color: var(--grade);
+  background: var(--ih-bg-surface);
+  color: var(--grade);
+}
+.title-emblem {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  fill-opacity: 0.28;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.title-preview {
+  display: inline-flex;
+  flex: none;
+  color: var(--grade);
+}
+.title-preview .title-emblem {
+  width: 20px;
+  height: 20px;
 }
 
 /* 하단 탭이 5개가 되어도 320px에서 넘치지 않게 좌우 여백을 줄인다. 높이(56px)는 그대로다. */
@@ -1989,6 +2145,9 @@ button.row.picked:hover {
   font-weight: 800;
   color: var(--muted);
 }
+.mc-team-name {
+  white-space: nowrap;
+}
 .mc-team.is-win .mc-team-label {
   color: var(--text);
 }
@@ -2255,6 +2414,38 @@ button.row.picked:hover {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+/* 요약 머리의 연속 기록 줄(예전 "지금" 타일). */
+.ps-streak {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+/* 개인 통계: 720px부터 두 단. 키 큰 "라인별"이 오른쪽에서 두 줄을 차지하고
+   왼쪽에 짧은 "최근"·"진영별"을 쌓아 한쪽 아래가 길게 비지 않게 한다.
+   (공통 .screen.cols의 1024px 2단 규칙은 다른 화면용으로 그대로 둔다.) */
+@media (min-width: 720px) {
+  .screen.cols.person-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 16px;
+    align-items: start;
+  }
+  .screen.cols.person-screen > :not(section),
+  .screen.cols.person-screen > .full {
+    grid-column: 1 / -1;
+  }
+  .screen.cols.person-screen > section {
+    min-width: 0;
+  }
+  .screen.cols.person-screen > .person-lines {
+    grid-row: span 2;
+  }
+  /* 라인별: 비중·승률 막대를 한 줄에 나란히(줄마다 한 줄씩 줄어든다). */
+  .person-lines .meters {
+    grid-template-columns: auto minmax(0, 1fr) 2.5rem auto minmax(0, 1fr) 2.5rem;
+  }
+}
 
 /* 누적 승률 추이(작은 선 그래프) */
 .trend {
@@ -2294,6 +2485,177 @@ button.row.picked:hover {
 }
 .trend-caption strong {
   color: var(--text);
+}
+
+/* 개인 통계·검색의 작은 막대와 승률 고리. 그림은 보조이고 값은 옆 숫자로 함께 적는다.
+   승률 막대는 한 가지 색 + 50% 기준선, 5경기 미만은 회색(강조하지 않음). */
+.meter {
+  position: relative;
+  display: block;
+  height: 8px;
+  min-width: 0;
+  background: var(--viz-track);
+  border-radius: 0 4px 4px 0;
+}
+.meter-sm {
+  height: 5px;
+}
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--viz-series);
+}
+.meter-fill.tone-blue {
+  background: var(--viz-blue);
+}
+.meter-fill.tone-red {
+  background: var(--viz-red);
+}
+.meter-fill.tone-share {
+  background: var(--ih-text-secondary);
+}
+.meter-fill.tone-muted {
+  background: var(--viz-axis);
+}
+/* 밝은 테마에서는 회색 막대가 바탕 막대와 3:1 이상 구분되도록 조금 더 어둡게 둔다. */
+[data-theme="light"] .meter-fill.tone-muted {
+  background: var(--ih-text-muted);
+}
+[data-theme="light"] .ring-fill.tone-muted {
+  stroke: var(--ih-text-muted);
+}
+.meter-mid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ih-text-primary);
+  opacity: 0.55;
+}
+/* 승·패 비율: 승은 승리 색, 패는 패배 색에 빗금(색이 아니라 무늬로도 구분). */
+.wl-bar {
+  position: relative;
+  display: flex;
+  height: 8px;
+  min-width: 0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.wl-win,
+.wl-loss {
+  flex-basis: 0;
+  min-width: 0;
+}
+.wl-win {
+  background: var(--ih-win-accent);
+}
+.wl-loss {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--ih-loss-accent) 0 3px,
+    color-mix(in oklab, var(--ih-loss-accent) 45%, var(--ih-bg-surface)) 3px 5px
+  );
+}
+.wl-bar .meter-mid {
+  top: 0;
+  bottom: 0;
+}
+/* 막대를 둔 목록 줄: 첫 줄은 이름·숫자, 막대는 다음 줄 전체 폭. */
+.list-row.has-bar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.list-row.has-bar > .meter,
+.list-row.has-bar > .wl-bar,
+.list-row.has-bar > .meters {
+  flex: 1 0 100%;
+}
+/* 라인별: 비중과 승률을 한 줄씩. 이름표 · 막대 · 값 */
+.meters {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 2.5rem;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.meter-value {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ps-tiles dd .meter {
+  align-self: stretch;
+  margin-top: 4px;
+}
+/* 요약의 승률 고리 */
+.ps-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ring {
+  position: relative;
+  flex: none;
+  width: 88px;
+  height: 88px;
+}
+.ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ring-track,
+.ring-fill {
+  fill: none;
+  stroke-width: 8;
+}
+.ring-track {
+  stroke: var(--viz-track);
+}
+.ring-fill {
+  stroke: var(--viz-series);
+}
+.ring-fill.tone-muted {
+  stroke: var(--viz-axis);
+}
+.ring-mid {
+  stroke: var(--ih-text-primary);
+  stroke-width: 2;
+  opacity: 0.6;
+}
+.ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+}
+.ring-text strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.ring-text span {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+/* 랭킹 묶음 소제목(누적 50경기 이상 · 배치 완료 · 배치 진행 중) */
+.rank-group {
+  margin-top: 6px;
+  padding: 2px 4px 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--ih-border-strong);
+}
+.rank-group:first-child {
+  margin-top: 0;
 }
 
 /* 홈 요약 */
@@ -2873,4 +3235,310 @@ button.row.picked:hover {
 .button-row > button {
   max-width: 100%;
   white-space: normal;
+}
+/* 준비 화면의 팀 섞기·진영 구역. 390px에서 버튼이 줄을 바꿔 넘치지 않게 button-row를 쓴다. */
+.prep-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prep-tools h2 {
+  margin: 0;
+}
+
+/* 서포터 횟수 직접 입력: 이름 · [−] 숫자 [＋]. 버튼은 44px 이상, 좁은 화면에서도 한 줄. */
+.count-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.count-row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.count-row.dirty {
+  border-color: var(--ih-brand-primary);
+}
+.count-row .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.count-stepper {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.count-stepper button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.125rem;
+}
+.count-stepper input {
+  width: 3.5em;
+  min-height: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 모임 고르기(2026-11-06): 모임 탭 맨 위 목록·접힌 "새 모임 만들기", 계정 메뉴의 모임 바꾸기 버튼. */
+.group-switch-compact {
+  margin: 0 0 12px;
+}
+.group-switch-compact > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--muted);
+}
+.account-groups {
+  display: grid;
+  gap: 6px;
+}
+.account-groups button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* 참가 신청(고르기 화면 위 구역, 공개 신청 화면). */
+.join-panel .section-head h2 {
+  margin: 0;
+}
+.join-list .name .tag,
+.join-screen .list .name .tag {
+  margin-left: 6px;
+}
+
+/* 경기 메모·시리즈(2026-11-06). 카드에는 한 줄(넘치면 말줄임), 상세에는 줄바꿈 그대로. */
+.mc-extra {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 2px 2px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.mc-memo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc-memo-label {
+  margin-right: 4px;
+  font-weight: 700;
+}
+.series-badge {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 8px;
+  border: 1px solid var(--ih-border-strong);
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-bg-subtle);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.memo-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.memo-edit textarea {
+  width: 100%;
+  min-height: 5.5em;
+  resize: vertical;
+}
+.memo-count {
+  font-variant-numeric: tabular-nums;
+}
+.memo-count.over {
+  color: var(--ih-loss-text);
+  font-weight: 700;
+}
+.series-games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.series-games li {
+  min-width: 0;
+}
+.series-line {
+  overflow-wrap: anywhere;
+}
+.series-pick {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+/* 시즌 요약과 시상. */
+.award-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.award {
+  padding: 10px 12px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-surface);
+  min-width: 0;
+}
+.award h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+.award .winner {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+.award.is-none .winner {
+  color: var(--muted);
+}
+/* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). */
+.intro h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.intro p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.intro-features {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.intro-features li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-elevated);
+  overflow-wrap: anywhere;
+}
+.intro-features span {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+@media (min-width: 720px) {
+  .intro-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .intro-features {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* 예시 모임(#/demo) 위 안내. 데이터와 상관없이 바로 그려 높이가 바뀌지 않는다. */
+.demo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 16px;
+  background: var(--ih-warn-bg);
+  border-bottom: 1px solid var(--ih-border-subtle);
+}
+.demo-banner p {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* 예시 데이터를 만드는 동안 자리를 잡아 둔다(아래 푸터가 크게 튀지 않게). */
+.demo-loading,
+.site-admin-loading {
+  min-height: 60vh;
+}
+/* 사이트 현황의 오류 스택. */
+.error-log details {
+  min-width: 0;
+}
+.error-log summary {
+  overflow-wrap: anywhere;
+}
+.error-stack {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ih-bg-elevated);
+  border-radius: var(--ih-radius-sm);
+}
+.error-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 참가자 본인 연결 · 멤버 화면 · 참가자 요청(2026-11-06) */
+.request-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.request-row .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tag.muted {
+  opacity: 0.75;
+}
+.dialog-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+.dialog-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.member-request-form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 36rem;
+}
+.member-request-form select,
+.member-request-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.member-request-form fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+.member-home .segmented {
+  flex-wrap: wrap;
 }

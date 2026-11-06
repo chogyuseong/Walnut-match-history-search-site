@@ -1,8 +1,11 @@
+import { encodeAvoid, MAX_AVOID, normalizeAvoidPositions } from "../shared/avoid";
 import { parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
 import { MAX_NAME_LENGTH, cleanName, nameKey } from "../shared/names";
 import { parseTitleBands } from "../shared/titles";
 import {
   DEFAULT_SETTINGS,
+  MAX_SKILL_GROUP,
+  upgradeGroupWeights,
   type ParticipantView,
   type Settings,
 } from "../shared/types";
@@ -19,12 +22,34 @@ import {
 import { bumpLiveVersion, liveVersionGuard, runMutation, sha256Hex } from "./mutation";
 import { buildSnapshot, loadGroup, loadOpenSession } from "./snapshot";
 
-const MAX_GROUPS_PER_ACCOUNT = 5;
+/** 한 계정이 맡을 수 있는 모임 수(대표 + 공동 운영 합계). 만들기·백업으로 새 모임·넘겨받기·공동 운영자 수락이 함께 지킨다. */
+export const MAX_GROUPS_PER_ACCOUNT = 5;
 const MAX_PARTICIPANTS_PER_GROUP = 200;
 
 type Body = Record<string, unknown>;
 
-function parseName(value: unknown): string {
+/** 이 계정이 대표 또는 공동 운영자로 맡은 모임 수. */
+export async function accountGroupCount(env: Env, accountId: string): Promise<number> {
+  const row = await env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM group_operators WHERE account_id = ?1)
+          + (SELECT COUNT(*) FROM group_co_operators WHERE account_id = ?1) AS n`,
+  )
+    .bind(accountId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** 계정당 모임 수를 넘었을 때의 오류. */
+export function tooManyGroupsError(): ApiError {
+  return new ApiError(
+    409,
+    "TOO_MANY_GROUPS",
+    `한 계정은 대표·공동 운영을 합쳐 모임 ${MAX_GROUPS_PER_ACCOUNT}개까지 맡을 수 있어요. 쓰지 않는 모임을 넘기거나 삭제하거나, 공동 운영에서 나간 뒤 다시 해 주세요.`,
+  );
+}
+
+/** 이름 검증(참가자·모임·시즌 이름 공통). 참가 신청의 새 이름도 같은 규칙을 쓴다(src/server/join.ts). */
+export function parseName(value: unknown): string {
   if (typeof value !== "string") {
     throw new ApiError(400, "INVALID_NAME", "이름이 올바르지 않습니다.");
   }
@@ -45,14 +70,7 @@ export async function createGroup(
 ): Promise<{ id: string; name: string }> {
   assertOnlyKeys(body, ["name"]);
   const name = body.name === undefined ? "내 내전 모임" : parseName(body.name);
-  const owned = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM group_operators WHERE account_id = ?1",
-  )
-    .bind(accountId)
-    .first<{ n: number }>();
-  if ((owned?.n ?? 0) >= MAX_GROUPS_PER_ACCOUNT) {
-    throw new ApiError(409, "TOO_MANY_GROUPS", "만들 수 있는 모임 수를 넘었습니다.");
-  }
+  if ((await accountGroupCount(env, accountId)) >= MAX_GROUPS_PER_ACCOUNT) throw tooManyGroupsError();
   const id = newId();
   const settingsId = newId();
   const now = nowIso();
@@ -72,18 +90,25 @@ export async function createGroup(
   return { id, name };
 }
 
+/**
+ * 이 계정이 운영하는 모임. role: owner = 대표 운영자, co = 공동 운영자(migrations/0011).
+ * 대표로 맡은 모임을 먼저, 그 안에서는 만든 순서.
+ */
 export async function listGroups(
   env: Env,
   accountId: string,
-): Promise<{ id: string; name: string }[]> {
+): Promise<{ id: string; name: string; role: "owner" | "co" }[]> {
   const rows = await env.DB.prepare(
-    `SELECT g.id, g.name FROM groups g
-     JOIN group_operators o ON o.group_id = g.id
-     WHERE o.account_id = ?1 ORDER BY g.created_at`,
+    `SELECT g.id, g.name, 'owner' AS role, 0 AS ord, g.created_at AS made FROM groups g
+     JOIN group_operators o ON o.group_id = g.id WHERE o.account_id = ?1
+     UNION ALL
+     SELECT g.id, g.name, 'co' AS role, 1 AS ord, g.created_at AS made FROM groups g
+     JOIN group_co_operators c ON c.group_id = g.id WHERE c.account_id = ?1
+     ORDER BY ord, made`,
   )
     .bind(accountId)
-    .all<{ id: string; name: string }>();
-  return rows.results;
+    .all<{ id: string; name: string; role: "owner" | "co" }>();
+  return rows.results.map((r) => ({ id: r.id, name: r.name, role: r.role }));
 }
 
 export async function renameGroup(env: Env, groupId: string, body: Body): Promise<void> {
@@ -153,9 +178,9 @@ export async function updateParticipant(
   participantId: string,
   body: Body,
 ): Promise<void> {
-  assertOnlyKeys(body, ["name", "skillGroup", "status"]);
+  assertOnlyKeys(body, ["name", "skillGroup", "status", "avoidPositions"]);
   const existing = await env.DB.prepare(
-    "SELECT id, name, name_key, skill_group, status FROM participants WHERE id = ?1 AND group_id = ?2",
+    "SELECT id, name, name_key, skill_group, status, avoid_positions FROM participants WHERE id = ?1 AND group_id = ?2",
   )
     .bind(participantId, groupId)
     .first<{
@@ -164,6 +189,7 @@ export async function updateParticipant(
       name_key: string;
       skill_group: number | null;
       status: string;
+      avoid_positions: string | null;
     }>();
   if (!existing) throw new ApiError(404, "NOT_FOUND", "참가자를 찾을 수 없습니다.");
   // 합쳐진 사람을 다시 활성으로 바꾸면 그 사람이 새 경기에 들어가 되돌리기가 꼬인다. 되돌리기로만 돌린다.
@@ -195,12 +221,15 @@ export async function updateParticipant(
       skillGroup = null;
     } else {
       const value = requireInt(body.skillGroup, "skillGroup");
-      if (value < 1 || value > 4) {
+      if (value < 1 || value > MAX_SKILL_GROUP) {
         throw new ApiError(400, "INVALID_FIELD", "skillGroup 값이 올바르지 않습니다.");
       }
       skillGroup = value;
     }
   }
+  // 기피 라인: 포지션 이름 배열(중복은 지움) 또는 null(지우기). 5개 모두는 거절한다.
+  let avoidPositions = existing.avoid_positions;
+  if (body.avoidPositions !== undefined) avoidPositions = parseAvoidField(body.avoidPositions);
   if (body.status !== undefined) {
     if (body.status !== "active" && body.status !== "archived") {
       throw new ApiError(400, "INVALID_FIELD", "status 값이 올바르지 않습니다.");
@@ -208,12 +237,20 @@ export async function updateParticipant(
     status = body.status;
   }
   try {
-    await env.DB.prepare(
-      `UPDATE participants SET name = ?1, name_key = ?2, skill_group = ?3, status = ?4
-       WHERE id = ?5 AND group_id = ?6`,
-    )
-      .bind(name, key, skillGroup, status, participantId, groupId)
-      .run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE participants SET name = ?1, name_key = ?2, skill_group = ?3, status = ?4, avoid_positions = ?7
+         WHERE id = ?5 AND group_id = ?6`,
+      ).bind(name, key, skillGroup, status, participantId, groupId, avoidPositions),
+      // 운영자가 기피 라인을 고치면 "본인이 정함" 표시를 지운다(migrations/0019). 보내지 않았으면 그대로.
+      ...(body.avoidPositions !== undefined
+        ? [
+            env.DB.prepare(
+              "UPDATE participant_links SET avoid_self_at = NULL WHERE group_id = ?1 AND participant_id = ?2",
+            ).bind(groupId, participantId),
+          ]
+        : []),
+    ]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("UNIQUE")) {
@@ -221,6 +258,28 @@ export async function updateParticipant(
     }
     throw error;
   }
+}
+
+/**
+ * 기피 라인 값 검증(운영자의 참가자 수정과 멤버의 내 기피 라인이 같이 쓴다). 저장할 글자 또는 NULL을 돌려준다.
+ * 포지션 이름 배열(중복은 지움) 또는 null(지우기). 5개 모두·모르는 값은 거절한다.
+ */
+export function parseAvoidField(value: unknown): string | null {
+  if (value === null) return null;
+  const list = normalizeAvoidPositions(value);
+  if (!list) {
+    // 값은 모두 맞는데 서로 다른 라인이 다섯 개면 갈 라인이 없다는 이유를 알려 준다.
+    const tooMany =
+      Array.isArray(value) &&
+      value.every((v) => normalizeAvoidPositions([v]) !== null) &&
+      new Set(value).size > MAX_AVOID;
+    throw new ApiError(
+      400,
+      "INVALID_FIELD",
+      tooMany ? `기피 라인은 ${MAX_AVOID}개까지 정할 수 있어요.` : "avoidPositions 값이 올바르지 않습니다.",
+    );
+  }
+  return encodeAvoid(list);
 }
 
 /** 설정 스냅샷 검증. 백업 복원(restore.ts)도 같은 규칙으로 검사한다. */
@@ -233,10 +292,11 @@ export function parseSettings(value: unknown): Settings {
   if (typeof raw.rotationEnabled !== "boolean" || typeof raw.groupsPublic !== "boolean") {
     throw new ApiError(400, "INVALID_FIELD", "settings 값이 올바르지 않습니다.");
   }
+  // 5개(티어 1~5). 4개(티어 4단계 시절의 백업·그 시절 화면이 연 채로 보낸 저장)도 받아 upgradeGroupWeights로 5개로 맞춘다.
   const weights = raw.groupWeights;
   if (
     !Array.isArray(weights) ||
-    weights.length !== 4 ||
+    (weights.length !== 4 && weights.length !== 5) ||
     !weights.every((w) => typeof w === "number" && Number.isFinite(w) && w >= 0 && w <= 1000)
   ) {
     throw new ApiError(400, "INVALID_FIELD", "groupWeights 값이 올바르지 않습니다.");
@@ -244,7 +304,7 @@ export function parseSettings(value: unknown): Settings {
   const settings: Settings = {
     rotationEnabled: raw.rotationEnabled,
     groupsPublic: raw.groupsPublic,
-    groupWeights: weights as [number, number, number, number],
+    groupWeights: upgradeGroupWeights(weights as number[]),
   };
   // 칭호 구간: 보내지 않으면 저장하지 않은 상태(기본값 적용)로 두고, 빈 배열은 빈 채로 저장한다.
   if (raw.titleBands !== undefined) {
@@ -308,7 +368,10 @@ export async function saveSettings(env: Env, groupId: string, body: Body): Promi
   });
 }
 
-/** 현재 순환 주기를 닫고 새 주기를 연다. 전적은 바뀌지 않는다. */
+/**
+ * 현재 순환 주기를 닫고 새 주기를 연다(화면 이름 "서포터 횟수 초기화"). 전적은 바뀌지 않는다.
+ * 새 주기에는 보정값(서포터 횟수 직접 입력)이 없다. 열린 내전이 없으면 첫 경기 전에 미리 넣어 둔 보정값만 지운다.
+ */
 export async function startNewCycle(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "baseLiveVersion"]);
   const requestId = requireString(body.requestId, "requestId", 8, 64);
@@ -321,14 +384,21 @@ export async function startNewCycle(env: Env, groupId: string, body: Body): Prom
     conflictDetails: async () => ({ liveVersion: (await loadGroup(env, groupId)).live_version }),
     build: async () => {
       const session = await loadOpenSession(env, groupId);
+      const clearPending = env.DB.prepare(
+        "DELETE FROM support_adjustments WHERE group_id = ?1 AND cycle_id IS NULL",
+      ).bind(groupId);
       if (!session) {
-        throw new ApiError(409, "STATE_CONFLICT", "진행 중인 내전이 없습니다.");
+        return {
+          stored: {},
+          statements: [liveVersionGuard(env, groupId, baseLiveVersion), clearPending, bumpLiveVersion(env, groupId)],
+        };
       }
       const now = nowIso();
       return {
         stored: {},
         statements: [
           liveVersionGuard(env, groupId, baseLiveVersion),
+          clearPending,
           env.DB.prepare(
             "UPDATE rotation_cycles SET status = 'closed', closed_at = ?1 WHERE session_id = ?2 AND status = 'active'",
           ).bind(now, session.id),
@@ -456,6 +526,9 @@ export async function regenerateViewToken(env: Env, groupId: string): Promise<st
  * 1: 첫 형식. 2: 복원용 값 추가. 3: 중복 참가자 합치기 기록(participantMerges) 추가.
  * 4: 일괄 입력 출처(importBatches)와 경기의 가져오기 지문(importFingerprint, importRowKey) 추가.
  * src/server/restore.ts가 1~4를 모두 읽는다.
+ * 형식 번호를 올리지 않고 더한 항목(없는 예전 백업도 복원된다): 서포터 횟수 보정값(supportAdjustments),
+ * 기피 라인(참가자 avoidPositions), 경기 메모(경기 memo), 시리즈 묶음(series),
+ * 티어 5단계(참가자 skillGroup 5, 설정 groupWeights 5개 — 4개짜리 예전 백업은 parseSettings가 5개로 맞춘다).
  */
 export const BACKUP_FORMAT_VERSION = 4;
 
@@ -486,6 +559,12 @@ export async function exportBackup(env: Env, groupId: string): Promise<Record<st
   )
     .bind(groupId)
     .all();
+  const adjustments = await env.DB.prepare(
+    `SELECT cycle_id, participant_id, delta, updated_at FROM support_adjustments
+     WHERE group_id = ?1 ORDER BY updated_at, participant_id`,
+  )
+    .bind(groupId)
+    .all<{ cycle_id: string | null; participant_id: string; delta: number; updated_at: string }>();
   const revisions = await env.DB.prepare(
     "SELECT id, match_id, kind, changes, created_at FROM match_revisions WHERE group_id = ?1 ORDER BY id",
   )
@@ -547,6 +626,8 @@ export async function exportBackup(env: Env, groupId: string): Promise<Record<st
     matchCount: snapshot.matches.length,
     participants: snapshot.participants.map((p) => ({ ...p, createdAt: createdById.get(p.id) })),
     seasons: snapshot.seasons,
+    // 시리즈 묶음(2026-11-06). 경기 메모는 경기 항목(memo)에 들어 있다. 둘 다 없는 예전 백업도 복원된다.
+    series: snapshot.series ?? [],
     matches: snapshot.matches.map((m) => {
       const extra = extraById.get(m.id);
       return {
@@ -577,6 +658,13 @@ export async function exportBackup(env: Env, groupId: string): Promise<Record<st
     sessions: sessions.results,
     rotationCycles: cycles.results,
     rotationEvents: events.results,
+    // 서포터 횟수 직접 입력의 보정값(2026-11-06). 이 항목이 없는 예전 백업도 복원된다.
+    supportAdjustments: adjustments.results.map((a) => ({
+      cycleId: a.cycle_id,
+      participantId: a.participant_id,
+      delta: a.delta,
+      updatedAt: a.updated_at,
+    })),
     settingsVersions: settingsVersions.results.map((s) => ({
       id: s.id,
       versionNo: s.version_no,
@@ -652,8 +740,11 @@ export async function transferInfo(
 }
 
 /**
- * 인수 링크를 수락한다. 수락한 계정이 이 모임의 유일한 운영자가 되고
+ * 인수 링크를 수락한다. 수락한 계정이 이 모임의 대표 운영자가 되고
  * 이전 운영자는 더 이상 수정할 수 없다. 경기·참가자·조회 링크는 바뀌지 않는다.
+ * 받는 계정이 이 모임의 공동 운영자였으면 공동 운영자 행을 지운다(대표와 공동을 겸하지 않는다).
+ * 이전 대표가 만든 쓰지 않은 공동 운영자 초대 링크도 지운다(권한을 잃은 사람의 초대가 남지 않게).
+ * 다른 공동 운영자는 그대로 남는다.
  */
 export async function acceptTransfer(
   env: Env,
@@ -669,13 +760,14 @@ export async function acceptTransfer(
   if (current?.account_id === accountId) {
     throw new ApiError(409, "ALREADY_OPERATOR", "이미 이 모임의 운영자입니다.");
   }
-  const owned = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM group_operators WHERE account_id = ?1",
+  // 이 모임의 공동 운영자였으면 그 행이 지워지므로 맡은 모임 수는 그대로다.
+  const coHere = await env.DB.prepare(
+    "SELECT 1 AS ok FROM group_co_operators WHERE group_id = ?1 AND account_id = ?2",
   )
-    .bind(accountId)
-    .first<{ n: number }>();
-  if ((owned?.n ?? 0) >= MAX_GROUPS_PER_ACCOUNT) {
-    throw new ApiError(409, "TOO_MANY_GROUPS", "맡을 수 있는 모임 수를 넘었습니다.");
+    .bind(row.group_id, accountId)
+    .first<{ ok: number }>();
+  if ((await accountGroupCount(env, accountId)) - (coHere ? 1 : 0) >= MAX_GROUPS_PER_ACCOUNT) {
+    throw tooManyGroupsError();
   }
   const now = nowIso();
   try {
@@ -694,6 +786,13 @@ export async function acceptTransfer(
       env.DB.prepare("UPDATE operator_transfers SET used_at = ?1 WHERE token_hash = ?2").bind(
         now,
         row.token_hash,
+      ),
+      env.DB.prepare("DELETE FROM group_co_operators WHERE group_id = ?1 AND account_id = ?2").bind(
+        row.group_id,
+        accountId,
+      ),
+      env.DB.prepare("DELETE FROM co_operator_invites WHERE group_id = ?1 AND used_at IS NULL").bind(
+        row.group_id,
       ),
     ]);
   } catch (error) {

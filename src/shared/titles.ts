@@ -11,6 +11,8 @@ import type { MatchView, Settings, TitleBand } from "./types";
 export const DEFAULT_TITLE_BANDS: readonly TitleBand[] = [
   { minRate: 65, name: "전장의 지배자" },
   { minRate: 55, name: "승리 설계자" },
+  // 50~55% 구간(2026-11-06 사용자 요청으로 추가). "든든한 전우"는 45~50%로 좁혔다.
+  { minRate: 50, name: "떠오르는 강자" },
   { minRate: 45, name: "든든한 전우" },
   { minRate: 35, name: "끈질긴 전사" },
   { minRate: 0, name: "불굴의 개척자" },
@@ -120,4 +122,31 @@ export function bandRangeText(bands: readonly TitleBand[], index: number): strin
   if (band.minRate === 0 && upper !== null) return `${upper}% 미만`;
   if (upper === null) return `${band.minRate}% 이상`;
   return `${band.minRate}% 이상 ${upper}% 미만`;
+}
+
+/**
+ * 칭호 등급(색·엠블럼). 1이 가장 높은 구간(최상), 5가 가장 낮은 구간(최하)이다.
+ * 이름이 아니라 구간의 순서로 정하므로 운영자가 이름·경계·구간 수를 바꿔도 동작한다.
+ */
+export type TitleGrade = 1 | 2 | 3 | 4 | 5;
+
+/**
+ * 위에서 index번째(0부터) 구간의 등급. 구간 count개를 다섯 등급에 고르게 대응시킨다:
+ * 1개면 가운데(3), 2개 이상이면 맨 위는 1·맨 아래는 5이고 그 사이는 비율대로 반올림한다.
+ * 예: 2개 → 1·5, 3개 → 1·3·5, 4개 → 1·2·4·5, 5개 → 1~5, 6개 → 1·2·3·3·4·5, 7개 → 1·2·2·3·4·4·5.
+ */
+export function titleGrade(index: number, count: number): TitleGrade | null {
+  if (!Number.isInteger(index) || !Number.isInteger(count) || count <= 0 || index < 0 || index >= count) {
+    return null;
+  }
+  if (count === 1) return 3;
+  return (1 + Math.round((index * 4) / (count - 1))) as TitleGrade;
+}
+
+/** 누적 승·패로 칭호의 등급을 고른다. 칭호가 없으면 null. */
+export function titleGradeFor(wins: number, games: number, bands: readonly TitleBand[]): TitleGrade | null {
+  const band = titleFor(wins, games, bands);
+  if (!band) return null;
+  const sorted = [...bands].sort((a, b) => b.minRate - a.minRate);
+  return titleGrade(sorted.indexOf(band), sorted.length);
 }

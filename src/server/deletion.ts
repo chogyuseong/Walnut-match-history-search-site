@@ -14,7 +14,8 @@
  *   "찾을 수 없음"이 돌아온다(화면은 이것을 "이미 삭제됨"으로 안내한다).
  *
  * 계정 삭제(탈퇴):
- * - 운영 중인 모임이 있으면 거절하고 그 모임 목록을 돌려준다(먼저 넘기거나 삭제).
+ * - 대표로 운영 중인 모임이 있으면 거절하고 그 모임 목록을 돌려준다(먼저 넘기거나 삭제).
+ * - 공동 운영자로 있는 모임은 막지 않는다. 공동 운영자 행을 함께 지운다(그 모임에서 나간 것과 같다).
  * - 계정 행과 그 계정의 요청 수 제한 기록을 지운다. 세션 쿠키는 계정 행을 확인하므로 모든 기기의 세션이 바로 무효다.
  *   같은 카카오·Google 계정으로 다시 로그인하면 새 계정 번호로 처음부터 시작한다.
  */
@@ -35,10 +36,17 @@ export const deletionHooks: { afterStage: ((index: number) => void | Promise<voi
 
 type Body = Record<string, unknown>;
 
-/** 모임 행을 지우기 전에 지울 표(외래 키 순서). 데이터 표 다음에 인수 링크·복원 작업·운영자. */
+/** 모임 행을 지우기 전에 지울 표(외래 키 순서). 데이터 표 다음에 인수 링크·참가 신청 링크·공동 운영자 초대·공동 운영자·복원 작업·운영자. */
 const GROUP_TABLES = [
   ...GROUP_DATA_TABLES,
+  // 참가자 본인 연결·연결 링크·참가자 요청(migrations/0019). 복원은 지우지 않고 모임 삭제만 지운다.
+  "participant_links",
+  "participant_claims",
+  "participant_requests",
   "operator_transfers",
+  "join_links",
+  "co_operator_invites",
+  "group_co_operators",
   "restore_jobs",
   "group_operators",
 ] as const;
@@ -199,6 +207,10 @@ export async function deleteAccount(env: Env, accountId: string, body: Body): Pr
       env.DB.prepare("DELETE FROM rate_limits WHERE key = ?1").bind(`write-account:${accountId}`),
       ...failureKeys.map((key) => env.DB.prepare("DELETE FROM auth_failures WHERE key = ?1").bind(key)),
       env.DB.prepare("DELETE FROM local_credentials WHERE account_id = ?1").bind(accountId),
+      env.DB.prepare("DELETE FROM group_co_operators WHERE account_id = ?1").bind(accountId),
+      // 참가자 본인 연결(migrations/0019): 연결을 지우고 본인 확인 신청 표시를 익명 신청으로 돌린다. 참가자·기록은 모임 것이라 그대로.
+      env.DB.prepare("DELETE FROM participant_links WHERE account_id = ?1").bind(accountId),
+      env.DB.prepare("UPDATE join_requests SET account_id = NULL WHERE account_id = ?1").bind(accountId),
       env.DB.prepare("DELETE FROM accounts WHERE id = ?1").bind(accountId),
     ]);
   } catch (error) {

@@ -1,19 +1,27 @@
 import {
   DEFAULT_SETTINGS,
+  upgradeGroupWeights,
   type MatchState,
   type MatchSource,
+  type MemberRequestKind,
+  type MemberRequestStatus,
+  type MemberRequestView,
   type MatchView,
   type ParticipantView,
   type Position,
   type RevisionView,
   type RotationView,
+  type SeriesFormat,
+  type SeriesView,
   type SessionView,
   type Settings,
   type Side,
   type Snapshot,
   type Team,
 } from "../shared/types";
+import { decodeAvoid } from "../shared/avoid";
 import type { Env } from "./env";
+import { loadAdjustmentsView } from "./supportCounts";
 import { ApiError, nowIso } from "./http";
 
 interface GroupRow {
@@ -47,7 +55,9 @@ export async function loadSettings(env: Env, settingsVersionId: string | null): 
     .bind(settingsVersionId)
     .first<{ payload: string }>();
   if (!row) return { ...DEFAULT_SETTINGS };
-  return JSON.parse(row.payload) as Settings;
+  const settings = JSON.parse(row.payload) as Settings;
+  // 티어 4단계 시절에 저장한 버전은 가중치가 4개다. 저장 행은 그대로 두고 읽을 때 5개로 맞춘다.
+  return { ...settings, groupWeights: upgradeGroupWeights(settings.groupWeights) };
 }
 
 export async function loadOpenSession(env: Env, groupId: string): Promise<SessionView | null> {
@@ -100,13 +110,14 @@ interface MatchRow {
   winner_team: Team | null;
   team_a_side: Side | null;
   version: number;
+  memo: string | null;
 }
 
 const MATCH_COLUMNS = `id, match_no, session_id, state, source, started_at, ended_at, played_at,
-  confirmed_at, winner_team, team_a_side, version`;
+  confirmed_at, winner_team, team_a_side, version, memo`;
 
 function toMatchView(row: MatchRow): MatchView {
-  return {
+  const view: MatchView = {
     id: row.id,
     matchNo: row.match_no,
     sessionId: row.session_id,
@@ -121,6 +132,9 @@ function toMatchView(row: MatchRow): MatchView {
     version: row.version,
     roster: [],
   };
+  // 메모는 있을 때만 넣는다(없는 경기의 응답 모양은 예전과 같다). 공개 정보라 조회 응답에도 나간다.
+  if (row.memo !== null) view.memo = row.memo;
+  return view;
 }
 
 /** 경기 하나를 명단과 함께 읽는다. 다른 모임의 경기는 찾지 못한다. */
@@ -162,7 +176,7 @@ export async function buildSnapshot(
 
   // 합쳐진 사람에게는 남은 사람의 ID를 붙인다(되돌리지 않은 합치기만). 공개 정보다: 이름과 같은 수준.
   const participantRows = await env.DB.prepare(
-    `SELECT p.id, p.name, p.status, p.skill_group, m.target_id AS merged_into
+    `SELECT p.id, p.name, p.status, p.skill_group, p.avoid_positions, m.target_id AS merged_into
      FROM participants p
      LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
      WHERE p.group_id = ?1 ORDER BY p.created_at, p.id`,
@@ -173,17 +187,28 @@ export async function buildSnapshot(
       name: string;
       status: "active" | "archived";
       skill_group: number | null;
+      avoid_positions: string | null;
       merged_into: string | null;
     }>();
   const participants: ParticipantView[] = participantRows.results.map((p) => {
     const view: ParticipantView = { id: p.id, name: p.name, status: p.status };
     if (includeGroups) view.skillGroup = p.skill_group;
+    // 기피 라인은 운영자에게만(티어 공개 설정과 무관). 없으면 필드를 넣지 않는다.
+    if (includePrivate) {
+      const avoid = decodeAvoid(p.avoid_positions);
+      if (avoid.length > 0) view.avoidPositions = avoid;
+    }
     if (p.merged_into) view.mergedInto = p.merged_into;
     return view;
   });
 
   const session = await loadOpenSession(env, groupId);
-  const rotation = session ? await loadActiveRotation(env, session.id) : null;
+  let rotation = session ? await loadActiveRotation(env, session.id) : null;
+  // 서포터 횟수 직접 입력의 보정값은 운영자에게만 준다(조회 응답에 새 정보를 늘리지 않는다).
+  if (includePrivate) {
+    const adjustments = await loadAdjustmentsView(env, groupId, rotation?.cycleId ?? null, participants);
+    if (adjustments.length > 0) rotation = { ...(rotation ?? { cycleId: null, events: [] }), adjustments };
+  }
 
   const matchRows = await env.DB.prepare(
     `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 ORDER BY played_at, match_no`,
@@ -217,6 +242,8 @@ export async function buildSnapshot(
     .bind(groupId)
     .all<{ id: string; name: string; starts_on: string; ends_on: string }>();
 
+  const series = await loadSeries(env, groupId);
+
   const snapshot: Snapshot = {
     role,
     serverTime: nowIso(),
@@ -240,6 +267,8 @@ export async function buildSnapshot(
       startsOn: s.starts_on,
       endsOn: s.ends_on,
     })),
+    // 시리즈 묶음은 공개 정보다(이름·형식·속한 경기). 조회 응답에도 나간다.
+    series,
   };
   if (includePrivate) {
     snapshot.group.settingsVersionId = group.settings_version_id ?? undefined;
@@ -296,8 +325,110 @@ export async function buildSnapshot(
       createdAt: m.created_at,
       undoneAt: m.undone_at,
     }));
+    // 참가자 본인 연결·연결 링크·참가자 요청(migrations/0019). 계정 ID·토큰은 넣지 않는다.
+    const [links, claims] = await env.DB.batch([
+      env.DB.prepare(
+        "SELECT participant_id, created_at, avoid_self_at FROM participant_links WHERE group_id = ?1 ORDER BY created_at",
+      ).bind(groupId),
+      env.DB.prepare(
+        `SELECT participant_id, MAX(expires_at) AS expires_at FROM participant_claims
+         WHERE group_id = ?1 AND used_at IS NULL AND expires_at > ?2 GROUP BY participant_id`,
+      ).bind(groupId, nowIso()),
+    ]);
+    snapshot.memberLinks = (
+      links!.results as unknown as { participant_id: string; created_at: string; avoid_self_at: string | null }[]
+    ).map((l) => ({ participantId: l.participant_id, linkedAt: l.created_at, avoidBySelf: l.avoid_self_at !== null }));
+    snapshot.memberClaims = (claims!.results as unknown as { participant_id: string; expires_at: string }[]).map((c) => ({
+      participantId: c.participant_id,
+      expiresAt: c.expires_at,
+    }));
+    snapshot.memberRequests = await loadMemberRequests(env, groupId, null);
   }
   return snapshot;
+}
+
+/** 운영자 화면에 싣는 처리한 요청 수(열린 요청은 모두 싣는다). */
+const RECENT_RESOLVED_REQUESTS = 30;
+
+interface RequestRow {
+  id: string;
+  participant_id: string;
+  kind: MemberRequestKind;
+  match_id: string | null;
+  body: string;
+  status: MemberRequestStatus;
+  reply: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+function toRequestView(r: RequestRow): MemberRequestView {
+  return {
+    id: r.id,
+    participantId: r.participant_id,
+    kind: r.kind,
+    matchId: r.match_id,
+    text: r.body,
+    status: r.status,
+    reply: r.reply,
+    createdAt: r.created_at,
+    resolvedAt: r.resolved_at,
+  };
+}
+
+/**
+ * 참가자 요청 목록(최근 것부터). participantId가 있으면 그 사람 것만(멤버 본인 응답), 없으면 모임 전체(운영자 응답:
+ * 열린 요청 전부 + 처리한 요청 최근 RECENT_RESOLVED_REQUESTS개).
+ */
+export async function loadMemberRequests(
+  env: Env,
+  groupId: string,
+  participantId: string | null,
+): Promise<MemberRequestView[]> {
+  const columns = "id, participant_id, kind, match_id, body, status, reply, created_at, resolved_at";
+  if (participantId !== null) {
+    const rows = await env.DB.prepare(
+      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND participant_id = ?2
+       ORDER BY created_at DESC, id LIMIT ?3`,
+    )
+      .bind(groupId, participantId, RECENT_RESOLVED_REQUESTS)
+      .all<RequestRow>();
+    return rows.results.map(toRequestView);
+  }
+  const [open, resolved] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND status = 'open' ORDER BY created_at DESC, id`,
+    ).bind(groupId),
+    env.DB.prepare(
+      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND status <> 'open'
+       ORDER BY resolved_at DESC, id LIMIT ?2`,
+    ).bind(groupId, RECENT_RESOLVED_REQUESTS),
+  ]);
+  return [...(open!.results as unknown as RequestRow[]), ...(resolved!.results as unknown as RequestRow[])].map(
+    toRequestView,
+  );
+}
+
+/** 시리즈 묶음과 속한 경기(경기 시각 → 경기 번호 순). */
+export async function loadSeries(env: Env, groupId: string): Promise<SeriesView[]> {
+  const [rows, members] = await env.DB.batch([
+    env.DB.prepare(
+      "SELECT id, name, format, created_at FROM match_series WHERE group_id = ?1 ORDER BY created_at, id",
+    ).bind(groupId),
+    env.DB.prepare(
+      `SELECT s.series_id, s.match_id FROM match_series_members s
+       JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
+       WHERE s.group_id = ?1 ORDER BY m.played_at, m.match_no`,
+    ).bind(groupId),
+  ]);
+  const byId = new Map<string, SeriesView>();
+  for (const r of rows!.results as unknown as { id: string; name: string | null; format: SeriesFormat; created_at: string }[]) {
+    byId.set(r.id, { id: r.id, name: r.name, format: r.format, createdAt: r.created_at, matchIds: [] });
+  }
+  for (const m of members!.results as unknown as { series_id: string; match_id: string }[]) {
+    byId.get(m.series_id)?.matchIds.push(m.match_id);
+  }
+  return [...byId.values()];
 }
 
 /** 스냅숏에 싣는 변경 이력 수. 모임당 수천 경기여도 응답 크기가 일정하도록 상한을 둔다. */
@@ -409,7 +540,7 @@ function viewerSettings(settings: Settings): Settings {
   const view: Settings = {
     rotationEnabled: settings.rotationEnabled,
     groupsPublic: settings.groupsPublic,
-    groupWeights: settings.groupsPublic ? settings.groupWeights : [0, 0, 0, 0],
+    groupWeights: settings.groupsPublic ? settings.groupWeights : [0, 0, 0, 0, 0],
   };
   if (settings.titleBands !== undefined) view.titleBands = settings.titleBands;
   return view;

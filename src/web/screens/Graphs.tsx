@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   matchesInScope,
   matchYears,
@@ -13,14 +13,18 @@ import {
   type Tally,
 } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import type { Standing } from "../../shared/titles";
-import { nameMap, POSITION_LABEL, standingsOf } from "../format";
-import { BackLink, scopeFromValue, scopeValue } from "../ui";
+import { heatClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
+import { BackLink, scopeFromValue, scopeValue, TitleBadge } from "../ui";
 
 /** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
-function standingText(standing: Standing | undefined): string | undefined {
+function standingText(standing: ShownStanding | undefined): ReactNode {
   if (!standing?.done) return "배치 진행 중";
-  return standing.title ? `${standing.title}(누적)` : undefined;
+  return standing.title ? (
+    <>
+      <TitleBadge name={standing.title} grade={standing.grade} />
+      (누적)
+    </>
+  ) : undefined;
 }
 
 function percent(wins: number, games: number): number {
@@ -33,17 +37,20 @@ function percentText(wins: number, games: number): string {
 
 /**
  * 승률 막대 한 줄. 0~100% 한 축이고 50% 위치에 기준선을 둔다.
- * 값은 글자로 함께 쓰고(색에만 의존하지 않음), 글자는 본문 색을 쓴다.
+ * 값은 글자로 함께 쓰고(색에만 의존하지 않음), 글자는 막대와 같은 승률 색 단계를 따른다.
+ * series(승률) 막대만 색 단계를 따르고 5경기 미만은 회색이다. 진영 막대(blue·red)는 진영 색 그대로.
  */
 function RateBar(props: {
   label: string;
-  note?: string;
+  note?: ReactNode;
   wins: number;
   games: number;
   tone?: "series" | "blue" | "red";
   onOpen?: () => void;
 }) {
   const { wins, games } = props;
+  const tone = props.tone ?? "series";
+  const fill = tone !== "series" ? `tone-${tone}` : games < SMALL_SAMPLE ? "tone-muted" : `tone-series ${heatClass(wins, games)}`;
   const detail = `${props.label}: ${percentText(wins, games)} · ${wins}승 ${games - wins}패 (${games}경기)`;
   const body = (
     <>
@@ -53,12 +60,15 @@ function RateBar(props: {
           {props.note && <span className="bar-note"> · {props.note}</span>}
         </span>
         <span className="bar-value">
-          <strong>{percentText(wins, games)}</strong> · {games}경기
+          <strong className={tone === "series" ? rateTier(wins, games) : undefined}>
+            {percentText(wins, games)}
+          </strong>{" "}
+          · {games}경기
         </span>
       </span>
       <span className="bar-track" aria-hidden="true">
         <span
-          className={`bar-fill tone-${props.tone ?? "series"}`}
+          className={`bar-fill ${fill}`}
           style={{ width: `${percent(wins, games)}%` }}
         />
         <span className="bar-mid" />
@@ -76,15 +86,9 @@ function RateBar(props: {
   );
 }
 
-/** 승률을 50% 기준 다섯 구간으로 나눈다. 5경기 미만은 색을 칠하지 않는다. */
+/** 표 칸의 색: 막대와 같은 승률 색 단계(heatClass). 5경기 미만은 색을 칠하지 않는다. */
 function cellBand(tally: Tally): string {
-  if (tally.games < SMALL_SAMPLE) return "band-none";
-  const rate = percent(tally.wins, tally.games);
-  if (rate < 40) return "band-low2";
-  if (rate < 47.5) return "band-low1";
-  if (rate <= 52.5) return "band-mid";
-  if (rate <= 60) return "band-high1";
-  return "band-high2";
+  return heatClass(tally.wins, tally.games) || "band-none";
 }
 
 /**
@@ -276,19 +280,23 @@ export function Graphs(props: {
         </p>
         <ul className="legend" aria-label="색 범례">
           <li>
-            <span className="swatch band-low2" /> 40% 미만
+            <span className="swatch heat-l4" /> {RATE_HEAT_COLD[3]}% 이하
           </li>
           <li>
-            <span className="swatch band-low1" /> 40~47%
+            <span className="swatch heat-l3" />
+            <span className="swatch heat-l2" />
+            <span className="swatch heat-l1" /> {RATE_HEAT_COLD[3]}~{RATE_HEAT_COLD[0]}%(낮을수록 어둡게)
           </li>
           <li>
-            <span className="swatch band-mid" /> 50% 안팎
+            <span className="swatch heat-0" /> {RATE_HEAT_COLD[0]}~{RATE_HEAT_HOT[0]}%
           </li>
           <li>
-            <span className="swatch band-high1" /> 53~60%
+            <span className="swatch heat-h1" />
+            <span className="swatch heat-h2" />
+            <span className="swatch heat-h3" /> {RATE_HEAT_HOT[0]}~{RATE_HEAT_HOT[3]}%(높을수록 붉게)
           </li>
           <li>
-            <span className="swatch band-high2" /> 60% 초과
+            <span className="swatch heat-h4" /> {RATE_HEAT_HOT[3]}% 이상
           </li>
           <li>
             <span className="swatch band-none" /> {SMALL_SAMPLE}경기 미만(색 없음)

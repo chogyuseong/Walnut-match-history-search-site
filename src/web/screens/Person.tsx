@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import {
+  bestLine,
+  COMPARE_MIN_GAMES,
+  compareMetrics,
   cumulativeTrend,
   mainLine,
-  pickPair,
   recentResults,
   resultsOf,
   streakOf,
@@ -22,7 +24,19 @@ import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
-import { BackLink, FormDots, PosLabel, ScopePicker, TrendLine } from "../ui";
+import { useSeriesBadges } from "../seriesPanel";
+import {
+  BackLink,
+  FormDots,
+  Meter,
+  PosLabel,
+  RateBar,
+  RateRing,
+  ScopePicker,
+  TitleBadge,
+  TrendLine,
+  WinLossBar,
+} from "../ui";
 
 function rate(tally: Tally): string {
   return tally.games === 0 ? "기록 없음" : `${Math.round((tally.wins / tally.games) * 100)}%`;
@@ -33,11 +47,34 @@ function line(tally: Tally): string {
   return `${rate(tally)} · ${tally.wins}승 ${tally.games - tally.wins}패 (${tally.games}경기)`;
 }
 
+/** 승률 숫자에 승률 색 단계(rateTier)를 입힌 글자. 기록이 없으면 "기록 없음". */
+function RateText(props: { tally: Tally }) {
+  const { tally } = props;
+  if (tally.games === 0) return <>기록 없음</>;
+  return <span className={rateTier(tally.wins, tally.games)}>{rate(tally)}</span>;
+}
+
+/** line()과 같은 글이고 승률 숫자만 색 단계를 따른다. */
+function RateLine(props: { tally: Tally }) {
+  const { tally } = props;
+  if (tally.games === 0) return <>기록 없음</>;
+  return (
+    <>
+      <RateText tally={tally} /> · {tally.wins}승 {tally.games - tally.wins}패 ({tally.games}경기)
+    </>
+  );
+}
+
 /** 참여 경기 카드를 처음에 보여주는 수와 "더 보기"로 더 여는 수. */
 const FIRST_PAGE = 10;
 const PAGE = 20;
 /** 같은 팀·상대 팀 목록에서 처음에 보여주는 사람 수. 나머지는 "더 보기"로 편다. */
 const PAIR_PREVIEW = 6;
+
+/** 0~1 비율을 정수 %로. */
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
 
 /**
  * 개인 통계. 순서: 요약(한눈에 보기) → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 참여 경기(맨 아래).
@@ -61,6 +98,7 @@ export function Person(props: {
     versus: false,
   });
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
+  const seriesBadge = useSeriesBadges(snapshot);
   const person = snapshot.participants.find((p) => p.id === participantId);
 
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
@@ -113,11 +151,14 @@ export function Person(props: {
     games: 0,
     done: false,
     title: null,
+    grade: null,
   };
   const streaks = streakOf(results);
   const main = mainLine(detail.byPosition);
-  const buddy = pickPair(detail.synergy, "best");
-  const rival = pickPair(detail.versus, "worst");
+  const topRate = bestLine(detail.byPosition);
+  // 다른 사람과 비교하는 지표는 누적 COMPARE_MIN_GAMES경기 이상인 사람끼리만(범위와 무관한 누적 기준).
+  const cmp = compareMetrics(detail, standings);
+  const lockedText = `누적 ${COMPARE_MIN_GAMES}경기부터 보여줘요 (지금 ${cmp.games}경기)`;
   const recent10 = recentResults({ results, ...streaks }, 10);
 
   const orderPairs = (pairs: PairTally[]) =>
@@ -125,27 +166,45 @@ export function Person(props: {
       ? pairs
       : [...pairs].sort((a, b) => b.wins / b.games - a.wins / a.games || b.games - a.games);
 
-  const pairList = (pairs: PairTally[], empty: string, which: "synergy" | "versus") => {
-    if (pairs.length === 0) return <p className="hint">{empty}</p>;
+  const pairList = (
+    pairs: PairTally[],
+    all: PairTally[],
+    empty: string,
+    which: "synergy" | "versus",
+  ) => {
+    if (!cmp.ready) return <p className="hint">{lockedText}</p>;
+    const rule = <p className="hint">누적 {COMPARE_MIN_GAMES}경기 이상인 사람만 보여줘요.</p>;
+    if (pairs.length === 0) {
+      return (
+        <>
+          {rule}
+          <p className="hint">
+            {all.length === 0 ? empty : `누적 ${COMPARE_MIN_GAMES}경기 이상인 상대가 아직 없어요.`}
+          </p>
+        </>
+      );
+    }
     const ordered = orderPairs(pairs);
     const open = pairsOpen[which];
     const listedPairs = open ? ordered : ordered.slice(0, PAIR_PREVIEW);
     const rest = ordered.length - listedPairs.length;
     return (
       <>
+        {rule}
         <ul className="list">
           {listedPairs.map((pair) => (
             <li key={pair.participantId}>
               <button
                 type="button"
-                className="list-row"
+                className="list-row has-bar"
                 onClick={() => props.openPerson(pair.participantId)}
               >
                 <span className="name">{nameOf(pair.participantId)}</span>
                 <span className="stat">
-                  {line(pair)}
+                  <RateLine tally={pair} />
                   {pair.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
                 </span>
+                <RateBar wins={pair.wins} games={pair.games} small />
               </button>
             </li>
           ))}
@@ -179,24 +238,49 @@ export function Person(props: {
         ? `${-detail.currentStreak}연패 중`
         : "기록 없음";
 
-  const pairTile = (pair: PairTally | null, sub: string) =>
-    pair ? (
+  const pairTile = (pair: PairTally | null, sub: string, pool: PairTally[]) =>
+    !cmp.ready ? (
+      <span className="tile-sub">{lockedText}</span>
+    ) : pair ? (
       <>
         <button type="button" className="link tile-link" onClick={() => props.openPerson(pair.participantId)}>
           {nameOf(pair.participantId)}
         </button>
         <span className="tile-sub">
-          {sub} {rate(pair)} · {pair.games}경기
+          {sub} <RateText tally={pair} /> · {pair.games}경기
         </span>
+        <RateBar wins={pair.wins} games={pair.games} small />
       </>
     ) : (
-      <span className="tile-sub">{SMALL_SAMPLE}경기 이상 기록이 없어요</span>
+      <span className="tile-sub">
+        {pool.length === 0
+          ? `누적 ${COMPARE_MIN_GAMES}경기 이상인 상대가 아직 없어요`
+          : `${SMALL_SAMPLE}경기 이상 기록이 없어요`}
+      </span>
+    );
+
+  const lineTile = (picked: ReturnType<typeof mainLine>, none: string) =>
+    picked ? (
+      <>
+        <strong>
+          <PosLabel position={picked.position} />
+        </strong>
+        <span className="tile-sub">
+          <RateText tally={picked.tally} /> · {picked.tally.games}경기
+          {picked.tally.games < SMALL_SAMPLE ? " · 자료 적음" : ""}
+        </span>
+        <RateBar wins={picked.tally.wins} games={picked.tally.games} small />
+      </>
+    ) : (
+      <span className="tile-sub">{none}</span>
     );
 
   const listed = detail.matches.slice(0, shown);
+  // 라인 비중: 포지션 기록이 있는 경기 중 그 라인으로 뛴 몫.
+  const positioned = POSITIONS.reduce((n, p) => n + (detail.byPosition[p]?.games ?? 0), 0);
 
   return (
-    <div className="screen cols">
+    <div className="screen cols person-screen">
       <header className="screen-head">
         <BackLink label="← 기록" fallback={props.back} />
         <h1>{person.name}</h1>
@@ -220,21 +304,36 @@ export function Person(props: {
       <section className="card person-summary full" aria-label="요약">
         <h2>요약 ({scopeLabel})</h2>
         <div className="ps-head">
-          <div className="ps-main">
-            <p className={`summary-line ${rateTier(detail.summary.wins, detail.summary.games)}`}>
-              {line(detail.summary)}
-            </p>
-            <p className="hint">
-              {placement.done
-                ? `배치 완료 · 누적 ${placement.games}경기 (누적 기준)`
-                : `배치 진행 중 · ${placement.games}/${PLACEMENT_GAMES}경기 (누적 기준)`}
-            </p>
-            {placement.title && (
-              <p className="hint">
-                칭호 <span className="title-chip">{placement.title}</span> 누적 기준 · 범위를 바꿔도
-                그대로입니다
+          <div className="ps-hero">
+            <RateRing wins={detail.summary.wins} games={detail.summary.games} />
+            <div className="ps-main">
+              <p className={`summary-line ${rateTier(detail.summary.wins, detail.summary.games)}`}>
+                {line(detail.summary)}
               </p>
-            )}
+              <p className="hint">
+                {placement.done
+                  ? `배치 완료 · 누적 ${placement.games}경기 (누적 기준)`
+                  : `배치 진행 중 · ${placement.games}/${PLACEMENT_GAMES}경기 (누적 기준)`}
+              </p>
+              {detail.summary.games > 0 && (
+                <p className="ps-streak">
+                  {streaks.currentStreak !== 0 && (
+                    <strong className={streaks.currentStreak > 0 ? "streak win" : "streak loss"}>
+                      {streakText(streaks.currentStreak)}
+                    </strong>
+                  )}
+                  <span className="tile-sub">
+                    최다 {streaks.longestWinStreak}연승 · {streaks.longestLoseStreak}연패
+                  </span>
+                </p>
+              )}
+              {placement.title && (
+                <p className="hint">
+                  칭호 <TitleBadge name={placement.title} grade={placement.grade} /> 누적 기준 · 범위를 바꿔도
+                  그대로입니다
+                </p>
+              )}
+            </div>
           </div>
           {recent10.length > 0 && (
             <div className="ps-form">
@@ -246,41 +345,20 @@ export function Person(props: {
         {detail.summary.games > 0 && (
           <dl className="ps-tiles">
             <div>
-              <dt className="tile-label">지금</dt>
-              <dd>
-                <strong className={streaks.currentStreak > 0 ? "streak win" : "streak loss"}>
-                  {streakText(streaks.currentStreak)}
-                </strong>
-                <span className="tile-sub">
-                  최다 {streaks.longestWinStreak}연승 · {streaks.longestLoseStreak}연패
-                </span>
-              </dd>
+              <dt className="tile-label">가장 많이 플레이한 라인</dt>
+              <dd>{lineTile(main, "포지션 기록이 없어요")}</dd>
             </div>
             <div>
-              <dt className="tile-label">주 라인</dt>
-              <dd>
-                {main ? (
-                  <>
-                    <strong>
-                      <PosLabel position={main.position} />
-                    </strong>
-                    <span className="tile-sub">
-                      {rate(main.tally)} · {main.tally.games}경기
-                      {main.tally.games < SMALL_SAMPLE ? " · 자료 적음" : ""}
-                    </span>
-                  </>
-                ) : (
-                  <span className="tile-sub">포지션 기록이 없어요</span>
-                )}
-              </dd>
+              <dt className="tile-label">가장 승률 높은 라인</dt>
+              <dd>{lineTile(topRate, `라인별 ${SMALL_SAMPLE}경기부터 보여줘요`)}</dd>
             </div>
             <div>
               <dt className="tile-label">잘 맞는 동료</dt>
-              <dd>{pairTile(buddy, "같은 팀일 때")}</dd>
+              <dd>{pairTile(cmp.buddy, "같은 팀일 때", cmp.synergy)}</dd>
             </div>
             <div>
               <dt className="tile-label">어려운 상대</dt>
-              <dd>{pairTile(rival, "상대일 때")}</dd>
+              <dd>{pairTile(cmp.rival, "상대일 때", cmp.versus)}</dd>
             </div>
           </dl>
         )}
@@ -291,8 +369,9 @@ export function Person(props: {
         ) : null}
         {detail.summary.games > 0 && (
           <p className="hint">
-            동료·상대는 {SMALL_SAMPLE}경기 이상 함께하거나 만난 사람 중에서 고릅니다. 승률은 모두{" "}
-            {person.name} 기준입니다.
+            동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난
+            사람에서 고릅니다. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 고릅니다. 승률은
+            모두 {person.name} 기준입니다.
           </p>
         )}
       </section>
@@ -300,14 +379,22 @@ export function Person(props: {
       <section aria-label="최근">
         <h2>최근 ({scopeLabel})</h2>
         <ul className="list">
-          <li className="list-row static">
+          <li className="list-row static has-bar">
             <span>최근 {detail.recent10.games}경기</span>
             <span className="stat">{line(detail.recent10)}</span>
+            <WinLossBar
+              wins={detail.recent10.wins}
+              losses={detail.recent10.games - detail.recent10.wins}
+            />
           </li>
           {detail.recent20.games > 10 && (
-            <li className="list-row static">
+            <li className="list-row static has-bar">
               <span>최근 {detail.recent20.games}경기</span>
               <span className="stat">{line(detail.recent20)}</span>
+              <WinLossBar
+                wins={detail.recent20.wins}
+                losses={detail.recent20.games - detail.recent20.wins}
+              />
             </li>
           )}
           <li className="list-row static">
@@ -319,17 +406,27 @@ export function Person(props: {
         </ul>
       </section>
 
-      <section aria-label="라인별">
+      <section className="person-lines" aria-label="라인별">
         <h2>라인별 ({scopeLabel})</h2>
         <ul className="list">
           {POSITIONS.map((position) => {
             const tally = detail.byPosition[position];
+            const share = tally && positioned > 0 ? tally.games / positioned : 0;
             return (
-              <li key={position} className="list-row static">
+              <li key={position} className="list-row static has-bar">
                 <PosLabel position={position} />
                 <span className="stat">
-                  {tally ? line(tally) : "기록 없음"}
+                  {tally ? <RateLine tally={tally} /> : "기록 없음"}
                   {tally && tally.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
+                </span>
+                {/* 기록 없는 라인은 빈 막대만 두고 숫자는 적지 않는다("0%"로 읽히지 않게). */}
+                <span className="meters">
+                  <span className="meter-label">비중</span>
+                  <Meter value={share} tone="share" />
+                  <span className="meter-value">{tally ? pct(share) : ""}</span>
+                  <span className="meter-label">승률</span>
+                  <RateBar wins={tally?.wins ?? 0} games={tally?.games ?? 0} />
+                  <span className="meter-value">{tally ? <RateText tally={tally} /> : ""}</span>
                 </span>
               </li>
             );
@@ -343,13 +440,15 @@ export function Person(props: {
       <section aria-label="진영별">
         <h2>진영별 ({scopeLabel})</h2>
         <ul className="list">
-          <li className="list-row static">
+          <li className="list-row static has-bar">
             <span>블루</span>
             <span className="stat">{line(detail.bySide.blue)}</span>
+            <RateBar wins={detail.bySide.blue.wins} games={detail.bySide.blue.games} tone="blue" />
           </li>
-          <li className="list-row static">
+          <li className="list-row static has-bar">
             <span>레드</span>
             <span className="stat">{line(detail.bySide.red)}</span>
+            <RateBar wins={detail.bySide.red.wins} games={detail.bySide.red.games} tone="red" />
           </li>
         </ul>
         {detail.sideUnknown > 0 && (
@@ -357,23 +456,26 @@ export function Person(props: {
         )}
       </section>
 
-      <div className="segmented" role="group" aria-label="시너지·상대 전적 순서">
-        <button type="button" aria-pressed={pairOrder === "games"} onClick={() => setPairOrder("games")}>
-          경기 수순
-        </button>
-        <button type="button" aria-pressed={pairOrder === "rate"} onClick={() => setPairOrder("rate")}>
-          승률순
-        </button>
-      </div>
+      {/* 순서를 바꿀 목록이 있을 때만(누적 기준 미달이면 목록 대신 안내만 있다). */}
+      {cmp.ready && (cmp.synergy.length > 1 || cmp.versus.length > 1) && (
+        <div className="segmented" role="group" aria-label="시너지·상대 전적 순서">
+          <button type="button" aria-pressed={pairOrder === "games"} onClick={() => setPairOrder("games")}>
+            경기 수순
+          </button>
+          <button type="button" aria-pressed={pairOrder === "rate"} onClick={() => setPairOrder("rate")}>
+            승률순
+          </button>
+        </div>
+      )}
 
       <section aria-label="시너지">
         <h2>같은 팀일 때 ({scopeLabel})</h2>
-        {pairList(detail.synergy, "같은 팀으로 한 경기가 없어요.", "synergy")}
+        {pairList(cmp.synergy, detail.synergy, "같은 팀으로 한 경기가 없어요.", "synergy")}
       </section>
 
       <section aria-label="상대 전적">
         <h2>상대 팀일 때 ({scopeLabel})</h2>
-        {pairList(detail.versus, "상대 팀으로 만난 경기가 없어요.", "versus")}
+        {pairList(cmp.versus, detail.versus, "상대 팀으로 만난 경기가 없어요.", "versus")}
         <p className="hint">승률은 {person.name} 기준입니다. 경기 수가 적으면 우연일 수 있습니다.</p>
       </section>
 
@@ -394,6 +496,7 @@ export function Person(props: {
                 showDate
                 focusId={participantId}
                 onOpen={() => props.openMatch(m.id)}
+                seriesBadge={seriesBadge(m.id)}
                 onPerson={props.openPerson}
               />
             ))}

@@ -6,18 +6,79 @@ import { ApiFailure, call } from "./api";
 
 const DRAFT_KEY = "naejeon.draft.v1";
 const GROUP_KEY = "naejeon.group";
-/** 참가자 고르기 화면(Pick.tsx)이 기기에 보관하는 고른 목록. 합쳐진 ID를 바꿀 때만 여기서 읽고 쓴다. */
+/** 참가자 고르기 화면(Pick.tsx)이 기기에 보관하는 고른 목록. 모임마다 따로 둔다(pickKey). */
 const PICK_KEY = "naejeon.pick.v1";
+
+/**
+ * 모임 고르기(한 계정 여러 모임): 고른 목록은 모임마다 따로 기억한다. 모임이 없을 때(로그인 전)는 예전 키를 쓴다.
+ * 예전 키에 남은 목록은 처음 연 모임으로 한 번 옮긴다(readPick).
+ */
+export function pickKey(groupId: string | null): string {
+  return groupId ? `${PICK_KEY}.g.${groupId}` : PICK_KEY;
+}
+
+/** 모임을 바꿀 때 다른 모임의 작성 중인 편성을 잠시 맡겨 두는 곳(모임마다 하나). */
+function stashKey(groupId: string): string {
+  return `${DRAFT_KEY}.g.${groupId}`;
+}
+
+/** 이 모임에 맡겨 둔 편성을 꺼낸다(꺼내면 지운다). 형식이 맞지 않으면 버린다. */
+function takeStash(groupId: string): Draft | null {
+  try {
+    const raw = localStorage.getItem(stashKey(groupId));
+    if (raw === null) return null;
+    localStorage.removeItem(stashKey(groupId));
+    const draft = parseStoredDraft(raw);
+    return draft && draft.groupId === groupId ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function putStash(draft: Draft): void {
+  if (!draft.groupId) return;
+  try {
+    localStorage.setItem(stashKey(draft.groupId), JSON.stringify(draft));
+  } catch {
+    // 맡기지 못하면 그 편성은 사라진다. 모임 전환은 계속한다.
+  }
+}
+
+/** 모임을 지운 뒤 그 모임에 묶인 기기 저장값(맡겨 둔 편성, 고른 목록)을 지운다. */
+export function forgetGroupStorage(groupId: string): void {
+  try {
+    localStorage.removeItem(stashKey(groupId));
+    localStorage.removeItem(pickKey(groupId));
+  } catch {
+    // 무시
+  }
+}
 
 export interface Me {
   accountId: string | null;
-  groups: { id: string; name: string }[];
+  /** role: owner = 대표 운영자, co = 공동 운영자. 예전 서버 응답에는 없을 수 있다(대표로 본다). */
+  groups: { id: string; name: string; role?: "owner" | "co" }[];
   /** "fake"(로컬 개발용 로그인) 또는 "oauth". */
   authMode: string;
   /** 쓸 수 있는 로그인 수단. "local"은 자체 계정(아이디 + 비밀번호), 나머지는 키가 설정된 제공자. */
   providers?: ("local" | "kakao" | "google")[];
   /** 지금 세션의 로그인 수단. 아이디·식별자는 서버가 돌려주지 않는다. */
   loginMethod?: "local" | "oauth" | "fake" | null;
+  /** 사이트 운영자(이 서비스의 주인)일 때만 true. 모임 운영자 권한과 무관하다(src/server/siteAdmin.ts). */
+  siteAdmin?: boolean;
+  /**
+   * 참가자로 연결한 모임(migrations/0019, 역할 member). 운영하는 모임(groups)과 따로다.
+   * 고르면 조회 링크와 같은 읽기 전용 화면(#/mine/모임ID)이 열린다. 로그인하지 않았거나 예전 서버면 없다.
+   */
+  memberships?: Membership[];
+}
+
+export interface Membership {
+  id: string;
+  name: string;
+  participantId: string;
+  participantName: string;
+  role: "member";
 }
 
 export interface AppValue {
@@ -45,6 +106,17 @@ export interface AppValue {
   logout: () => Promise<void>;
   /** 모임이 없으면 만들고 모임 ID를 돌려준다. */
   ensureGroup: () => Promise<string>;
+  /**
+   * 다른 모임으로 바꾼다(기기에 기억). 작성 중인 편성이 지금 모임 것이면 그 모임에 맡겨 두고,
+   * 고른 모임에 맡겨 둔 편성이 있으면 꺼낸다. 고른 목록도 모임마다 따로다.
+   */
+  switchGroup: (groupId: string) => Promise<void>;
+  /** 새 모임을 만들고 그 모임으로 바꾼다(계정당 대표·공동 합계 5개). */
+  createGroup: (name?: string) => Promise<string>;
+  /** 모임을 바꿀 때마다 오르는 값. 화면을 새로 그리는 데 쓴다(앞 모임의 입력 상태가 남지 않게). */
+  switchSeq: number;
+  /** 모임을 바꾸는 중(새 모임의 기록을 받는 중). */
+  switching: boolean;
 }
 
 export const AppContext = createContext<AppValue | null>(null);
@@ -74,6 +146,8 @@ export function useApp(enabled: boolean): AppValue {
   const [draft, setDraftState] = useState<Draft | null>(() => readStoredDraft());
   const [storageOk, setStorageOk] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [switchSeq, setSwitchSeq] = useState(0);
+  const [switching, setSwitching] = useState(false);
   const groupRef = useRef<string | null>(null);
   const draftRef = useRef<Draft | null>(draft);
 
@@ -111,10 +185,10 @@ export function useApp(enabled: boolean): AppValue {
           }
         }
         try {
-          const picked = JSON.parse(localStorage.getItem(PICK_KEY) ?? "[]") as DraftPerson[];
+          const picked = JSON.parse(localStorage.getItem(pickKey(next.group.id)) ?? "[]") as DraftPerson[];
           if (Array.isArray(picked) && picked.length > 0) {
             const remapped = remapPeople(picked, next.participants);
-            if (remapped.changed) localStorage.setItem(PICK_KEY, JSON.stringify(remapped.people));
+            if (remapped.changed) localStorage.setItem(pickKey(next.group.id), JSON.stringify(remapped.people));
           }
         } catch {
           // 기기 저장소를 못 쓰면 고르기 화면에서 다시 고르면 된다.
@@ -125,7 +199,7 @@ export function useApp(enabled: boolean): AppValue {
       if (error instanceof ApiFailure) {
         setLoadError(error);
         // 로그인이 만료되면 계정 상태를 비운다. 입력 중인 초안은 그대로 둔다.
-        if (error.status === 401) setMe((m) => (m ? { ...m, accountId: null, groups: [] } : m));
+        if (error.status === 401) setMe((m) => (m ? { ...m, accountId: null, groups: [], memberships: [] } : m));
       }
       return null;
     }
@@ -154,6 +228,18 @@ export function useApp(enabled: boolean): AppValue {
     async (gid: string | null) => {
       groupRef.current = gid;
       setGroupId(gid);
+      // 작성 중인 편성이 다른 모임 것이면 그 모임에 맡기고, 이 모임에 맡겨 둔 편성이 있으면 꺼낸다.
+      // 모임이 정해지기 전에 만든 편성(groupId 없음)은 어느 모임에서나 쓸 수 있어 그대로 둔다.
+      if (gid) {
+        const current = draftRef.current;
+        if (current?.groupId && current.groupId !== gid) {
+          putStash(current);
+          setDraft(takeStash(gid));
+        } else if (!current) {
+          const stashed = takeStash(gid);
+          if (stashed) setDraft(stashed);
+        }
+      }
       if (gid) {
         try {
           localStorage.setItem(GROUP_KEY, gid);
@@ -165,7 +251,7 @@ export function useApp(enabled: boolean): AppValue {
         setSnapshot(null);
       }
     },
-    [loadSnapshot],
+    [loadSnapshot, setDraft],
   );
 
   const loadMe = useCallback(async (): Promise<Me | null> => {
@@ -232,7 +318,7 @@ export function useApp(enabled: boolean): AppValue {
     groupRef.current = null;
     setGroupId(null);
     setSnapshot(null);
-    setMe((m) => (m ? { ...m, accountId: null, groups: [] } : m));
+    setMe((m) => (m ? { ...m, accountId: null, groups: [], memberships: [] } : m));
   }, []);
 
   const ensureGroup = useCallback(async () => {
@@ -242,6 +328,35 @@ export function useApp(enabled: boolean): AppValue {
     await selectGroup(created.id);
     return created.id;
   }, [selectGroup]);
+
+  const switchGroup = useCallback(
+    async (gid: string) => {
+      if (gid === groupRef.current) return;
+      setSwitching(true);
+      setSnapshot(null);
+      setSwitchSeq((n) => n + 1);
+      try {
+        await selectGroup(gid);
+      } finally {
+        setSwitching(false);
+      }
+    },
+    [selectGroup],
+  );
+
+  const createGroup = useCallback(
+    async (name?: string) => {
+      const created = await call<{ id: string; name: string }>(
+        "POST",
+        "/api/groups",
+        name && name.trim() !== "" ? { name } : {},
+      );
+      setMe((m) => (m ? { ...m, groups: [...m.groups, { ...created, role: "owner" as const }] } : m));
+      await switchGroup(created.id);
+      return created.id;
+    },
+    [switchGroup],
+  );
 
   return {
     ready,
@@ -261,6 +376,10 @@ export function useApp(enabled: boolean): AppValue {
     reloadMe,
     logout,
     ensureGroup,
+    switchGroup,
+    createGroup,
+    switchSeq,
+    switching,
   };
 }
 

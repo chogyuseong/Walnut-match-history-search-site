@@ -93,8 +93,8 @@ test.describe("첫 이용 흐름 (390px)", () => {
     for (const name of NAMES) await expect(page.getByText(name, { exact: true })).toBeVisible();
 
     // 두 사람을 차례로 누르면 자리가 바뀐다.
-    const teamA = page.getByRole("region", { name: "팀 A" });
-    const teamB = page.getByRole("region", { name: "팀 B" });
+    const teamA = page.getByRole("region", { name: "블루팀" });
+    const teamB = page.getByRole("region", { name: "레드팀" });
     const firstA = (await teamA.getByRole("button").first().innerText()).split("\n").pop()!.trim();
     const firstB = (await teamB.getByRole("button").first().innerText()).split("\n").pop()!.trim();
     await teamA.getByRole("button").first().click();
@@ -102,44 +102,48 @@ test.describe("첫 이용 흐름 (390px)", () => {
     await expect(teamA.getByRole("button").first()).toContainText(firstB);
     await expect(teamB.getByRole("button").first()).toContainText(firstA);
 
-    // 서포터 추첨: 누가 어디로 갔는지 이름으로 보여주고, 다시 눌러도 같은 결과다. (17)
-    await page.getByRole("button", { name: "서포터 추첨" }).click();
-    const drawLine = page.getByText(/^팀 A: .+→서포터, .+ 서포터→.+, 나머지 유지/);
+    // 서포터만 바꾸기: 누가 어디로 갔는지 이름으로 보여주고, 다시 누르면 아직 안 간 다른 사람으로 또 바뀐다. (17)
+    // (2026-11-06 변경: 예전에는 같은 조건이면 같은 결과를 유지했다.)
+    await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
+    const drawLine = page.getByText(/^블루팀: .+→서포터, .+ 서포터→.+, 나머지 유지/);
     await expect(drawLine).toBeVisible();
-    const firstDraw = (await drawLine.innerText()).replace(/ \(같은 조건.*$/, "");
-    await page.getByRole("button", { name: "서포터 추첨" }).click();
-    await expect(page.getByText(/같은 조건이라 결과를 유지했어요/).first()).toBeVisible();
-    expect((await drawLine.innerText()).startsWith(firstDraw)).toBe(true);
+    const firstDraw = await drawLine.innerText();
+    await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
+    await expect(drawLine).toBeVisible();
+    await expect(drawLine).not.toHaveText(firstDraw);
+    await expect(page.getByText(/같은 조건이라 결과를 유지했어요/)).toHaveCount(0);
 
     // 이 팀으로 시작: 여기서 처음 로그인한다.
     await page.getByRole("button", { name: "이 팀으로 시작" }).click();
     await login(page, user);
     await expect(page.getByRole("heading", { name: "1경기 진행 중" })).toBeVisible();
 
-    // 결과 입력: 진영은 미리 선택돼 있지 않고 승리 팀을 바꾸면 다시 묻는다. (3)
+    // 결과 입력: 준비 화면에서 시작한 경기라 "블루팀 승 / 레드팀 승"이고, 고른 팀의 진영이 미리 골라져 있다.
+    // 승리 팀을 바꾸면 진영도 그 팀 것으로 다시 고른다. (3)
     await page.getByRole("button", { name: "결과 입력" }).click();
     const sheet = page.getByRole("dialog", { name: "1경기 결과" });
     await expect(sheet.getByRole("button", { name: "저장" })).toBeDisabled();
-    await sheet.getByRole("radio", { name: /팀 B/ }).check();
-    await sheet.getByRole("radio", { name: "블루" }).check();
+    await expect(sheet.getByText(/팀 [AB]/)).toHaveCount(0);
+    await sheet.getByRole("radio", { name: /레드팀 승/ }).check();
+    await expect(sheet.getByRole("radio", { name: "레드", exact: true })).toBeChecked();
     await expect(sheet.getByRole("button", { name: "저장" })).toBeEnabled();
-    await sheet.getByRole("radio", { name: /팀 A/ }).check();
-    await expect(sheet.getByRole("radio", { name: "블루" })).not.toBeChecked();
-    await expect(sheet.getByRole("button", { name: "저장" })).toBeDisabled();
+    await sheet.getByRole("radio", { name: /블루팀 승/ }).check();
+    await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
 
-    // 팀 A가 레드에서 승리. 요약이 곧 확인이다. (2)
-    await sheet.getByRole("radio", { name: "레드" }).check();
-    await expect(sheet.getByText("1경기 · 팀 A 승 · 팀 A 레드 / 팀 B 블루")).toBeVisible();
+    // 실제로는 왼쪽 팀이 레드였다: 진영 단계에서 바로잡는다. 요약이 곧 확인이다. (2)
+    await sheet.getByRole("radio", { name: "레드", exact: true }).check();
+    await expect(sheet.getByText("1경기 · 레드팀 승", { exact: true })).toBeVisible();
+    await expect(sheet.getByText("시작할 때와 진영이 반대예요.", { exact: false })).toBeVisible();
     await sheet.getByRole("button", { name: "저장" }).click();
-    await expect(sheet.getByText("1경기 저장됨 · 팀 A 승 · 레드")).toBeVisible();
+    await expect(sheet.getByText("1경기 저장됨 · 레드팀 승")).toBeVisible();
     // 서버 상태를 다시 읽은 뒤에도 같은 자리에 저장 결과가 남아 있어야 한다.
     await page.waitForLoadState("networkidle");
-    await expect(sheet.getByText("1경기 저장됨 · 팀 A 승 · 레드")).toBeVisible();
+    await expect(sheet.getByText("1경기 저장됨 · 레드팀 승")).toBeVisible();
 
     // 다음 경기 준비: 같은 팀으로 초안이 만들어진다. (26)
     await sheet.getByRole("button", { name: "다음 경기 준비" }).click();
     await expect(page.getByText("지난 경기와 같은 팀이에요. 포지션은 새로 뽑았어요.")).toBeVisible();
-    await expect(page.getByText("◆차례 씀").first()).toBeVisible();
+    await expect(page.getByText("서폿 1회").first()).toBeVisible();
 
     // 두 번째 경기를 시작하고 결과는 나중에 넣는다. (27)
     await startMatch(page);
@@ -154,7 +158,9 @@ test.describe("첫 이용 흐름 (390px)", () => {
     await expect(page.getByText("배치 진행 중 1/10 (누적 기준)").first()).toBeVisible();
 
     // 진영만 정정한다. 승리 팀은 그대로다. (4)
-    await page.getByRole("button", { name: /1경기 · 팀 A 승 · 레드/ }).click();
+    await page.getByRole("button", { name: /1경기 · 레드팀 승/ }).click();
+    // 경기 상세: 진영이 레드로 정정된 팀 A는 왼쪽 그대로 "레드팀"이다.
+    await expect(page.getByRole("region", { name: "레드팀" })).toHaveClass(/side-red/);
     await expect(page.getByText("승리 팀의 진영: 레드")).toBeVisible();
     await page
       .getByRole("listitem")
@@ -163,10 +169,10 @@ test.describe("첫 이용 흐름 (390px)", () => {
       .click();
     const sideDialog = page.getByRole("dialog", { name: "진영 수정" });
     await expect(sideDialog.getByText("진영만 변경합니다. 개인 승패는 유지")).toBeVisible();
-    await sideDialog.getByRole("radio", { name: "블루" }).check();
+    await sideDialog.getByRole("radio", { name: "블루", exact: true }).check();
     await sideDialog.getByRole("button", { name: "변경" }).click();
     await expect(page.getByText("승리 팀의 진영: 블루")).toBeVisible();
-    await expect(page.getByText("승리 팀: 팀 A")).toBeVisible();
+    await expect(page.getByText("승리 팀: 블루팀")).toBeVisible();
     await expect(page.getByText(/정정 · 진영/)).toBeVisible();
 
     // 조회 링크: 로그인 없는 다른 브라우저에서 명단을 본다. 실력 그룹은 응답에 없다. (12)
@@ -190,7 +196,9 @@ test.describe("첫 이용 흐름 (390px)", () => {
     // 내 이름을 고르면 내 자리를 먼저 보여준다.
     await guestPage.getByRole("button", { name: "내 이름 고르기" }).click();
     await guestPage.getByRole("dialog").getByRole("button", { name: "조규성" }).click();
-    await expect(guestPage.getByText(/조규성 님 · 팀 [AB] · /)).toBeVisible();
+    // 준비 화면에서 시작한 경기라 내 팀을 블루팀·레드팀으로 부른다.
+    await expect(guestPage.getByText(/조규성 님 · (블루|레드)팀 · /)).toBeVisible();
+    await expect(guestPage.getByRole("region", { name: "블루팀" })).toHaveClass(/side-blue/);
 
     // 특정 경기 링크로 지난 경기를 열면 현재 경기로 가는 길을 보여준다.
     await guestPage.goto(`/#/v/${token}/m/1`);
@@ -224,8 +232,8 @@ test.describe("좁은 화면과 긴 이름 (39)", () => {
       await noHorizontalOverflow(page);
 
       // 360px 미만에서는 두 팀을 위아래로 쌓는다.
-      const a = await page.getByRole("region", { name: "팀 A" }).boundingBox();
-      const b = await page.getByRole("region", { name: "팀 B" }).boundingBox();
+      const a = await page.getByRole("region", { name: "블루팀" }).boundingBox();
+      const b = await page.getByRole("region", { name: "레드팀" }).boundingBox();
       if (width < 360) expect(b!.y).toBeGreaterThan(a!.y + a!.height - 1);
       else expect(Math.abs(b!.y - a!.y)).toBeLessThan(2);
 

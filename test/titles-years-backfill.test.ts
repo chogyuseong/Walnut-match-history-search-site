@@ -79,7 +79,7 @@ function snap(matches: MatchView[], seasons: Snapshot["seasons"] = []): Snapshot
       name: "모임",
       timezone: "Asia/Seoul",
       liveVersion: 0,
-      settings: { rotationEnabled: true, groupsPublic: false, groupWeights: [0, 0, 0, 0] },
+      settings: { rotationEnabled: true, groupsPublic: false, groupWeights: [0, 0, 0, 0, 0] },
     },
     participants: Array.from({ length: 10 }, (_, i) => ({
       id: `id${i}`,
@@ -131,7 +131,7 @@ describe("칭호 구간 (P2-11)", () => {
   it("저장한 적 없으면 기본값, 빈 목록으로 저장했으면 빈 채로 둔다", () => {
     expect(titleBandsOf({})).toBe(DEFAULT_TITLE_BANDS);
     expect(titleBandsOf({ titleBands: [] })).toEqual([]);
-    expect(DEFAULT_TITLE_BANDS.map((b) => b.minRate)).toEqual([65, 55, 45, 35, 0]);
+    expect(DEFAULT_TITLE_BANDS.map((b) => b.minRate)).toEqual([65, 55, 50, 45, 35, 0]);
   });
 
   it("구간 값을 검사하고 높은 구간부터 정렬한다", () => {
@@ -167,7 +167,11 @@ describe("칭호 구간 (P2-11)", () => {
     const bands = DEFAULT_TITLE_BANDS;
     expect(bandRangeText(bands, 0)).toBe("65% 이상");
     expect(bandRangeText(bands, 1)).toBe("55% 이상 65% 미만");
-    expect(bandRangeText(bands, 4)).toBe("35% 미만");
+    // 50~55% 구간이 추가되고 "든든한 전우"는 45~50%가 됐다(2026-11-06).
+    expect(bandRangeText(bands, 2)).toBe("50% 이상 55% 미만");
+    expect(bands[3]).toEqual({ minRate: 45, name: "든든한 전우" });
+    expect(bandRangeText(bands, 3)).toBe("45% 이상 50% 미만");
+    expect(bandRangeText(bands, 5)).toBe("35% 미만");
   });
 });
 
@@ -291,10 +295,13 @@ describe("좌우 바꾸기 (19)", () => {
     expect(swapped.draws.A).toEqual(drawn.draws.B);
     expect(swapped.draws.B).toEqual(drawn.draws.A);
 
-    // 다시 추첨을 눌러도 새로 뽑지 않고 같은 결과를 유지한다.
+    // 다시 누르면 두 팀 모두 새로 뽑는다(2026-11-06 변경: 누를 때마다 새로 뽑는다).
     const again = drawSupport(swapped, ["A", "B"], ctx);
-    expect(again.outcomes.map((o) => o.kind)).toEqual(["kept", "kept"]);
-    expect(again.draft.slots).toEqual(swapped.slots);
+    expect(again.outcomes.map((o) => o.kind)).toEqual(["drawn", "drawn"]);
+    for (const team of ["A", "B"] as const) {
+      const sup = (d: Draft) => d.slots.find((s) => s.team === team && s.position === "support")!.key;
+      expect(sup(again.draft)).not.toBe(sup(swapped));
+    }
 
     // 두 번 바꾸면 원래와 같다.
     expect(swapSides(swapped)).toEqual(drawn);
@@ -303,7 +310,7 @@ describe("좌우 바꾸기 (19)", () => {
   it("좌우를 바꾼 뒤 '직전 편성으로'를 눌러도 추첨 기록과 어긋나지 않는다", () => {
     const drawn = drawSupport(base(), ["A", "B"], ctx).draft;
     const undone = undoDraft(swapSides(drawn));
-    // 되돌린 편성(추첨 전)에서는 같은 추첨을 다시 적용할 수 있는 상태다(새로 뽑지 않음).
+    // 되돌린 편성(추첨 전)은 추첨 기록과 어긋나지 않는다(다시 누르면 새로 뽑는다).
     expect(drawStatus(undone, "A", ctx)).toBe("reapplicable");
     expect(drawStatus(undone, "B", ctx)).toBe("reapplicable");
   });
@@ -397,7 +404,7 @@ describe("칭호 설정 (서버)", () => {
     const text = JSON.stringify(view.body);
     expect(text).not.toContain(after.group.viewToken!);
     expect(text).not.toContain(after.group.settingsVersionId!);
-    expect(view.body.group.settings.groupWeights).toEqual([0, 0, 0, 0]);
+    expect(view.body.group.settings.groupWeights).toEqual([0, 0, 0, 0, 0]);
     expect(view.body.participants[0]).not.toHaveProperty("skillGroup");
 
     // 다른 설정만 바꿔도 칭호는 그대로 이어진다(전체 스냅샷 저장).

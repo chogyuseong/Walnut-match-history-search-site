@@ -368,7 +368,7 @@ export function Import() {
           <p className="saved" role="status">
             <strong>
               {saved}경기 저장됨 ·{" "}
-              {sideMode === "unknown" ? "진영 미상" : "팀 A 블루 / 팀 B 레드"}
+              {sideMode === "unknown" ? "진영 미상" : "팀 A → 블루팀, 팀 B → 레드팀"}
             </strong>
           </p>
           {skipped > 0 && <p className="hint">이미 들어간 {skipped}경기는 건너뛰었어요.</p>}

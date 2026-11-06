@@ -23,7 +23,8 @@ export type Bucket =
   | "heavy-ip"
   | "signup-ip"
   | "login-ip"
-  | "recover-ip";
+  | "recover-ip"
+  | "client-error-ip";
 
 /** 기본 한도(창당 요청 수). wrangler 설정의 vars로 바꾼다. */
 export const DEFAULT_LIMITS: Record<Bucket, number> = {
@@ -42,6 +43,8 @@ export const DEFAULT_LIMITS: Record<Bucket, number> = {
   "signup-ip": 5,
   "login-ip": 10,
   "recover-ip": 5,
+  // 화면 오류 보고(로그인 없음, src/server/errorLog.ts). 화면도 분당 몇 건만 보내므로 좁게 둔다.
+  "client-error-ip": 10,
 };
 export const DEFAULT_WINDOW_SECONDS = 60;
 
@@ -57,6 +60,7 @@ const LIMIT_VARS: Record<Bucket, keyof Env> = {
   "signup-ip": "RATE_SIGNUP_PER_IP",
   "login-ip": "RATE_LOGIN_PER_IP",
   "recover-ip": "RATE_RECOVER_PER_IP",
+  "client-error-ip": "RATE_CLIENT_ERROR_PER_IP",
 };
 
 /** 시계. 테스트에서 창이 지난 상황을 만들 때 바꿔 끼운다. */
@@ -117,6 +121,7 @@ export async function hit(env: Env, bucket: Bucket, subject: string): Promise<vo
   ]);
   const count = (counted?.results?.[0] as { count?: number } | undefined)?.count ?? 0;
   if (count > limit) {
+    await countLimited(env, bucket, now);
     const retryAfter = Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000));
     throw new ApiError(
       429,
@@ -124,5 +129,28 @@ export async function hit(env: Env, bucket: Bucket, subject: string): Promise<vo
       `요청이 너무 잦아요. ${retryAfter}초 뒤에 다시 시도해 주세요. 입력한 내용은 그대로 있어요.`,
       { retryAfter },
     );
+  }
+}
+
+/** 한도에 걸린 횟수 기록(rate_limit_hits)을 남겨 두는 날수. */
+export const RATE_HIT_KEEP_DAYS = 30;
+
+/**
+ * 한도에 걸린 횟수를 날짜(UTC)·종류별로 더한다(사이트 운영자 현황 화면, migrations/0018). 누가 걸렸는지는 남기지 않는다.
+ * 걸린 요청에서만 쓰므로 정상 요청에는 비용이 없다. 실패해도 429 응답은 그대로다.
+ */
+async function countLimited(env: Env, bucket: Bucket, now: number): Promise<void> {
+  const day = new Date(now).toISOString().slice(0, 10);
+  const oldest = new Date(now - RATE_HIT_KEEP_DAYS * 24 * 3600_000).toISOString().slice(0, 10);
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO rate_limit_hits (day, bucket, count) VALUES (?1, ?2, 1)
+         ON CONFLICT (day, bucket) DO UPDATE SET count = count + 1`,
+      ).bind(day, bucket),
+      env.DB.prepare("DELETE FROM rate_limit_hits WHERE day < ?1").bind(oldest),
+    ]);
+  } catch {
+    // 세지 못해도 제한은 그대로 건다.
   }
 }

@@ -387,7 +387,7 @@ describe("비공개 실력 그룹 (12)", () => {
     const g = await setupGroup();
     for (const [i, p] of g.people.entries()) {
       await api(g.cookie, "PATCH", `/api/groups/${g.gid}/participants/${p.id}`, {
-        skillGroup: (i % 4) + 1,
+        skillGroup: (i % 5) + 1,
       });
     }
     await playConfirmed(g, rosterOf(g.people));
@@ -398,7 +398,7 @@ describe("비공개 실력 그룹 (12)", () => {
     expect(text).not.toContain("skillGroup");
     expect(text).not.toContain(operator.group.viewToken!);
     expect(text).not.toContain("settingsVersionId");
-    expect(view.body.group.settings.groupWeights).toEqual([0, 0, 0, 0]);
+    expect(view.body.group.settings.groupWeights).toEqual([0, 0, 0, 0, 0]);
   });
 
   it("그룹 공개로 바꾸면 조회 응답에 그룹이 나온다", async () => {

@@ -347,6 +347,33 @@ export async function mergeParticipants(
         env.DB.prepare(
           "UPDATE participants SET status = 'archived' WHERE id = ?1 AND group_id = ?2",
         ).bind(sourceId, groupId),
+        // 참가자 본인 연결(migrations/0019): 남은 사람에게 연결이 없으면 합쳐진 쪽의 연결(과 그 요청)을 남은 사람에게 옮기고,
+        // 이미 있으면 합쳐진 쪽 연결은 지운다(요청은 합쳐진 쪽에 남아 운영자만 본다). 쓰지 않은 연결 링크는 지운다.
+        // 되돌려도 연결·요청은 돌아가지 않는다(합치기 기록에 남기지 않음).
+        env.DB.prepare(
+          `UPDATE join_requests SET account_id = NULL
+           WHERE group_id = ?1
+             AND account_id IN (SELECT account_id FROM participant_links WHERE group_id = ?1 AND participant_id = ?2)
+             AND EXISTS (SELECT 1 FROM participant_links WHERE group_id = ?1 AND participant_id = ?3)`,
+        ).bind(groupId, sourceId, targetId),
+        env.DB.prepare(
+          `UPDATE participant_requests SET participant_id = ?3
+           WHERE group_id = ?1 AND participant_id = ?2
+             AND NOT EXISTS (SELECT 1 FROM participant_links WHERE group_id = ?1 AND participant_id = ?3)`,
+        ).bind(groupId, sourceId, targetId),
+        env.DB.prepare(
+          `UPDATE participant_links SET participant_id = ?3
+           WHERE group_id = ?1 AND participant_id = ?2
+             AND NOT EXISTS (SELECT 1 FROM participant_links WHERE group_id = ?1 AND participant_id = ?3)`,
+        ).bind(groupId, sourceId, targetId),
+        env.DB.prepare("DELETE FROM participant_links WHERE group_id = ?1 AND participant_id = ?2").bind(
+          groupId,
+          sourceId,
+        ),
+        env.DB.prepare("DELETE FROM participant_claims WHERE group_id = ?1 AND participant_id = ?2").bind(
+          groupId,
+          sourceId,
+        ),
         env.DB.prepare(
           `INSERT INTO participant_merges (id, group_id, source_id, target_id, source_prev_status,
              moved_matches, rotation_changes, created_at)

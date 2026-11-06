@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { PASSWORD_RULE, passwordProblem } from "../shared/account";
 import { call } from "./api";
 import { LoginDialog, PasswordField, RecoveryCodeStep } from "./screens/Login";
+import { ROLE_LABEL } from "./groupSwitcher";
 import { ErrorNote } from "./ui";
 import { go, useAppValue } from "./useApp";
 
@@ -14,7 +15,10 @@ export const LOGIN_ONLY: Record<string, string> = {
   "legacy-import": "기존 사이트 기록 가져오기",
   backfill: "지난 경기 입력",
   merge: "중복 참가자 합치기",
+  priority: "티어 배정",
   delete: "모임 삭제 · 탈퇴",
+  // 참가자로 연결한 모임의 읽기 전용 화면(src/web/screens/Member.tsx).
+  mine: "참가 중인 모임",
 };
 
 /**
@@ -104,6 +108,61 @@ export function AccountControl() {
       {menuOpen && (
         <div id="account-menu" className="account-menu" role="group" aria-label="로그인 상태">
           <p>이 기기에서 운영자로 로그인돼 있어요.</p>
+          {(app.me?.groups.length ?? 0) > 1 && (
+            <div className="account-groups" role="group" aria-label="모임 바꾸기">
+              {app.me!.groups.map((g) => {
+                const label =
+                  g.id === app.snapshot?.group.id ? app.snapshot.group.name : g.name;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className="secondary wide"
+                    aria-pressed={g.id === app.groupId}
+                    disabled={app.switching}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      if (g.id === app.groupId) return;
+                      void app.switchGroup(g.id).then(() => app.setNotice(`'${label}' 모임으로 바꿨어요.`));
+                    }}
+                  >
+                    {label} · {ROLE_LABEL[g.role ?? "owner"]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {(app.me?.memberships?.length ?? 0) > 0 && (
+            // 참가자로 연결한 모임(migrations/0019). 고르면 조회 링크와 같은 읽기 전용 화면이 열린다.
+            <div className="account-groups" role="group" aria-label="참가 중인 모임">
+              {app.me!.memberships!.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className="secondary wide"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    go(`/mine/${m.id}`);
+                  }}
+                >
+                  {m.name} · 참가 중({m.participantName})
+                </button>
+              ))}
+            </div>
+          )}
+          {app.me?.siteAdmin && (
+            // 사이트 운영자(서비스 주인)에게만 보인다. 모임 운영자 권한과 무관하다.
+            <button
+              type="button"
+              className="secondary wide"
+              onClick={() => {
+                setMenuOpen(false);
+                go("/admin");
+              }}
+            >
+              사이트 현황
+            </button>
+          )}
           <ErrorNote error={error} />
           <button
             type="button"

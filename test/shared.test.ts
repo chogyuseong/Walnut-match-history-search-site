@@ -30,6 +30,7 @@ import { personRecords, placements, PLACEMENT_GAMES } from "../src/shared/stats"
 import {
   sideOfTeam,
   teamASideFromWinner,
+  type GroupWeights,
   type MatchView,
   type Position,
   type Team,
@@ -191,8 +192,10 @@ describe("다음 판 준비 (26)", () => {
     expect(draft.origin).toBe("same-teams");
     expect(draft.draws).toEqual({});
     expect(isCompleteDraft(draft)).toBe(true);
+    // 진영은 경기의 값(A가 레드)을 복사하지 않고 준비 화면 규칙대로 팀 A = 블루다.
+    expect(draft.teamASide).toBe("blue");
     const text = JSON.stringify(draft);
-    for (const forbidden of ["m1", "winnerTeam", "teamASide", "red", "confirmed", "requestId"]) {
+    for (const forbidden of ["m1", "winnerTeam", "red", "confirmed", "requestId"]) {
       expect(text).not.toContain(forbidden);
     }
   });
@@ -237,22 +240,33 @@ describe("서포터 추첨", () => {
     }
   });
 
-  it("다시 눌러도, 보관했다 다시 읽어도 같은 결과다 (17)", () => {
+  // 2026-11-06 변경: 누를 때마다 새로 뽑는다(예전에는 같은 조건이면 같은 결과를 유지했다).
+  it("다시 누르면 아직 안 간 다른 사람으로 바뀐다. 보관했다 다시 읽어도 같은 편성·같은 시드면 결과가 같다 (17)", () => {
+    const supA = (d: Draft) => d.slots.find((s) => s.team === "A" && s.position === "support")!.key;
     const first = drawSupport(fixedDraft(), ["A"], ctx());
+    let current = first.draft;
+    for (let i = 0; i < 6; i++) {
+      const next = drawSupport(current, ["A"], ctx());
+      expect(next.outcomes[0]!.kind).toBe("drawn");
+      expect(supA(next.draft)).not.toBe(supA(current));
+      // 서포터와 맞바꾼 사람 말고는 그대로다.
+      const moved = next.draft.slots.filter((s, idx) => s.position !== current.slots[idx]!.position);
+      expect(moved).toHaveLength(2);
+      current = next.draft;
+    }
     const again = drawSupport(first.draft, ["A"], ctx());
-    expect(again.outcomes[0]!.kind).toBe("kept");
-    expect(again.draft.slots).toEqual(first.draft.slots);
     const reloaded = parseStoredDraft(JSON.stringify(first.draft))!;
-    const afterReload = drawSupport(reloaded, ["A"], ctx());
-    expect(afterReload.draft.slots).toEqual(first.draft.slots);
+    expect(drawSupport(reloaded, ["A"], ctx()).draft.slots).toEqual(again.draft.slots);
   });
 
-  it("되돌린 뒤 다시 누르면 새로 뽑지 않고 같은 결과를 다시 적용한다", () => {
+  it("되돌린 뒤 다시 눌러도 새로 뽑는다(추첨 전 서포터가 아닌 사람이 된다)", () => {
+    const supA = (d: Draft) => d.slots.find((s) => s.team === "A" && s.position === "support")!.key;
     const first = drawSupport(fixedDraft(), ["A"], ctx());
     const undone = undoDraft(first.draft);
     expect(drawStatus(undone, "A", ctx())).toBe("reapplicable");
     const again = drawSupport(undone, ["A"], ctx());
-    expect(again.draft.slots).toEqual(first.draft.slots);
+    expect(again.outcomes[0]!.kind).toBe("drawn");
+    expect(supA(again.draft)).not.toBe(supA(undone));
   });
 
   it("참가자를 바꾸면 그 팀의 추첨만 다시 확인 대상이 된다 (18)", () => {
@@ -311,31 +325,27 @@ describe("서포터 추첨", () => {
     expect(drawStatus(drawn, "A", ctx([], 0, "c2"))).toBe("stale");
   });
 
-  it("한 팀만 후보가 있으면 아무것도 바꾸지 않고 선택을 묻는다 (21)", () => {
+  it("한 팀만 후보가 있으면 묻지 않고 그 팀만 바로 바꾼다 (21)", () => {
     const draft = fixedDraft();
-    // 팀 B의 서포터가 아닌 네 명이 모두 차례를 썼다.
+    // 팀 B의 서포터가 아닌 네 명이 모두 차례를 썼다(안 간 사람은 지금 서포터뿐).
     const usedB = draft.slots
       .filter((s) => s.team === "B" && s.position !== "support")
       .map((s) => s.key.slice(2));
     const result = drawSupport(draft, ["A", "B"], ctx(usedB));
-    expect(result.needsChoice).toBe("A");
-    expect(result.draft).toBe(draft);
     expect(result.outcomes.find((o) => o.team === "B")).toMatchObject({
       kind: "blocked",
-      block: "no-candidates",
+      block: "only-current",
     });
-    // 사용자가 팀 A만 적용을 고르면 팀 A만 바뀐다.
-    const onlyA = drawSupport(draft, ["A"], ctx(usedB));
-    expect(onlyA.needsChoice).toBeNull();
-    expect(onlyA.draft.draws.A).toBeDefined();
-    expect(onlyA.draft.draws.B).toBeUndefined();
+    expect(result.draft.draws.A).toBeDefined();
+    expect(result.draft.draws.B).toBeUndefined();
+    expect(result.draft.slots.filter((s) => s.team === "B")).toEqual(draft.slots.filter((s) => s.team === "B"));
   });
 
   it("둘 다 후보가 없으면 원인만 돌려준다", () => {
     const draft = fixedDraft();
     const used = draft.slots.filter((s) => s.position !== "support").map((s) => s.key.slice(2));
     const result = drawSupport(draft, ["A", "B"], ctx(used));
-    expect(result.needsChoice).toBeNull();
+    expect(result.allAssigned).toEqual([]);
     expect(result.draft).toBe(draft);
     expect(result.outcomes.every((o) => o.kind === "blocked")).toBe(true);
   });
@@ -369,7 +379,7 @@ describe("팀 추천", () => {
   function rec(groups: (number | null)[]): RecommendPerson[] {
     return groups.map((skillGroup, i) => ({ key: `k${i}`, skillGroup }));
   }
-  const weights: [number, number, number, number] = [4, 3, 2, 1];
+  const weights: GroupWeights = [5, 4, 3, 2, 1];
 
   it("126개 분할 중에서 고르고 두 팀은 겹치지 않는 5명씩이다", () => {
     const candidates = recommendTeams(rec([1, 1, 2, 2, 3, 3, 4, 4, null, null]), weights, 1, 200);
@@ -385,7 +395,7 @@ describe("팀 추천", () => {
 
   it("가중치 합의 차가 가장 작은 분할이 먼저 나온다", () => {
     const candidates = recommendTeams(rec([1, 1, 2, 2, 3, 3, 4, 4, 2, 3]), weights, 1, 126);
-    // 가중치 합이 25(홀수)라 가능한 최소 차는 1이다.
+    // 가중치(5·4·3·2·1) 합이 35(홀수)라 가능한 최소 차는 1이다.
     expect(candidates[0]!.sumDiff).toBe(1);
     for (let i = 1; i < candidates.length; i++) {
       expect(candidates[i]!.sumDiff).toBeGreaterThanOrEqual(candidates[i - 1]!.sumDiff);
@@ -401,6 +411,24 @@ describe("팀 추천", () => {
     const [best] = recommendTeams(rec([1, 1, 1, 1, 4, 4, 4, 4, null, null]), weights, 1);
     expect(best!.sumDiff).toBe(0);
     expect(best!.unassignedCount).toEqual([1, 1]);
+  });
+
+  it("합계·1티어가 같으면 최하위(5티어) 인원이 고르게 나뉜 분할이 먼저다", () => {
+    // 4티어와 5티어 가중치를 같게 두면 {4,4} vs {5,5}처럼 합은 같아도 5티어가 한 팀에 몰린 후보가 생긴다.
+    const all = recommendTeams(rec([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]), [4, 3, 2, 1, 1], 1, 126);
+    const best = all[0]!;
+    expect(best.sumDiff).toBe(0);
+    expect(best.topCount).toEqual([1, 1]);
+    expect(best.bottomCount).toEqual([1, 1]);
+    // 같은 합 차·같은 1티어 차인데 5티어가 2:0인 후보가 실제로 있고, 1:1인 후보보다 뒤에 온다.
+    const tiedLopsided = all.findIndex(
+      (c) => c.sumDiff === 0 && c.topCount[0] === 1 && Math.abs(c.bottomCount[0] - c.bottomCount[1]) === 2,
+    );
+    const evenIdx = all.flatMap((c, i) => (c.sumDiff === 0 && c.topCount[0] === 1 && c.bottomCount[0] === 1 ? [i] : []));
+    const lastEven = Math.max(...evenIdx);
+    expect(tiedLopsided).toBeGreaterThan(0);
+    expect(tiedLopsided).toBeGreaterThan(lastEven);
+    expect(best.reason).toBe("티어 합계 차 0 · 1티어 1:1");
   });
 
   it("같은 시드는 같은 추천을 만든다", () => {
@@ -469,7 +497,7 @@ describe("같은 팀·다른 팀 조건", () => {
   function rec(groups: (number | null)[]): RecommendPerson[] {
     return groups.map((skillGroup, i) => ({ key: `k${i}`, skillGroup }));
   }
-  const weights: [number, number, number, number] = [4, 3, 2, 1];
+  const weights: GroupWeights = [5, 4, 3, 2, 1];
   const input = rec([1, 1, 2, 2, 3, 3, 4, 4, 2, 3]);
 
   it("추천 후보는 모두 조건을 만족한다", () => {

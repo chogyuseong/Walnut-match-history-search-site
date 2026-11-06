@@ -1,18 +1,22 @@
 import { canGoBack } from "./nav";
 import { SessionExpiredNote } from "./screens/Login";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, type Scope } from "../shared/stats";
-import type { Standing } from "../shared/titles";
-import {
-  sideOfTeam,
-  TEAMS,
-  type MatchView,
-  type Position,
-  type Snapshot,
-  type Team,
-} from "../shared/types";
+import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, SMALL_SAMPLE, type Scope } from "../shared/stats";
+import type { TitleGrade } from "../shared/titles";
+import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/types";
 import { ApiFailure } from "./api";
-import { copyText, formatTime, POSITION_LABEL, TEAM_MARK, teamRoster } from "./format";
+import {
+  copyText,
+  formatTime,
+  heatClass,
+  type ShownStanding,
+  POSITION_LABEL,
+  rateTier,
+  TEAM_MARK,
+  teamBoxClass,
+  teamName,
+  teamRoster,
+} from "./format";
 
 /** 라인 아이콘. 디자인 키트가 직접 그린 도형이며 게임의 공식 아이콘이 아니다. */
 const ROLE_SHAPES: Record<Position, ReactNode> = {
@@ -156,12 +160,52 @@ export function scopeFromValue(value: string): Scope {
 }
 
 /**
+ * 칭호 엠블럼. 등급(구간 순서)마다 직접 그린 단순한 도형이다(게임의 랭크 엠블럼을 본뜨지 않았다).
+ * 1 왕관 · 2 별 · 3 방패 · 4 검 · 5 새싹. 꾸밈이고 뜻은 옆의 이름 글자가 전한다.
+ */
+const TITLE_EMBLEMS: Record<TitleGrade, ReactNode> = {
+  1: <path d="M3 18.5H21M4 16L3 7L8.5 11L12 4.5L15.5 11L21 7L20 16H4Z" />,
+  2: <path d="M12 3.5L14.6 9L20.5 9.6L16 13.6L17.3 19.5L12 16.5L6.7 19.5L8 13.6L3.5 9.6L9.4 9L12 3.5Z" />,
+  3: (
+    <>
+      <path d="M12 3.5L19 6.5V12C19 16 16.2 19 12 20.5C7.8 19 5 16 5 12V6.5L12 3.5Z" />
+      <path d="M12 8V16" />
+    </>
+  ),
+  4: <path d="M17.5 4H20V6.5L10.5 16L8 13.5L17.5 4ZM6 12L12 18M8.5 15.5L4.5 19.5" />,
+  5: <path d="M12 20.5V11M12 12.5C12 8.5 9.5 6.5 5 6.5C5 10.5 7.5 12.5 12 12.5ZM12 11C12 7.5 14.5 5 19 5C19 9 16.5 11 12 11Z" />,
+};
+
+/** 칭호 엠블럼 하나(꾸밈, 화면 읽기에서 숨김). 색은 둘러싼 요소의 grade-N 클래스를 따른다. */
+export function TitleEmblem(props: { grade: TitleGrade }) {
+  return (
+    <svg className="title-emblem" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {TITLE_EMBLEMS[props.grade]}
+    </svg>
+  );
+}
+
+/**
+ * 칭호 표식: 엠블럼 + 이름, 등급 색. 칭호가 나오는 모든 화면이 이것 하나를 쓴다.
+ * grade가 없으면(알 수 없는 이름 등) 예전처럼 색 없는 테두리 표식이다.
+ */
+export function TitleBadge(props: { name: string; grade: TitleGrade | null }) {
+  const { grade } = props;
+  return (
+    <span className={grade ? `title-chip grade-${grade}` : "title-chip"}>
+      {grade && <TitleEmblem grade={grade} />}
+      <span className="title-name">{props.name}</span>
+    </span>
+  );
+}
+
+/**
  * 배치·칭호 표시. 누적 기준이며 범위 필터와 무관하다(docs/P2 P2-11).
  * 배치 중은 "배치 진행 중 7/10"으로만 쓰고 낮은 실력처럼 보이게 하지 않는다.
- * 칭호는 승률 색(rateTier)과 겹치지 않도록 색 없이 테두리 표식으로만 보여준다.
+ * 칭호는 구간 순서로 정한 등급 색·엠블럼으로 보여준다(TitleBadge).
  */
-export function StandingNote(props: { standing: Standing | undefined }) {
-  const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null };
+export function StandingNote(props: { standing: ShownStanding | undefined }) {
+  const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null, grade: null };
   if (!s.done) {
     return (
       <span className="standing">
@@ -172,7 +216,7 @@ export function StandingNote(props: { standing: Standing | undefined }) {
   if (!s.title) return <span className="standing">배치 완료 (누적 기준)</span>;
   return (
     <span className="standing">
-      <span className="title-chip">{s.title}</span> 누적 기준
+      <TitleBadge name={s.title} grade={s.grade} /> 누적 기준
     </span>
   );
 }
@@ -290,29 +334,21 @@ export function SavedBadge(props: { at: string | null | undefined; timeZone?: st
   return <span className="badge ok">저장됨 · {formatTime(props.at, props.timeZone)} 확인</span>;
 }
 
-/** 팀 상자의 클래스. 진영이 정해진 경기만 블루·레드 색을 입힌다. */
-function teamClass(side: string | null): string {
-  return side === "blue" || side === "red" ? `team side-${side}` : "team";
-}
-
-/** 확정 명단. 좁은 화면에서는 두 팀을 위아래로 쌓는다(CSS). */
-export function MatchTeams(props: {
-  match: MatchView;
-  nameOf: (id: string) => string;
-  highlightId?: string | null;
-  sideOf?: (team: Team) => string | null;
-}) {
+/**
+ * 확정 명단. 좁은 화면에서는 두 팀을 위아래로 쌓는다(CSS).
+ * 팀 이름·테두리는 teamName 규칙: 진영이 정해진 경기는 "블루팀"/"레드팀"과 그 색, 모르면 "팀 A"/"팀 B"와 중립 테두리.
+ */
+export function MatchTeams(props: { match: MatchView; nameOf: (id: string) => string; highlightId?: string | null }) {
   return (
     <div className="teams">
       {TEAMS.map((team) => (
         <section
           key={team}
-          className={teamClass(sideOfTeam(team, props.match.teamASide))}
-          aria-label={`팀 ${team}`}
+          className={teamBoxClass(team, props.match.teamASide)}
+          aria-label={teamName(team, props.match.teamASide)}
         >
           <h3>
-            <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team}
-            {props.sideOf?.(team) ? <span className="side"> · {props.sideOf(team)}</span> : null}
+            <span aria-hidden="true">{TEAM_MARK[team]}</span> {teamName(team, props.match.teamASide)}
           </h3>
           <ul>
             {teamRoster(props.match, team).map((entry) => (
@@ -493,6 +529,104 @@ export function TrendLine(props: { points: readonly { game: number; rate: number
         </span>
       </figcaption>
     </figure>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 개인 통계·검색의 작은 그림. 그림은 보조이고 정확한 값은 언제나 옆의 숫자·글자다.
+// 그래서 그림은 화면 읽기 프로그램에 읽히지 않게 숨긴다(aria-hidden). 색은 그래프 화면의 .viz-root 값을 쓴다.
+
+export type MeterTone = "rate" | "blue" | "red" | "share";
+
+/**
+ * 가로 막대 하나. value는 0~1.
+ * tone: rate(승률) · blue/red(진영 색) · share(비중, 중립색). muted면 색 없이 회색으로 그린다.
+ * heat: 승률 색 단계 클래스(heatClass). 승률 막대만 준다.
+ * mid: 50% 기준선.
+ */
+export function Meter(props: {
+  value: number;
+  tone?: MeterTone;
+  heat?: string;
+  mid?: boolean;
+  muted?: boolean;
+  small?: boolean;
+}) {
+  const width = Math.max(0, Math.min(1, props.value)) * 100;
+  const tone = props.muted ? "muted" : (props.tone ?? "rate");
+  const heat = !props.muted && tone === "rate" && props.heat ? ` ${props.heat}` : "";
+  return (
+    <span className={props.small ? "meter meter-sm viz-root" : "meter viz-root"} aria-hidden="true">
+      <span className={`meter-fill tone-${tone}${heat}`} style={{ width: `${width}%` }} />
+      {props.mid && <span className="meter-mid" />}
+    </span>
+  );
+}
+
+/**
+ * 승률 막대(50% 기준선 포함). 기록이 없으면 빈 막대다.
+ * 승률 막대는 승률 색 단계(heatClass: 45~55% 기본 색, 높을수록 붉게, 낮을수록 가라앉게)를 따르고,
+ * SMALL_SAMPLE경기 미만이면 색으로 강조하지 않는다(rateTier·"자료 적음"과 같은 규칙).
+ * 진영 막대(blue·red)는 진영을 가리키는 색이라 표본·승률과 관계없이 진영 색을 쓴다.
+ */
+export function RateBar(props: { wins: number; games: number; tone?: MeterTone; small?: boolean }) {
+  const { wins, games } = props;
+  const tone = props.tone ?? "rate";
+  return (
+    <Meter
+      value={games === 0 ? 0 : wins / games}
+      tone={tone}
+      heat={tone === "rate" ? heatClass(wins, games) : undefined}
+      mid
+      muted={tone === "rate" && games < SMALL_SAMPLE}
+      small={props.small}
+    />
+  );
+}
+
+/** 승·패 비율 막대. 왼쪽이 승(승리 색), 오른쪽이 패(패배 색, 빗금). 가운데 50% 기준선. */
+export function WinLossBar(props: { wins: number; losses: number }) {
+  const { wins, losses } = props;
+  if (wins + losses === 0) return <Meter value={0} mid />;
+  return (
+    <span className="wl-bar" aria-hidden="true">
+      <span className="wl-win" style={{ flexGrow: wins }} />
+      <span className="wl-loss" style={{ flexGrow: losses }} />
+      <span className="meter-mid" />
+    </span>
+  );
+}
+
+/**
+ * 승률 고리(도넛). 채운 호가 승률이고 아래쪽 눈금이 50%다. 가운데에 승률을 크게 적는다.
+ * 숫자는 바로 옆 요약 줄에도 그대로 있으므로 고리 전체를 화면 읽기에서 숨긴다.
+ */
+export function RateRing(props: { wins: number; games: number }) {
+  const { wins, games } = props;
+  if (games === 0) return null;
+  const rate = wins / games;
+  const R = 26;
+  const C = 2 * Math.PI * R;
+  const muted = games < SMALL_SAMPLE;
+  return (
+    <div className="ring viz-root" aria-hidden="true">
+      <svg viewBox="0 0 68 68">
+        <circle className="ring-track" cx="34" cy="34" r={R} />
+        <circle
+          className={muted ? "ring-fill tone-muted" : `ring-fill ${heatClass(wins, games)}`}
+          cx="34"
+          cy="34"
+          r={R}
+          strokeDasharray={`${(rate * C).toFixed(2)} ${C.toFixed(2)}`}
+          transform="rotate(-90 34 34)"
+        />
+        <line className="ring-mid" x1="34" x2="34" y1={34 + R - 7} y2={34 + R + 7} />
+      </svg>
+      <span className="ring-text">
+        <strong className={rateTier(wins, games)}>{Math.round(rate * 100)}%</strong>
+        <span>승률</span>
+      </span>
+    </div>
   );
 }
 

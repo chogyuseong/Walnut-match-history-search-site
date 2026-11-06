@@ -74,7 +74,7 @@ function snap(matches: MatchView[], seasons: Snapshot["seasons"] = []): Snapshot
       name: "모임",
       timezone: "Asia/Seoul",
       liveVersion: 0,
-      settings: { rotationEnabled: true, groupsPublic: false, groupWeights: [0, 0, 0, 0] },
+      settings: { rotationEnabled: true, groupsPublic: false, groupWeights: [0, 0, 0, 0, 0] },
     },
     participants: Array.from({ length: 10 }, (_, i) => ({
       id: `id${i}`,

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   anchorRecord,
+  bestLine,
+  COMPARE_MIN_GAMES,
+  compareMetrics,
   countedChronological,
   cumulativeTrend,
   dayRecords,
@@ -15,6 +18,8 @@ import {
   personForms,
   pickPair,
   rankAndSearch,
+  RANKING_VETERAN_GAMES,
+  rankingGroup,
   recentResults,
   resultsOf,
   sortRankingBy,
@@ -216,6 +221,103 @@ describe("랭킹 정렬 기준", () => {
   });
 });
 
+describe("랭킹: 누적 50경기 이상 먼저", () => {
+  // v0: 누적 60경기 40% · v1: 누적 50경기 30%(경계) · a: 누적 49경기 90%(경계 아래)
+  // b: 누적 20경기 80% · c: 누적 3경기 100%(배치 진행 중)
+  const records = [
+    { participantId: "id10", games: 60, wins: 24, losses: 36 },
+    { participantId: "id11", games: 50, wins: 15, losses: 35 },
+    { participantId: "id12", games: 49, wins: 44, losses: 5 },
+    { participantId: "id13", games: 20, wins: 16, losses: 4 },
+    { participantId: "id14", games: 3, wins: 3, losses: 0 },
+  ];
+  const placement = new Map(
+    records.map((r) => [r.participantId, { games: r.games, done: r.games >= 10 }]),
+  );
+  const ids = (rows: { participantId: string }[]) => rows.map((r) => r.participantId);
+
+  it("기준은 50경기이고, 49경기는 아래 묶음·50경기는 위 묶음이다", () => {
+    expect(RANKING_VETERAN_GAMES).toBe(50);
+    expect(rankingGroup(placement, "id11")).toBe(0);
+    expect(rankingGroup(placement, "id12")).toBe(1);
+    expect(rankingGroup(placement, "id14")).toBe(2);
+    expect(rankingGroup(placement, "없는사람")).toBe(2);
+  });
+
+  it("승률이 낮아도 50경기 이상이 위다. 세 정렬 기준 모두 묶음 순서를 지킨다", () => {
+    expect(ids(sortRankingBy(records, placement, nameOf, "rate"))).toEqual([
+      "id10",
+      "id11",
+      "id12",
+      "id13",
+      "id14",
+    ]);
+    expect(ids(sortRankingBy(records, placement, nameOf, "games"))).toEqual([
+      "id10",
+      "id11",
+      "id12",
+      "id13",
+      "id14",
+    ]);
+    // 승수: 묶음 안에서 승수 순. 위 묶음은 24승 > 15승, 가운데 묶음은 44승 > 16승.
+    expect(ids(sortRankingBy(records, placement, nameOf, "wins"))).toEqual([
+      "id10",
+      "id11",
+      "id12",
+      "id13",
+      "id14",
+    ]);
+    // 묶음 안에서는 고른 기준을 따른다: 위 묶음에서 승률이 높은 쪽이 앞.
+    const swapped = [
+      { participantId: "id10", games: 60, wins: 24, losses: 36 },
+      { participantId: "id11", games: 50, wins: 40, losses: 10 },
+    ];
+    expect(ids(sortRankingBy(swapped, placement, nameOf, "rate"))).toEqual(["id11", "id10"]);
+    expect(ids(sortRankingBy(swapped, placement, nameOf, "games"))).toEqual(["id10", "id11"]);
+    expect(ids(sortRankingBy(swapped, placement, nameOf, "wins"))).toEqual(["id11", "id10"]);
+  });
+
+  it("순위 숫자는 묶음을 넘어 1부터 이어지고, 검색해도 바뀌지 않는다", () => {
+    for (const sort of ["rate", "games", "wins"] as const) {
+      const all = rankAndSearch(records, placement, nameOf, sort, "");
+      expect(all.ranked.map((r) => r.rank)).toEqual([1, 2, 3, 4, 5]);
+      const searched = rankAndSearch(records, placement, nameOf, sort, "선수12");
+      expect(searched.shown.map((r) => r.rank)).toEqual([3]);
+      expect(searched.ranked.map((r) => r.rank)).toEqual([1, 2, 3, 4, 5]);
+    }
+  });
+
+  it("범위·라인별 기록에서도 묶음은 모임 전체 누적 경기 수로 정한다", () => {
+    // 1~50경기: id0~4(팀 A)가 모두 진다. 51~70경기: id10~14(팀 A)가 id0~4(팀 B)를 모두 이긴다.
+    const matches: MatchView[] = [];
+    for (let i = 1; i <= 50; i++) matches.push(match(i, { winner: "B" }));
+    const people = [0, 1, 2, 3, 4, 10, 11, 12, 13, 14];
+    for (let i = 51; i <= 70; i++) {
+      matches.push(match(i, { people, teamA: [10, 11, 12, 13, 14], winner: "A" }));
+    }
+    const all = placements(matches);
+    expect(all.get("id0")!.games).toBe(70);
+    expect(all.get("id10")!.games).toBe(20);
+    // 범위: 마지막 20경기만. 그 안에서 id0은 20경기 0%, id10은 20경기 100%지만 id0이 위다.
+    const scoped = matches.slice(50);
+    const ranked = rankAndSearch(lineRanking(scoped, null), all, nameOf, "rate", "").ranked;
+    expect(ranked.findIndex((r) => r.participantId === "id0")).toBeLessThan(
+      ranked.findIndex((r) => r.participantId === "id10"),
+    );
+    // 라인별(탑): id0과 id10 모두 20경기씩 탑. 누적 기준으로 id0이 먼저.
+    const top = rankAndSearch(lineRanking(scoped, "top"), all, nameOf, "rate", "").ranked;
+    expect(top.map((r) => [r.participantId, r.rank])).toEqual([
+      ["id0", 1],
+      ["id10", 2],
+    ]);
+    // 범위 안 경기 수(20)로 판정했다면 같은 묶음이라 id10(100%)이 먼저였을 것이다.
+    const scopedOnly = placements(scoped);
+    expect(
+      rankAndSearch(lineRanking(scoped, "top"), scopedOnly, nameOf, "rate", "").ranked[0]!.participantId,
+    ).toBe("id10");
+  });
+});
+
 describe("라인별 랭킹", () => {
   it("그 라인으로 뛴 경기만 센다. 포지션 없는 경기는 어느 라인에도 들어가지 않는다", () => {
     const matches = [
@@ -281,7 +383,7 @@ describe("맞대결·같은 팀 전적", () => {
 });
 
 describe("개인 요약", () => {
-  it("주 라인: 가장 많이 뛴 라인, 같으면 승이 많은 라인", () => {
+  it("가장 많이 플레이한 라인(주 라인): 가장 많이 뛴 라인, 같으면 승이 많은 라인", () => {
     expect(mainLine({})).toBeNull();
     expect(mainLine({ mid: { games: 3, wins: 1 }, top: { games: 5, wins: 1 } })).toEqual({
       position: "top",
@@ -300,6 +402,103 @@ describe("개인 요약", () => {
     expect(pickPair(pairs, "best")!.participantId).toBe("c");
     expect(pickPair(pairs, "worst")!.participantId).toBe("d");
     expect(pickPair(pairs.slice(0, 1), "best")).toBeNull();
+  });
+
+  it("가장 승률 높은 라인: 5경기 이상 뛴 라인만, 없으면 null", () => {
+    expect(bestLine({})).toBeNull();
+    // 4경기 100%는 표본 부족이라 빠지고, 5경기 라인이 뽑힌다(5경기 경계).
+    expect(bestLine({ top: { games: 4, wins: 4 }, mid: { games: 5, wins: 2 } })).toEqual({
+      position: "mid",
+      tally: { games: 5, wins: 2 },
+    });
+    expect(bestLine({ top: { games: 4, wins: 4 }, mid: { games: 3, wins: 3 } })).toBeNull();
+  });
+
+  it("가장 승률 높은 라인: 같은 승률이면 경기 수 많은 라인 → 탑~서폿 순", () => {
+    // 60%끼리: 경기 수가 많은 원딜
+    expect(
+      bestLine({ top: { games: 5, wins: 3 }, adc: { games: 10, wins: 6 }, mid: { games: 8, wins: 2 } })!
+        .position,
+    ).toBe("adc");
+    // 승률·경기 수가 모두 같으면 라인 순서가 앞선 쪽(정글 < 서폿)
+    expect(bestLine({ support: { games: 6, wins: 4 }, jungle: { games: 6, wins: 4 } })!.position).toBe(
+      "jungle",
+    );
+  });
+
+  it("가장 승률 높은 라인은 가장 많이 플레이한 라인과 같을 수 있다", () => {
+    const byPosition = { top: { games: 12, wins: 9 }, mid: { games: 6, wins: 3 } };
+    expect(mainLine(byPosition)!.position).toBe("top");
+    expect(bestLine(byPosition)!.position).toBe("top");
+  });
+
+  describe("비교 지표: 누적 30경기 기준", () => {
+    const pairs = (ids: string[]) => ids.map((id, i) => ({ participantId: id, games: 10 - i, wins: 5 }));
+    const games = (entries: [string, number][]) => new Map(entries.map(([id, g]) => [id, { games: g }]));
+
+    it("기준은 30경기", () => {
+      expect(COMPARE_MIN_GAMES).toBe(30);
+    });
+
+    it("보고 있는 사람이 29경기면 막고, 30경기면 보여준다", () => {
+      const detail = { participantId: "me", synergy: pairs(["x"]), versus: pairs(["y"]) };
+      const locked = compareMetrics(detail, games([["me", 29], ["x", 50], ["y", 50]]));
+      expect(locked).toEqual({ ready: false, games: 29, synergy: [], versus: [], buddy: null, rival: null });
+      const open = compareMetrics(detail, games([["me", 30], ["x", 50], ["y", 50]]));
+      expect(open.ready).toBe(true);
+      expect(open.games).toBe(30);
+      expect(open.synergy.map((p) => p.participantId)).toEqual(["x"]);
+      expect(open.buddy?.participantId).toBe("x");
+      expect(open.rival?.participantId).toBe("y");
+    });
+
+    it("상대가 29경기면 목록·동료·상대에서 빠지고, 30경기면 남는다(순서 유지)", () => {
+      const detail = {
+        participantId: "me",
+        synergy: pairs(["a29", "b30", "c99"]),
+        versus: pairs(["a29", "b30"]),
+      };
+      const r = compareMetrics(detail, games([["me", 40], ["a29", 29], ["b30", 30], ["c99", 99]]));
+      expect(r.synergy.map((p) => p.participantId)).toEqual(["b30", "c99"]);
+      expect(r.versus.map((p) => p.participantId)).toEqual(["b30"]);
+      // 함께한 경기 수(10)가 가장 많은 a29는 표본이 충분해도 누적 29경기라 동료로 뽑히지 않는다.
+      expect(r.buddy?.participantId).not.toBe("a29");
+      expect(r.rival?.participantId).toBe("b30");
+    });
+
+    it("기준을 넘는 상대가 없으면 빈 목록과 null", () => {
+      const detail = { participantId: "me", synergy: pairs(["a"]), versus: pairs(["b"]) };
+      const r = compareMetrics(detail, games([["me", 30], ["a", 5], ["b", 29]]));
+      expect(r).toMatchObject({ ready: true, synergy: [], versus: [], buddy: null, rival: null });
+    });
+
+    it("쌍 표본 규칙(함께 5경기 이상)은 그대로: 누적은 넘어도 함께 4경기면 동료가 아니다", () => {
+      const detail = {
+        participantId: "me",
+        synergy: [{ participantId: "a", games: 4, wins: 4 }],
+        versus: [],
+      };
+      const r = compareMetrics(detail, games([["me", 30], ["a", 30]]));
+      expect(r.synergy).toHaveLength(1);
+      expect(r.buddy).toBeNull();
+    });
+
+    it("범위를 좁혀도 누적 경기 수로 판단한다", () => {
+      // id0~9가 30경기. 범위는 마지막 3경기뿐이어도 모두 누적 30경기라 보인다.
+      const all = Array.from({ length: 30 }, (_, i) => match(i + 1));
+      const cumulative = placements(all);
+      const scoped = personDetail(all.slice(-3), "id0", nameOf);
+      const r = compareMetrics(scoped, cumulative);
+      expect(r.ready).toBe(true);
+      expect(r.synergy.map((p) => p.participantId).sort()).toEqual(["id1", "id2", "id3", "id4"]);
+      expect(r.synergy[0]!.games).toBe(3);
+      // 누적 29경기면 범위와 상관없이 막힌다.
+      const fewer = placements(all.slice(1));
+      expect(compareMetrics(personDetail(all.slice(-3), "id0", nameOf), fewer)).toMatchObject({
+        ready: false,
+        games: 29,
+      });
+    });
   });
 
   it("누적 승률 추이: 경기마다 그때까지의 승률, 많으면 솎되 마지막 점은 남긴다", () => {

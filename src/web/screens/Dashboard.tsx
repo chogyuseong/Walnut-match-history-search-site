@@ -15,6 +15,7 @@ import { isCounted } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
+import { useSeriesBadges } from "../seriesPanel";
 import { FormDots, StandingNote } from "../ui";
 
 /** 결과를 저장한 경기가 없을 때. 무엇이 쌓이는지만 짧게 알려준다. */
@@ -50,6 +51,7 @@ export function Dashboard(props: {
 }) {
   const { snapshot, skipIds } = props;
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
+  const seriesBadge = useSeriesBadges(snapshot);
   const counted = useMemo(() => snapshot.matches.filter(isCounted), [snapshot]);
   const recent = useMemo(
     () =>
@@ -92,6 +94,7 @@ export function Dashboard(props: {
                 timeZone={snapshot.group.timezone}
                 showDate
                 onOpen={() => props.openMatch(m.id)}
+                seriesBadge={seriesBadge(m.id)}
                 onPerson={props.openPerson}
               />
             ))}

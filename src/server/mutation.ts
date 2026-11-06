@@ -188,7 +188,9 @@ async function classifyBatchError(args: MutationArgs, error: unknown): Promise<u
     message.includes("uq_matches_in_progress") ||
     message.includes("matches.group_id") ||
     message.includes("uq_sessions_open") ||
-    message.includes("sessions.group_id")
+    message.includes("sessions.group_id") ||
+    // 시리즈: 같은 경기가 그 사이 다른 시리즈에 들어감(기본 키 match_id).
+    message.includes("match_series_members.")
   ) {
     return new ApiError(
       409,

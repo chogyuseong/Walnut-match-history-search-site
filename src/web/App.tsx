@@ -15,12 +15,19 @@ import { Merge } from "./screens/Merge";
 import { Person } from "./screens/Person";
 import { Pick } from "./screens/Pick";
 import { Prep } from "./screens/Prep";
+import { PriorityScreen } from "./screens/Priority";
 import { MatchDetail, Records } from "./screens/Records";
 import { ResultSheet } from "./screens/ResultSheet";
+import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./screens/SeasonSummary";
 import { Search } from "./screens/Search";
 import { Today } from "./screens/Today";
 import { Transfer } from "./screens/Transfer";
+import { CoInvite } from "./screens/CoOperators";
 import { Viewer } from "./screens/Viewer";
+import { Demo } from "./screens/Demo";
+import { SiteAdmin } from "./screens/SiteAdmin";
+import { Join } from "./screens/Join";
+import { Claim, Member } from "./screens/Member";
 import { LoginFailed } from "./screens/Login";
 import { Privacy } from "./screens/Privacy";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
@@ -30,8 +37,36 @@ import { AppContext, go, useApp, useAppValue, useRoute } from "./useApp";
 export function App() {
   const route = useRoute();
   const isViewer = route[0] === "v" && typeof route[1] === "string";
-  const app = useApp(!isViewer);
+  // 참가 신청(#/join/토큰)도 로그인 없이 여는 화면이라 운영자 상태를 읽지 않는다.
+  const isJoin = route[0] === "join" && typeof route[1] === "string";
+  // 예시 모임(#/demo)은 기기에서 만든 합성 데이터만 보여 주므로 운영자 상태를 읽지 않는다.
+  const isDemo = route[0] === "demo";
+  const app = useApp(!isViewer && !isJoin && !isDemo);
   useKeyboardFlag();
+
+  if (isJoin) {
+    return (
+      <>
+        <TopBar />
+        <main>
+          <Join token={route[1]!} rest={route.slice(2)} />
+          <LegalFooter privacyHref={`#/join/${route[1]}/privacy`} />
+        </main>
+      </>
+    );
+  }
+
+  if (isDemo) {
+    return (
+      <>
+        <TopBar homeLink />
+        <main>
+          <Demo rest={route.slice(1)} />
+          <LegalFooter />
+        </main>
+      </>
+    );
+  }
 
   if (isViewer) {
     return (
@@ -50,10 +85,16 @@ export function App() {
     <AppContext.Provider value={app}>
       <TopBar homeLink actions={<AccountControl />} />
       <main>
-        {!app.ready ? <p className="screen">불러오는 중…</p> : <OperatorScreen route={route} />}
+        {!app.ready || app.switching ? (
+          <p className="screen">불러오는 중…</p>
+        ) : (
+          // 모임을 바꾸면 화면을 새로 그린다(앞 모임에서 입력하던 상태가 남지 않게).
+          <OperatorScreen key={app.switchSeq} route={route} />
+        )}
         <LegalFooter />
       </main>
-      <Tabs current={route[0] ?? ""} />
+      {/* 참가 중인 모임(#/mine/...)은 자기 메뉴(조회 메뉴)를 쓴다. 운영 탭은 다른 모임을 가리키므로 숨긴다. */}
+      {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
       {app.notice && (
         <p className="toast" role="status">
           {app.notice}
@@ -178,7 +219,7 @@ function LoadFailed() {
 }
 
 /** 기록(스냅숏)이 있어야 그릴 수 있는 화면. */
-const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill"]);
+const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill", "priority", "season"]);
 
 function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
@@ -201,8 +242,11 @@ function OperatorScreen(props: { route: string[] }) {
     if (!app.me && app.loadError) return <LoadFailed />;
     return <LoginRequired title={LOGIN_ONLY[page]!} />;
   }
+  // 사이트 운영자 현황. 사이트 운영자가 아니면 없는 화면처럼 첫 화면을 보여 준다(메뉴에도 없다).
+  if (page === "admin" && app.me?.siteAdmin) return <SiteAdmin />;
   if (page === "pick") return <Pick />;
   if (page === "prep") return <Prep />;
+  if (page === "priority") return <PriorityScreen tab={id === "avoid" ? "avoid" : "priority"} />;
   if (page === "match") return <Match />;
   if (page === "group") return <Group />;
   if (page === "import") return <Import />;
@@ -229,11 +273,32 @@ function OperatorScreen(props: { route: string[] }) {
     );
   }
   if (page === "transfer" && id) return <Transfer token={id} />;
+  if (page === "co-invite" && id) return <CoInvite token={id} />;
+  // 참가자 본인 연결(migrations/0019): 연결 링크와 참가 중인 모임의 읽기 전용 화면.
+  if (page === "claim" && id) return <Claim token={id} />;
+  if (page === "mine" && id) return <Member gid={id} rest={props.route.slice(2)} />;
   if (page === "records") return <OperatorRecords />;
   if (page === "m" && id) {
     if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
     return (
-      <MatchDetail snapshot={app.snapshot} matchId={id} app={app} back={() => go("/records")} />
+      <MatchDetail
+        snapshot={app.snapshot}
+        matchId={id}
+        app={app}
+        back={() => go("/records")}
+        openMatch={(matchId) => go(`/m/${matchId}`)}
+      />
+    );
+  }
+  if (page === "season") {
+    if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
+    return (
+      <SeasonSummaryScreen
+        snapshot={app.snapshot}
+        scope={seasonScopeFromRoute(props.route.slice(1))}
+        back={() => go("/records")}
+        choose={(scope) => go(`/season/${seasonRoutePart(scope)}`)}
+      />
     );
   }
   if (page === "graphs") {
@@ -309,6 +374,8 @@ function OperatorRecords() {
         openGraphs={() => go("/graphs")}
         openBackfill={app.me?.accountId ? () => go("/backfill") : undefined}
         onResult={setResultFor}
+        openSeason={(scope) => go(`/season/${seasonRoutePart(scope)}`)}
+        app={app.me?.accountId ? app : null}
       />
       {resultFor && (
         <ResultSheet
@@ -328,6 +395,7 @@ function Tabs(props: { current: string }) {
   const tab =
     props.current === "records" ||
     props.current === "m" ||
+    props.current === "season" ||
     props.current === "p" ||
     props.current === "compare"
       ? "records"
@@ -339,6 +407,7 @@ function Tabs(props: { current: string }) {
             props.current === "legacy-import" ||
             props.current === "backfill" ||
             props.current === "merge" ||
+            props.current === "priority" ||
             props.current === "delete"
           ? "group"
           : props.current === "search"

@@ -711,7 +711,7 @@ export function SheetImport() {
               <p className="saved" role="status">
                 <strong>
                   {saved}경기 저장됨 ·{" "}
-                  {sideMode === "unknown" ? "진영 미상" : sideMode === "a-blue" ? "팀 A 블루 / 팀 B 레드" : "표의 진영 열"}
+                  {sideMode === "unknown" ? "진영 미상" : sideMode === "a-blue" ? "팀 A → 블루팀, 팀 B → 레드팀" : "표의 진영 열"}
                 </strong>
               </p>
               <p className="hint">

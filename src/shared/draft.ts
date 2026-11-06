@@ -1,5 +1,5 @@
 import { satisfies, type TeamConstraint } from "./recommend";
-import { POSITIONS, TEAMS, type MatchView, type Position, type Team } from "./types";
+import { POSITIONS, TEAMS, type MatchView, type Position, type SeriesFormat, type Team } from "./types";
 
 /**
  * 편성 초안. 기기에만 보관하고 서버에는 저장하지 않는다(docs/P2 P2-1).
@@ -47,8 +47,24 @@ export interface Draft {
   /** "다음 경기 준비"로 만든 초안이면 안내 문구를 보여준다. */
   origin: "new" | "same-teams";
   seed: number;
-  /** 같은 팀·다른 팀 조건. 팀 추천에만 쓰이고 손으로 옮기는 것은 막지 않는다. */
+  /** 같은 팀·다른 팀 조건. 팀 추천·팀 섞기에 쓰이고 손으로 옮기는 것은 막지 않는다. */
   constraints?: TeamConstraint[];
+  /**
+   * 팀 A의 진영. 준비 화면에서는 항상 "blue"다: 왼쪽 팀(A)이 블루팀, 오른쪽 팀(B)이 레드팀.
+   * "진영 바꾸기"·"진영 랜덤"은 이 값을 바꾸지 않고 두 팀의 사람을 맞바꾼다(swapSides).
+   * 예전 초안에는 없거나 "red"일 수 있어 읽을 때 normalizeDraftSide로 맞춘다. 형식 번호는 그대로다.
+   */
+  teamASide?: "blue" | "red";
+  /**
+   * "다음 경기 준비"로 만든 초안이면 그 경기의 ID(2026-11-06, 선택 필드라 형식 번호는 그대로).
+   * 시리즈로 이어가기의 직전 경기가 된다.
+   */
+  sourceMatchId?: string;
+  /**
+   * 시리즈로 이어가기를 골랐으면 값이 있다. 직전 경기가 아직 시리즈에 없을 때 새로 만들 시리즈의 형식·이름.
+   * 시작할 때 서버에 series 필드로 보낸다(src/server/series.ts). 없거나 null이면 이어가지 않는다.
+   */
+  series?: { format: SeriesFormat; name: string } | null;
 }
 
 /** 시드로 재현할 수 있는 난수. */
@@ -72,18 +88,55 @@ export function shuffle<T>(items: readonly T[], rng: () => number): T[] {
   return result;
 }
 
-function nextSeed(seed: number): number {
+export function nextSeed(seed: number): number {
   return (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 }
 
-/** 한 팀의 포지션을 무작위로 정한다. 고정된 사람은 그대로 둔다. */
-function assignTeamPositions(slots: DraftSlot[], team: Team, rng: () => number): DraftSlot[] {
+/**
+ * 초안 키 → 기피 라인(src/shared/avoid.ts). 라인 무작위 배정이 되도록 피한다.
+ * 초안에 저장하지 않고 섞을 때마다 모임 참가자 정보에서 만든다. 비어 있으면 예전과 똑같은 결과다.
+ */
+export type AvoidMap = Readonly<Record<string, readonly Position[] | undefined>>;
+
+/** 순열(사전 순, 결정적). 팀 안의 비고정 인원은 5명 이하라 최대 120개다. */
+function permutations<T>(items: readonly T[]): T[][] {
+  if (items.length <= 1) return [[...items]];
+  const result: T[][] = [];
+  items.forEach((item, i) => {
+    for (const rest of permutations([...items.slice(0, i), ...items.slice(i + 1)])) result.push([item, ...rest]);
+  });
+  return result;
+}
+
+/**
+ * 한 팀의 포지션을 무작위로 정한다. 고정된 사람은 그대로 둔다(고정이 기피보다 먼저다).
+ * 이 팀의 비고정 인원 중 기피 라인이 있는 사람이 없으면 예전 방식(남은 포지션을 섞어 차례로) 그대로라 결과가 같다.
+ * 있으면 남은 포지션의 배정을 모두 나열해 기피를 어기는 수가 가장 적은 배정만 남기고(어김 0이 가능하면 0인 것만)
+ * 그 안에서 균등하게 하나를 고른다.
+ */
+function assignTeamPositions(slots: DraftSlot[], team: Team, rng: () => number, avoid?: AvoidMap): DraftSlot[] {
   const members = slots.filter((s) => s.team === team);
   const taken = new Set(members.filter((m) => m.locked).map((m) => m.position));
-  const free = shuffle(
-    POSITIONS.filter((p) => !taken.has(p)),
-    rng,
-  );
+  const freePositions = POSITIONS.filter((p) => !taken.has(p));
+  const freeMembers = members.filter((m) => !m.locked);
+  const avoidOf = (key: string) => avoid?.[key] ?? [];
+  const useAvoid =
+    freeMembers.some((m) => avoidOf(m.key).length > 0) && freePositions.length === freeMembers.length;
+  let free: Position[];
+  if (!useAvoid) {
+    free = shuffle(freePositions, rng);
+  } else {
+    let best: Position[][] = [];
+    let min = Infinity;
+    for (const perm of permutations(freePositions)) {
+      const misses = perm.filter((p, i) => avoidOf(freeMembers[i]!.key).includes(p)).length;
+      if (misses < min) {
+        min = misses;
+        best = [perm];
+      } else if (misses === min) best.push(perm);
+    }
+    free = best[Math.floor(rng() * best.length)]!;
+  }
   let index = 0;
   return slots.map((s) => {
     if (s.team !== team || s.locked) return s;
@@ -91,9 +144,9 @@ function assignTeamPositions(slots: DraftSlot[], team: Team, rng: () => number):
   });
 }
 
-function assignAllPositions(slots: DraftSlot[], rng: () => number): DraftSlot[] {
+function assignAllPositions(slots: DraftSlot[], rng: () => number, avoid?: AvoidMap): DraftSlot[] {
   let result = slots;
-  for (const team of TEAMS) result = assignTeamPositions(result, team, rng);
+  for (const team of TEAMS) result = assignTeamPositions(result, team, rng, avoid);
   return result;
 }
 
@@ -115,6 +168,8 @@ export interface NewDraftOptions {
   now: string;
   /** 팀을 미리 정했으면 그대로 쓴다. 없으면 무작위로 5:5로 나눈다. */
   teamOf?: Record<string, Team>;
+  /** 기피 라인. 없거나 비어 있으면 예전과 같은 결과. */
+  avoid?: AvoidMap;
 }
 
 /** 10명으로 새 초안을 만든다. 포지션은 완전 무작위다. */
@@ -141,21 +196,28 @@ export function createDraft(people: DraftPerson[], options: NewDraftOptions): Dr
     baseLiveVersion: options.baseLiveVersion,
     createdAt: options.now,
     people,
-    slots: assignAllPositions(slots, rng),
+    slots: assignAllPositions(slots, rng, options.avoid),
     draws: {},
     previousSlots: null,
     origin: "new",
     seed: nextSeed(options.seed),
+    teamASide: "blue",
   };
 }
 
-/** 포지션을 다시 뽑는다. 고정된 사람은 그대로다. 추첨 기록은 버린다. */
-export function rerollPositions(draft: Draft): Draft {
+/**
+ * 라인 섞기(준비 화면 "올랜덤"의 공통 부분). 팀 구성은 그대로 두고 각 팀 안에서 포지션만 무작위로 다시 뽑는다.
+ * 고정된 사람은 포지션을 지킨다. 추첨 기록은 버리고, 직전 편성으로 되돌릴 수 있다.
+ * 팀원을 바꾸는 것은 처음 5:5, 팀 추천 적용, 두 사람 자리 바꾸기, 다른 사람으로 교체뿐이다.
+ * 서포터를 공평하게 고르는 부분은 rotation.ts의 shuffleDraft가 이어서 한다.
+ * avoid(기피 라인)를 넘기면 되도록 피한다(assignTeamPositions). 비어 있으면 예전과 같은 결과다.
+ */
+export function rerollPositions(draft: Draft, avoid?: AvoidMap): Draft {
   const rng = rngFromSeed(draft.seed);
   return {
     ...draft,
     previousSlots: draft.slots,
-    slots: assignAllPositions(draft.slots, rng),
+    slots: assignAllPositions(draft.slots, rng, avoid),
     draws: {},
     seed: nextSeed(draft.seed),
   };
@@ -179,12 +241,13 @@ export function swapPeople(draft: Draft, keyA: string, keyB: string): Draft {
 }
 
 /**
- * 좌우 바꾸기(docs/P4 시나리오 19): 두 팀의 A·B 자리를 통째로 맞바꾼다.
- * 팀 구성·포지션·고정은 그대로이고 이름표(A/B)만 바뀐다.
+ * 진영 바꾸기(docs/P4 시나리오 19): 블루팀(A) 5명과 레드팀(B) 5명을 통째로 맞바꾼다.
+ * 팀 구성·포지션·고정은 사람을 따라가고 A/B 이름표만 바뀐다. 팀 A는 계속 블루라(teamASide = "blue")
+ * 블루였던 5명이 레드가 된다.
  * 서포터 추첨 기록도 함께 옮긴다. 추첨 지문에는 팀 이름표가 들어가지 않으므로(rotation.ts)
  * 옮긴 기록은 그대로 유효하고, "두 팀 추첨 유지"가 깨지지 않는다.
  * 직전 편성(되돌리기)도 같은 방식으로 바꿔, 되돌려도 추첨 기록과 어긋나지 않게 한다.
- * 두 번 바꾸면 원래와 같다. 팀 조건(같은 팀·다른 팀)은 좌우와 무관하다.
+ * 두 번 바꾸면 원래와 같다. 팀 조건(같은 팀·다른 팀)은 진영과 무관하다.
  */
 export function swapSides(draft: Draft): Draft {
   const flip = (slots: DraftSlot[]): DraftSlot[] =>
@@ -197,7 +260,25 @@ export function swapSides(draft: Draft): Draft {
     slots: flip(draft.slots),
     previousSlots: draft.previousSlots ? flip(draft.previousSlots) : null,
     draws,
+    teamASide: "blue",
   };
+}
+
+/**
+ * 예전 초안을 "팀 A = 블루"로 맞춘다. "red"였으면(블루였던 쪽이 B) 두 팀을 맞바꿔 블루였던 5명이 그대로 블루가 되게 하고,
+ * 없었으면("나중에 정하기") 지금 자리 그대로 A를 블루로 둔다. 이미 "blue"면 그대로 돌려준다.
+ */
+export function normalizeDraftSide(draft: Draft): Draft {
+  if (draft.teamASide === "blue") return draft;
+  if (draft.teamASide === "red") return swapSides(draft);
+  return { ...draft, teamASide: "blue" };
+}
+
+/** 진영 랜덤: 시드로 반반 확률로 두 팀을 맞바꾼다(진영 바꾸기). 팀 A는 계속 블루다. */
+export function randomDraftSide(draft: Draft): Draft {
+  const swap = rngFromSeed(draft.seed)() < 0.5;
+  const next = swap ? swapSides(draft) : normalizeDraftSide(draft);
+  return { ...next, seed: nextSeed(draft.seed) };
 }
 
 /** 한 사람을 초안에 없는 다른 사람으로 바꾼다. 자리(팀·포지션)는 그대로 물려받는다. */
@@ -242,8 +323,11 @@ export function toggleLock(draft: Draft, key: string): Draft {
   };
 }
 
-/** 추천 등으로 정한 팀 구성을 적용한다. 포지션은 다시 뽑고 고정은 가능한 범위에서 유지한다. */
-export function applyTeams(draft: Draft, teamA: readonly string[]): Draft {
+/**
+ * 추천 등으로 정한 팀 구성을 적용한다. 포지션은 다시 뽑고 고정은 가능한 범위에서 유지한다.
+ * avoid(기피 라인)를 넘기면 라인을 뽑을 때 되도록 피한다. 비어 있으면 예전과 같은 결과다.
+ */
+export function applyTeams(draft: Draft, teamA: readonly string[], avoid?: AvoidMap): Draft {
   const inA = new Set(teamA);
   const rng = rngFromSeed(draft.seed);
   // 같은 팀 안에서 고정 포지션이 겹치면 뒤 사람의 고정을 푼다.
@@ -260,7 +344,7 @@ export function applyTeams(draft: Draft, teamA: readonly string[]): Draft {
   return {
     ...draft,
     previousSlots: draft.slots,
-    slots: assignAllPositions(slots, rng),
+    slots: assignAllPositions(slots, rng, avoid),
     draws: {},
     seed: nextSeed(draft.seed),
   };
@@ -275,7 +359,7 @@ export function undoDraft(draft: Draft): Draft {
 /**
  * 다음 판 준비(docs/P1 후보 A). 같은 팀으로 초안을 만들고 포지션은 새로 뽑는다.
  * 복사하는 것: 참가자, 팀 구성. keepPositions면 포지션도.
- * 복사하지 않는 것: 경기 ID, 승패, 진영, 요청 ID, 완료 상태, 순환 사건, 추첨 기록.
+ * 복사하지 않는 것: 경기 ID, 승패, 진영(새 초안은 팀 A = 블루), 요청 ID, 완료 상태, 순환 사건, 추첨 기록.
  */
 export function draftFromMatch(
   match: MatchView,
@@ -301,6 +385,36 @@ export function draftFromMatch(
   return { ...draft, origin: "same-teams" };
 }
 
+/**
+ * 준비 화면의 "포지션 유지": 지난 경기의 팀과 포지션으로 다시 맞춘다(draftFromMatch + keepPositions).
+ * 팀 A는 블루 그대로이고, 팀 조건(지난 경기 사람끼리의 것)은 지우지 않는다. 같은 사람들이면 "직전 편성으로" 되돌릴 수 있다.
+ */
+export function keepMatchPositions(
+  draft: Draft,
+  match: MatchView,
+  nameOf: (participantId: string) => string,
+  now: string,
+): Draft {
+  const fresh = draftFromMatch(match, nameOf, {
+    groupId: draft.groupId,
+    baseLiveVersion: draft.baseLiveVersion,
+    seed: draft.seed,
+    now,
+    keepPositions: true,
+  });
+  const keys = new Set(fresh.people.map((p) => p.key));
+  const samePeople = draft.people.every((p) => keys.has(p.key));
+  const next: Draft = {
+    ...fresh,
+    constraints: (draft.constraints ?? []).filter((c) => keys.has(c.a) && keys.has(c.b)),
+    previousSlots: samePeople ? draft.slots : null,
+  };
+  // 시리즈로 이어가기 선택(선택 필드)은 그대로 둔다.
+  if (draft.sourceMatchId !== undefined) next.sourceMatchId = draft.sourceMatchId;
+  if (draft.series !== undefined) next.series = draft.series;
+  return next;
+}
+
 /** 저장소에서 읽은 값이 쓸 수 있는 초안인지 확인한다. 형식이 다르면 버린다. */
 export function parseStoredDraft(text: string | null): Draft | null {
   if (!text) return null;
@@ -309,7 +423,8 @@ export function parseStoredDraft(text: string | null): Draft | null {
     if (value.formatVersion !== DRAFT_FORMAT_VERSION) return null;
     if (!Array.isArray(value.people) || !Array.isArray(value.slots)) return null;
     if (value.people.length !== 10 || value.slots.length !== 10) return null;
-    return value;
+    // 예전 초안(진영 "red"·없음)은 팀 A = 블루로 맞춘다.
+    return normalizeDraftSide(value);
   } catch {
     return null;
   }

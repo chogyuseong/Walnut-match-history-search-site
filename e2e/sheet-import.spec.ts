@@ -156,7 +156,7 @@ test("붙여 넣은 표의 열 순서가 다르면 열 맞추기로 넘어가 �
   await expect(page.getByRole("button", { name: "2경기 가져오기" })).toBeDisabled();
   await page.getByRole("checkbox", { name: "틀린 줄 1개는 빼고 넣기" }).check();
   await page.getByRole("button", { name: "2경기 가져오기" }).click();
-  await expect(page.getByText("2경기 저장됨 · 팀 A 블루 / 팀 B 레드")).toBeVisible();
+  await expect(page.getByText("2경기 저장됨 · 팀 A → 블루팀, 팀 B → 레드팀")).toBeVisible();
 
   const snap = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();
   expect(snap.matches).toHaveLength(2);

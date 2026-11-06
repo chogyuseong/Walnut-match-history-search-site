@@ -205,19 +205,77 @@ export async function revokeSessions(env: Env, accountId: string): Promise<void>
     .run();
 }
 
+/** 모임에서 이 계정의 역할. owner = 대표 운영자(group_operators), co = 공동 운영자(group_co_operators). */
+export type OperatorRole = "owner" | "co";
+
+/** 요청마다 표를 다시 읽는다(캐시하지 않음): 내보낸 공동 운영자의 다음 요청은 바로 거절된다. */
+export async function operatorRole(env: Env, groupId: string, accountId: string): Promise<OperatorRole | null> {
+  const row = await env.DB.prepare(
+    `SELECT 'owner' AS role FROM group_operators WHERE group_id = ?1 AND account_id = ?2
+     UNION ALL
+     SELECT 'co' AS role FROM group_co_operators WHERE group_id = ?1 AND account_id = ?2
+     LIMIT 1`,
+  )
+    .bind(groupId, accountId)
+    .first<{ role: OperatorRole }>();
+  return row?.role ?? null;
+}
+
 /**
- * 이 계정이 모임의 운영자인지 확인한다.
+ * 이 계정이 모임의 운영자(대표 또는 공동)인지 확인한다.
  * 모임이 없는 경우와 권한이 없는 경우에 같은 오류를 돌려줘 존재 여부를 드러내지 않는다.
  */
 export async function requireOperator(env: Env, req: Request, groupId: string): Promise<string> {
   const accountId = await requireAccountId(env, req);
+  if (!(await operatorRole(env, groupId, accountId))) {
+    throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  }
+  return accountId;
+}
+
+/**
+ * 대표 운영자만 하는 작업(운영자 넘기기, 모임 삭제, 백업에서 복원, 공동 운영자 초대·내보내기).
+ * 공동 운영자에게는 403으로 이유를 알려 준다. 운영자가 아니면 requireOperator와 같은 404다.
+ */
+export async function requireOwner(env: Env, req: Request, groupId: string): Promise<string> {
+  const accountId = await requireAccountId(env, req);
+  const role = await operatorRole(env, groupId, accountId);
+  if (!role) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  if (role !== "owner") {
+    throw new ApiError(403, "OWNER_ONLY", "대표 운영자만 할 수 있어요. 대표 운영자에게 요청해 주세요.");
+  }
+  return accountId;
+}
+
+/**
+ * 멤버(참가자 본인 연결, migrations/0019) 권한. 운영자 권한(operatorRole·requireOperator)과 따로 둔다:
+ * 멤버는 운영자 경로를 하나도 쓸 수 없고, 멤버 경로(/api/member/:gid/...)만 쓴다.
+ * 요청마다 연결 표를 다시 읽는다(캐시하지 않음): 끊긴 연결의 다음 요청은 바로 거절된다.
+ */
+export async function memberParticipantId(env: Env, groupId: string, accountId: string): Promise<string | null> {
   const row = await env.DB.prepare(
-    "SELECT 1 AS ok FROM group_operators WHERE group_id = ?1 AND account_id = ?2",
+    "SELECT participant_id FROM participant_links WHERE group_id = ?1 AND account_id = ?2",
   )
     .bind(groupId, accountId)
-    .first<{ ok: number }>();
-  if (!row) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
-  return accountId;
+    .first<{ participant_id: string }>();
+  return row?.participant_id ?? null;
+}
+
+export interface MemberContext {
+  groupId: string;
+  accountId: string;
+  participantId: string;
+}
+
+/**
+ * 이 계정이 모임의 멤버(연결한 참가자)인지 확인한다. 로그인이 없으면 401, 연결이 없거나 모임이 없으면
+ * 운영자 경로와 같은 404(존재 여부를 드러내지 않는다).
+ */
+export async function requireMember(env: Env, req: Request, groupId: string): Promise<MemberContext> {
+  const accountId = await requireAccountId(env, req);
+  const participantId = await memberParticipantId(env, groupId, accountId);
+  if (!participantId) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  return { groupId, accountId, participantId };
 }
 
 /** 조회 토큰으로 모임 ID를 찾는다. */
