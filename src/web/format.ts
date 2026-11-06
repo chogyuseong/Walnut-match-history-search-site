@@ -28,6 +28,40 @@ export const SIDE_LABEL: Record<Side, string> = {
 /** 팀은 색이 아니라 기호와 글자로 구분한다. */
 export const TEAM_MARK: Record<Team, string> = { A: "●", B: "■" };
 
+/** 팀의 진영이 정해져 있으면 "blue"/"red", 모르면(진영 미정·미상) null. */
+export function knownSideOf(team: Team, teamASide: Side | null | undefined): "blue" | "red" | null {
+  const side = sideOfTeam(team, teamASide ?? null);
+  return side === "blue" || side === "red" ? side : null;
+}
+
+/**
+ * 팀 이름 규칙(모든 화면 공통). 진영이 정해져 있으면 "블루팀"/"레드팀", 모르면 "팀 A"/"팀 B".
+ * 좌우(A가 왼쪽·위)는 바꾸지 않는다: A가 레드인 경기는 왼쪽 팀이 "레드팀"이다.
+ */
+export function teamName(team: Team, teamASide: Side | null | undefined): string {
+  const side = knownSideOf(team, teamASide);
+  if (side === "blue") return "블루팀";
+  if (side === "red") return "레드팀";
+  return `팀 ${team}`;
+}
+
+/** 팀 상자 클래스. 진영이 정해져 있으면 그 색의 테두리(styles.css .team.side-blue/red). */
+export function teamBoxClass(team: Team, teamASide: Side | null | undefined): string {
+  const side = knownSideOf(team, teamASide);
+  return side ? `team side-${side}` : "team";
+}
+
+/**
+ * 받침에 맞춘 조사. pair는 [받침 있을 때, 없을 때]. 예: josa("블루팀", ["은", "는"]) → "은", josa("팀 A", ["은", "는"]) → "는".
+ * 끝이 영문이면 읽는 소리로 본다(L·M·N·R은 받침이 있다고 본다).
+ */
+export function josa(word: string, pair: readonly [string, string]): string {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 0 ? pair[1] : pair[0];
+  return /[LMNRlmnr]/.test(last) ? pair[0] : pair[1];
+}
+
 export const STATE_LABEL: Record<MatchView["state"], string> = {
   in_progress: "진행 중",
   awaiting_result: "결과 미입력",
@@ -79,8 +113,13 @@ export function teamRoster(match: MatchView, team: Team): MatchView["roster"] {
 
 export function resultLine(match: MatchView): string {
   if (match.state !== "confirmed" || !match.winnerTeam) return STATE_LABEL[match.state];
-  const side = sideOfTeam(match.winnerTeam, match.teamASide);
-  return `팀 ${match.winnerTeam} 승 · ${SIDE_LABEL[side ?? "unknown"]}`;
+  return winnerText(match.winnerTeam, match.teamASide);
+}
+
+/** "블루팀 승". 진영을 모르면 "팀 A 승 · 진영 미상". */
+export function winnerText(winnerTeam: Team, teamASide: Side | null | undefined, verb = "승"): string {
+  const name = teamName(winnerTeam, teamASide);
+  return knownSideOf(winnerTeam, teamASide) ? `${name} ${verb}` : `${name} ${verb} · ${SIDE_LABEL.unknown}`;
 }
 
 /**
@@ -111,15 +150,13 @@ export function rateTier(wins: number, games: number): string {
 
 /**
  * 명단 텍스트(docs/P1 후보 C). 복사한 시점의 내용이며 끝에 기준 시각을 붙인다.
- * 진영이 확인되지 않았으면 팀 A·B로만 쓴다. 실력 그룹은 넣지 않는다.
+ * 팀 이름은 teamName 규칙(진영이 정해졌으면 블루팀·레드팀, 아니면 팀 A·B). 실력 그룹은 넣지 않는다.
  */
 export function matchRosterText(snapshot: Snapshot, match: MatchView, link: string | null): string {
   const nameOf = nameMap(snapshot);
   const lines = [`${snapshot.group.name} · ${match.matchNo}경기 · ${STATE_LABEL[match.state]}`];
   for (const team of ["A", "B"] as const) {
-    const side = sideOfTeam(team, match.teamASide);
-    const sideText = side && side !== "unknown" ? ` (${SIDE_LABEL[side]})` : "";
-    lines.push("", `${TEAM_MARK[team]} 팀 ${team}${sideText}`);
+    lines.push("", `${TEAM_MARK[team]} ${teamName(team, match.teamASide)}`);
     for (const entry of teamRoster(match, team)) {
       const position = entry.position ? POSITION_LABEL[entry.position] : "-";
       lines.push(`${position} ${nameOf(entry.participantId)}`);
@@ -130,14 +167,12 @@ export function matchRosterText(snapshot: Snapshot, match: MatchView, link: stri
   return lines.join("\n");
 }
 
-/** 아직 시작하지 않은 편성의 명단 텍스트. 링크가 없다. 진영을 골라 두었으면 함께 쓴다(실력 그룹은 넣지 않는다). */
+/** 아직 시작하지 않은 편성의 명단 텍스트. 링크가 없다. 준비 화면은 팀 A가 항상 블루팀이다(실력 그룹은 넣지 않는다). */
 export function draftRosterText(draft: Draft): string {
   const nameOf = new Map(draft.people.map((p) => [p.key, p.name]));
   const lines = ["내전 편성 (아직 시작 전)"];
   for (const team of ["A", "B"] as const) {
-    const side = sideOfTeam(team, draft.teamASide ?? null);
-    const sideText = side && side !== "unknown" ? ` (${SIDE_LABEL[side]})` : "";
-    lines.push("", `${TEAM_MARK[team]} 팀 ${team}${sideText}`);
+    lines.push("", `${TEAM_MARK[team]} ${teamName(team, draft.teamASide ?? "blue")}`);
     const members = draft.slots
       .filter((s) => s.team === team)
       .sort((a, b) => positionIndex(a.position) - positionIndex(b.position));
@@ -173,12 +208,4 @@ export function objectParticle(word: string): string {
   if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 0 ? "를" : "을";
   if (/[0-9]/.test(last)) return "013678".includes(last) ? "을" : "를";
   return "을(를)";
-}
-
-/** 팀 상자 제목 옆 진영 표시(MatchTeams의 sideOf). 진영을 모르면(미정·미상) null. */
-export function teamSideLabel(match: MatchView): (team: Team) => string | null {
-  return (team) => {
-    const side = sideOfTeam(team, match.teamASide);
-    return side === "blue" || side === "red" ? SIDE_LABEL[side] : null;
-  };
 }

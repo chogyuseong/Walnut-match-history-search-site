@@ -191,8 +191,10 @@ describe("다음 판 준비 (26)", () => {
     expect(draft.origin).toBe("same-teams");
     expect(draft.draws).toEqual({});
     expect(isCompleteDraft(draft)).toBe(true);
+    // 진영은 경기의 값(A가 레드)을 복사하지 않고 준비 화면 규칙대로 팀 A = 블루다.
+    expect(draft.teamASide).toBe("blue");
     const text = JSON.stringify(draft);
-    for (const forbidden of ["m1", "winnerTeam", "teamASide", "red", "confirmed", "requestId"]) {
+    for (const forbidden of ["m1", "winnerTeam", "red", "confirmed", "requestId"]) {
       expect(text).not.toContain(forbidden);
     }
   });

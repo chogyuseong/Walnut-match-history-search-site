@@ -3,7 +3,6 @@ import {
   addConstraint,
   createDraft,
   isCompleteDraft,
-  setDraftSide,
   toggleLock,
   undoDraft,
   violatedConstraints,
@@ -119,9 +118,9 @@ describe("팀까지 올랜덤: 지정자 없음 · 조건 · 결정성 · 되돌
     const map = priorities([1, 1, 2, 2, 2, null, null, null, null, null]);
     const result = shuffleTeamsByPriority(base(9), map, W);
     const text = teamShuffleText(result);
-    expect(text).toMatch(/^1순위 1:1 · 2순위 [12]:[12] · 미지정 [23]:[23](으로|로) 나눴어요\.$/);
+    expect(text).toMatch(/^1순위 1:1 · 2순위 [12]:[12] · 미지정 [23]:[23](으로|로) 나눴어요\(블루팀:레드팀\)\.$/);
     // 받침에 맞는 조사: 마지막 숫자가 3이면 "으로", 2면 "로".
-    expect(text.endsWith(":3으로 나눴어요.") || text.endsWith(":2로 나눴어요.")).toBe(true);
+    expect(text.endsWith(":3으로 나눴어요(블루팀:레드팀).") || text.endsWith(":2로 나눴어요(블루팀:레드팀).")).toBe(true);
   });
 
   it("같은 팀·다른 팀 조건을 지킬 수 있으면 지킨다", () => {
@@ -162,11 +161,11 @@ describe("팀까지 올랜덤: 지정자 없음 · 조건 · 결정성 · 되돌
 
   it("진영·조건은 남기고 추첨 기록은 비우며, 직전 편성으로 정확히 되돌린다", () => {
     const map = priorities([1, 1, 2, 2, 2, 3, 3, 4, 4, 4]);
-    let d = setDraftSide(base(13), "red");
+    let d = base(13);
     d = addConstraint(d, { kind: "different", a: "p:id2", b: "p:id3" });
     d = { ...d, draws: { A: { fingerprint: "x", inKey: "p:id0", outKey: "p:id1", fromPosition: "top" } } };
     const { draft } = shuffleTeamsByPriority(d, map, W);
-    expect(draft.teamASide).toBe("red");
+    expect(draft.teamASide).toBe("blue");
     expect(draft.constraints).toEqual(d.constraints);
     expect(draft.draws).toEqual({});
     expect(draft.previousSlots).toBe(d.slots);

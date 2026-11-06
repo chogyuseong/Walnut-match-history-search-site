@@ -121,7 +121,7 @@ test("같은 팀·다른 팀 조건이 팀 추천에 적용된다", async ({ pag
   await page.getByRole("button", { name: "추가", exact: true }).click();
   await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
 
-  const teamA = page.getByRole("region", { name: "팀 A" });
+  const teamA = page.getByRole("region", { name: "블루팀" });
   const nameAt = async (index: number) =>
     (await teamA.getByRole("button").nth(index).innerText()).split("\n").pop()!.trim();
   const first = await nameAt(0);
@@ -195,7 +195,7 @@ test("경기 시각만 고치면 승패는 그대로이고 이력이 남는다",
   });
 
   await page.goto(`/#/m/${started.match.id}`);
-  await expect(page.getByText("승리 팀: 팀 B")).toBeVisible();
+  await expect(page.getByText("승리 팀: 레드팀")).toBeVisible();
   await page
     .getByRole("listitem")
     .filter({ hasText: "경기 시각:" })
@@ -206,7 +206,7 @@ test("경기 시각만 고치면 승패는 그대로이고 이력이 남는다",
   await dialog.getByLabel("경기 시각").fill("2025-01-15T20:30");
   await dialog.getByRole("button", { name: "변경" }).click();
   await expect(page.getByText(/경기 시각: 1월 15일 오후 8:30/)).toBeVisible();
-  await expect(page.getByText("승리 팀: 팀 B")).toBeVisible();
+  await expect(page.getByText("승리 팀: 레드팀")).toBeVisible();
   await expect(page.getByText("승리 팀의 진영: 레드")).toBeVisible();
   await expect(page.getByText(/정정 · 경기 시각/)).toBeVisible();
 });

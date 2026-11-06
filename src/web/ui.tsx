@@ -3,16 +3,18 @@ import { SessionExpiredNote } from "./screens/Login";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, SMALL_SAMPLE, type Scope } from "../shared/stats";
 import type { Standing } from "../shared/titles";
-import {
-  sideOfTeam,
-  TEAMS,
-  type MatchView,
-  type Position,
-  type Snapshot,
-  type Team,
-} from "../shared/types";
+import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/types";
 import { ApiFailure } from "./api";
-import { copyText, formatTime, POSITION_LABEL, rateTier, TEAM_MARK, teamRoster } from "./format";
+import {
+  copyText,
+  formatTime,
+  POSITION_LABEL,
+  rateTier,
+  TEAM_MARK,
+  teamBoxClass,
+  teamName,
+  teamRoster,
+} from "./format";
 
 /** 라인 아이콘. 디자인 키트가 직접 그린 도형이며 게임의 공식 아이콘이 아니다. */
 const ROLE_SHAPES: Record<Position, ReactNode> = {
@@ -290,29 +292,21 @@ export function SavedBadge(props: { at: string | null | undefined; timeZone?: st
   return <span className="badge ok">저장됨 · {formatTime(props.at, props.timeZone)} 확인</span>;
 }
 
-/** 팀 상자의 클래스. 진영이 정해진 경기만 블루·레드 색을 입힌다. */
-function teamClass(side: string | null): string {
-  return side === "blue" || side === "red" ? `team side-${side}` : "team";
-}
-
-/** 확정 명단. 좁은 화면에서는 두 팀을 위아래로 쌓는다(CSS). */
-export function MatchTeams(props: {
-  match: MatchView;
-  nameOf: (id: string) => string;
-  highlightId?: string | null;
-  sideOf?: (team: Team) => string | null;
-}) {
+/**
+ * 확정 명단. 좁은 화면에서는 두 팀을 위아래로 쌓는다(CSS).
+ * 팀 이름·테두리는 teamName 규칙: 진영이 정해진 경기는 "블루팀"/"레드팀"과 그 색, 모르면 "팀 A"/"팀 B"와 중립 테두리.
+ */
+export function MatchTeams(props: { match: MatchView; nameOf: (id: string) => string; highlightId?: string | null }) {
   return (
     <div className="teams">
       {TEAMS.map((team) => (
         <section
           key={team}
-          className={teamClass(sideOfTeam(team, props.match.teamASide))}
-          aria-label={`팀 ${team}`}
+          className={teamBoxClass(team, props.match.teamASide)}
+          aria-label={teamName(team, props.match.teamASide)}
         >
           <h3>
-            <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team}
-            {props.sideOf?.(team) ? <span className="side"> · {props.sideOf(team)}</span> : null}
+            <span aria-hidden="true">{TEAM_MARK[team]}</span> {teamName(team, props.match.teamASide)}
           </h3>
           <ul>
             {teamRoster(props.match, team).map((entry) => (

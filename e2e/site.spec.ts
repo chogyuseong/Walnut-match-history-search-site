@@ -111,9 +111,13 @@ test("경기 카드: 이름은 개인 통계로, 카드는 경기 상세로", as
 
   // 맨 위 카드는 가장 최근 경기(11경기)이고 양 팀 10명의 이름이 보인다.
   const first = cards.first();
-  await expect(first.getByRole("button").first()).toContainText("11경기 · 팀 A 승 · 블루");
-  const winners = first.getByRole("group", { name: "팀 A 블루 승리" });
-  const losers = first.getByRole("group", { name: "팀 B 레드 패배" });
+  await expect(first.getByRole("button").first()).toContainText("11경기 · 블루팀 승");
+  const winners = first.getByRole("group", { name: "블루팀 승리" });
+  const losers = first.getByRole("group", { name: "레드팀 패배" });
+  // 줄 머리는 진영 이름이다. 진영 미상 경기(10경기)는 팀 A·B 표시 그대로다.
+  await expect(winners.locator(".mc-team-name")).toHaveText("블루");
+  await expect(cards.nth(1).getByRole("group", { name: /^팀 A/ })).toHaveCount(1);
+  await expect(cards.nth(1).getByRole("button").first()).toContainText("팀 B 승 · 진영 미상");
   await expect(winners.getByRole("button")).toHaveCount(5);
   await expect(losers.getByRole("button")).toHaveCount(5);
   await expect(winners.getByRole("button").first()).toHaveText("선수11");
@@ -133,7 +137,7 @@ test("경기 카드: 이름은 개인 통계로, 카드는 경기 상세로", as
 
   // 카드 머리 → 경기 상세
   await page.goBack();
-  await cards.first().getByRole("button", { name: /11경기 · 팀 A 승/ }).click();
+  await cards.first().getByRole("button", { name: /11경기 · 블루팀 승/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "11경기" })).toBeVisible();
 
   // 카드의 빈 곳(팀 표시 칸)을 눌러도 경기 상세로 간다.
@@ -353,7 +357,7 @@ test("홈 요약과 결과 이미지(PNG)", async ({ page }, testInfo) => {
 
   // 경기 한 건 이미지
   await page.goto("/#/records");
-  await page.getByRole("region", { name: "경기 목록" }).getByRole("button", { name: /11경기 · 팀 A 승/ }).click();
+  await page.getByRole("region", { name: "경기 목록" }).getByRole("button", { name: /11경기 · 블루팀 승/ }).click();
   await page.getByRole("button", { name: "결과 이미지" }).click();
   const matchDialog = page.getByRole("dialog", { name: "11경기 결과 이미지" });
   await expect(matchDialog.getByRole("img")).toBeVisible();

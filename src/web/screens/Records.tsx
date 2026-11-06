@@ -32,7 +32,6 @@ import {
   type Position,
   type Side,
   type Snapshot,
-  type Team,
 } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
 import {
@@ -46,6 +45,7 @@ import {
   SIDE_LABEL,
   standingsOf,
   STATE_LABEL,
+  teamName,
   teamRoster,
 } from "../format";
 import { MatchCard } from "../matchCard";
@@ -65,14 +65,18 @@ const REVISION_LABEL: Record<string, string> = {
   backfill: "지난 경기 입력",
 };
 
-function changeText(key: string, nameOf: (id: string) => string): string {
+function changeText(key: string, nameOf: (id: string) => string, match: MatchView | undefined): string {
   if (key === "winnerTeam") return "승리 팀";
   if (key === "teamASide") return "진영";
   if (key === "playedAt") return "경기 시각";
   if (key === "participant") return "참가자";
   if (key === "state") return "상태";
   if (key.startsWith("position:")) return `${nameOf(key.slice(9))}의 포지션`;
-  if (key.startsWith("rotation:")) return `팀 ${key.slice(9)} 서포터 횟수 기록`;
+  if (key.startsWith("rotation:")) {
+    const team = key.slice(9);
+    const name = team === "A" || team === "B" ? teamName(team, match?.teamASide) : `팀 ${team}`;
+    return `${name} 서포터 횟수 기록`;
+  }
   return key;
 }
 
@@ -536,7 +540,7 @@ export function Records(props: {
                       {r.matchNo}경기 · {REVISION_LABEL[r.kind] ?? r.kind}
                       {r.kind === "correction"
                         ? ` (${Object.keys(r.changes)
-                            .map((k) => changeText(k, nameOf))
+                            .map((k) => changeText(k, nameOf, match))
                             .join(", ")})`
                         : ""}
                       <br />
@@ -652,14 +656,7 @@ export function MatchDetail(props: {
         {match.source === "import" ? " · 이관" : ""}
       </p>
 
-      <MatchTeams
-        match={match}
-        nameOf={nameOf}
-        sideOf={(team: Team) => {
-          const s = sideOfTeam(team, match.teamASide);
-          return s && s !== "unknown" ? SIDE_LABEL[s] : null;
-        }}
-      />
+      <MatchTeams match={match} nameOf={nameOf} />
 
       {match.state === "confirmed" && (
         <div className="button-row">
@@ -680,7 +677,7 @@ export function MatchDetail(props: {
       {match.state === "confirmed" && (
         <ul className="list">
           <li className="list-row static">
-            <span>승리 팀: 팀 {match.winnerTeam}</span>
+            <span>승리 팀: {teamName(match.winnerTeam!, match.teamASide)}</span>
             {operator && (
               <button type="button" className="secondary" onClick={() => setEditing("winner")}>
                 수정
@@ -776,7 +773,7 @@ export function MatchDetail(props: {
                 {REVISION_LABEL[r.kind] ?? r.kind}
                 {Object.keys(r.changes).length > 0 && r.kind === "correction"
                   ? ` · ${Object.keys(r.changes)
-                      .map((k) => changeText(k, nameOf))
+                      .map((k) => changeText(k, nameOf, match))
                       .join(", ")}`
                   : ""}
               </span>
@@ -804,7 +801,9 @@ export function MatchDetail(props: {
         <Dialog title="진영 수정" onClose={closeEdit}>
           <p className="note">진영만 변경합니다. 개인 승패는 유지되고 진영 통계가 다시 계산됩니다.</p>
           <fieldset>
-            <legend>이긴 팀 {match.winnerTeam}는 어느 진영이었나요?</legend>
+            <legend>
+              이긴 팀({teamName(match.winnerTeam!, match.teamASide)})은 실제로 어느 진영이었나요?
+            </legend>
             <div className="choice-row">
               {(["blue", "red", "unknown"] as const).map((value) => (
                 <label key={value} className={side === value ? "choice chosen" : "choice"}>
@@ -888,7 +887,7 @@ export function MatchDetail(props: {
                           )
                         }
                       >
-                        팀 {team} · {r.position ? POSITION_LABEL[r.position] : "-"} ·{" "}
+                        {teamName(team, match.teamASide)} · {r.position ? POSITION_LABEL[r.position] : "-"} ·{" "}
                         {nameOf(r.participantId)}
                       </button>
                     </li>
@@ -931,7 +930,7 @@ export function MatchDetail(props: {
                 {match.roster.map((r) => (
                   <li key={r.participantId}>
                     <button type="button" className="list-row" onClick={() => setOutId(r.participantId)}>
-                      팀 {r.team} · {r.position ? POSITION_LABEL[r.position] : "-"} ·{" "}
+                      {teamName(r.team, match.teamASide)} · {r.position ? POSITION_LABEL[r.position] : "-"} ·{" "}
                       {nameOf(r.participantId)}
                     </button>
                   </li>

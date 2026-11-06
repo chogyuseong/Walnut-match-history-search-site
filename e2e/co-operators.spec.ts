@@ -69,10 +69,11 @@ test("초대 링크로 공동 운영자가 되어 경기 결과를 저장하고,
   await expect(co.getByRole("heading", { name: "1경기 진행 중" })).toBeVisible();
   await co.getByRole("button", { name: "결과 입력" }).click();
   const sheet = co.getByRole("dialog", { name: "1경기 결과" });
+  // API로 진영 없이 시작한 경기: 고를 때는 "팀 B", 저장해 진영이 정해지면 "블루팀".
   await sheet.getByRole("radio", { name: /팀 B/ }).check();
-  await sheet.getByRole("radio", { name: "블루" }).check();
+  await sheet.getByRole("radio", { name: "블루", exact: true }).check();
   await sheet.getByRole("button", { name: "저장" }).click();
-  await expect(sheet.getByText("1경기 저장됨 · 팀 B 승 · 블루")).toBeVisible();
+  await expect(sheet.getByText("1경기 저장됨 · 블루팀 승")).toBeVisible();
 
   // 공동 운영자의 모임 탭: 대표 전용 작업은 보이지 않고 나가기가 있다.
   await co.goto("/#/group");

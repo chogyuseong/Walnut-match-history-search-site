@@ -4,11 +4,11 @@ import {
   applyTeams,
   createDraft,
   isCompleteDraft,
+  parseStoredDraft,
   randomDraftSide,
   removeConstraint,
   rerollPositions,
   rngFromSeed,
-  setDraftSide,
   shuffle,
   swapPeople,
   swapSides,
@@ -90,7 +90,7 @@ type Op =
   | "reroll"
   | "applyTeams"
   | "swapSides"
-  | "side"
+  | "legacySide"
   | "randomSide"
   | "undo"
   | "lock"
@@ -106,7 +106,7 @@ const OPS: Op[] = [
   "reroll",
   "applyTeams",
   "swapSides",
-  "side",
+  "legacySide",
   "randomSide",
   "undo",
   "lock",
@@ -184,8 +184,12 @@ function apply(
       return applyTeams(d, shuffle(keys, pick).slice(0, 5), avoid);
     case "swapSides":
       return swapSides(d);
-    case "side":
-      return setDraftSide(d, pick() < 0.4 ? "blue" : pick() < 0.6 ? "red" : null);
+    case "legacySide": {
+      // 예전 기기에 저장된 초안(팀 A 진영 "red" 또는 "나중에 정하기")을 다시 읽는다.
+      const { teamASide: _old, ...rest } = d;
+      const legacy = pick() < 0.5 ? { ...rest, teamASide: "red" } : rest;
+      return parseStoredDraft(JSON.stringify(legacy))!;
+    }
     case "randomSide":
       return randomDraftSide(d);
     case "undo":
@@ -248,8 +252,10 @@ function checkStep(step: Step, ctx: RotationContext, where: string, priorities: 
   expect(after.people, `${where}: 참가자 목록 그대로`).toEqual(before.people);
   expect(new Set(after.slots.map((s) => s.key)).size).toBe(10);
 
-  // 좌우 바꾸기 두 번 = 원래(진영·추첨 기록·직전 편성 포함).
-  expect(swapSides(swapSides(after)), `${where}: 좌우 두 번`).toEqual(after);
+  // 준비 화면의 초안은 어떤 조작 뒤에도 팀 A = 블루팀이다.
+  expect(after.teamASide, `${where}: 팀 A는 블루`).toBe("blue");
+  // 진영 바꾸기 두 번 = 원래(진영·추첨 기록·직전 편성 포함).
+  expect(swapSides(swapSides(after)), `${where}: 진영 바꾸기 두 번`).toEqual(after);
 
   const recordsPrevious = after !== before && after.previousSlots === before.slots;
   if (recordsPrevious) {
@@ -356,12 +362,16 @@ function checkStep(step: Step, ctx: RotationContext, where: string, priorities: 
         expect(a.position).toBe(s.position);
         expect(a.locked).toBe(s.locked);
       }
-      if (before.teamASide) expect(after.teamASide).toBe(before.teamASide === "blue" ? "red" : "blue");
-      else expect(after.teamASide).toBeUndefined();
+      expect(after.teamASide).toBe("blue");
       break;
-    case "side":
+    case "legacySide":
+      // "red"였으면 두 팀을 맞바꿔(블루였던 5명이 그대로 블루) 맞추고, 없었으면 자리 그대로 A를 블루로 둔다.
+      expect([before.slots, swapSides(before).slots], `${where}: 예전 초안 맞추기`).toContainEqual(after.slots);
+      break;
     case "randomSide":
-      expect(after.slots).toEqual(before.slots);
+      // 반반 확률로 진영 바꾸기. 바꾸지 않으면 자리 그대로다. 시드는 전진한다.
+      expect([before.slots, swapSides(before).slots], `${where}: 진영 랜덤`).toContainEqual(after.slots);
+      expect(after.seed).not.toBe(before.seed);
       break;
     case "undo":
       if (before.previousSlots) {

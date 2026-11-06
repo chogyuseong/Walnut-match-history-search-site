@@ -7,7 +7,6 @@ import {
   randomDraftSide,
   removeConstraint,
   replacePerson,
-  setDraftSide,
   swapPeople,
   swapSides,
   toggleLock,
@@ -32,9 +31,9 @@ import {
   supportCounts,
   type DrawResult,
 } from "../../shared/rotation";
-import { POSITIONS, sideOfTeam, TEAMS, type MatchView, type Snapshot, type Team } from "../../shared/types";
+import { POSITIONS, TEAMS, type MatchView, type Snapshot, type Team } from "../../shared/types";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
-import { draftRosterText, POSITION_LABEL, SIDE_LABEL, TEAM_MARK } from "../format";
+import { draftRosterText, josa, POSITION_LABEL, TEAM_MARK, teamBoxClass, teamName } from "../format";
 import { SupportCountEditor } from "../supportCountEditor";
 import { CopyButton, Dialog, ErrorNote, PosLabel, StickyAction } from "../ui";
 import { go, useAppValue } from "../useApp";
@@ -52,6 +51,9 @@ interface StartAsk {
   fairRepeatIds: string[];
   askSession: boolean;
 }
+
+/** 준비 화면의 팀 이름. 팀 A(왼쪽)는 항상 블루팀, 팀 B(오른쪽)는 레드팀이다(src/shared/draft.ts teamASide). */
+const prepTeamName = (team: Team): string => teamName(team, "blue");
 
 /** 화면 3 — 다음 경기 준비. 주요 행동은 "이 팀으로 시작" 하나다. 결과 저장 버튼은 없다. */
 export function Prep() {
@@ -305,8 +307,8 @@ export function Prep() {
           ackRepeat: [...plan.fairRepeatIds, ...plan.repeatIds],
           moveCurrentToAwaiting: plan.inProgress?.id ?? null,
           newSession: plan.askSession && wantNewSession,
-          // 진영을 골랐으면 함께 보낸다("나중에"면 보내지 않는다).
-          ...(current.teamASide ? { teamASide: current.teamASide } : {}),
+          // 준비 화면은 팀 A가 항상 블루팀이다.
+          teamASide: current.teamASide ?? "blue",
         } as { requestId: string });
         setAsk(null);
         app.setDraft(null);
@@ -406,16 +408,10 @@ export function Prep() {
       <div className="teams">
         {TEAMS.map((team) => {
           const status = drawStatus(draft, team, ctx);
-          const side = sideOfTeam(team, draft.teamASide ?? null);
           return (
-            <section
-              key={team}
-              className={side === "blue" || side === "red" ? `team side-${side}` : "team"}
-              aria-label={`팀 ${team}`}
-            >
+            <section key={team} className={teamBoxClass(team, "blue")} aria-label={prepTeamName(team)}>
               <h3>
-                <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team}
-                {(side === "blue" || side === "red") && <span className="side"> · {SIDE_LABEL[side]}</span>}
+                <span aria-hidden="true">{TEAM_MARK[team]}</span> {prepTeamName(team)}
               </h3>
               <ul>
                 {POSITIONS.map((position) => {
@@ -604,59 +600,47 @@ export function Prep() {
           <button
             type="button"
             className="secondary"
-            title="두 팀의 A·B 자리를 맞바꿉니다. 팀 구성·포지션·서포터·진영은 팀을 따라갑니다."
+            title="블루팀 5명과 레드팀 5명을 통째로 맞바꿔요. 라인·고정·서포터는 사람을 따라가요."
             onClick={() => {
               update(swapSides(draft));
               setSelectedKey(null);
               setPairMode(null);
               // 서포터 바꾸기 안내 문구의 팀 이름이 바뀌므로 지운다. 바꾼 결과 자체는 그대로 유지된다.
               setDrawNote(null);
-              app.setNotice("팀 A와 팀 B를 맞바꿨어요. 서포터와 진영은 팀을 따라가요.");
+              app.setNotice("블루팀과 레드팀을 맞바꿨어요. 라인·고정·서포터는 사람을 따라가요.");
             }}
           >
-            두 팀 자리 바꾸기
+            진영 바꾸기
           </button>
         </div>
       </section>
 
       <section className="prep-tools" aria-label="진영">
         <h2>진영</h2>
-        <div className="choice-row side-choices" role="radiogroup" aria-label="팀 A의 진영">
-          {(
-            [
-              ["blue", "팀 A 블루"],
-              ["red", "팀 A 레드"],
-              [null, "나중에 정하기"],
-            ] as const
-          ).map(([value, label]) => (
-            <label key={label} className={(draft.teamASide ?? null) === value ? "choice chosen" : "choice"}>
-              <input
-                type="radio"
-                name="draft-side"
-                checked={(draft.teamASide ?? null) === value}
-                onChange={() => update(setDraftSide(draft, value))}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
+        <p className="hint">
+          왼쪽이 블루팀, 오른쪽이 레드팀이에요. 결과를 입력할 때 이 진영으로 미리 골라 두고, 실제와 다르면 그때 바꿀 수
+          있어요.
+        </p>
         <div className="button-row">
           <button
             type="button"
             className="secondary"
+            title="반반 확률로 블루팀과 레드팀을 맞바꿔요."
             onClick={() => {
               const next = randomDraftSide(draft);
+              const first = draft.slots[0]!;
+              const swapped = next.slots.find((s) => s.key === first.key)?.team !== first.team;
               update(next);
-              app.setNotice(`팀 A가 ${SIDE_LABEL[next.teamASide!]}예요.`);
+              setSelectedKey(null);
+              setPairMode(null);
+              if (swapped) setDrawNote(null);
+              app.setNotice(
+                swapped ? "진영 랜덤: 블루팀과 레드팀을 맞바꿨어요." : "진영 랜덤: 그대로예요. 지금 블루팀이 계속 블루예요.",
+              );
             }}
           >
             진영 랜덤
           </button>
-          <span className="hint">
-            {draft.teamASide
-              ? "결과를 입력할 때 이 진영으로 미리 골라 둬요. 바꿀 수 있어요."
-              : "정하지 않으면 결과를 입력할 때 골라요."}
-          </span>
         </div>
       </section>
 
@@ -852,10 +836,10 @@ export function Prep() {
               <h3>{index === 0 ? "기본 추천" : `다른 후보 ${index}`}</h3>
               <p className="hint">{candidate.reason}</p>
               <p>
-                <span aria-hidden="true">{TEAM_MARK.A}</span> 팀 A: {candidate.teamA.map(nameOf).join(", ")}
+                <span aria-hidden="true">{TEAM_MARK.A}</span> {prepTeamName("A")}: {candidate.teamA.map(nameOf).join(", ")}
               </p>
               <p>
-                <span aria-hidden="true">{TEAM_MARK.B}</span> 팀 B: {candidate.teamB.map(nameOf).join(", ")}
+                <span aria-hidden="true">{TEAM_MARK.B}</span> {prepTeamName("B")}: {candidate.teamB.map(nameOf).join(", ")}
               </p>
               <button
                 type="button"
@@ -984,9 +968,10 @@ export function Prep() {
   );
 }
 
-/** "팀 B는 모두 서포터를 배정받았어요." · 두 팀이면 한 문장으로. 다음 행동(초기화)을 함께 안내한다. */
+/** "레드팀은 모두 서포터를 배정받았어요." · 두 팀이면 한 문장으로. 다음 행동(초기화)을 함께 안내한다. */
 function allAssignedText(teams: readonly Team[]): string {
-  const who = teams.length >= 2 ? "두 팀 모두" : `팀 ${teams[0]}는 모두`;
+  const name = prepTeamName(teams[0]!);
+  const who = teams.length >= 2 ? "두 팀 모두" : `${name}${josa(name, ["은", "는"])} 모두`;
   return `${who} 서포터를 배정받았어요. 서포터 횟수 초기화를 누르면 다시 처음부터 돌아가요.`;
 }
 
@@ -1005,7 +990,7 @@ function DrawSummary(props: {
         outcome.kind === "blocked" ? (
           outcome.block === "all-assigned" ? null : (
             <p key={outcome.team}>
-              팀 {outcome.team}:{" "}
+              {prepTeamName(outcome.team)}:{" "}
               {outcome.block === "supporter-locked"
                 ? "서포터 자리가 고정돼 있어요. 고정을 풀거나 직접 자리를 바꿔 주세요."
                 : props.supporterIsNew(outcome.team)
@@ -1015,7 +1000,7 @@ function DrawSummary(props: {
           )
         ) : (
           <p key={outcome.team}>
-            팀 {outcome.team}: {nameOf(outcome.record!.inKey)}{" "}
+            {prepTeamName(outcome.team)}: {nameOf(outcome.record!.inKey)}{" "}
             {POSITION_LABEL[outcome.record!.fromPosition]}→서포터, {nameOf(outcome.record!.outKey)}{" "}
             서포터→{POSITION_LABEL[outcome.record!.fromPosition]}, 나머지 유지
             {outcome.kind === "kept" ? " (같은 조건이라 결과를 유지했어요)" : ""}

@@ -123,7 +123,7 @@ test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [확�
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: `${match.matchNo}경기 결과` });
   await sheet.getByRole("radio", { name: /팀 A/ }).check();
-  await sheet.getByRole("radio", { name: "블루" }).check();
+  await sheet.getByRole("radio", { name: "블루", exact: true }).check();
 
   // 서버는 요청을 처리하지만 응답은 기기에 오지 않는다(같은 요청 ID로 다시 보내는 재시도도 모두).
   let delivered = 0;
@@ -138,13 +138,13 @@ test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [확�
   await expect(check).toBeVisible();
   // 확인 전에는 "저장됨"을 쓰지 않는다. 입력은 그대로다.
   await expect(sheet.getByText(/저장됨/)).toHaveCount(0);
-  await expect(sheet.getByRole("radio", { name: "블루" })).toBeChecked();
+  await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
   expect(delivered).toBeGreaterThanOrEqual(1);
 
   // 서버에는 이미 저장돼 있다. 확인하기는 같은 요청 ID로 다시 묻고, 그 응답을 받은 뒤에만 "저장됨"이다.
   await page.unroute("**/matches/*/result");
   await check.click();
-  await expect(sheet.getByText(`${match.matchNo}경기 저장됨 · 팀 A 승 · 블루`)).toBeVisible();
+  await expect(sheet.getByText(`${match.matchNo}경기 저장됨 · 블루팀 승`)).toBeVisible();
 
   const snap = await getSnapshot(page.request, s.groupId);
   const saved = snap.matches.find((m: { id: string }) => m.id === match.id);
@@ -215,7 +215,7 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
   expect(Math.abs(top1 - top0)).toBeLessThanOrEqual(1);
 });
 
-test("19: 추첨 적용 → 두 팀 자리 바꾸기 → 두 팀 '적용됨' 유지 → 시작하면 서버 명단도 바뀐 대로", async ({ page }) => {
+test("19: 추첨 적용 → 진영 바꾸기 → 두 팀 '적용됨' 유지 → 시작하면 서버 명단도 바뀐 대로(팀 A = 블루)", async ({ page }) => {
   const s = await setup(page);
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });
@@ -223,8 +223,8 @@ test("19: 추첨 적용 → 두 팀 자리 바꾸기 → 두 팀 '적용됨' 유
   await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
 
-  const teamA = page.getByRole("region", { name: "팀 A" });
-  const teamB = page.getByRole("region", { name: "팀 B" });
+  const teamA = page.getByRole("region", { name: "블루팀" });
+  const teamB = page.getByRole("region", { name: "레드팀" });
   await page.getByRole("button", { name: "서포터만 바꾸기" }).click();
   await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
   await expect(teamB.getByText("서포터 바꾸기 적용됨")).toBeVisible();
@@ -233,8 +233,8 @@ test("19: 추첨 적용 → 두 팀 자리 바꾸기 → 두 팀 '적용됨' 유
   const beforeA = await rows(teamA);
   const beforeB = await rows(teamB);
 
-  await page.getByRole("button", { name: "두 팀 자리 바꾸기" }).click();
-  // 사람·포지션은 그대로 자리만 바뀌고, 두 팀 모두 추첨이 유지된다.
+  await page.getByRole("button", { name: "진영 바꾸기" }).click();
+  // 블루팀과 레드팀의 사람이 통째로 바뀌고(포지션은 사람을 따라감), 두 팀 모두 추첨이 유지된다.
   expect(await rows(teamA)).toEqual(beforeB);
   expect(await rows(teamB)).toEqual(beforeA);
   await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
@@ -251,6 +251,7 @@ test("19: 추첨 적용 → 두 팀 자리 바꾸기 → 두 팀 '적용됨' 유
 
   const snap = await getSnapshot(page.request, s.groupId);
   const live = snap.matches.find((m: { state: string }) => m.state === "in_progress");
+  expect(live.teamASide).toBe("blue");
   const nameOf = new Map(s.people.map((p) => [p.id, p.name]));
   const serverA = live.roster
     .filter((r: { team: string }) => r.team === "A")
@@ -292,8 +293,8 @@ test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸
   await page.getByRole("button", { name: "다음 경기 준비" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
   await page.getByRole("button", { name: "포지션 유지" }).click();
-  const teamA = page.getByRole("region", { name: "팀 A" });
-  const teamB = page.getByRole("region", { name: "팀 B" });
+  const teamA = page.getByRole("region", { name: "블루팀" });
+  const teamB = page.getByRole("region", { name: "레드팀" });
   const reset = page.getByRole("button", { name: "서포터 횟수 초기화" });
 
   // 팀 B에 안 간 사람(선수01)을 넣으면 모두 배정받은 팀이 없어 초기화 버튼은 꺼져 있고 이유를 글로 보여준다.
@@ -314,7 +315,7 @@ test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸
   // 서포터만 바꾸기: 묻지 않고 팀 A만 바뀐다. 팀 B는 그대로이고 알림이 뜬다.
   await page.getByRole("region", { name: "섞기" }).getByRole("button", { name: "서포터만 바꾸기" }).click();
   const note = page.getByRole("status").filter({ hasText: "모두 서포터를 배정받았어요" });
-  await expect(note).toContainText("팀 B는 모두 서포터를 배정받았어요.");
+  await expect(note).toContainText("레드팀은 모두 서포터를 배정받았어요.");
   await expect(note).toContainText("서포터 횟수 초기화를 누르면 다시 처음부터 돌아가요.");
   await expect(note.getByRole("button")).toHaveCount(0);
   await expect(teamA.getByText("서포터 바꾸기 적용됨")).toBeVisible();
@@ -322,7 +323,7 @@ test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸
   const after = await rows();
   expect(after[1]).toEqual(before[1]);
   expect(after[0]).not.toEqual(before[0]);
-  await expect(page.getByText(/^팀 A: .+→서포터/)).toBeVisible();
+  await expect(page.getByText(/^블루팀: .+→서포터/)).toBeVisible();
   // 팀 A의 새 서포터는 아직 안 간 사람(서폿 표시 없음)이다.
   await expect(teamA.getByRole("button").nth(4)).not.toContainText(/서폿 \d회/);
 
@@ -401,7 +402,8 @@ test("30: 변경 내역에 정정·전적 제외·복구가 경기·시각·항�
     await expect(items.nth(i)).toContainText("현재: ");
     await expect(items.nth(i)).toContainText(/\d{1,2}:\d{2}/);
   }
-  await expect(items.nth(0)).toContainText("팀 A 승");
+  // 진영을 레드로 정정한 경기라 팀 A는 "레드팀"이다.
+  await expect(items.nth(0)).toContainText("레드팀 승");
   // 변경 주체(계정)는 보이지 않는다.
   await expect(log).not.toContainText(s.user);
   // 각 줄은 그 경기로 가는 링크다.
@@ -465,7 +467,7 @@ test("오류 안내: 429·503·409·로그인 만료는 쉬운 문구로, 입력
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: `${match.matchNo}경기 결과` });
   await sheet.getByRole("radio", { name: /팀 B/ }).check();
-  await sheet.getByRole("radio", { name: "레드" }).check();
+  await sheet.getByRole("radio", { name: "레드", exact: true }).check();
 
   const cases = [
     { status: 429, code: "RATE_LIMITED", message: "요청이 너무 잦아요. 30초 뒤에 다시 시도해 주세요. 입력한 내용은 그대로 있어요.", shown: "요청이 너무 잦아요" },
@@ -479,7 +481,7 @@ test("오류 안내: 429·503·409·로그인 만료는 쉬운 문구로, 입력
     );
     await sheet.getByRole("button", { name: "저장" }).click();
     await expect(sheet.getByRole("alert")).toContainText(c.shown);
-    await expect(sheet.getByRole("radio", { name: "레드" })).toBeChecked();
+    await expect(sheet.getByRole("radio", { name: "레드", exact: true })).toBeChecked();
     await expect(sheet.getByText(/저장됨/)).toHaveCount(0);
     await page.unroute("**/matches/*/result");
   }
@@ -637,7 +639,7 @@ test.describe("39: 화면 키보드 열림과 200% 확대", () => {
       await page.getByRole("button", { name: "결과 입력" }).click();
       const sheet = page.getByRole("dialog", { name: /경기 결과/ });
       await sheet.getByRole("radio", { name: /팀 A/ }).check();
-      await sheet.getByRole("radio", { name: "블루" }).check();
+      await sheet.getByRole("radio", { name: "블루", exact: true }).check();
       await notCovered(sheet.getByRole("button", { name: "저장" }), "결과 입력 저장");
       await notCovered(sheet.getByRole("button", { name: "닫기" }), "결과 입력 닫기");
       await sheet.getByRole("button", { name: "닫기" }).click();
@@ -645,7 +647,7 @@ test.describe("39: 화면 키보드 열림과 200% 확대", () => {
       // 준비: 교체 창의 검색 칸은 없으므로 준비 화면의 시작 버튼이 탭에 가리지 않는지 본다.
       await page.getByRole("button", { name: "다음 경기 준비" }).click();
       await notCovered(page.getByRole("button", { name: "이 팀으로 시작" }), "준비 시작");
-      await notCovered(page.getByRole("button", { name: "두 팀 자리 바꾸기" }), "준비 두 팀 자리 바꾸기");
+      await notCovered(page.getByRole("button", { name: "진영 바꾸기" }), "준비 진영 바꾸기");
 
       // 지난 경기 입력: 마지막 이름 칸에 초점, 저장 버튼.
       await page.goto("/#/backfill");
@@ -707,7 +709,7 @@ test.describe("39: 화면 키보드 열림과 200% 확대", () => {
       await page.getByRole("button", { name: "결과 입력" }).click();
       const sheet = page.getByRole("dialog", { name: /경기 결과/ });
       await sheet.getByRole("radio", { name: /팀 B/ }).check();
-      await sheet.getByRole("radio", { name: "레드" }).check();
+      await sheet.getByRole("radio", { name: "레드", exact: true }).check();
       await notCovered(sheet.getByRole("button", { name: "저장" }), "결과 저장");
       await noHorizontalOverflow(page);
       await sheet.getByRole("button", { name: "닫기" }).click();

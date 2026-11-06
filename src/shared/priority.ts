@@ -135,7 +135,7 @@ export function priorityLabel(priority: Priority): string {
   return priority === null ? "미지정" : `${priority}순위`;
 }
 
-/** 팀까지 올랜덤 뒤 알림 문구. 예: "1순위 1:1 · 2순위 2:1로 나눴어요." */
+/** 팀까지 올랜덤 뒤 알림 문구. 숫자는 블루팀(A):레드팀(B) 순서다. 예: "1순위 1:1 · 2순위 2:1로 나눴어요(블루팀:레드팀)." */
 export function teamShuffleText(result: TeamShuffleResult): string {
   const shown = result.counts.filter((c) => c.a + c.b > 0);
   // 마지막 숫자를 읽는 소리(영·삼·육은 받침 ㅇ·ㅁ·ㄱ)에 맞춰 "으로"/"로".
@@ -144,7 +144,7 @@ export function teamShuffleText(result: TeamShuffleResult): string {
   const base =
     result.assigned === 0
       ? "우선순위를 정한 사람이 없어 무작위로 나눴어요."
-      : `${shown.map((c) => `${priorityLabel(c.priority)} ${c.a}:${c.b}`).join(" · ")}${particle} 나눴어요.`;
+      : `${shown.map((c) => `${priorityLabel(c.priority)} ${c.a}:${c.b}`).join(" · ")}${particle} 나눴어요(블루팀:레드팀).`;
   return result.constraintsKept
     ? base
     : `${base} 같은 팀·다른 팀 조건을 모두 지키는 편성이 없어 우선순위 균형을 먼저 지켰어요.`;

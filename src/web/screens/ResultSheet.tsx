@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import {
   presetWinnerSide,
-  sideOfTeam,
   teamASideFromWinner,
   TEAMS,
   type MatchView,
@@ -9,7 +8,7 @@ import {
   type Team,
 } from "../../shared/types";
 import { mutate, newRequestId } from "../api";
-import { formatTime, SIDE_LABEL, TEAM_MARK, teamRoster } from "../format";
+import { formatTime, TEAM_MARK, teamName, teamRoster, winnerText } from "../format";
 import { Dialog, ErrorNote } from "../ui";
 import { useAppValue } from "../useApp";
 
@@ -23,7 +22,8 @@ const SIDE_CHOICES: { value: Side; label: string }[] = [
  * 화면 5 — 결과 입력 창(docs/P2 P2-7).
  * ① 명단을 보고 승리 팀 선택 → ② 승리 팀의 실제 진영 → ③ 요약 확인 후 저장.
  * 진영은 미리 선택돼 있지 않고, 승리 팀을 바꾸면 진영을 다시 묻는다.
- * 단, 준비 화면에서 진영을 골라 시작한 경기는 고른 승리 팀의 진영을 그 값으로 미리 골라 둔다(바꿀 수 있다).
+ * 단, 준비 화면에서 시작한 경기(팀 A = 블루팀)처럼 진영이 정해진 경기는 승리 팀을 "블루팀 승"/"레드팀 승"으로 고르고
+ * 진영은 그 값으로 미리 골라 둔다. 진영 단계는 실제와 다르면 바로잡는 확인용이다(저장 내용은 예전과 같다).
  * mode가 "correct"면 확정 경기의 승리 팀 정정이다.
  */
 export function ResultSheet(props: {
@@ -87,12 +87,11 @@ export function ResultSheet(props: {
   const title = `${match.matchNo}경기 ${props.mode === "result" ? "결과" : "승리 팀 수정"}`;
 
   if (saved) {
-    const savedSide = sideOfTeam(saved.winnerTeam!, saved.teamASide);
     return (
       <Dialog title={title} onClose={props.onClose}>
         <p className="saved" role="status">
           <strong>
-            {saved.matchNo}경기 저장됨 · 팀 {saved.winnerTeam} 승 · {SIDE_LABEL[savedSide ?? "unknown"]}
+            {saved.matchNo}경기 저장됨 · {winnerText(saved.winnerTeam!, saved.teamASide)}
           </strong>
           <br />
           <span className="hint">{formatTime(new Date().toISOString())} 확인</span>
@@ -103,6 +102,12 @@ export function ResultSheet(props: {
   }
 
   const teamASide = winner && side ? teamASideFromWinner(winner, side) : null;
+  // 진영 단계에서 시작 때와 반대로 고쳤는지(정해진 진영이 있을 때만).
+  const flipped =
+    teamASide !== null &&
+    teamASide !== "unknown" &&
+    (match.teamASide === "blue" || match.teamASide === "red") &&
+    teamASide !== match.teamASide;
 
   return (
     <Dialog title={title} onClose={props.onClose}>
@@ -127,7 +132,8 @@ export function ResultSheet(props: {
             />
             <span>
               <strong>
-                <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team}
+                <span aria-hidden="true">{TEAM_MARK[team]}</span> {teamName(team, match.teamASide)}
+                {presetWinnerSide(team, match.teamASide) !== null ? " 승" : ""}
               </strong>
               <br />
               <span className="hint">
@@ -142,9 +148,9 @@ export function ResultSheet(props: {
 
       {winner && (
         <fieldset>
-          <legend>2/3 · 이긴 팀 {winner}는 어느 진영이었나요?</legend>
+          <legend>2/3 · 이긴 팀({teamName(winner, match.teamASide)})은 실제로 어느 진영이었나요?</legend>
           {props.mode === "result" && presetWinnerSide(winner, match.teamASide) !== null && (
-            <p className="hint">시작할 때 고른 진영으로 미리 골라 뒀어요. 실제와 다르면 바꿔 주세요.</p>
+            <p className="hint">시작할 때 정한 진영으로 미리 골라 뒀어요. 실제와 다르면 바꿔 주세요.</p>
           )}
           <div className="choice-row">
             {SIDE_CHOICES.map((choice) => (
@@ -166,11 +172,14 @@ export function ResultSheet(props: {
         <section aria-label="요약">
           <h3>3/3 · 확인</h3>
           <p>
-            {match.matchNo}경기 · 팀 {winner} 승 ·{" "}
-            {teamASide === "unknown"
-              ? "진영 미상"
-              : `팀 A ${SIDE_LABEL[teamASide!]} / 팀 B ${SIDE_LABEL[sideOfTeam("B", teamASide)!]}`}
+            {match.matchNo}경기 · {winnerText(winner, teamASide)}
           </p>
+          {flipped && (
+            <p className="hint">
+              시작할 때와 진영이 반대예요. 저장하면 {TEAM_MARK.A} 쪽이 {teamName("A", teamASide)}, {TEAM_MARK.B} 쪽이{" "}
+              {teamName("B", teamASide)}이 돼요.
+            </p>
+          )}
           {side === "unknown" && (
             <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠집니다.</p>
           )}

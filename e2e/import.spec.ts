@@ -56,7 +56,7 @@ test("틀린 줄이 있으면 넣지 않고, 고친 뒤 진영을 골라야 넣�
 
   await page.getByRole("radio", { name: /팀 A는 블루/ }).check();
   await page.getByRole("button", { name: "120경기 넣기" }).click();
-  await expect(page.getByText("120경기 저장됨 · 팀 A 블루 / 팀 B 레드")).toBeVisible();
+  await expect(page.getByText("120경기 저장됨 · 팀 A → 블루팀, 팀 B → 레드팀")).toBeVisible();
 
   // 서버에 120경기가 확정 경기로 들어갔고 진영은 팀 A가 블루다. 세션과 순환은 생기지 않았다.
   const snapshot = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();

@@ -16,7 +16,7 @@ async function noHorizontalOverflow(page: Page) {
 async function lineup(page: Page): Promise<Map<string, [string, string]>> {
   const result = new Map<string, [string, string]>();
   for (const team of ["A", "B"]) {
-    const texts = await page.getByRole("region", { name: `팀 ${team}` }).getByRole("list").first().getByRole("button").allInnerTexts();
+    const texts = await page.getByRole("region", { name: team === "A" ? "블루팀" : "레드팀" }).getByRole("list").first().getByRole("button").allInnerTexts();
     expect(texts).toHaveLength(5);
     texts.forEach((t, i) => result.set(t.match(/기피\d\d/)![0], [team, POS[i]!]));
   }
@@ -152,7 +152,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
   // 손으로 바꾸는 것은 막지 않고, 기피 라인에 선 사람에게 "기피" 표시를 붙인다.
   const [team01] = seen.get("기피01")!;
   const topName = [...seen].find(([, [t, p]]) => t === team01 && p === "탑")![0];
-  const teamBox = page.getByRole("region", { name: `팀 ${team01}` });
+  const teamBox = page.getByRole("region", { name: team01 === "A" ? "블루팀" : "레드팀" });
   await teamBox.getByRole("button", { name: /기피01/ }).click();
   await teamBox.getByRole("button", { name: new RegExp(topName) }).click();
   const moved = teamBox.getByRole("button", { name: /기피01/ });

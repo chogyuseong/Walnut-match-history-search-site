@@ -6,10 +6,10 @@ import {
   draftFromMatch,
   isCompleteDraft,
   keepMatchPositions,
+  normalizeDraftSide,
   parseStoredDraft,
   randomDraftSide,
   rerollPositions,
-  setDraftSide,
   swapSides,
   toggleLock,
   undoDraft,
@@ -31,7 +31,7 @@ import {
   supportTeamState,
   type RotationContext,
 } from "../src/shared/rotation";
-import { presetWinnerSide, TEAMS, type MatchView, type Team } from "../src/shared/types";
+import { presetWinnerSide, TEAMS, type MatchView, type Snapshot, type Team } from "../src/shared/types";
 
 // 팀 섞기 2종(올랜덤, 올랜덤 + 서포터 공평하게), 서포터 횟수 규칙, 준비 화면 진영 선택.
 
@@ -396,84 +396,85 @@ describe("시작 전 반복 확인", () => {
   });
 });
 
-describe("준비 화면 진영", () => {
-  it("좌우 바꾸기를 하면 진영이 팀을 따라간다(블루였던 팀은 계속 블루)", () => {
-    const d = setDraftSide(fixedDraft(), "blue");
-    const blueTeam = teamKeys(d, "A").sort();
+describe("준비 화면 진영(팀 A = 블루팀)", () => {
+  it("새 초안·지난 경기에서 만든 초안은 팀 A가 블루다(지난 경기에서 A가 레드였어도)", () => {
+    expect(fixedDraft().teamASide).toBe("blue");
+    const match = liveMatch(fixedDraft(), "red");
+    expect(draftFromMatch(match, (id) => id, { groupId: "g", baseLiveVersion: 1, seed: 3, now }).teamASide).toBe("blue");
+  });
+
+  it("진영 바꾸기: 블루팀 5명과 레드팀 5명이 서로 바뀌고 팀 A는 계속 블루, 두 번 누르면 원래대로", () => {
+    let d = toggleLock(fixedDraft(), "p:id0");
+    d = { ...d, draws: { A: { fingerprint: "x", inKey: "p:id1", outKey: "p:id2", fromPosition: "top" } } };
+    const blue = teamKeys(d, "A").sort();
+    const red = teamKeys(d, "B").sort();
     const swapped = swapSides(d);
-    expect(swapped.teamASide).toBe("red");
-    // 이제 팀 B가 된 원래 팀 A가 블루다.
-    expect(teamKeys(swapped, "B").sort()).toEqual(blueTeam);
-    expect(swapSides(swapped).teamASide).toBe("blue");
-    // 나중에 정하기(없음)는 좌우를 바꿔도 없음이다.
-    expect(swapSides(fixedDraft()).teamASide).toBeUndefined();
+    expect(swapped.teamASide).toBe("blue");
+    expect(teamKeys(swapped, "A").sort()).toEqual(red);
+    expect(teamKeys(swapped, "B").sort()).toEqual(blue);
+    // 라인·고정·서포터 추첨 기록은 사람을 따라간다.
+    for (const s of d.slots) {
+      expect(slotOf(swapped, s.key).position).toBe(s.position);
+      expect(slotOf(swapped, s.key).locked).toBe(s.locked);
+    }
+    expect(swapped.draws).toEqual({ B: d.draws.A });
+    expect(swapSides(swapped)).toEqual(d);
   });
 
-  it("섞기·추천·라인 다시 뽑기는 진영을 지우지 않는다. 나중에 정하기로 되돌릴 수 있다", () => {
-    const d = setDraftSide(fixedDraft(), "red");
-    expect(shuffleDraft(d, { fairSupport: true }, ctxOf())!.teamASide).toBe("red");
-    expect(shuffleDraft(d, { fairSupport: false }, ctxOf())!.teamASide).toBe("red");
-    expect(applyTeams(d, teamKeys(d, "B")).teamASide).toBe("red");
-    expect(rerollPositions(d).teamASide).toBe("red");
-    expect("teamASide" in setDraftSide(d, null)).toBe(false);
+  it("섞기·추천·라인 다시 뽑기 뒤에도 팀 A는 블루다", () => {
+    const d = fixedDraft();
+    expect(shuffleDraft(d, { fairSupport: true }, ctxOf())!.teamASide).toBe("blue");
+    expect(shuffleDraft(d, { fairSupport: false }, ctxOf())!.teamASide).toBe("blue");
+    expect(applyTeams(d, teamKeys(d, "B")).teamASide).toBe("blue");
+    expect(rerollPositions(d).teamASide).toBe("blue");
   });
 
-  it("진영 랜덤은 시드로 정해지고 블루·레드가 모두 나온다", () => {
-    const seen = new Set<string>();
-    for (let seed = 1; seed <= 20; seed++) seen.add(randomDraftSide(fixedDraft(seed)).teamASide!);
-    expect([...seen].sort()).toEqual(["blue", "red"]);
-    expect(randomDraftSide(fixedDraft(5)).teamASide).toBe(randomDraftSide(fixedDraft(5)).teamASide);
+  it("진영 랜덤은 시드로 정해지고, 반반으로 두 팀을 맞바꾸거나 그대로 둔다(팀 A는 항상 블루)", () => {
+    const outcomes = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const d = fixedDraft(seed);
+      const next = randomDraftSide(d);
+      expect(next.teamASide).toBe("blue");
+      expect(next.seed).not.toBe(d.seed);
+      if (next.slots.every((s, i) => s.team === d.slots[i]!.team)) {
+        expect(next.slots).toEqual(d.slots);
+        outcomes.add("same");
+      } else {
+        expect(next.slots).toEqual(swapSides(d).slots);
+        outcomes.add("swapped");
+      }
+    }
+    expect([...outcomes].sort()).toEqual(["same", "swapped"]);
+    expect(randomDraftSide(fixedDraft(5))).toEqual(randomDraftSide(fixedDraft(5)));
   });
 
-  it("진영을 고른 초안도 형식 번호가 같아 다시 읽힌다. 다음 경기 준비에는 진영을 복사하지 않는다", () => {
-    const d = setDraftSide(fixedDraft(), "blue");
+  it("예전 초안을 읽으면 팀 A = 블루로 맞춘다: red는 두 팀을 맞바꾸고, 없음은 자리 그대로 블루", () => {
+    const d = toggleLock(fixedDraft(), "p:id3");
+    const { teamASide: _side, ...legacyNone } = d;
+    // 예전 "팀 A 레드": 블루였던 쪽은 팀 B(id5~9). 읽으면 그 5명이 팀 A(블루)가 된다.
+    const fromRed = parseStoredDraft(JSON.stringify({ ...legacyNone, teamASide: "red" }))!;
+    expect(fromRed.teamASide).toBe("blue");
+    expect(teamKeys(fromRed, "A").sort()).toEqual(teamKeys(d, "B").sort());
+    expect(fromRed.slots).toEqual(swapSides(d).slots);
+    // 예전 "나중에 정하기": 자리 그대로 팀 A를 블루로.
+    const fromNone = parseStoredDraft(JSON.stringify(legacyNone))!;
+    expect(fromNone.teamASide).toBe("blue");
+    expect(fromNone.slots).toEqual(d.slots);
+    // 이미 블루인 초안은 그대로 다시 읽힌다(형식 번호도 그대로).
     expect(parseStoredDraft(JSON.stringify(d))).toEqual(d);
-    const match: MatchView = {
-      id: "m1",
-      matchNo: 1,
-      sessionId: "s1",
-      state: "in_progress",
-      source: "live",
-      startedAt: now,
-      endedAt: null,
-      playedAt: now,
-      confirmedAt: null,
-      winnerTeam: null,
-      teamASide: "blue",
-      version: 1,
-      roster: d.slots.map((s) => ({ participantId: s.key.slice(2), team: s.team, position: s.position })),
-    };
-    const next = draftFromMatch(match, (id) => id, { groupId: "g", baseLiveVersion: 1, seed: 3, now });
-    expect(next.teamASide).toBeUndefined();
+    expect(normalizeDraftSide(d)).toBe(d);
   });
 
-  it("포지션 유지는 지난 경기 팀·포지션으로 맞추되 고른 진영과 팀 조건을 지우지 않고, 되돌릴 수 있다", () => {
+  it("포지션 유지는 지난 경기 팀·포지션으로 맞추되 팀 조건을 지우지 않고, 팀 A는 블루, 되돌릴 수 있다", () => {
     const base = fixedDraft();
-    const match: MatchView = {
-      id: "m1",
-      matchNo: 1,
-      sessionId: "s1",
-      state: "confirmed",
-      source: "live",
-      startedAt: now,
-      endedAt: now,
-      playedAt: now,
-      confirmedAt: now,
-      winnerTeam: "A",
-      teamASide: "red",
-      version: 1,
-      roster: base.slots.map((s) => ({ participantId: s.key.slice(2), team: s.team, position: s.position })),
-    };
-    // 다음 경기 준비(포지션 새로 뽑음) → 진영·조건을 고른 뒤 → 포지션 유지.
+    const match = { ...liveMatch(base, "red"), state: "confirmed" as const, winnerTeam: "A" as const };
     let d = draftFromMatch(match, (id) => id, { groupId: "g", baseLiveVersion: 1, seed: 9, now });
-    d = addConstraint(setDraftSide(d, "blue"), { kind: "same", a: "p:id0", b: "p:id1" });
+    d = addConstraint(d, { kind: "same", a: "p:id0", b: "p:id1" });
     const kept = keepMatchPositions(d, match, (id) => id, now);
     for (const r of match.roster) expect(positionOf(kept, `p:${r.participantId}`)).toBe(r.position);
     expect(kept.teamASide).toBe("blue");
     expect(kept.constraints).toEqual(d.constraints);
     expect(undoDraft(kept).slots).toEqual(d.slots);
-    // 진영을 정하지 않았으면 그대로 없음.
-    expect(keepMatchPositions(setDraftSide(d, null), match, (id) => id, now).teamASide).toBeUndefined();
   });
 
   it("결과 입력 창은 고른 승리 팀의 진영을 미리 고른다(정하지 않았거나 미상이면 없음)", () => {
@@ -483,12 +484,77 @@ describe("준비 화면 진영", () => {
     expect(presetWinnerSide("A", null)).toBeNull();
   });
 
-  it("명단 텍스트에 진영을 넣는다(정했을 때만, 실력 그룹은 넣지 않는다)", async () => {
-    const path = "../src/web/format";
-    const format = (await import(/* @vite-ignore */ path)) as { draftRosterText(draft: Draft): string };
-    const text = format.draftRosterText(setDraftSide(fixedDraft(), "red"));
-    expect(text).toContain("팀 A (레드)");
-    expect(text).toContain("팀 B (블루)");
-    expect(format.draftRosterText(fixedDraft())).not.toMatch(/블루|레드/);
+  it("명단 텍스트는 블루팀·레드팀으로 쓴다(실력 그룹은 넣지 않는다)", async () => {
+    const format = await webFormat();
+    const text = format.draftRosterText(fixedDraft());
+    expect(text).toContain("● 블루팀");
+    expect(text).toContain("■ 레드팀");
+    expect(text).not.toMatch(/팀 [AB]/);
   });
 });
+
+describe("팀 이름 규칙(format.ts teamName)", () => {
+  it("진영이 정해져 있으면 블루팀·레드팀, A가 레드면 A가 레드팀, 모르면 팀 A·B", async () => {
+    const { teamName, teamBoxClass, winnerText } = await webFormat();
+    expect([teamName("A", "blue"), teamName("B", "blue")]).toEqual(["블루팀", "레드팀"]);
+    expect([teamName("A", "red"), teamName("B", "red")]).toEqual(["레드팀", "블루팀"]);
+    for (const side of [null, undefined, "unknown"] as const) {
+      expect([teamName("A", side), teamName("B", side)]).toEqual(["팀 A", "팀 B"]);
+      expect(teamBoxClass("A", side)).toBe("team");
+    }
+    expect([teamBoxClass("A", "red"), teamBoxClass("B", "red")]).toEqual(["team side-red", "team side-blue"]);
+    expect(winnerText("B", "red")).toBe("블루팀 승");
+    expect(winnerText("A", "unknown")).toBe("팀 A 승 · 진영 미상");
+    expect(winnerText("B", null, "승리")).toBe("팀 B 승리 · 진영 미상");
+  });
+
+  it("경기 명단 텍스트도 같은 규칙을 따른다", async () => {
+    const { matchRosterText } = await webFormat();
+    const d = fixedDraft();
+    const snapshot = {
+      group: { name: "모임", timezone: "Asia/Seoul" },
+      serverTime: now,
+      participants: people().map((p) => ({ id: p.participantId!, name: p.name, status: "active" })),
+    } as unknown as Snapshot;
+    const red = matchRosterText(snapshot, liveMatch(d, "red"), null);
+    expect(red.indexOf("● 레드팀")).toBeGreaterThan(-1);
+    expect(red.indexOf("■ 블루팀")).toBeGreaterThan(red.indexOf("● 레드팀"));
+    const unknown = matchRosterText(snapshot, liveMatch(d, null), null);
+    expect(unknown).toContain("● 팀 A");
+    expect(unknown).toContain("■ 팀 B");
+    expect(unknown).not.toMatch(/블루|레드/);
+  });
+});
+
+/** 초안의 명단으로 만든 진행 중 경기. */
+function liveMatch(d: Draft, teamASide: MatchView["teamASide"]): MatchView {
+  return {
+    id: "m1",
+    matchNo: 1,
+    sessionId: "s1",
+    state: "in_progress",
+    source: "live",
+    startedAt: now,
+    endedAt: null,
+    playedAt: now,
+    confirmedAt: null,
+    winnerTeam: null,
+    teamASide,
+    version: 1,
+    roster: d.slots.map((s) => ({ participantId: s.key.slice(2), team: s.team, position: s.position })),
+  };
+}
+
+interface WebFormat {
+  draftRosterText(draft: Draft): string;
+  matchRosterText(snapshot: Snapshot, match: MatchView, link: string | null): string;
+  teamName(team: Team, teamASide: MatchView["teamASide"] | undefined): string;
+  teamBoxClass(team: Team, teamASide: MatchView["teamASide"] | undefined): string;
+  winnerText(team: Team, teamASide: MatchView["teamASide"] | undefined, verb?: string): string;
+}
+
+/** 화면 코드(src/web/format.ts)는 서버 타입 검사 밖이라 동적으로 읽는다. */
+async function webFormat(): Promise<WebFormat> {
+  const path = "../src/web/format";
+  return (await import(/* @vite-ignore */ path)) as WebFormat;
+}

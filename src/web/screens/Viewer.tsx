@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { resolveMerged } from "../../shared/merge";
 import type { Snapshot } from "../../shared/types";
 import { ApiFailure, call } from "../api";
-import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamSideLabel } from "../format";
+import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
 import { Dialog, KpiStrip, MatchTeams } from "../ui";
 import { go } from "../useApp";
 import { Compare } from "./Compare";
@@ -230,7 +230,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
             <section className="card">
               {mySeat ? (
                 <p>
-                  <strong>{nameOf(mySeat.participantId)}</strong> 님 · 팀 {mySeat.team} ·{" "}
+                  <strong>{nameOf(mySeat.participantId)}</strong> 님 · {teamName(mySeat.team, match.teamASide)} ·{" "}
                   {mySeat.position ? POSITION_LABEL[mySeat.position] : "포지션 없음"}
                 </p>
               ) : meId ? (
@@ -243,7 +243,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
               </button>
             </section>
 
-            <MatchTeams match={match} nameOf={nameOf} highlightId={meId} sideOf={teamSideLabel(match)} />
+            <MatchTeams match={match} nameOf={nameOf} highlightId={meId} />
             <p className="hint">팀 편성 기준은 운영자가 정합니다.</p>
           </>
         )}

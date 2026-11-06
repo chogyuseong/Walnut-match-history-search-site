@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { dayRecords } from "../shared/insights";
 import { isCounted, safeTimeZone } from "../shared/stats";
 import { sideOfTeam, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
-import { formatDate, formatTime, nameMap, POSITION_LABEL, SIDE_LABEL, teamRoster } from "./format";
+import { formatDate, formatTime, nameMap, POSITION_LABEL, teamName, teamRoster, winnerText } from "./format";
 import { Dialog } from "./ui";
 
 /**
@@ -145,13 +145,13 @@ function drawTeamBox(
     ctx.fill();
   }
   ctx.lineWidth = won ? 4 : 1.5;
-  ctx.strokeStyle = won ? p.brand : p.line;
+  // 이긴 팀은 강조색, 아니면 진영 색 테두리(진영을 모르면 중립).
+  ctx.strokeStyle = won ? p.brand : side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
   ctx.stroke();
 
   setFont(ctx, p, 800, 32);
   ctx.fillStyle = side === "blue" ? p.winText : side === "red" ? p.lossText : p.text;
-  const sideText = side === "blue" || side === "red" ? ` · ${SIDE_LABEL[side]}` : "";
-  ctx.fillText(`${team === "A" ? "●" : "■"} 팀 ${team}${sideText}`, x + 24, y + 40);
+  ctx.fillText(`${team === "A" ? "●" : "■"} ${teamName(team, match.teamASide)}`, x + 24, y + 40);
   if (won !== null) {
     ctx.textAlign = "right";
     setFont(ctx, p, 800, 30);
@@ -193,10 +193,7 @@ export async function drawMatchImage(snapshot: Snapshot, match: MatchView): Prom
   setFont(ctx, p, 600, 30);
   ctx.fillStyle = p.muted;
   const winner = match.winnerTeam;
-  const winnerSide = winner ? sideOfTeam(winner, match.teamASide) : null;
-  const summary = winner
-    ? `팀 ${winner} 승리 · ${SIDE_LABEL[winnerSide ?? "unknown"]}`
-    : "결과 미확정";
+  const summary = winner ? winnerText(winner, match.teamASide, "승리") : "결과 미확정";
   ctx.fillText(summary, PAD, PAD + 98);
 
   const boxW = (WIDTH - PAD * 2 - 24) / 2;
@@ -315,7 +312,7 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
     ctx.fillText(`${match.matchNo}경기`, PAD + 28, y + 34);
     setFont(ctx, p, 600, 24);
     ctx.fillStyle = p.muted;
-    ctx.fillText(`팀 ${winner} 승 · ${SIDE_LABEL[side ?? "unknown"]}`, PAD + 160, y + 34);
+    ctx.fillText(winnerText(winner, match.teamASide), PAD + 160, y + 34);
     ctx.textAlign = "right";
     ctx.fillText(formatTime(match.playedAt, tz), PAD + innerW - 24, y + 34);
     ctx.textAlign = "left";

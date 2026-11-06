@@ -26,7 +26,8 @@ async function openPrep(page: Page) {
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
 }
 
-const team = (page: Page, t: "A" | "B") => page.getByRole("region", { name: `팀 ${t}` });
+/** 준비 화면의 팀 상자. 팀 A(왼쪽)는 항상 블루팀, 팀 B(오른쪽)는 레드팀이다. */
+const team = (page: Page, t: "A" | "B") => page.getByRole("region", { name: t === "A" ? "블루팀" : "레드팀" });
 const rows = (box: Locator) => box.getByRole("list").first().getByRole("button");
 
 /** 팀 상자의 다섯 줄(탑~서포터)에서 이름과 "서폿 N회"를 읽는다. */
@@ -79,18 +80,20 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await shots(page, "01-shuffled");
   await expect(toast).toHaveCount(0, { timeout: 8000 });
 
-  // 진영: 팀 A 블루 → 팀 상자에 블루·레드 → 두 팀 자리 바꾸기 하면 진영이 팀을 따라간다.
-  const sideGroup = page.getByRole("radiogroup", { name: "팀 A의 진영" });
-  await sideGroup.getByText("팀 A 블루").click();
-  await expect(team(page, "A")).toContainText("블루");
-  await expect(team(page, "B")).toContainText("레드");
+  // 진영: 왼쪽 블루팀·오른쪽 레드팀(고르는 칸 없음). 진영 바꾸기를 하면 블루팀 5명과 레드팀 5명이 서로 바뀐다.
+  await expect(team(page, "A").getByRole("heading")).toHaveText("● 블루팀");
+  await expect(team(page, "B").getByRole("heading")).toHaveText("■ 레드팀");
+  await expect(page.locator("#root")).not.toContainText(/팀 [AB]/);
+  await expect(page.getByRole("radiogroup")).toHaveCount(0);
   const aBefore = (await readTeam(page, "A")).map((r) => r.name).sort();
-  await tools.getByRole("button", { name: "두 팀 자리 바꾸기" }).click();
+  const bBefore = (await readTeam(page, "B")).map((r) => r.name).sort();
+  await tools.getByRole("button", { name: "진영 바꾸기" }).click();
   expect((await readTeam(page, "B")).map((r) => r.name).sort()).toEqual(aBefore);
-  await expect(team(page, "B")).toContainText("블루");
+  expect((await readTeam(page, "A")).map((r) => r.name).sort()).toEqual(bBefore);
   await shots(page, "02-side");
   await page.getByRole("button", { name: "진영 랜덤" }).click();
-  await expect(sideGroup.locator("input:checked")).toHaveCount(1);
+  expect([aBefore, bBefore]).toContainEqual((await readTeam(page, "A")).map((r) => r.name).sort());
+  await expect(team(page, "A").getByRole("heading")).toHaveText("● 블루팀");
 
   // 포지션 고정 → 올랜덤: 고정한 사람은 자리를 지킨다. 직전 편성으로 되돌릴 수 있다.
   const lockedName = (await readTeam(page, "A"))[0]!.name;
@@ -178,21 +181,27 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
     await expect(page.getByRole("dialog", { name: "시작 전에 확인해 주세요" })).toHaveCount(0);
     await page.getByRole("button", { name: "결과 입력" }).click();
     const sheet = page.getByRole("dialog", { name: `${game}경기 결과` });
-    await sheet.getByRole("radio", { name: /팀 A/ }).check();
-    await sheet.getByRole("radio", { name: "블루" }).check();
+    await sheet.getByRole("radio", { name: /블루팀 승/ }).check();
+    await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
     await sheet.getByRole("button", { name: "저장" }).click();
     await expect(sheet.getByText(`${game}경기 저장됨`)).toBeVisible();
     await sheet.getByRole("button", { name: "다음 경기 준비" }).click();
     await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
     if (game === 1) {
-      // 진영을 고른 뒤 "포지션 유지"를 눌러도 진영은 그대로다(2026-11-06 점검에서 고침).
-      await page.getByRole("radiogroup", { name: "팀 A의 진영" }).getByText("팀 A 레드").click();
+      // "포지션 유지"를 눌러도 왼쪽은 블루팀·오른쪽은 레드팀 그대로다.
       await page.getByRole("button", { name: "포지션 유지" }).click();
-      await expect(page.getByRole("radiogroup", { name: "팀 A의 진영" }).getByRole("radio", { name: "팀 A 레드" })).toBeChecked();
-      // 좁은 화면에서 진영 칸 글자가 중간에서 줄바꿈되지 않는다.
-      for (const label of await page.locator(".side-choices .choice span").all()) {
-        const box = await label.boundingBox();
-        expect(box!.height).toBeLessThan(30);
+      await expect(team(page, "A").getByRole("heading")).toHaveText("● 블루팀");
+      await expect(team(page, "B").getByRole("heading")).toHaveText("■ 레드팀");
+      // 좁은 화면에서 팀 상자 제목이 줄바꿈되지 않는다.
+      for (const t of ["A", "B"] as const) {
+        const [textHeight, fontSize] = await team(page, t)
+          .getByRole("heading")
+          .evaluate((el) => {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            return [range.getBoundingClientRect().height, parseFloat(getComputedStyle(el).fontSize)];
+          });
+        expect(textHeight).toBeLessThan(fontSize * 2);
       }
     }
     // 다음 준비 화면: 방금 서포터였던 두 사람에게 횟수가 붙는다.

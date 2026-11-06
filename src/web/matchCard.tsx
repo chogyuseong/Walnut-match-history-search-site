@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
 import { isCounted } from "../shared/stats";
-import { POSITIONS, sideOfTeam, TEAMS, type MatchView, type Team } from "../shared/types";
+import { POSITIONS, TEAMS, type MatchView, type Team } from "../shared/types";
 import {
   formatDate,
   formatTime,
+  knownSideOf,
   matchTone,
   POSITION_LABEL,
   resultLine,
   SIDE_LABEL,
   TEAM_MARK,
+  teamName,
   teamRoster,
 } from "./format";
 import { PosLabel } from "./ui";
@@ -18,6 +20,7 @@ import { PosLabel } from "./ui";
  * - 맨 위 줄(경기 번호·결과·시각)이 경기 상세로 가는 버튼이고, 카드의 빈 곳을 눌러도 같은 곳으로 간다.
  * - 이름은 따로 누를 수 있는 버튼이며 그 사람의 개인 통계로 간다.
  * - 두 팀은 한 줄씩(위: 팀 A, 아래: 팀 B). 포지션이 모두 있으면 라인 순서로 칸을 맞추고 위에 라인 이름을 둔다.
+ *   줄 머리는 진영이 정해진 경기면 "블루"/"레드", 모르면 "●A"/"■B"(팀 이름 규칙 teamName과 같다).
  * - 색: 전체 목록은 이긴 팀의 진영, 개인 화면(focusId)은 그 사람의 승·패. 미확정·진영 미상은 색 없음.
  *   승·패는 글자로도 적어 색만으로 구분하지 않는다.
  */
@@ -102,9 +105,8 @@ function TeamLine(props: {
   const { match, team } = props;
   const confirmed = isCounted(match);
   const won = confirmed ? match.winnerTeam === team : null;
-  const side = sideOfTeam(team, match.teamASide);
-  const sideText = side === "blue" || side === "red" ? ` ${SIDE_LABEL[side]}` : "";
-  const label = `팀 ${team}${sideText}${won === null ? "" : won ? " 승리" : " 패배"}`;
+  const side = knownSideOf(team, match.teamASide);
+  const label = `${teamName(team, match.teamASide)}${won === null ? "" : won ? " 승리" : " 패배"}`;
   return (
     <div
       className={won === null ? "mc-team" : won ? "mc-team is-win" : "mc-team is-loss"}
@@ -112,9 +114,15 @@ function TeamLine(props: {
       aria-label={label}
     >
       <span className="mc-team-label" aria-hidden="true">
-        <span>
-          {TEAM_MARK[team]}
-          {team}
+        <span className="mc-team-name">
+          {side ? (
+            SIDE_LABEL[side]
+          ) : (
+            <>
+              {TEAM_MARK[team]}
+              {team}
+            </>
+          )}
         </span>
         {won !== null && <span className="mc-team-result">{won ? "승" : "패"}</span>}
       </span>

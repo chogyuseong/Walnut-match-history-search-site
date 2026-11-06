@@ -50,9 +50,9 @@ export interface Draft {
   /** 같은 팀·다른 팀 조건. 팀 추천·팀 섞기에 쓰이고 손으로 옮기는 것은 막지 않는다. */
   constraints?: TeamConstraint[];
   /**
-   * 준비 화면에서 고른 팀 A의 진영. 없으면 "나중에 정하기"(결과 입력 때 고른다).
-   * 진영은 A/B 자리 기준이다: 팀 섞기·추천·포지션 변경은 그대로 두고, 좌우 바꾸기는 뒤집어 팀을 따라가게 한다.
-   * 선택 필드라 형식 번호는 그대로다(예전 초안도 읽힌다).
+   * 팀 A의 진영. 준비 화면에서는 항상 "blue"다: 왼쪽 팀(A)이 블루팀, 오른쪽 팀(B)이 레드팀.
+   * "진영 바꾸기"·"진영 랜덤"은 이 값을 바꾸지 않고 두 팀의 사람을 맞바꾼다(swapSides).
+   * 예전 초안에는 없거나 "red"일 수 있어 읽을 때 normalizeDraftSide로 맞춘다. 형식 번호는 그대로다.
    */
   teamASide?: "blue" | "red";
 }
@@ -191,6 +191,7 @@ export function createDraft(people: DraftPerson[], options: NewDraftOptions): Dr
     previousSlots: null,
     origin: "new",
     seed: nextSeed(options.seed),
+    teamASide: "blue",
   };
 }
 
@@ -230,13 +231,13 @@ export function swapPeople(draft: Draft, keyA: string, keyB: string): Draft {
 }
 
 /**
- * 좌우 바꾸기(docs/P4 시나리오 19): 두 팀의 A·B 자리를 통째로 맞바꾼다.
- * 팀 구성·포지션·고정은 그대로이고 이름표(A/B)만 바뀐다.
+ * 진영 바꾸기(docs/P4 시나리오 19): 블루팀(A) 5명과 레드팀(B) 5명을 통째로 맞바꾼다.
+ * 팀 구성·포지션·고정은 사람을 따라가고 A/B 이름표만 바뀐다. 팀 A는 계속 블루라(teamASide = "blue")
+ * 블루였던 5명이 레드가 된다.
  * 서포터 추첨 기록도 함께 옮긴다. 추첨 지문에는 팀 이름표가 들어가지 않으므로(rotation.ts)
  * 옮긴 기록은 그대로 유효하고, "두 팀 추첨 유지"가 깨지지 않는다.
  * 직전 편성(되돌리기)도 같은 방식으로 바꿔, 되돌려도 추첨 기록과 어긋나지 않게 한다.
- * 두 번 바꾸면 원래와 같다. 팀 조건(같은 팀·다른 팀)은 좌우와 무관하다.
- * 진영을 골라 두었으면 진영은 팀을 따라간다: 블루였던 팀은 바꾼 뒤에도 블루다(팀 A의 진영을 뒤집는다).
+ * 두 번 바꾸면 원래와 같다. 팀 조건(같은 팀·다른 팀)은 진영과 무관하다.
  */
 export function swapSides(draft: Draft): Draft {
   const flip = (slots: DraftSlot[]): DraftSlot[] =>
@@ -244,26 +245,30 @@ export function swapSides(draft: Draft): Draft {
   const draws: Partial<Record<Team, DrawRecord>> = {};
   if (draft.draws.B) draws.A = draft.draws.B;
   if (draft.draws.A) draws.B = draft.draws.A;
-  const next: Draft = {
+  return {
     ...draft,
     slots: flip(draft.slots),
     previousSlots: draft.previousSlots ? flip(draft.previousSlots) : null,
     draws,
+    teamASide: "blue",
   };
-  if (draft.teamASide) next.teamASide = draft.teamASide === "blue" ? "red" : "blue";
-  return next;
 }
 
-/** 진영 고르기. null이면 "나중에 정하기"(필드를 지운다). */
-export function setDraftSide(draft: Draft, side: "blue" | "red" | null): Draft {
-  const { teamASide: _old, ...rest } = draft;
-  return side === null ? rest : { ...rest, teamASide: side };
+/**
+ * 예전 초안을 "팀 A = 블루"로 맞춘다. "red"였으면(블루였던 쪽이 B) 두 팀을 맞바꿔 블루였던 5명이 그대로 블루가 되게 하고,
+ * 없었으면("나중에 정하기") 지금 자리 그대로 A를 블루로 둔다. 이미 "blue"면 그대로 돌려준다.
+ */
+export function normalizeDraftSide(draft: Draft): Draft {
+  if (draft.teamASide === "blue") return draft;
+  if (draft.teamASide === "red") return swapSides(draft);
+  return { ...draft, teamASide: "blue" };
 }
 
-/** 진영 랜덤: 시드로 블루·레드를 고른다. */
+/** 진영 랜덤: 시드로 반반 확률로 두 팀을 맞바꾼다(진영 바꾸기). 팀 A는 계속 블루다. */
 export function randomDraftSide(draft: Draft): Draft {
-  const side = rngFromSeed(draft.seed)() < 0.5 ? "blue" : "red";
-  return { ...setDraftSide(draft, side), seed: nextSeed(draft.seed) };
+  const swap = rngFromSeed(draft.seed)() < 0.5;
+  const next = swap ? swapSides(draft) : normalizeDraftSide(draft);
+  return { ...next, seed: nextSeed(draft.seed) };
 }
 
 /** 한 사람을 초안에 없는 다른 사람으로 바꾼다. 자리(팀·포지션)는 그대로 물려받는다. */
@@ -344,7 +349,7 @@ export function undoDraft(draft: Draft): Draft {
 /**
  * 다음 판 준비(docs/P1 후보 A). 같은 팀으로 초안을 만들고 포지션은 새로 뽑는다.
  * 복사하는 것: 참가자, 팀 구성. keepPositions면 포지션도.
- * 복사하지 않는 것: 경기 ID, 승패, 진영(진행 중에 고른 진영 포함), 요청 ID, 완료 상태, 순환 사건, 추첨 기록.
+ * 복사하지 않는 것: 경기 ID, 승패, 진영(새 초안은 팀 A = 블루), 요청 ID, 완료 상태, 순환 사건, 추첨 기록.
  */
 export function draftFromMatch(
   match: MatchView,
@@ -372,7 +377,7 @@ export function draftFromMatch(
 
 /**
  * 준비 화면의 "포지션 유지": 지난 경기의 팀과 포지션으로 다시 맞춘다(draftFromMatch + keepPositions).
- * 이미 고른 진영과 팀 조건(지난 경기 사람끼리의 것)은 지우지 않는다. 같은 사람들이면 "직전 편성으로" 되돌릴 수 있다.
+ * 팀 A는 블루 그대로이고, 팀 조건(지난 경기 사람끼리의 것)은 지우지 않는다. 같은 사람들이면 "직전 편성으로" 되돌릴 수 있다.
  */
 export function keepMatchPositions(
   draft: Draft,
@@ -394,7 +399,6 @@ export function keepMatchPositions(
     constraints: (draft.constraints ?? []).filter((c) => keys.has(c.a) && keys.has(c.b)),
     previousSlots: samePeople ? draft.slots : null,
   };
-  if (draft.teamASide) next.teamASide = draft.teamASide;
   return next;
 }
 
@@ -406,7 +410,8 @@ export function parseStoredDraft(text: string | null): Draft | null {
     if (value.formatVersion !== DRAFT_FORMAT_VERSION) return null;
     if (!Array.isArray(value.people) || !Array.isArray(value.slots)) return null;
     if (value.people.length !== 10 || value.slots.length !== 10) return null;
-    return value;
+    // 예전 초안(진영 "red"·없음)은 팀 A = 블루로 맞춘다.
+    return normalizeDraftSide(value);
   } catch {
     return null;
   }

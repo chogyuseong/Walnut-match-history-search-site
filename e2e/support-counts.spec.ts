@@ -25,7 +25,8 @@ async function openPrep(page: Page) {
   return group.id;
 }
 
-const team = (page: Page, t: "A" | "B") => page.getByRole("region", { name: `팀 ${t}` });
+/** 준비 화면의 팀 상자. 팀 A는 블루팀, 팀 B는 레드팀이다. */
+const team = (page: Page, t: "A" | "B") => page.getByRole("region", { name: t === "A" ? "블루팀" : "레드팀" });
 const rows = (box: Locator) => box.getByRole("list").first().getByRole("button");
 async function teamNames(page: Page, t: "A" | "B") {
   return (await rows(team(page, t)).allInnerTexts()).map((x) => x.match(/횟수\d\d/)![0]);
@@ -93,7 +94,7 @@ test("첫 경기 전에 서포터 횟수를 직접 넣고, 서포터만 바꾸�
   await expect(reset).toBeEnabled();
   const beforeA = await rows(team(page, "A")).allInnerTexts();
   await page.getByRole("region", { name: "섞기" }).getByRole("button", { name: "서포터만 바꾸기" }).click();
-  await expect(page.locator(".note").filter({ hasText: "팀 A는 모두 서포터를 배정받았어요." })).toBeVisible();
+  await expect(page.locator(".note").filter({ hasText: "블루팀은 모두 서포터를 배정받았어요." })).toBeVisible();
   expect(await rows(team(page, "A")).allInnerTexts()).toEqual(beforeA);
 
   // 초기화 → 모두 0, 버튼 다시 꺼짐. 서버에도 내전·주기 없이 미리 넣은 값이 지워졌다.

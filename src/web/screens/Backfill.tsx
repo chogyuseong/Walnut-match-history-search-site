@@ -11,7 +11,7 @@ import { cleanName, MAX_NAME_LENGTH, nameKey } from "../../shared/names";
 import { localDate, safeTimeZone } from "../../shared/stats";
 import { POSITIONS, TEAMS, type MatchView, type Position, type Team } from "../../shared/types";
 import { call, mutate, newRequestId } from "../api";
-import { formatDate, formatTime, POSITION_LABEL, TEAM_MARK } from "../format";
+import { formatDate, formatTime, POSITION_LABEL, TEAM_MARK, winnerText } from "../format";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { CreateGroupButton } from "../account";
@@ -135,7 +135,7 @@ export function Backfill() {
           <p className="saved" role="status">
             <strong>
               {saved.matchNo}경기 저장됨 · {formatDate(saved.playedAt, tz)}{" "}
-              {formatTime(saved.playedAt, tz)} · 팀 {saved.winnerTeam} 승
+              {formatTime(saved.playedAt, tz)} · {winnerText(saved.winnerTeam!, saved.teamASide)}
             </strong>
           </p>
           <p className="hint">통계와 배치 판수에 바로 들어갑니다. 오늘 내전과 서포터 횟수는 그대로입니다.</p>

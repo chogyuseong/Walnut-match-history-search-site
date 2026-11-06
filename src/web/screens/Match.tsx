@@ -3,7 +3,7 @@ import { avoidMapFor } from "../../shared/avoid";
 import { draftFromMatch } from "../../shared/draft";
 import type { MatchView } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
-import { formatTime, matchRosterText, nameMap, teamSideLabel, viewLink } from "../format";
+import { formatTime, matchRosterText, nameMap, viewLink } from "../format";
 import { CopyButton, Dialog, ErrorNote, MatchTeams, StickyAction } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
@@ -139,7 +139,7 @@ export function Match() {
         </span>
       </header>
 
-      <MatchTeams match={match} nameOf={nameOf} sideOf={teamSideLabel(match)} />
+      <MatchTeams match={match} nameOf={nameOf} />
 
       <div className="button-row">
         <button type="button" className="secondary" onClick={() => setSharing(true)}>

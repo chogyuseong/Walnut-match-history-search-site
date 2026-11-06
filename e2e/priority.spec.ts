@@ -11,7 +11,8 @@ async function noHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(0);
 }
 
-const team = (page: Page, t: "A" | "B") => page.getByRole("region", { name: `팀 ${t}` });
+/** 준비 화면의 팀 상자. 팀 A는 블루팀, 팀 B는 레드팀이다. */
+const team = (page: Page, t: "A" | "B") => page.getByRole("region", { name: t === "A" ? "블루팀" : "레드팀" });
 const rows = (box: Locator) => box.getByRole("list").first().getByRole("button");
 
 async function members(page: Page, t: "A" | "B"): Promise<string[]> {
