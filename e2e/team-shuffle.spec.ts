@@ -44,8 +44,8 @@ test("올랜덤 → 진영 고르기 → 시작하면 진행 화면에 진영이
   await openPrep(page, "e2e-shuffle");
   const teamA = page.getByRole("region", { name: "팀 A" });
   const tools = page.getByRole("region", { name: "섞기" });
-  await expect(tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true })).toBeVisible();
-  await expect(tools.getByRole("button", { name: "팀 확정 올랜덤 + 서포터 공평하게" })).toBeVisible();
+  await expect(tools.getByRole("button", { name: "라인만 섞기", exact: true })).toBeVisible();
+  await expect(tools.getByRole("button", { name: "라인 섞기 + 서폿 돌아가며" })).toBeVisible();
   await expect(tools.getByRole("button", { name: "서포터만 바꾸기" })).toBeVisible();
   await noHorizontalOverflow(page);
 
@@ -54,7 +54,7 @@ test("올랜덤 → 진영 고르기 → 시작하면 진행 화면에 진영이
   const members = (texts: string[]) => texts.map((t) => t.match(/섞기\d\d/)![0]).sort();
   let changed = false;
   for (let i = 0; i < 5; i++) {
-    await tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true }).click();
+    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
     await expect(rows(teamA)).toHaveCount(5);
     await expect(rows(page.getByRole("region", { name: "팀 B" }))).toHaveCount(5);
     const now = await rows(teamA).allInnerTexts();
@@ -72,9 +72,9 @@ test("올랜덤 → 진영 고르기 → 시작하면 진행 화면에 진영이
   await sides.getByRole("radio", { name: "팀 A 레드" }).check();
   await expect(teamA.getByRole("heading")).toContainText("레드");
   await expect(page.getByRole("region", { name: "팀 B" }).getByRole("heading")).toContainText("블루");
-  // 좌우 바꾸기: 진영은 팀을 따라간다(지금 팀 A였던 사람들은 계속 레드 → 이름표가 B로 바뀐다).
+  // 두 팀 자리 바꾸기: 진영은 팀을 따라간다(지금 팀 A였던 사람들은 계속 레드 → 이름표가 B로 바뀐다).
   const redTeam = await rows(teamA).allInnerTexts();
-  await page.getByRole("button", { name: "좌우 바꾸기" }).click();
+  await page.getByRole("button", { name: "두 팀 자리 바꾸기" }).click();
   const teamB = page.getByRole("region", { name: "팀 B" });
   expect(await rows(teamB).allInnerTexts()).toEqual(redTeam);
   await expect(teamB.getByRole("heading")).toContainText("레드");
@@ -105,7 +105,7 @@ test("올랜덤 + 서포터 공평하게 → 시작 → 결과 → 다음 준비
 }) => {
   await openPrep(page, "e2e-fair");
   const tools = page.getByRole("region", { name: "섞기" });
-  await tools.getByRole("button", { name: "팀 확정 올랜덤 + 서포터 공평하게" }).click();
+  await tools.getByRole("button", { name: "라인 섞기 + 서폿 돌아가며" }).click();
   await expect(page.getByText("팀마다 서포터를 아직 안 간 사람으로 정했어요.")).toBeVisible();
   // 처음에는 아무도 서포터를 하지 않았다.
   await expect(page.getByText(/서폿 \d회/)).toHaveCount(0);

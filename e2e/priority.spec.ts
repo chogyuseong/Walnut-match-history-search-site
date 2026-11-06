@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-// 우선순위 배정 화면 → 준비 화면 "팀까지 올랜덤"(같은 순위끼리 양 팀에 나뉨) · "팀 확정 올랜덤"(팀원 그대로).
+// 우선순위 배정 화면 → 준비 화면 "팀·라인 모두 섞기"(같은 순위끼리 양 팀에 나뉨) · "라인만 섞기"(팀원 그대로).
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -18,7 +18,7 @@ async function members(page: Page, t: "A" | "B"): Promise<string[]> {
   return (await rows(team(page, t)).allInnerTexts()).map((text) => text.match(/우선\d\d/)![0]).sort();
 }
 
-test("우선순위 배정 → 팀까지 올랜덤 여러 번: 1순위 두 명은 매번 다른 팀, 팀 확정 올랜덤은 팀원 그대로", async ({ page }) => {
+test("우선순위 배정 → 팀·라인 모두 섞기 여러 번: 1순위 두 명은 매번 다른 팀, 라인만 섞기은 팀원 그대로", async ({ page }) => {
   test.setTimeout(120000);
   const login = await page.request.post("/api/auth/fake-login", {
     data: { subject: `e2e-priority-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
@@ -34,13 +34,13 @@ test("우선순위 배정 → 팀까지 올랜덤 여러 번: 1순위 두 명은
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
 
   const tools = page.getByRole("region", { name: "섞기", exact: true });
-  await expect(tools.getByRole("button", { name: "팀까지 올랜덤" })).toBeVisible();
-  await expect(tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true })).toBeVisible();
-  await expect(tools.getByRole("button", { name: "팀 확정 올랜덤 + 서포터 공평하게" })).toBeVisible();
+  await expect(tools.getByRole("button", { name: "팀·라인 모두 섞기" })).toBeVisible();
+  await expect(tools.getByRole("button", { name: "라인만 섞기", exact: true })).toBeVisible();
+  await expect(tools.getByRole("button", { name: "라인 섞기 + 서폿 돌아가며" })).toBeVisible();
   await noHorizontalOverflow(page);
 
   // 아직 아무도 정하지 않았으면 무작위로 나누고, 배정 화면으로 가는 링크를 남긴다.
-  await tools.getByRole("button", { name: "팀까지 올랜덤" }).click();
+  await tools.getByRole("button", { name: "팀·라인 모두 섞기" }).click();
   await expect(page.locator(".toast")).toHaveText("우선순위를 정한 사람이 없어 무작위로 나눴어요.");
   await expect(tools.getByRole("button", { name: "우선순위 배정하기" })).toBeVisible();
   await tools.getByRole("button", { name: "우선순위 배정하기" }).click();
@@ -83,10 +83,10 @@ test("우선순위 배정 → 팀까지 올랜덤 여러 번: 1순위 두 명은
   await page.getByRole("button", { name: "← 다음 경기 준비" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
 
-  // 팀까지 올랜덤 8번: 1순위 두 명·2순위 두 명은 매번 다른 팀, 4순위 세 명은 한 팀에 몰리지 않는다. 팀 구성은 한 번 이상 바뀐다.
+  // 팀·라인 모두 섞기 8번: 1순위 두 명·2순위 두 명은 매번 다른 팀, 4순위 세 명은 한 팀에 몰리지 않는다. 팀 구성은 한 번 이상 바뀐다.
   const seen = new Set<string>();
   for (let i = 0; i < 8; i++) {
-    await tools.getByRole("button", { name: "팀까지 올랜덤" }).click();
+    await tools.getByRole("button", { name: "팀·라인 모두 섞기" }).click();
     await expect(page.locator(".toast")).toContainText("1순위 1:1 · 2순위 1:1 · 3순위 1:1");
     await expect(rows(team(page, "A"))).toHaveCount(5);
     await expect(rows(team(page, "B"))).toHaveCount(5);
@@ -101,10 +101,10 @@ test("우선순위 배정 → 팀까지 올랜덤 여러 번: 1순위 두 명은
   await expect(page.getByRole("button", { name: "직전 편성으로" })).toBeVisible();
   await noHorizontalOverflow(page);
 
-  // 팀 확정 올랜덤: 팀원은 그대로 두고 라인만 섞는다.
+  // 라인만 섞기: 팀원은 그대로 두고 라인만 섞는다.
   const keep = [await members(page, "A"), await members(page, "B")];
   for (let i = 0; i < 4; i++) {
-    await tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true }).click();
+    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
     expect([await members(page, "A"), await members(page, "B")]).toEqual(keep);
   }
 

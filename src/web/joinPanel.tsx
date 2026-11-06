@@ -77,25 +77,26 @@ export function JoinPanel(props: {
   const target = view?.target ?? 10;
   const link = view?.link ?? null;
   const token = link?.token ?? null;
+  // 불러오는 동안에도 같은 모양(버튼은 꺼 둠)으로 그려 아래 화면이 밀리지 않게 한다.
+  const loading = !view && !error;
+  const off = busy || loading;
 
   return (
     <section className="card join-panel" aria-label="참가 신청">
       <div className="section-head">
         <h2>참가 신청 {entries.length > 0 ? `${entries.length}명` : ""}</h2>
-        <span className="tag">{!link ? "링크 없음" : link.open ? "받는 중" : "닫힘"}</span>
+        <span className="tag">{loading ? "확인 중" : !link ? "링크 없음" : link.open ? "받는 중" : "닫힘"}</span>
       </div>
       <p className="hint">
         링크를 보내면 참가자가 로그인 없이 "오늘 참가"를 눌러요. 본인 확인이 없어 링크를 가진 사람은 누구의 신청이든
         넣고 뺄 수 있어요.
       </p>
       <ErrorNote error={error} />
-      {!view ? (
-        !error && <p className="hint">불러오는 중…</p>
-      ) : (
+      {(view || loading) && (
         <>
           <div className="button-row">
             {!link ? (
-              <button type="button" className="secondary" disabled={busy} onClick={() => void createLink()}>
+              <button type="button" className="secondary" disabled={off} onClick={() => void createLink()}>
                 신청 링크 만들기
               </button>
             ) : (
@@ -125,13 +126,13 @@ export function JoinPanel(props: {
                 </button>
               </>
             )}
-            <button type="button" className="link" disabled={busy} onClick={() => void load()}>
+            <button type="button" className="link" disabled={off} onClick={() => void load()}>
               새로 고침
             </button>
           </div>
 
           {entries.length === 0 ? (
-            <p className="hint">아직 신청한 사람이 없어요.</p>
+            <p className="hint">{loading ? "불러오는 중…" : "아직 신청한 사람이 없어요."}</p>
           ) : (
             <ol className="list join-list" aria-label="신청자 목록">
               {entries.map((e, i) => {

@@ -69,7 +69,7 @@ export function Prep() {
   const [resetOpen, setResetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  // 팀까지 올랜덤을 눌렀는데 우선순위를 정한 사람이 없으면 섞기 구역에 배정 화면 링크를 남긴다(다음 조작 때 지운다).
+  // 팀·라인 모두 섞기을 눌렀는데 우선순위를 정한 사람이 없으면 섞기 구역에 배정 화면 링크를 남긴다(다음 조작 때 지운다).
   const [noPriorityNote, setNoPriorityNote] = useState(false);
   // 라인 섞기에서 기피 라인을 모두 피하지 못했으면 섞기 구역에 남긴다(다음 조작 때 지운다).
   const [avoidNote, setAvoidNote] = useState<string | null>(null);
@@ -173,7 +173,7 @@ export function Prep() {
     setDrawNote(result);
   }
 
-  /** 팀까지 올랜덤: 같은 우선순위끼리 양 팀에 고르게 나누고 라인도 무작위(src/shared/priority.ts). */
+  /** 팀·라인 모두 섞기: 같은 우선순위끼리 양 팀에 고르게 나누고 라인도 무작위(src/shared/priority.ts). */
   function runTeamShuffle() {
     const weights = app.snapshot?.group.settings.groupWeights ?? [4, 3, 2, 1];
     const result = shuffleTeamsByPriority(draft!, priorityMap(), weights, avoidMap);
@@ -185,7 +185,7 @@ export function Prep() {
     app.setNotice(teamShuffleText(result) + noteAvoid(result.draft));
   }
 
-  /** 팀 확정 올랜덤: fairSupport=false 라인만, true 라인 + 서포터 공평하게(src/shared/rotation.ts shuffleDraft). 팀원은 그대로다. */
+  /** 라인만 섞기: fairSupport=false 라인만, true 라인 + 서포터 공평하게(src/shared/rotation.ts shuffleDraft). 팀원은 그대로다. */
   function runShuffle(fairSupport: boolean) {
     const next = shuffleDraft(draft!, { fairSupport, avoid: avoidMap }, ctx);
     setSelectedKey(null);
@@ -519,10 +519,7 @@ export function Prep() {
       <section className="prep-tools" aria-label="섞기">
         <h2>섞기</h2>
         <p className="hint">
-          팀까지 올랜덤은 팀을 새로 나누고 라인도 섞어요. 같은 우선순위끼리는 양 팀에 고르게 나뉘어요. 팀 확정 올랜덤은
-          팀원은 그대로 두고 라인만 섞어요.
-          {ctx.enabled ? " '서포터 공평하게'는 섞은 뒤 팀마다 서포터를 아직 안 간 사람으로 정해요." : ""} 고정한 포지션은
-          지켜요.{" "}
+          고정한 포지션은 어떤 섞기에서도 지켜요. 잘못 눌렀으면 "직전 편성으로"로 되돌릴 수 있어요.{" "}
           <button type="button" className="link" onClick={() => go("/priority")}>
             우선순위 배정
           </button>{" "}
@@ -533,7 +530,7 @@ export function Prep() {
         </p>
         {hasAvoid && (
           <p className="hint">
-            기피 라인을 정한 사람은 라인을 섞을 때 그 라인을 되도록 피해요. 서포터 공평하게·서포터만 바꾸기는 서포터 횟수 규칙이
+            기피 라인을 정한 사람은 라인을 섞을 때 그 라인을 되도록 피해요. 서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이
             먼저예요.
           </p>
         )}
@@ -550,16 +547,48 @@ export function Prep() {
             </button>
           </p>
         )}
+        <p className="hint">
+          <strong>팀을 새로 짜기</strong> — 같은 우선순위끼리는 양 팀에 나뉘어요.
+        </p>
         <div className="button-row">
-          <button type="button" className="secondary" onClick={runTeamShuffle}>
-            팀까지 올랜덤
+          <button
+            type="button"
+            className="secondary"
+            title="10명을 두 팀으로 새로 나누고 라인도 섞어요. 같은 우선순위끼리는 양 팀에 고르게 나뉘어요."
+            onClick={runTeamShuffle}
+          >
+            팀·라인 모두 섞기
           </button>
-          <button type="button" className="secondary" onClick={() => runShuffle(false)}>
-            팀 확정 올랜덤
+          <button
+            type="button"
+            className="secondary"
+            title="우선순위 합이 비슷한 편성 3개를 보여 줘요. 골라서 적용해요."
+            onClick={showRecommendations}
+          >
+            균형 팀 추천
+          </button>
+        </div>
+        <p className="hint">
+          <strong>팀은 그대로</strong> — 팀원은 바뀌지 않아요.
+          {ctx.enabled ? " '서폿 돌아가며'는 팀마다 서포터를 아직 안 간 사람으로 정해요." : ""}
+        </p>
+        <div className="button-row">
+          <button
+            type="button"
+            className="secondary"
+            title="팀원은 그대로 두고 팀 안에서 라인만 섞어요."
+            onClick={() => runShuffle(false)}
+          >
+            라인만 섞기
           </button>
           {ctx.enabled && (
-            <button type="button" className="secondary" onClick={() => runShuffle(true)}>
-              팀 확정 올랜덤 + 서포터 공평하게
+            <button
+              type="button"
+              className="secondary"
+              title="라인을 섞은 뒤, 팀마다 서포터를 아직 안 간 사람으로 정해요."
+              onClick={() => runShuffle(true)}
+            >
+              라인 섞기 + 서폿 돌아가며
             </button>
           )}
           {ctx.enabled && (
@@ -572,11 +601,6 @@ export function Prep() {
               서포터만 바꾸기
             </button>
           )}
-        </div>
-        <div className="button-row">
-          <button type="button" className="secondary" onClick={showRecommendations}>
-            팀 추천
-          </button>
           <button
             type="button"
             className="secondary"
@@ -590,7 +614,7 @@ export function Prep() {
               app.setNotice("팀 A와 팀 B를 맞바꿨어요. 서포터와 진영은 팀을 따라가요.");
             }}
           >
-            좌우 바꾸기
+            두 팀 자리 바꾸기
           </button>
         </div>
       </section>
@@ -672,7 +696,7 @@ export function Prep() {
             })}
           </ul>
           <p className="hint">
-            조건은 팀 추천과 팀까지 올랜덤에 적용됩니다(팀까지 올랜덤은 우선순위 균형이 먼저예요). 손으로 자리를 바꾸는 것은
+            조건은 팀 추천과 팀·라인 모두 섞기에 적용됩니다(팀·라인 모두 섞기은 우선순위 균형이 먼저예요). 손으로 자리를 바꾸는 것은
             막지 않습니다.
           </p>
         </details>

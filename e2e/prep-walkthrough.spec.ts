@@ -71,7 +71,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   // 올랜덤: 팀원은 그대로 두고 라인만 섞는다. 안내가 뜨고 4초 안팎에 사라진다.
   const membersOf = async (t: "A" | "B") => (await readTeam(page, t)).map((r) => r.name).sort();
   const firstA = await membersOf("A");
-  await tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true }).click();
+  await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
   const toast = page.locator(".toast");
   await expect(toast).toHaveText("팀원은 그대로 두고 라인을 섞었어요.");
   expect(await membersOf("A")).toEqual(firstA);
@@ -79,13 +79,13 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await shots(page, "01-shuffled");
   await expect(toast).toHaveCount(0, { timeout: 8000 });
 
-  // 진영: 팀 A 블루 → 팀 상자에 블루·레드 → 좌우 바꾸기 하면 진영이 팀을 따라간다.
+  // 진영: 팀 A 블루 → 팀 상자에 블루·레드 → 두 팀 자리 바꾸기 하면 진영이 팀을 따라간다.
   const sideGroup = page.getByRole("radiogroup", { name: "팀 A의 진영" });
   await sideGroup.getByText("팀 A 블루").click();
   await expect(team(page, "A")).toContainText("블루");
   await expect(team(page, "B")).toContainText("레드");
   const aBefore = (await readTeam(page, "A")).map((r) => r.name).sort();
-  await tools.getByRole("button", { name: "좌우 바꾸기" }).click();
+  await tools.getByRole("button", { name: "두 팀 자리 바꾸기" }).click();
   expect((await readTeam(page, "B")).map((r) => r.name).sort()).toEqual(aBefore);
   await expect(team(page, "B")).toContainText("블루");
   await shots(page, "02-side");
@@ -98,15 +98,15 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await page.getByRole("button", { name: "포지션 고정" }).click();
   await expect(rows(team(page, "A")).nth(0)).toContainText("고정");
   for (let i = 0; i < 3; i++) {
-    await tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true }).click();
+    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
     expect((await readTeam(page, "A"))[0]!.name).toBe(lockedName);
   }
   const beforeUndo = await readTeam(page, "B");
-  await tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true }).click();
+  await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
   await page.getByRole("button", { name: "직전 편성으로" }).click();
   expect(await readTeam(page, "B")).toEqual(beforeUndo);
 
-  // 같은 팀 조건을 걸어도 팀 확정 올랜덤은 팀원을 바꾸지 않는다(조건은 팀 추천·팀까지 올랜덤에만 쓴다).
+  // 같은 팀 조건을 걸어도 라인만 섞기은 팀원을 바꾸지 않는다(조건은 팀 추천·팀·라인 모두 섞기에만 쓴다).
   const [p1, p2] = [(await readTeam(page, "A"))[1]!.name, (await readTeam(page, "B"))[1]!.name];
   await rows(team(page, "A")).nth(1).click();
   await page.getByRole("button", { name: "같은 팀으로 묶기" }).click();
@@ -114,7 +114,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await expect(page.getByText("팀 조건 1개")).toBeVisible();
   const [keepA, keepB] = [await membersOf("A"), await membersOf("B")];
   for (let i = 0; i < 5; i++) {
-    await tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true }).click();
+    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
     expect([await membersOf("A"), await membersOf("B")]).toEqual([keepA, keepB]);
   }
   // 팀 추천 적용: 조건을 지키고 고정은 유지된다.
@@ -137,7 +137,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   let sawAllAssigned = false;
   for (let game = 1; game <= 6; game++) {
     const membersBefore = [await membersOf("A"), await membersOf("B")];
-    await tools.getByRole("button", { name: "팀 확정 올랜덤 + 서포터 공평하게" }).click();
+    await tools.getByRole("button", { name: "라인 섞기 + 서폿 돌아가며" }).click();
     expect([await membersOf("A"), await membersOf("B")]).toEqual(membersBefore);
     const teams = [await readTeam(page, "A"), await readTeam(page, "B")];
     const full = teams.map((t) => t.every((r) => r.count >= 1));

@@ -215,7 +215,7 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
   expect(Math.abs(top1 - top0)).toBeLessThanOrEqual(1);
 });
 
-test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 시작하면 서버 명단도 바뀐 대로", async ({ page }) => {
+test("19: 추첨 적용 → 두 팀 자리 바꾸기 → 두 팀 '적용됨' 유지 → 시작하면 서버 명단도 바뀐 대로", async ({ page }) => {
   const s = await setup(page);
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });
@@ -233,7 +233,7 @@ test("19: 추첨 적용 → 좌우 바꾸기 → 두 팀 '적용됨' 유지 → 
   const beforeA = await rows(teamA);
   const beforeB = await rows(teamB);
 
-  await page.getByRole("button", { name: "좌우 바꾸기" }).click();
+  await page.getByRole("button", { name: "두 팀 자리 바꾸기" }).click();
   // 사람·포지션은 그대로 자리만 바뀌고, 두 팀 모두 추첨이 유지된다.
   expect(await rows(teamA)).toEqual(beforeB);
   expect(await rows(teamB)).toEqual(beforeA);
@@ -645,7 +645,7 @@ test.describe("39: 화면 키보드 열림과 200% 확대", () => {
       // 준비: 교체 창의 검색 칸은 없으므로 준비 화면의 시작 버튼이 탭에 가리지 않는지 본다.
       await page.getByRole("button", { name: "다음 경기 준비" }).click();
       await notCovered(page.getByRole("button", { name: "이 팀으로 시작" }), "준비 시작");
-      await notCovered(page.getByRole("button", { name: "좌우 바꾸기" }), "준비 좌우 바꾸기");
+      await notCovered(page.getByRole("button", { name: "두 팀 자리 바꾸기" }), "준비 두 팀 자리 바꾸기");
 
       // 지난 경기 입력: 마지막 이름 칸에 초점, 저장 버튼.
       await page.goto("/#/backfill");

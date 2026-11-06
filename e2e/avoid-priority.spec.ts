@@ -23,7 +23,7 @@ async function lineup(page: Page): Promise<Map<string, [string, string]>> {
   return result;
 }
 
-test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기피 라인 지정 → 팀 확정·팀까지 올랜덤이 피함", async ({ page }) => {
+test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기피 라인 지정 → 팀 확정·팀·라인 모두 섞기이 피함", async ({ page }) => {
   test.setTimeout(180000);
   const login = await page.request.post("/api/auth/fake-login", {
     data: { subject: `e2e-avoid-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
@@ -86,7 +86,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
   // ---------- 기피 라인
   await page.getByRole("tab", { name: "기피 라인" }).click();
   await expect(page.getByRole("heading", { name: "기피 라인" })).toBeVisible();
-  await expect(page.getByText("서포터 공평하게·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요")).toBeVisible();
+  await expect(page.getByText("서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요")).toBeVisible();
   const toggle = (name: string, pos: string) => page.getByRole("button", { name: `${name} ${pos} 기피`, exact: true });
   // 기피01: 탑·정글·미드·원딜(서폿만 감). 다섯 번째는 눌리지 않고 이유를 알린다.
   for (const pos of ["탑", "정글", "미드", "원딜"]) {
@@ -121,7 +121,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
   await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
   const tools = page.getByRole("region", { name: "섞기", exact: true });
-  await expect(tools).toContainText("서포터 공평하게·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요");
+  await expect(tools).toContainText("서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요");
   // 처음 팀 짜기도 기피를 피했다.
   let seen = await lineup(page);
   expect(seen.get("기피01")![1]).toBe("서폿");
@@ -129,7 +129,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
 
   for (let i = 0; i < 6; i++) {
     const before = await lineup(page);
-    await tools.getByRole("button", { name: "팀 확정 올랜덤", exact: true }).click();
+    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
     await expect(page.locator(".toast")).toContainText("팀원은 그대로 두고 라인을 섞었어요.");
     seen = await lineup(page);
     for (const [name, [team]] of before) expect(seen.get(name)![0]).toBe(team);
@@ -138,7 +138,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 순위 점검, 기�
   }
   const teams = new Set<string>();
   for (let i = 0; i < 6; i++) {
-    await tools.getByRole("button", { name: "팀까지 올랜덤" }).click();
+    await tools.getByRole("button", { name: "팀·라인 모두 섞기" }).click();
     await expect(page.locator(".toast")).toContainText("나눴어요");
     seen = await lineup(page);
     expect(seen.get("기피01")![1]).toBe("서폿");

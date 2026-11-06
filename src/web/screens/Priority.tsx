@@ -135,7 +135,7 @@ function PriorityPanel({ app, snapshot, people, inDraft }: PanelProps) {
   return (
     <>
       <p className="hint">
-        1순위가 가장 잘하는 사람이에요. 같은 순위끼리는 팀까지 올랜덤·팀 추천에서 양 팀에 나뉘어요. 미지정은 못하는 사람이
+        1순위가 가장 잘하는 사람이에요. 같은 순위끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은 못하는 사람이
         아니라 아직 안 정한 사람이에요.
       </p>
       <p className="hint">
@@ -422,11 +422,11 @@ function AvoidPanel({ app, snapshot, people, inDraft }: PanelProps) {
   return (
     <>
       <p className="hint">
-        고른 라인은 라인 섞기(팀 확정 올랜덤·팀까지 올랜덤·팀 추천 적용·처음 팀 짜기)에서 되도록 피해요. 모두 피할 수 없으면
+        고른 라인은 라인 섞기(라인만 섞기·팀·라인 모두 섞기·팀 추천 적용·처음 팀 짜기)에서 되도록 피해요. 모두 피할 수 없으면
         가장 적게 어기는 배정을 고르고 알려 줘요. 포지션 고정이 먼저이고, 손으로 자리를 바꾸는 것은 막지 않아요.
       </p>
       <p className="hint">
-        서포터 공평하게·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요. 한 사람에 {MAX_AVOID}개까지, 누르면 바로 저장돼요. 운영자만
+        서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요. 한 사람에 {MAX_AVOID}개까지, 누르면 바로 저장돼요. 운영자만
         봐요.
       </p>
       <ErrorNote error={error} />
