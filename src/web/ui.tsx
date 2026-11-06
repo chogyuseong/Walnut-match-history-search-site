@@ -2,12 +2,14 @@ import { canGoBack } from "./nav";
 import { SessionExpiredNote } from "./screens/Login";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, SMALL_SAMPLE, type Scope } from "../shared/stats";
-import type { Standing } from "../shared/titles";
+import type { TitleGrade } from "../shared/titles";
 import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/types";
 import { ApiFailure } from "./api";
 import {
   copyText,
   formatTime,
+  heatClass,
+  type ShownStanding,
   POSITION_LABEL,
   rateTier,
   TEAM_MARK,
@@ -158,12 +160,52 @@ export function scopeFromValue(value: string): Scope {
 }
 
 /**
+ * 칭호 엠블럼. 등급(구간 순서)마다 직접 그린 단순한 도형이다(게임의 랭크 엠블럼을 본뜨지 않았다).
+ * 1 왕관 · 2 별 · 3 방패 · 4 검 · 5 새싹. 꾸밈이고 뜻은 옆의 이름 글자가 전한다.
+ */
+const TITLE_EMBLEMS: Record<TitleGrade, ReactNode> = {
+  1: <path d="M3 18.5H21M4 16L3 7L8.5 11L12 4.5L15.5 11L21 7L20 16H4Z" />,
+  2: <path d="M12 3.5L14.6 9L20.5 9.6L16 13.6L17.3 19.5L12 16.5L6.7 19.5L8 13.6L3.5 9.6L9.4 9L12 3.5Z" />,
+  3: (
+    <>
+      <path d="M12 3.5L19 6.5V12C19 16 16.2 19 12 20.5C7.8 19 5 16 5 12V6.5L12 3.5Z" />
+      <path d="M12 8V16" />
+    </>
+  ),
+  4: <path d="M17.5 4H20V6.5L10.5 16L8 13.5L17.5 4ZM6 12L12 18M8.5 15.5L4.5 19.5" />,
+  5: <path d="M12 20.5V11M12 12.5C12 8.5 9.5 6.5 5 6.5C5 10.5 7.5 12.5 12 12.5ZM12 11C12 7.5 14.5 5 19 5C19 9 16.5 11 12 11Z" />,
+};
+
+/** 칭호 엠블럼 하나(꾸밈, 화면 읽기에서 숨김). 색은 둘러싼 요소의 grade-N 클래스를 따른다. */
+export function TitleEmblem(props: { grade: TitleGrade }) {
+  return (
+    <svg className="title-emblem" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {TITLE_EMBLEMS[props.grade]}
+    </svg>
+  );
+}
+
+/**
+ * 칭호 표식: 엠블럼 + 이름, 등급 색. 칭호가 나오는 모든 화면이 이것 하나를 쓴다.
+ * grade가 없으면(알 수 없는 이름 등) 예전처럼 색 없는 테두리 표식이다.
+ */
+export function TitleBadge(props: { name: string; grade: TitleGrade | null }) {
+  const { grade } = props;
+  return (
+    <span className={grade ? `title-chip grade-${grade}` : "title-chip"}>
+      {grade && <TitleEmblem grade={grade} />}
+      <span className="title-name">{props.name}</span>
+    </span>
+  );
+}
+
+/**
  * 배치·칭호 표시. 누적 기준이며 범위 필터와 무관하다(docs/P2 P2-11).
  * 배치 중은 "배치 진행 중 7/10"으로만 쓰고 낮은 실력처럼 보이게 하지 않는다.
- * 칭호는 승률 색(rateTier)과 겹치지 않도록 색 없이 테두리 표식으로만 보여준다.
+ * 칭호는 구간 순서로 정한 등급 색·엠블럼으로 보여준다(TitleBadge).
  */
-export function StandingNote(props: { standing: Standing | undefined }) {
-  const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null };
+export function StandingNote(props: { standing: ShownStanding | undefined }) {
+  const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null, grade: null };
   if (!s.done) {
     return (
       <span className="standing">
@@ -174,7 +216,7 @@ export function StandingNote(props: { standing: Standing | undefined }) {
   if (!s.title) return <span className="standing">배치 완료 (누적 기준)</span>;
   return (
     <span className="standing">
-      <span className="title-chip">{s.title}</span> 누적 기준
+      <TitleBadge name={s.title} grade={s.grade} /> 누적 기준
     </span>
   );
 }
@@ -498,21 +540,24 @@ export type MeterTone = "rate" | "blue" | "red" | "share";
 
 /**
  * 가로 막대 하나. value는 0~1.
- * tone: rate(승률, 한 가지 색) · blue/red(진영 색) · share(비중, 중립색). muted면 색 없이 회색으로 그린다.
+ * tone: rate(승률) · blue/red(진영 색) · share(비중, 중립색). muted면 색 없이 회색으로 그린다.
+ * heat: 승률 색 단계 클래스(heatClass). 승률 막대만 준다.
  * mid: 50% 기준선.
  */
 export function Meter(props: {
   value: number;
   tone?: MeterTone;
+  heat?: string;
   mid?: boolean;
   muted?: boolean;
   small?: boolean;
 }) {
   const width = Math.max(0, Math.min(1, props.value)) * 100;
   const tone = props.muted ? "muted" : (props.tone ?? "rate");
+  const heat = !props.muted && tone === "rate" && props.heat ? ` ${props.heat}` : "";
   return (
     <span className={props.small ? "meter meter-sm viz-root" : "meter viz-root"} aria-hidden="true">
-      <span className={`meter-fill tone-${tone}`} style={{ width: `${width}%` }} />
+      <span className={`meter-fill tone-${tone}${heat}`} style={{ width: `${width}%` }} />
       {props.mid && <span className="meter-mid" />}
     </span>
   );
@@ -520,8 +565,9 @@ export function Meter(props: {
 
 /**
  * 승률 막대(50% 기준선 포함). 기록이 없으면 빈 막대다.
- * 승률 막대는 SMALL_SAMPLE경기 미만이면 색으로 강조하지 않는다(rateTier·"자료 적음"과 같은 규칙).
- * 진영 막대(blue·red)는 진영을 가리키는 색이라 표본과 관계없이 진영 색을 쓴다.
+ * 승률 막대는 승률 색 단계(heatClass: 45~55% 기본 색, 높을수록 붉게, 낮을수록 가라앉게)를 따르고,
+ * SMALL_SAMPLE경기 미만이면 색으로 강조하지 않는다(rateTier·"자료 적음"과 같은 규칙).
+ * 진영 막대(blue·red)는 진영을 가리키는 색이라 표본·승률과 관계없이 진영 색을 쓴다.
  */
 export function RateBar(props: { wins: number; games: number; tone?: MeterTone; small?: boolean }) {
   const { wins, games } = props;
@@ -530,6 +576,7 @@ export function RateBar(props: { wins: number; games: number; tone?: MeterTone; 
     <Meter
       value={games === 0 ? 0 : wins / games}
       tone={tone}
+      heat={tone === "rate" ? heatClass(wins, games) : undefined}
       mid
       muted={tone === "rate" && games < SMALL_SAMPLE}
       small={props.small}
@@ -566,7 +613,7 @@ export function RateRing(props: { wins: number; games: number }) {
       <svg viewBox="0 0 68 68">
         <circle className="ring-track" cx="34" cy="34" r={R} />
         <circle
-          className={muted ? "ring-fill tone-muted" : "ring-fill"}
+          className={muted ? "ring-fill tone-muted" : `ring-fill ${heatClass(wins, games)}`}
           cx="34"
           cy="34"
           r={R}

@@ -37,11 +37,35 @@
   --ih-loss-border: rgba(239, 68, 68, 0.35);
   --ih-loss-text: #f87171;
 
-  /* 키트의 KDA 구간 색. 이 사이트에는 KDA가 없어 승률 구간에 쓴다. */
-  --ih-kda-under3: #94a3b8;
-  --ih-kda-3plus: #10b981;
-  --ih-kda-4plus: #3b82f6;
-  --ih-kda-5plus: #f59e0b;
+  /* 승률 색 단계(format.ts의 rateHeat). 0은 기준(45~55%), h1~h4는 높을수록 붉게(주황빛 다홍 —
+     패배·레드팀의 빨강과 색조를 띄운다), l1~l4는 낮을수록 가라앉게.
+     막대(bar)는 막대 바탕(--viz-track #262b36) 대비 3:1 이상, 글자(text)는 바탕 대비 4.5:1 이상.
+     다크·바이올렛이 같은 값을 쓴다(값과 대비는 docs/구현현황.md "승률 그래프 색 단계"). */
+  --heat-bar-h4: #ff6a1f;
+  --heat-bar-h3: #fb7a2e;
+  --heat-bar-h2: #f39445;
+  --heat-bar-h1: #e8b06a;
+  --heat-bar-0: #3987e5;
+  --heat-bar-l1: #3d80d4;
+  --heat-bar-l2: #4679be;
+  --heat-bar-l3: #5276a2;
+  --heat-bar-l4: #63778f;
+  --heat-text-h4: #ff7a3a;
+  --heat-text-h3: #fb8a45;
+  --heat-text-h2: #f9a660;
+  --heat-text-h1: #f5c48a;
+  --heat-text-0: #f1f5f9;
+  --heat-text-l1: #cbd5e1;
+  --heat-text-l2: #b4c0cf;
+  --heat-text-l3: #9eabbd;
+  --heat-text-l4: #8b99ad;
+
+  /* 칭호 등급 색(titles.ts의 titleGrade). 1(최상)이 가장 뜨겁고 5(최하)는 차분한 보라 — 회색으로 낮추지 않는다. */
+  --grade-1: #ff8f4f;
+  --grade-2: #f5c04a;
+  --grade-3: #5fd38d;
+  --grade-4: #6cb6ff;
+  --grade-5: #b4a7ff;
 
   --ih-radius-sm: 6px;
   --ih-radius-md: 10px;
@@ -82,7 +106,6 @@
   --ih-loss-bg-hover: rgba(244, 63, 94, 0.18);
   --ih-loss-border: rgba(244, 63, 94, 0.38);
   --ih-loss-text: #fb7185;
-  --ih-kda-4plus: #22d3ee;
   --ih-brand-fill: #4f46e5;
   --ih-brand-fill-hover: #4338ca;
   --ih-link: #a5b4fc;
@@ -115,10 +138,32 @@
   --ih-loss-text: #b91c1c;
   /* 흰 바탕에서 글자 대비 4.5:1을 넘도록 키트 값보다 어둡게 둔다. */
   --ih-accent-gold: #b45309;
-  --ih-kda-under3: #475569;
-  --ih-kda-3plus: #047857;
-  --ih-kda-4plus: #2563eb;
-  --ih-kda-5plus: #b45309;
+  /* 밝은 테마의 승률 색 단계. 막대는 바탕 막대(#e1e0d9) 대비 3:1 이상이 되도록 붉은 쪽도 어둡게 두고,
+     낮은 쪽은 짙은 남회색으로 어두워진다. 글자는 밝은 바탕 대비 4.5:1 이상이고
+     낮은 쪽 글자는 검정에서 회색으로 가라앉는다. */
+  --heat-bar-h4: #cc4b0c;
+  --heat-bar-h3: #c2520e;
+  --heat-bar-h2: #b65d14;
+  --heat-bar-h1: #a8671c;
+  --heat-bar-0: #2a78d6;
+  --heat-bar-l1: #2b5f9e;
+  --heat-bar-l2: #2c4c78;
+  --heat-bar-l3: #2f3d57;
+  --heat-bar-l4: #283244;
+  --heat-text-h4: #b0440a;
+  --heat-text-h3: #ab4b0a;
+  --heat-text-h2: #9e520c;
+  --heat-text-h1: #8f5a0e;
+  --heat-text-0: #0f172a;
+  --heat-text-l1: #334155;
+  --heat-text-l2: #475569;
+  --heat-text-l3: #56637a;
+  --heat-text-l4: #5f6b7f;
+  --grade-1: #b4460a;
+  --grade-2: #8a6100;
+  --grade-3: #157a43;
+  --grade-4: #1d68c2;
+  --grade-5: #5b4bc4;
   --ih-shadow-card: 0 2px 10px rgba(15, 23, 42, 0.06);
   --ih-brand-fill: #2563eb;
   --ih-brand-fill-hover: #1d4ed8;
@@ -740,15 +785,12 @@ input[type="search"] {
 }
 
 /* ---------- 그래프 분석 ----------
-   색은 역할로 쓴다. 한 계열 막대는 한 색, 진영은 블루·레드(글자와 함께),
-   플레이어×라인은 50%를 중립 회색으로 둔 양극(파랑↔주황) 다섯 구간.
-   조합은 색각 구분 검사를 밝은·어두운 화면 모두에서 통과한 값이다. */
+   색은 역할로 쓴다. 승률 막대·표 칸은 승률 색 단계(heat-*), 진영은 블루·레드(글자와 함께). */
 .viz-root {
   --viz-surface: var(--ih-bg-surface);
   --viz-series: #3987e5;
   --viz-blue: #3987e5;
   --viz-red: #e66767;
-  --viz-low: #d95926;
   --viz-mid: #33363d;
   --viz-track: #262b36;
   --viz-axis: #898781;
@@ -758,7 +800,6 @@ input[type="search"] {
   --viz-series: #2a78d6;
   --viz-blue: #2a78d6;
   --viz-red: #e34948;
-  --viz-low: #eb6834;
   --viz-mid: #f0efec;
   --viz-track: #e1e0d9;
   --viz-axis: #898781;
@@ -824,7 +865,7 @@ button.bar-row:hover {
   color: var(--muted);
   font-size: 0.8125rem;
 }
-/* 값은 본문 색으로 쓴다. 막대 색을 글자에 입히지 않는다. */
+/* 값은 본문 색으로 쓰고, 승률 숫자(.rate)만 막대와 같은 색 단계를 따른다. */
 .bar-value {
   flex: none;
   color: var(--text);
@@ -882,21 +923,6 @@ button.bar-row:hover {
   border-radius: 3px;
   border: 1px solid var(--line);
 }
-.band-low2 {
-  background: color-mix(in oklab, var(--viz-low) 50%, var(--viz-surface));
-}
-.band-low1 {
-  background: color-mix(in oklab, var(--viz-low) 22%, var(--viz-surface));
-}
-.band-mid {
-  background: var(--viz-mid);
-}
-.band-high1 {
-  background: color-mix(in oklab, var(--viz-blue) 22%, var(--viz-surface));
-}
-.band-high2 {
-  background: color-mix(in oklab, var(--viz-blue) 50%, var(--viz-surface));
-}
 .band-none,
 .band-empty {
   background: var(--viz-surface);
@@ -940,9 +966,11 @@ button.bar-row:hover {
   color: var(--muted);
   font-size: 0.75rem;
 }
-/* 진한 칸에서는 보조 글자 색의 대비가 4.5:1에 못 미친다. 본문 색을 쓴다. */
-.band-low2 .cell-games,
-.band-high2 .cell-games {
+/* 표 칸: 막대 색을 45% 섞은 옅은 바탕. 색 칸에서는 보조 글자 대비가 모자라 본문 색을 쓴다. */
+.matrix td[class*="heat-"] {
+  background: color-mix(in oklab, var(--heat-bar) 45%, var(--viz-surface));
+}
+.matrix td[class*="heat-"] .cell-games {
   color: var(--text);
 }
 
@@ -1402,6 +1430,17 @@ button.row.picked:hover {
   background: var(--picked);
   color: var(--text);
 }
+/* 펼친 목록(시즌·연도 등)의 글자: select의 반투명 바탕·흐린 글자색을 물려받으면 읽기 어렵다.
+   목록 줄은 불투명한 바탕에 본문 글자 색으로 고정한다(다크 16:1, 바이올렛 15:1, 라이트 16:1 안팎). */
+select option,
+select optgroup {
+  background-color: var(--ih-bg-elevated);
+  color: var(--ih-text-primary);
+  font-weight: 500;
+}
+select option:disabled {
+  color: var(--ih-text-muted);
+}
 
 /* 순위와 승률 구간 */
 .stat,
@@ -1419,17 +1458,53 @@ button.row.picked:hover {
 .rate {
   font-weight: 800;
 }
-.rate-normal {
-  color: var(--ih-kda-under3);
+/* 승률 색 단계(format.ts의 heatClass). 한 클래스가 막대 색과 글자 색을 함께 정한다. */
+.heat-h4 {
+  --heat-bar: var(--heat-bar-h4);
+  --heat-text: var(--heat-text-h4);
 }
-.rate-good {
-  color: var(--ih-kda-3plus);
+.heat-h3 {
+  --heat-bar: var(--heat-bar-h3);
+  --heat-text: var(--heat-text-h3);
 }
-.rate-great {
-  color: var(--ih-kda-4plus);
+.heat-h2 {
+  --heat-bar: var(--heat-bar-h2);
+  --heat-text: var(--heat-text-h2);
 }
-.rate-god {
-  color: var(--ih-kda-5plus);
+.heat-h1 {
+  --heat-bar: var(--heat-bar-h1);
+  --heat-text: var(--heat-text-h1);
+}
+.heat-0 {
+  --heat-bar: var(--heat-bar-0);
+  --heat-text: var(--heat-text-0);
+}
+.heat-l1 {
+  --heat-bar: var(--heat-bar-l1);
+  --heat-text: var(--heat-text-l1);
+}
+.heat-l2 {
+  --heat-bar: var(--heat-bar-l2);
+  --heat-text: var(--heat-text-l2);
+}
+.heat-l3 {
+  --heat-bar: var(--heat-bar-l3);
+  --heat-text: var(--heat-text-l3);
+}
+.heat-l4 {
+  --heat-bar: var(--heat-bar-l4);
+  --heat-text: var(--heat-text-l4);
+}
+.rate[class*="heat-"] {
+  color: var(--heat-text);
+}
+.meter-fill[class*="heat-"],
+.bar-fill[class*="heat-"],
+.swatch[class*="heat-"] {
+  background: var(--heat-bar);
+}
+.ring-fill[class*="heat-"] {
+  stroke: var(--heat-bar);
 }
 .summary-line {
   font-size: 1.125rem;
@@ -1641,10 +1716,12 @@ button.row.picked:hover {
 }
 
 /* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
-/* 새 색을 만들지 않고 키트 토큰만 쓴다. 칭호 표식은 승률 색(rate-*)과 겹치지 않게
-   색 없이 본문 글자 + 옅은 바탕 + 테두리로만 구분한다(세 테마 모두 본문 대비 그대로). */
+/* 칭호 표식: 엠블럼 + 이름. 등급(grade-1~5, 구간 순서로 정함)이 있으면 글자·테두리·엠블럼을 등급 색으로,
+   바탕은 카드 바탕으로 둔다(글자 대비 4.5:1, 테두리 3:1 이상). 등급이 없으면 예전처럼 본문 글자 + 옅은 바탕. */
 .title-chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   max-width: 100%;
   padding: 0 8px;
   border: 1px solid var(--ih-border-strong);
@@ -1658,6 +1735,52 @@ button.row.picked:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
+}
+.title-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grade-1 {
+  --grade: var(--grade-1);
+}
+.grade-2 {
+  --grade: var(--grade-2);
+}
+.grade-3 {
+  --grade: var(--grade-3);
+}
+.grade-4 {
+  --grade: var(--grade-4);
+}
+.grade-5 {
+  --grade: var(--grade-5);
+}
+.title-chip[class*="grade-"] {
+  padding-left: 5px;
+  border-color: var(--grade);
+  background: var(--ih-bg-surface);
+  color: var(--grade);
+}
+.title-emblem {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  fill-opacity: 0.28;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.title-preview {
+  display: inline-flex;
+  flex: none;
+  color: var(--grade);
+}
+.title-preview .title-emblem {
+  width: 20px;
+  height: 20px;
 }
 
 /* 하단 탭이 5개가 되어도 320px에서 넘치지 않게 좌우 여백을 줄인다. 높이(56px)는 그대로다. */

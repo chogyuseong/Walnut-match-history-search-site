@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
-import type { Standing } from "../../shared/titles";
+import { titleBandsOf, titleGradeFor, type Standing } from "../../shared/titles";
 import type { MatchState, ParticipantView } from "../../shared/types";
 import { call, mutate, newRequestId } from "../api";
 import { formatDate, formatTime, nameMap } from "../format";
-import { Dialog, ErrorNote } from "../ui";
+import { Dialog, ErrorNote, TitleBadge } from "../ui";
 import { go, useAppValue } from "../useApp";
 
 /** 서버의 합치기 미리보기 응답(src/server/merge.ts의 MergePreview). */
@@ -269,7 +269,16 @@ export function Merge() {
                 <tr>
                   <th scope="row">칭호</th>
                   {[preview.standings.source, preview.standings.target, preview.standings.merged].map((s, i) => (
-                    <td key={i}>{s?.title ?? "없음"}</td>
+                    <td key={i}>
+                      {s?.title && snapshot ? (
+                        <TitleBadge
+                          name={s.title}
+                          grade={titleGradeFor(s.wins, s.games, titleBandsOf(snapshot.group.settings))}
+                        />
+                      ) : (
+                        (s?.title ?? "없음")
+                      )}
+                    </td>
                   ))}
                 </tr>
               </tbody>

@@ -33,6 +33,7 @@ import {
   RateBar,
   RateRing,
   ScopePicker,
+  TitleBadge,
   TrendLine,
   WinLossBar,
 } from "../ui";
@@ -44,6 +45,24 @@ function rate(tally: Tally): string {
 function line(tally: Tally): string {
   if (tally.games === 0) return "기록 없음";
   return `${rate(tally)} · ${tally.wins}승 ${tally.games - tally.wins}패 (${tally.games}경기)`;
+}
+
+/** 승률 숫자에 승률 색 단계(rateTier)를 입힌 글자. 기록이 없으면 "기록 없음". */
+function RateText(props: { tally: Tally }) {
+  const { tally } = props;
+  if (tally.games === 0) return <>기록 없음</>;
+  return <span className={rateTier(tally.wins, tally.games)}>{rate(tally)}</span>;
+}
+
+/** line()과 같은 글이고 승률 숫자만 색 단계를 따른다. */
+function RateLine(props: { tally: Tally }) {
+  const { tally } = props;
+  if (tally.games === 0) return <>기록 없음</>;
+  return (
+    <>
+      <RateText tally={tally} /> · {tally.wins}승 {tally.games - tally.wins}패 ({tally.games}경기)
+    </>
+  );
 }
 
 /** 참여 경기 카드를 처음에 보여주는 수와 "더 보기"로 더 여는 수. */
@@ -132,6 +151,7 @@ export function Person(props: {
     games: 0,
     done: false,
     title: null,
+    grade: null,
   };
   const streaks = streakOf(results);
   const main = mainLine(detail.byPosition);
@@ -181,7 +201,7 @@ export function Person(props: {
               >
                 <span className="name">{nameOf(pair.participantId)}</span>
                 <span className="stat">
-                  {line(pair)}
+                  <RateLine tally={pair} />
                   {pair.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
                 </span>
                 <RateBar wins={pair.wins} games={pair.games} small />
@@ -227,7 +247,7 @@ export function Person(props: {
           {nameOf(pair.participantId)}
         </button>
         <span className="tile-sub">
-          {sub} {rate(pair)} · {pair.games}경기
+          {sub} <RateText tally={pair} /> · {pair.games}경기
         </span>
         <RateBar wins={pair.wins} games={pair.games} small />
       </>
@@ -246,7 +266,7 @@ export function Person(props: {
           <PosLabel position={picked.position} />
         </strong>
         <span className="tile-sub">
-          {rate(picked.tally)} · {picked.tally.games}경기
+          <RateText tally={picked.tally} /> · {picked.tally.games}경기
           {picked.tally.games < SMALL_SAMPLE ? " · 자료 적음" : ""}
         </span>
         <RateBar wins={picked.tally.wins} games={picked.tally.games} small />
@@ -309,7 +329,7 @@ export function Person(props: {
               )}
               {placement.title && (
                 <p className="hint">
-                  칭호 <span className="title-chip">{placement.title}</span> 누적 기준 · 범위를 바꿔도
+                  칭호 <TitleBadge name={placement.title} grade={placement.grade} /> 누적 기준 · 범위를 바꿔도
                   그대로입니다
                 </p>
               )}
@@ -396,7 +416,7 @@ export function Person(props: {
               <li key={position} className="list-row static has-bar">
                 <PosLabel position={position} />
                 <span className="stat">
-                  {tally ? line(tally) : "기록 없음"}
+                  {tally ? <RateLine tally={tally} /> : "기록 없음"}
                   {tally && tally.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
                 </span>
                 {/* 기록 없는 라인은 빈 막대만 두고 숫자는 적지 않는다("0%"로 읽히지 않게). */}
@@ -406,7 +426,7 @@ export function Person(props: {
                   <span className="meter-value">{tally ? pct(share) : ""}</span>
                   <span className="meter-label">승률</span>
                   <RateBar wins={tally?.wins ?? 0} games={tally?.games ?? 0} />
-                  <span className="meter-value">{tally ? rate(tally) : ""}</span>
+                  <span className="meter-value">{tally ? <RateText tally={tally} /> : ""}</span>
                 </span>
               </li>
             );

@@ -1,6 +1,6 @@
 import type { Draft } from "../shared/draft";
-import { safeTimeZone } from "../shared/stats";
-import { standings, titleBandsOf, type Standing } from "../shared/titles";
+import { safeTimeZone, SMALL_SAMPLE } from "../shared/stats";
+import { standings, titleBandsOf, titleGradeFor, type Standing, type TitleGrade } from "../shared/titles";
 import {
   POSITIONS,
   sideOfTeam,
@@ -92,8 +92,18 @@ export function formatDate(iso: string | null | undefined, timeZone = "Asia/Seou
  * 모든 사람의 누적 배치·칭호. 검색·랭킹·개인 통계·그래프가 모두 이것 하나를 쓴다.
  * 범위가 적용되지 않은 모임 전체 경기로 계산하므로 범위 필터가 칭호를 바꾸지 않는다.
  */
-export function standingsOf(snapshot: Snapshot): Map<string, Standing> {
-  return standings(snapshot.matches, titleBandsOf(snapshot.group.settings));
+export function standingsOf(snapshot: Snapshot): Map<string, ShownStanding> {
+  const bands = titleBandsOf(snapshot.group.settings);
+  const result = new Map<string, ShownStanding>();
+  for (const [id, s] of standings(snapshot.matches, bands)) {
+    result.set(id, { ...s, grade: s.title ? titleGradeFor(s.wins, s.games, bands) : null });
+  }
+  return result;
+}
+
+/** 화면에 보이는 누적 기준 상태. 칭호의 등급(색·엠블럼)을 함께 둔다(서버 응답 형식은 그대로). */
+export interface ShownStanding extends Standing {
+  grade: TitleGrade | null;
 }
 
 export function nameMap(snapshot: Snapshot | null): (id: string) => string {
@@ -132,20 +142,55 @@ export function matchTone(match: MatchView): "blue" | "red" | "none" {
   return side === "blue" || side === "red" ? side : "none";
 }
 
-/** 승률 색 구간을 적용하기 시작하는 경기 수. 이보다 적으면 우연일 수 있어 색을 입히지 않는다. */
-const RATE_TIER_MIN_GAMES = 5;
+/** 승률 색 단계를 적용하기 시작하는 경기 수(SMALL_SAMPLE). 이보다 적으면 우연일 수 있어 색을 입히지 않는다. */
+export const RATE_HEAT_MIN_GAMES = SMALL_SAMPLE;
 
 /**
- * 승률 구간의 클래스 이름. 디자인 키트의 평점 4단계 색을 승률에 옮긴 것이다:
- * 50% 미만 회색, 50% 이상 초록, 55% 이상 파랑, 65% 이상 금색.
+ * 승률 색 단계의 경계(%). 45~55%는 기준 구간(기본 색)이다.
+ * - 높은 쪽: 55 초과 → 1단계, 60 이상 → 2, 65 이상 → 3, 70 이상 → 4(가장 붉다).
+ * - 낮은 쪽: 45 미만 → -1단계, 40 이하 → -2, 35 이하 → -3, 30 이하 → -4(가장 가라앉는다).
+ * 경계값 자체(정확히 45%·55%)는 기준 구간에 든다.
+ */
+export const RATE_HEAT_HOT = [55, 60, 65, 70] as const;
+export const RATE_HEAT_COLD = [45, 40, 35, 30] as const;
+
+/** 승률 색 단계: -4(가장 낮음)~0(기준)~4(가장 높음). 경기가 적으면 null(색 없음). */
+export type RateHeat = -4 | -3 | -2 | -1 | 0 | 1 | 2 | 3 | 4;
+
+/**
+ * 승률 → 색 단계. 막대·고리·표 칸·숫자 글자가 모두 이 함수 하나를 쓴다.
+ * 소수 오차를 피하려고 승률을 나누지 않고 곱해서 비교한다.
+ */
+export function rateHeat(wins: number, games: number): RateHeat | null {
+  if (games < RATE_HEAT_MIN_GAMES) return null;
+  const pct = wins * 100;
+  const [h1, h2, h3, h4] = RATE_HEAT_HOT;
+  const [c1, c2, c3, c4] = RATE_HEAT_COLD;
+  if (pct >= h4 * games) return 4;
+  if (pct >= h3 * games) return 3;
+  if (pct >= h2 * games) return 2;
+  if (pct > h1 * games) return 1;
+  if (pct <= c4 * games) return -4;
+  if (pct <= c3 * games) return -3;
+  if (pct <= c2 * games) return -2;
+  if (pct < c1 * games) return -1;
+  return 0;
+}
+
+/** 색 단계의 클래스 이름: heat-h1~h4(높음), heat-0(기준), heat-l1~l4(낮음). 경기가 적으면 빈 문자열. */
+export function heatClass(wins: number, games: number): string {
+  const heat = rateHeat(wins, games);
+  if (heat === null) return "";
+  return heat > 0 ? `heat-h${heat}` : heat < 0 ? `heat-l${-heat}` : "heat-0";
+}
+
+/**
+ * 승률 숫자 글자의 클래스 이름. 막대와 같은 색 단계(heatClass)를 쓴다.
+ * 기준 구간은 기본 글자 색, 경기가 적으면 색 없이 굵기만.
  */
 export function rateTier(wins: number, games: number): string {
-  if (games < RATE_TIER_MIN_GAMES) return "rate";
-  const rate = (wins / games) * 100;
-  if (rate >= 65) return "rate rate-god";
-  if (rate >= 55) return "rate rate-great";
-  if (rate >= 50) return "rate rate-good";
-  return "rate rate-normal";
+  const heat = heatClass(wins, games);
+  return heat ? `rate ${heat}` : "rate";
 }
 
 /**

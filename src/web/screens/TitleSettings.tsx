@@ -7,9 +7,10 @@ import {
   MAX_TITLE_NAME_LENGTH,
   parseTitleBands,
   titleBandsOf,
+  titleGrade,
 } from "../../shared/titles";
 import type { Settings, TitleBand } from "../../shared/types";
-import { Dialog, ErrorNote } from "../ui";
+import { Dialog, ErrorNote, TitleBadge, TitleEmblem } from "../ui";
 
 interface Row {
   name: string;
@@ -71,7 +72,7 @@ export function TitleSettings(props: {
         <ul className="list">
           {bands.map((band, i) => (
             <li key={band.minRate} className="list-row static">
-              <span className="title-chip">{band.name}</span>
+              <TitleBadge name={band.name} grade={titleGrade(i, bands.length)} />
               <span className="hint">{bandRangeText(bands, i)}</span>
             </li>
           ))}
@@ -105,13 +106,20 @@ export function TitleSettings(props: {
         <Dialog title="칭호 바꾸기" onClose={() => setRows(null)}>
           <p className="hint">
             위에서부터 높은 구간입니다. 경계는 "이상"이라 정확히 65%면 65% 이상 구간입니다. 이름은{" "}
-            {MAX_TITLE_NAME_LENGTH}자까지 쓸 수 있습니다.
+            {MAX_TITLE_NAME_LENGTH}자까지 쓸 수 있습니다. 색과 엠블럼은 구간 순서에 따라 정해집니다.
           </p>
           <ul className="list">
             {rows.map((row, i) => {
               const last = i === rows.length - 1;
+              const grade = titleGrade(i, rows.length);
               return (
                 <li key={i} className="title-row">
+                  {/* 색·엠블럼은 구간 순서로 정해진다(고를 수 없다). 미리보기만 보여준다. */}
+                  {grade && (
+                    <span className={`title-preview grade-${grade}`}>
+                      <TitleEmblem grade={grade} />
+                    </span>
+                  )}
                   <input
                     aria-label={`${i + 1}번째 칭호 이름`}
                     value={row.name}
