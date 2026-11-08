@@ -110,12 +110,14 @@ export function streakText(streak: number): string {
 // ---------------------------------------------------------------------------
 // 랭킹
 
-export type RankingSort = "rate" | "games" | "wins";
+export type RankingSort = "rate" | "games" | "wins" | "rating";
 
 export const RANKING_SORT_LABEL: Record<RankingSort, string> = {
   rate: "승률",
   games: "경기 수",
   wins: "승수",
+  // 결과 기반 레이팅(rating.ts). 선택 정렬일 뿐 기본(승률)은 그대로다.
+  rating: "레이팅 순",
 };
 
 /** 랭킹에서 이 경기 수(모임 전체 누적) 이상인 사람은 그보다 적은 사람보다 항상 위에 둔다. 배치와는 별개다. */
@@ -140,18 +142,23 @@ export function rankingGroup(
   return p.done ? 1 : 2;
 }
 
+/** 레이팅 표가 없는 사람의 정렬값(rating.ts RATING_START와 같다. rating.ts가 이 파일을 쓰므로 순환 import를 피해 따로 둔다). */
+const RATING_START_FOR_SORT = 1000;
+
 /**
  * 랭킹 정렬. 누적 50경기 이상 → 배치 완료 → 배치 진행 중 순으로 묶고(모두 모임 전체 누적 기준),
  * 묶음 안에서 고른 기준으로 정렬한다.
  * - 승률: 승률 → 경기 수 → 이름 → ID (묶음 안에서는 stats.sortRanking과 같다)
  * - 경기 수: 경기 수 → 승률 → 이름 → ID
  * - 승수: 승수 → 승률 → 경기 수 → 이름 → ID
+ * - 레이팅 순: 레이팅(누적, ratings) → 승률 → 경기 수 → 이름 → ID. ratings에 없는 사람은 시작값 1000으로 본다.
  */
 export function sortRankingBy(
   records: readonly PersonRecord[],
   placement: ReadonlyMap<string, Placement>,
   nameOf: (id: string) => string,
   sort: RankingSort,
+  ratings?: ReadonlyMap<string, number>,
 ): PersonRecord[] {
   const rate = (r: PersonRecord) => (r.games === 0 ? 0 : r.wins / r.games);
   const group = (r: PersonRecord) => rankingGroup(placement, r.participantId);
@@ -162,12 +169,15 @@ export function sortRankingBy(
     const sorted = sortByWinRate([...records], nameOf);
     return sorted.sort((a, b) => group(a) - group(b));
   }
+  const rating = (r: PersonRecord) => ratings?.get(r.participantId) ?? RATING_START_FOR_SORT;
   return [...records].sort(
     (a, b) =>
       group(a) - group(b) ||
       (sort === "games"
         ? b.games - a.games || rate(b) - rate(a)
-        : b.wins - a.wins || rate(b) - rate(a) || b.games - a.games) ||
+        : sort === "rating"
+          ? rating(b) - rating(a) || rate(b) - rate(a) || b.games - a.games
+          : b.wins - a.wins || rate(b) - rate(a) || b.games - a.games) ||
       byName(a, b),
   );
 }
@@ -187,8 +197,9 @@ export function rankAndSearch(
   nameOf: (id: string) => string,
   sort: RankingSort,
   query: string,
+  ratings?: ReadonlyMap<string, number>,
 ): { ranked: RankedRow[]; shown: RankedRow[] } {
-  const ranked = sortRankingBy(records, placement, nameOf, sort).map((r, i) => ({
+  const ranked = sortRankingBy(records, placement, nameOf, sort, ratings).map((r, i) => ({
     ...r,
     rank: i + 1,
     name: nameOf(r.participantId),

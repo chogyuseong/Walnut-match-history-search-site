@@ -109,12 +109,26 @@ export interface RankingCsvRow extends PersonRecord {
   name: string;
 }
 
-export const RANKING_CSV_HEADER: readonly string[] = ["순위", "이름", "경기", "승", "패", "승률(%)", "배치", "칭호"];
+export const RANKING_CSV_HEADER: readonly string[] = [
+  "순위",
+  "이름",
+  "경기",
+  "승",
+  "패",
+  "승률(%)",
+  "배치",
+  "칭호",
+  "레이팅",
+];
 
-/** 랭킹 CSV(지금 범위·라인·검색이 적용된 표). 배치·칭호는 화면과 같이 누적 기준. */
+/**
+ * 랭킹 CSV(지금 범위·라인·검색이 적용된 표). 배치·칭호·레이팅은 화면과 같이 누적 기준.
+ * ratings: 사람별 레이팅(rating.ts, 소수). 반올림한 정수로 적고, 없는 사람은 빈 칸.
+ */
 export function rankingCsv(
   rows: readonly RankingCsvRow[],
   standing: ReadonlyMap<string, ShownStanding>,
+  ratings: ReadonlyMap<string, number> = new Map(),
 ): string {
   return toCsv([
     RANKING_CSV_HEADER,
@@ -129,6 +143,7 @@ export function rankingCsv(
         r.games === 0 ? "" : Math.round((r.wins / r.games) * 100),
         s?.done ? "배치 완료" : "배치 중",
         s?.title ?? "",
+        ratings.has(r.participantId) ? Math.round(ratings.get(r.participantId)!) : "",
       ];
     }),
   ]);

@@ -550,6 +550,49 @@ export function TrendLine(props: { points: readonly { game: number; rate: number
   );
 }
 
+/**
+ * 레이팅 추이(작은 선 그래프). TrendLine과 같은 모양·클래스이고, 가운데 기준선이 시작값 1000이다.
+ * 세로축은 1000을 가운데에 두고 위아래를 같은 폭으로 잡는다(최소 ±50). 처음·끝 값은 글자로 함께 적는다.
+ * points: 0경기째(시작값)부터. rating.ts ratingTrend의 결과.
+ */
+export function RatingTrendLine(props: { points: readonly { game: number; rating: number }[] }) {
+  const { points } = props;
+  if (points.length < 2) return null;
+  const W = 300;
+  const H = 72;
+  const MID = 1000;
+  const last = points[points.length - 1]!;
+  const first = points[0]!;
+  const spread = Math.max(50, ...points.map((p) => Math.abs(p.rating - MID))) * 1.05;
+  const x = (game: number) => ((game - first.game) / Math.max(1, last.game - first.game)) * W;
+  const y = (rating: number) => 4 + ((MID + spread - rating) / (spread * 2)) * (H - 8);
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.game).toFixed(1)},${y(p.rating).toFixed(1)}`).join("");
+  const n = (r: number) => String(Math.round(r));
+  const at = (game: number) => (game === 0 ? "시작" : `${game}경기째`);
+  return (
+    <figure className="trend viz-root">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`레이팅 추이: ${at(first.game)} ${n(first.rating)}에서 ${last.game}경기째 ${n(last.rating)}`}
+      >
+        <rect x="0" y="0" width={W} height={H} className="trend-bg" />
+        <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="trend-mid" vectorEffect="non-scaling-stroke" />
+        <path d={path} className="trend-path" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <figcaption className="trend-caption">
+        <span>
+          레이팅 추이 · 가운데 선 {MID} · 위아래 끝 {n(MID + spread)} / {n(MID - spread)}
+        </span>
+        <span>
+          {at(first.game)} {n(first.rating)} → <strong>{last.game}경기째 {n(last.rating)}</strong>
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 개인 통계·검색의 작은 그림. 그림은 보조이고 정확한 값은 언제나 옆의 숫자·글자다.
 // 그래서 그림은 화면 읽기 프로그램에 읽히지 않게 숨긴다(aria-hidden). 색은 그래프 화면의 .viz-root 값을 쓴다.

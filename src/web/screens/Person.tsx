@@ -21,6 +21,13 @@ import {
   type Tally,
 } from "../../shared/stats";
 import { pairRecord } from "../../shared/headToHead";
+import {
+  computeRatings,
+  RATING_RECENT_GAMES,
+  ratingTrend,
+  shownRating,
+  signedDelta,
+} from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, rateTier, standingsOf } from "../format";
@@ -34,6 +41,7 @@ import {
   PosLabel,
   RateBar,
   RateRing,
+  RatingTrendLine,
   ScopePicker,
   TitleBadge,
   TrendLine,
@@ -116,6 +124,12 @@ export function Person(props: {
   );
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
+  // 결과 기반 레이팅도 범위와 무관하게 모임 전체 누적 확정 경기로 계산한다(rating.ts).
+  const rating = useMemo(
+    () => computeRatings(snapshot.matches).get(participantId) ?? null,
+    [snapshot, participantId],
+  );
+  const ratingPoints = useMemo(() => (rating ? ratingTrend(rating.history) : []), [rating]);
   // 상대 전적 보기(2026-11-07): 같은 모임의 활성 참가자 중 한 명을 골라 이 사람 기준 상대·같은 팀 전적을 본다.
   const [rival, setRival] = useState<string | null>(null);
   const rivals = useMemo(
@@ -330,6 +344,15 @@ export function Person(props: {
                   ? `배치 완료 · 누적 ${placement.games}경기 (누적 기준)`
                   : `배치 진행 중 · ${placement.games}/${PLACEMENT_GAMES}경기 (누적 기준)`}
               </p>
+              {rating && rating.games > 0 && (
+                <p className="ps-rating">
+                  <span className="rating-num">
+                    레이팅 {shownRating(rating.rating)} · 최고 {shownRating(rating.peak)} · 최근{" "}
+                    {Math.min(RATING_RECENT_GAMES, rating.games)}경기 {signedDelta(rating.delta10)}
+                  </span>{" "}
+                  <span className="hint">(누적 기준)</span>
+                </p>
+              )}
               {detail.summary.games > 0 && (
                 <p className="ps-streak">
                   {streaks.currentStreak !== 0 && (
@@ -382,6 +405,8 @@ export function Person(props: {
         ) : detail.summary.games > 0 ? (
           <p className="hint">승률 추이는 {SMALL_SAMPLE + 1}경기부터 보여줍니다.</p>
         ) : null}
+        {/* 레이팅 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
+        {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} />}
         {detail.summary.games > 0 && (
           <p className="hint">
             동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난

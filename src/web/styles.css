@@ -2267,6 +2267,17 @@ select option:disabled {
 .rank-controls .segmented {
   flex: 1 1 14rem;
 }
+/* 정렬 버튼 네 개(승률·경기 수·승수·레이팅 순)가 390px 한 줄에 들어가게 옆 여백만 줄인다. */
+.rank-controls .segmented button {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+/* 결과 기반 레이팅 숫자(랭킹 줄·개인 요약). 색은 쓰지 않는다(승률 색 단계와 겹치지 않게). */
+.rating-num {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  /* nowrap을 두지 않는다: 개인 요약의 "레이팅 · 최고 · 최근" 한 줄이 320px에서 줄바꿈되어야 한다. */
+}
 .rank-line {
   display: flex;
   align-items: center;

@@ -17,6 +17,14 @@ import {
   type Tally,
 } from "../../shared/stats";
 import { resolveMerged } from "../../shared/merge";
+import {
+  computeRatings,
+  RATING_START,
+  ratingBandOf,
+  shownRating,
+  signedDelta,
+  type PersonRating,
+} from "../../shared/rating";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, POSITION_LABEL, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
@@ -61,6 +69,8 @@ export function Compare(props: {
   const seriesBadge = useSeriesBadges(snapshot);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
+  // 결과 기반 레이팅: 범위와 무관하게 모임 전체 누적(rating.ts).
+  const ratings = useMemo(() => computeRatings(snapshot.matches), [snapshot]);
   // 고를 수 있는 사람: 확정 경기가 한 번이라도 있는 사람(누적), 이름순.
   const people = useMemo(
     () =>
@@ -138,6 +148,18 @@ export function Compare(props: {
   // 직접 고른 두 사람이라 막지 않는다. 한쪽이라도 누적 기준 미만이면 표본이 적다고만 알린다.
   const fewer = [a!, b!].filter((id) => (standings.get(id)?.games ?? 0) < COMPARE_MIN_GAMES);
 
+  const ratingA = ratings.get(a!)?.rating ?? RATING_START;
+  const ratingB = ratings.get(b!)?.rating ?? RATING_START;
+  // 기대 승률은 팀 경기라 오해하기 쉬워 보여주지 않는다. 숫자와 차이만.
+  const ratingCell = (r: PersonRating | undefined) => (
+    <>
+      <span className="rating-num">{shownRating(r?.rating ?? RATING_START)}</span>
+      <span className="cmp-sub">
+        {ratingBandOf(r?.rating ?? RATING_START)} · {r?.games ?? 0}경기
+      </span>
+    </>
+  );
+
   const cell = (t: Tally) => (
     <>
       <span className={rateTier(t.wins, t.games)}>{rateText(t)}</span>
@@ -207,6 +229,18 @@ export function Compare(props: {
               </td>
               <td className="cmp-small">
                 <StandingNote standing={standings.get(b!)} />
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">레이팅 (누적)</th>
+              <td>{ratingCell(ratings.get(a!))}</td>
+              <td>{ratingCell(ratings.get(b!))}</td>
+            </tr>
+            <tr>
+              <th scope="row">레이팅 차</th>
+              <td colSpan={2}>
+                {signedDelta(shownRating(ratingA) - shownRating(ratingB))}{" "}
+                <span className="cmp-sub">{nameA} 기준</span>
               </td>
             </tr>
             <tr>

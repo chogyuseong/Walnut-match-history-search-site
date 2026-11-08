@@ -19,6 +19,7 @@ import {
   type RankingSort,
   type WinnerSideFilter,
 } from "../../shared/insights";
+import { computeRatings, ratingValues, shownRating } from "../../shared/rating";
 import {
   matchesInScope,
   PLACEMENT_GAMES,
@@ -287,9 +288,11 @@ export function Records(props: {
   const lineRecords = useMemo(() => lineRanking(scoped, line), [scoped, line]);
   const forms = useMemo(() => personForms(scoped, line), [scoped, line]);
   const noPosition = useMemo(() => (line ? matchesWithoutPositions(scoped) : 0), [scoped, line]);
+  // 레이팅도 범위·라인과 무관하게 모임 전체 누적 확정 경기로 계산한다(rating.ts).
+  const ratings = useMemo(() => ratingValues(computeRatings(snapshot.matches)), [snapshot]);
   const ranking = useMemo(
-    () => rankAndSearch(lineRecords, placement, nameOf, sort, query),
-    [lineRecords, placement, nameOf, sort, query],
+    () => rankAndSearch(lineRecords, placement, nameOf, sort, query, ratings),
+    [lineRecords, placement, nameOf, sort, query, ratings],
   );
   const records = ranking.shown;
   // 묶음(누적 50경기 이상 · 배치 완료 · 배치 진행 중)이 둘 이상이고 검색하지 않을 때만 묶음 소제목을 보인다.
@@ -457,6 +460,12 @@ export function Records(props: {
           onChange={(e) => setQuery(e.target.value)}
         />
         <p className="hint rank-rule">누적 {RANKING_VETERAN_GAMES}경기 이상인 사람을 먼저 보여줘요.</p>
+        {sort === "rating" && (
+          <p className="hint rating-rule">
+            레이팅은 상대 팀의 평균 레이팅을 감안해 승패마다 오르내리는 점수예요(시작 1000). 확정 경기만 세고 범위와
+            무관하게 누적입니다.
+          </p>
+        )}
         {scope.kind !== "all" && query.trim() !== "" && records.length === 0 && (
           <p className="hint">
             <button type="button" className="link" onClick={() => setScope({ kind: "all" })}>
@@ -517,6 +526,16 @@ export function Records(props: {
                         <span className="hint">
                           <StandingNote standing={placement.get(r.participantId)} />
                         </span>
+                        {ratings.has(r.participantId) && (
+                          // 누적 레이팅(작은 글자). 배치 진행 중이면 흐리게 둔다(아직 많이 흔들리는 값).
+                          <span
+                            className={
+                              placement.get(r.participantId)?.done ? "rating-num" : "rating-num hint"
+                            }
+                          >
+                            {" · "}레이팅 {shownRating(ratings.get(r.participantId)!)}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>
@@ -531,7 +550,7 @@ export function Records(props: {
               type="button"
               className="secondary"
               onClick={() =>
-                downloadText(csvFileName("내전랭킹", snapshot), rankingCsv(records, placement))
+                downloadText(csvFileName("내전랭킹", snapshot), rankingCsv(records, placement, ratings))
               }
             >
               CSV 내려받기
