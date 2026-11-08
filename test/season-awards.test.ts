@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  AWARD_MIN_GAMES,
   AWARD_MIN_LINE_GAMES,
   AWARD_MIN_PAIR_GAMES,
   AWARD_MIN_RATE_GAMES,
