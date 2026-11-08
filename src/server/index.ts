@@ -51,6 +51,7 @@ import {
   securityHeaders,
 } from "./http";
 import {
+  MAX_IMPORT_BODY_BYTES,
   backfillMatch,
   cancelMatch,
   confirmResult,
@@ -58,11 +59,11 @@ import {
   endLater,
   excludeMatch,
   importMatches,
-  MAX_IMPORT_BODY_BYTES,
   replaceLiveParticipant,
   restoreMatch,
   saveMemo,
   setImportBatchExcluded,
+  shiftMatchDates,
   startMatch,
 } from "./matches";
 import { addToSeries, createSeries, removeFromSeries, updateSeries } from "./series";
@@ -857,6 +858,13 @@ app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
   return c.json({
     match: await handler(c.env, gid, c.req.param("mid"), await readJsonBody(c.req.raw)),
   });
+});
+
+// 날짜 일괄 정정(2026-11-08, src/server/matches.ts shiftMatchDates). 운영자·공동 운영자. 화면 "날짜 점검".
+app.post("/api/groups/:gid/matches/shift-dates", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await shiftMatchDates(c.env, gid, await readJsonBody(c.req.raw)));
 });
 
 // 진행 중 경기의 사람 교체(2026-11-07, src/server/matches.ts replaceLiveParticipant). 운영자·공동 운영자.

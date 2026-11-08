@@ -26,6 +26,7 @@ import { parseSheetUrl, SHEET_URL_MESSAGES, type SheetTab } from "../../shared/s
 import { localDate } from "../../shared/stats";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { handOffLegacyUrl, takePastedText } from "../sheetHandoff";
+import { ImportDateWarnings } from "../importDateWarnings";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { CreateGroupButton } from "../account";
@@ -531,6 +532,7 @@ export function SheetImport() {
       {step === 3 && parsed && classification && (
         <section className="card" aria-label="확인">
           <h2>가져올 내용 확인</h2>
+          <ImportDateWarnings matches={parsed.matches} />
           <ul className="list">
             <li className="list-row static">
               <span>읽은 경기</span>

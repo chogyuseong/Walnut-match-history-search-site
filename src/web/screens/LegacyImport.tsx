@@ -23,6 +23,7 @@ import { looksLikeSheetUrl } from "../../shared/sheetUrl";
 import { CreateGroupButton } from "../account";
 import { call, mutate, newRequestId } from "../api";
 import { takeLegacyUrl } from "../sheetHandoff";
+import { ImportDateWarnings } from "../importDateWarnings";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { NameLinks } from "./SheetImport";
@@ -310,6 +311,7 @@ export function LegacyImport() {
       {step === 2 && read && conv && classification && (
         <section className="card" aria-label="확인">
           <h2>가져올 내용 확인</h2>
+          <ImportDateWarnings matches={conv.matches} />
           <ul className="list">
             <li className="list-row static">
               <span>기존 사이트의 경기</span>

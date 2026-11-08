@@ -467,6 +467,15 @@ export function Group() {
             기존 사이트(구글 시트 + 연결 주소)를 쓰던 모임은 그때 쓰던 연결 주소(script.google.com/macros/s/…/exec)로
             기록을 그대로 옮길 수 있어요. 구글 시트 주소와는 다른 주소예요.
           </p>
+        </section>
+        <section aria-label="날짜 점검">
+          <h2>날짜 점검</h2>
+          <p className="hint">
+            가져온 기록의 연도가 밀렸거나 같은 시각에 겹친 경기를 찾아요. 연도가 통째로 틀린 묶음은 한 번에 옮길 수 있어요.
+          </p>
+          <button type="button" className="secondary" onClick={() => go("/dates")}>
+            날짜 점검
+          </button>
           {(snapshot.importBatches ?? []).length > 0 && (
             <ul className="list">
               {(snapshot.importBatches ?? []).map((b) => {

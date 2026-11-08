@@ -77,6 +77,7 @@ export const SheetImport = lazyNamed(() => import("./screens/SheetImport"), "She
 export const LegacyImport = lazyNamed(() => import("./screens/LegacyImport"), "LegacyImport");
 export const Backfill = lazyNamed(() => import("./screens/Backfill"), "Backfill");
 export const Merge = lazyNamed(() => import("./screens/Merge"), "Merge");
+export const DateCheck = lazyNamed(() => import("./screens/DateCheck"), "DateCheck");
 export const SiteAdmin = lazyNamed(() => import("./screens/SiteAdmin"), "SiteAdmin");
 export const Graphs = lazyNamed(() => import("./screens/Graphs"), "Graphs");
 export const SeasonSummaryScreen = lazyNamed(() => import("./screens/SeasonSummary"), "SeasonSummaryScreen");

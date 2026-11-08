@@ -16,6 +16,7 @@ import {
   Match,
   MatchDetail,
   Member,
+  DateCheck,
   Merge,
   OperatorRecords,
   Person,
@@ -262,7 +263,7 @@ function LoadFailed() {
 }
 
 /** 기록(스냅숏)이 있어야 그릴 수 있는 화면. */
-const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill", "priority", "season"]);
+const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill", "priority", "season", "dates"]);
 
 function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
@@ -297,6 +298,7 @@ function OperatorScreen(props: { route: string[] }) {
   if (page === "legacy-import") return <LegacyImport />;
   if (page === "backfill") return <Backfill />;
   if (page === "merge") return <Merge />;
+  if (page === "dates") return <DateCheck />;
   if (page === "delete") return <DangerZone />;
   if (page === "search") {
     if (!app.snapshot) {
@@ -413,6 +415,7 @@ function Tabs(props: { current: string }) {
             props.current === "legacy-import" ||
             props.current === "backfill" ||
             props.current === "merge" ||
+            props.current === "dates" ||
             props.current === "priority" ||
             props.current === "delete"
           ? "group"

@@ -1,4 +1,5 @@
 import { FUTURE_TOLERANCE_MS } from "../shared/backfill";
+import { shiftYears } from "../shared/dateCheck";
 import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
 import { MEMO_MAX, memoLength, normalizeMemo } from "../shared/memo";
 import {
@@ -1672,3 +1673,61 @@ async function restoreImportBatch(env: Env, groupId: string, batchId: string, sk
     ],
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* 날짜 일괄 정정(2026-11-08)                                            */
+/* ------------------------------------------------------------------ */
+
+const MAX_SHIFT_MATCHES = 500;
+
+/**
+ * 여러 확정 경기의 시각을 한 해 뒤(+1) 또는 앞(-1)으로 옮긴다(화면 "날짜 점검"). 가져온 기록의 연도가 통째로 틀린 경우를
+ * 한 번에 고치려는 것이다. 경기마다 "경기 시각 수정"과 같은 정정 기록(correction, playedAt)을 남기고 경기 버전을 올린다.
+ * 한 경기라도 옮긴 시각이 미래이거나 확정 경기가 아니면 전체를 거절한다(부분 적용 없음). 되돌리기는 같은 경기에 반대 부호.
+ */
+export async function shiftMatchDates(env: Env, groupId: string, body: Body): Promise<{ changed: number }> {
+  assertOnlyKeys(body, ["requestId", "matchIds", "years"]);
+  const requestId = requestIdOf(body);
+  if (!Array.isArray(body.matchIds) || body.matchIds.length < 1 || body.matchIds.length > MAX_SHIFT_MATCHES) {
+    throw new ApiError(400, "INVALID_FIELD", `matchIds는 1~${MAX_SHIFT_MATCHES}개여야 합니다.`);
+  }
+  const matchIds = [...new Set(body.matchIds.map((v) => requireString(v, "matchIds", 1, 64)))];
+  if (body.years !== 1 && body.years !== -1) {
+    throw new ApiError(400, "INVALID_FIELD", "years는 1 또는 -1이어야 합니다.");
+  }
+  const years = body.years;
+  await runMutation(env, {
+    groupId,
+    requestId,
+    op: "shift-dates",
+    payload: { matchIds, years },
+    conflictDetails: () => matchConflictDetails(env, groupId, matchIds[0]!),
+    build: async () => {
+      const now = nowIso();
+      const statements: D1PreparedStatement[] = [];
+      for (const matchId of matchIds) {
+        const match = await loadMatch(env, groupId, matchId);
+        assertState(match, ["confirmed"]);
+        const to = shiftYears(match.playedAt, years);
+        if (Date.parse(to) > Date.now() + FUTURE_TOLERANCE_MS) {
+          throw new ApiError(
+            400,
+            "FUTURE_MATCH",
+            `${match.matchNo}경기를 옮기면 아직 오지 않은 시각이 됩니다. 범위를 확인해 주세요.`,
+          );
+        }
+        statements.push(
+          matchGuard(env, groupId, matchId, match.version, "confirmed"),
+          env.DB.prepare(
+            "UPDATE matches SET played_at = ?1, version = version + 1 WHERE id = ?2 AND group_id = ?3",
+          ).bind(to, matchId, groupId),
+          insertRevision(env, groupId, matchId, "correction", { playedAt: { from: match.playedAt, to } }, now),
+        );
+      }
+      statements.push(bumpLiveVersion(env, groupId));
+      return { stored: { changed: matchIds.length }, statements };
+    },
+  });
+  return { changed: matchIds.length };
+}
+

@@ -4035,3 +4035,17 @@ label:has(> select) {
   background: var(--ih-text-muted);
 }
 
+/* 날짜 점검(DateCheck.tsx): 중복 가능성 표식 */
+.tag.warn-tag {
+  color: var(--warn-line);
+  border: 1px solid var(--warn-line);
+  background: var(--warn-bg);
+}
+.same-time .button-row {
+  flex: none;
+}
+/* 날짜 점검 "범위 직접 고르기": 경기 번호 칸은 숫자 몇 자리면 되므로 짧게 */
+.inline-label > input[type="number"] {
+  width: 7em;
+}
+

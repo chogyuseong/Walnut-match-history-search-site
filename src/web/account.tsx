@@ -15,6 +15,7 @@ export const LOGIN_ONLY: Record<string, string> = {
   "legacy-import": "기존 사이트 기록 가져오기",
   backfill: "지난 경기 입력",
   merge: "중복 참가자 합치기",
+  dates: "날짜 점검",
   priority: "티어 배정",
   delete: "모임 삭제 · 탈퇴",
   // 참가자로 연결한 모임의 읽기 전용 화면(src/web/screens/Member.tsx).
