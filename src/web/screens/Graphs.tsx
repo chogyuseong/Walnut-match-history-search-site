@@ -1,17 +1,6 @@
 import { RANKING_VETERAN_GAMES, sortRankingBy } from "../../shared/insights";
 import { useState, type ReactNode } from "react";
-import {
-  matchesInScope,
-  matchYears,
-  personRecordsByLine,
-  PLACEMENT_GAMES,
-  scopeLabel as scopeLabelOf,
-  playerLineMatrix,
-  sideTotals,
-  SMALL_SAMPLE,
-  type Scope,
-  type Tally,
-} from "../../shared/stats";
+import { matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
 import { BackLink, scopeFromValue, scopeValue, TitleBadge } from "../ui";
@@ -125,14 +114,17 @@ export function Graphs(props: {
 
   // 랭킹 화면과 같은 묶음 순서(2026-11-08): 누적 50경기 이상 → 배치 완료(50경기 미만) → 배치 진행 중, 그 안에서 승률순.
   // 배치를 마쳤어도 50경기 미만이면 50경기 이상인 사람보다 항상 아래에 선다.
-  const people = sortRankingBy(
-    [...personRecordsByLine(scoped, line === "" ? null : line).values()],
-    placement,
-    nameOf,
-    "rate",
+  // 이 범위·라인에서 5경기 미만(색을 칠하지 않는 "자료 적음")인 사람은 묶음과 무관하게 맨 아래로(2026-11-08).
+  // 라인별로 보면 누적이 많은 사람도 그 라인은 한두 경기라 100%·0%가 섞여 들어가 위에 서는 것을 막는다.
+  const withSample = (rows: PersonRecord[]) =>
+    rows.sort((a, b) => Number(a.games < SMALL_SAMPLE) - Number(b.games < SMALL_SAMPLE));
+  const people = withSample(
+    sortRankingBy([...personRecordsByLine(scoped, line === "" ? null : line).values()], placement, nameOf, "rate"),
   );
   const matrix = playerLineMatrix(scoped);
-  const matrixRows = sortRankingBy([...personRecordsByLine(scoped, null).values()], placement, nameOf, "rate");
+  const matrixRows = withSample(
+    sortRankingBy([...personRecordsByLine(scoped, null).values()], placement, nameOf, "rate"),
+  );
   const sides = sideTotals(scoped);
   const playerLines = playerId === "" ? null : (matrix.get(playerId) ?? {});
   const selectable = [...snapshot.participants]
@@ -200,7 +192,7 @@ export function Graphs(props: {
         <h2>개인별 승률</h2>
         <p className="hint">
           범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 누적{" "}
-          {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료 → 배치 진행 중, 그 안에서 승률순
+          {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료 → 배치 진행 중, 그 안에서 승률순 · {SMALL_SAMPLE}경기 미만은 맨 아래
         </p>
         {people.length === 0 ? (
           <p className="hint">이 조건에는 기록이 없어요.</p>
