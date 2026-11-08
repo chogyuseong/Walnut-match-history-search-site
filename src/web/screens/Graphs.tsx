@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
-import { BackLink, scopeFromValue, scopeValue, TitleBadge } from "../ui";
+import { BackLink, PosLabel, scopeFromValue, scopeValue, TitleBadge } from "../ui";
 
 /** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
 function standingText(standing: ShownStanding | undefined): ReactNode {
@@ -125,6 +125,11 @@ export function Graphs(props: {
   const matrixRows = withSample(
     sortRankingBy([...personRecordsByLine(scoped, null).values()], placement, nameOf, "rate"),
   );
+  // 표에서 색 칸(어느 라인이든 5경기 이상)이 하나도 없는 사람은 "자료 적음" 접힘으로 보낸다.
+  const hasColoredCell = (id: string) => {
+    const row = matrix.get(id) ?? {};
+    return POSITIONS.some((p) => (row[p]?.games ?? 0) >= SMALL_SAMPLE);
+  };
   const sides = sideTotals(scoped);
   const playerLines = playerId === "" ? null : (matrix.get(playerId) ?? {});
   const selectable = [...snapshot.participants]
@@ -188,33 +193,10 @@ export function Graphs(props: {
         배치 진행 중이고, 그 안에서 승률순입니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
       </p>
 
-      <section className="chart-card" aria-label="개인별 승률">
-        <h2>개인별 승률</h2>
-        <p className="hint">
-          범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 누적{" "}
-          {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료 → 배치 진행 중, 그 안에서 승률순 · {SMALL_SAMPLE}경기 미만은 맨 아래
-        </p>
-        {people.length === 0 ? (
-          <p className="hint">이 조건에는 기록이 없어요.</p>
-        ) : (
-          <ul className="bars">
-            {people.map((r) => (
-              <li key={r.participantId}>
-                <RateBar
-                  label={nameOf(r.participantId)}
-                  note={standingText(placement.get(r.participantId))}
-                  wins={r.wins}
-                  games={r.games}
-                  onOpen={() => props.openPerson(r.participantId)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <div className="stack">
-      <section className="chart-card" aria-label="라인별 승률">
+      {/* 플레이어를 고르면 그 사람의 라인별 승률을 맨 위(개인별 승률 위)에 보인다(2026-11-08). 좁은 화면에서 고른 뒤
+          아래로 한참 내려가지 않아도 되고, 넓은 화면에서는 두 단을 가로질러 위에 놓인다. */}
+      {playerLines !== null && (
+      <section className={playerLines === null ? "chart-card" : "chart-card line-first"} aria-label="라인별 승률">
         <h2>라인별 승률</h2>
         {playerLines === null ? (
           <p className="hint">
@@ -253,6 +235,43 @@ export function Graphs(props: {
           </>
         )}
       </section>
+      )}
+
+      <section className="chart-card" aria-label="개인별 승률">
+        <h2>개인별 승률</h2>
+        <p className="hint">
+          범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 누적{" "}
+          {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료 → 배치 진행 중, 그 안에서 승률순 · {SMALL_SAMPLE}경기 미만은 맨 아래
+        </p>
+        {people.length === 0 ? (
+          <p className="hint">이 조건에는 기록이 없어요.</p>
+        ) : (
+          <ul className="bars">
+            {people.map((r) => (
+              <li key={r.participantId}>
+                <RateBar
+                  label={nameOf(r.participantId)}
+                  note={standingText(placement.get(r.participantId))}
+                  wins={r.wins}
+                  games={r.games}
+                  onOpen={() => props.openPerson(r.participantId)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <div className="stack">
+      {playerLines === null && (
+        <section className="chart-card" aria-label="라인별 승률">
+          <h2>라인별 승률</h2>
+          <p className="hint">
+            위에서 플레이어를 고르면 그 사람의 라인별 승률을 맨 위에 보여줍니다. 전체 플레이어를 합치면 각 경기마다
+            라인별로 1승·1패가 생겨 항상 50%이므로 보여주지 않습니다.
+          </p>
+        </section>
+      )}
 
       <section className="chart-card" aria-label="진영별 누적 승률">
         <h2>진영별 누적 승률</h2>
@@ -282,78 +301,128 @@ export function Graphs(props: {
         <p className="hint">
           범위: {scopeLabel} · 위 숫자는 승률, 아래 숫자는 경기 수 · — 는 기록 없음
         </p>
-        <ul className="legend" aria-label="색 범례">
-          <li>
-            <span className="swatch heat-l4" /> {RATE_HEAT_COLD[3]}% 이하
-          </li>
-          <li>
-            <span className="swatch heat-l3" />
-            <span className="swatch heat-l2" />
-            <span className="swatch heat-l1" /> {RATE_HEAT_COLD[3]}~{RATE_HEAT_COLD[0]}%(보라 → 자주 → 갈색)
-          </li>
-          <li>
-            <span className="swatch heat-0 mid-lo" /> {RATE_HEAT_COLD[0]}~50%{" "}
-            <span className="swatch heat-0 mid-hi" /> 50~{RATE_HEAT_HOT[0]}%
-          </li>
-          <li>
-            <span className="swatch heat-h1" />
-            <span className="swatch heat-h2" />
-            <span className="swatch heat-h3" /> {RATE_HEAT_HOT[0]}~{RATE_HEAT_HOT[3]}%(연두 → 노랑 → 주황)
-          </li>
-          <li>
-            <span className="swatch heat-h4" /> {RATE_HEAT_HOT[3]}% 이상
-          </li>
-          <li>
-            <span className="swatch band-none" /> {SMALL_SAMPLE}경기 미만(색 없음)
-          </li>
-        </ul>
+        <HeatLegend />
         {matrixRows.length === 0 ? (
           <p className="hint">이 범위에는 기록이 없어요.</p>
         ) : (
-          <table className="matrix">
-            <thead>
-              <tr>
-                <th scope="col">이름</th>
-                {POSITIONS.map((p) => (
-                  <th key={p} scope="col">
-                    {POSITION_LABEL[p]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {matrixRows.map((r) => {
-                const row = matrix.get(r.participantId) ?? {};
-                return (
-                  <tr key={r.participantId} className={r.participantId === playerId ? "picked" : undefined}>
-                    <th scope="row" title={nameOf(r.participantId)}>
-                      {nameOf(r.participantId)}
-                    </th>
-                    {POSITIONS.map((position) => {
-                      const tally = row[position];
-                      return tally ? (
-                        <td
-                          key={position}
-                          className={cellBand(tally)}
-                          title={`${nameOf(r.participantId)} ${POSITION_LABEL[position]}: ${tally.wins}승 ${tally.games - tally.wins}패`}
-                        >
-                          {Math.round(percent(tally.wins, tally.games))}%
-                          <br />
-                          <span className="cell-games">{tally.games}</span>
-                        </td>
-                      ) : (
-                        <td key={position} className="band-empty" aria-label="기록 없음">
-                          —
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <>
+            <MatrixTable
+              rows={matrixRows.filter((r) => hasColoredCell(r.participantId))}
+              matrix={matrix}
+              nameOf={nameOf}
+              playerId={playerId}
+              openPerson={props.openPerson}
+            />
+            {matrixRows.some((r) => !hasColoredCell(r.participantId)) && (
+              <details className="matrix-few">
+                <summary>
+                  어느 라인도 {SMALL_SAMPLE}경기 미만 · {matrixRows.filter((r) => !hasColoredCell(r.participantId)).length}명(자료
+                  적음)
+                </summary>
+                <MatrixTable
+                  rows={matrixRows.filter((r) => !hasColoredCell(r.participantId))}
+                  matrix={matrix}
+                  nameOf={nameOf}
+                  playerId={playerId}
+                  openPerson={props.openPerson}
+                />
+              </details>
+            )}
+          </>
         )}
       </section>
     </div>
+  );
+}
+
+/** 승률 색 범례: 한 줄 띠. 낮은 쪽(30%↓)에서 높은 쪽(70%↑)까지 열 칸, 그 뒤 5경기 미만. 막대 그래프와 표가 같이 쓴다. */
+function HeatLegend() {
+  const bands: { cls: string; label: string }[] = [
+    { cls: "heat-l4", label: `${RATE_HEAT_COLD[3]}%↓` },
+    { cls: "heat-l3", label: "" },
+    { cls: "heat-l2", label: "" },
+    { cls: "heat-l1", label: "" },
+    { cls: "heat-0 mid-lo", label: `${RATE_HEAT_COLD[0]}%` },
+    { cls: "heat-0 mid-hi", label: "50%" },
+    { cls: "heat-h1", label: `${RATE_HEAT_HOT[0]}%` },
+    { cls: "heat-h2", label: "" },
+    { cls: "heat-h3", label: "" },
+    { cls: "heat-h4", label: `${RATE_HEAT_HOT[3]}%↑` },
+  ];
+  return (
+    <div className="legend-strip" role="img" aria-label="색 범례: 낮은 승률은 회색·갈색·자주·보라, 기준은 파랑·청록, 높은 승률은 연두·노랑·주황·빨강. 5경기 미만은 색 없음">
+      <span className="legend-low">낮음</span>
+      <span className="legend-bands">
+        {bands.map((b) => (
+          <span key={b.cls} className={`swatch ${b.cls}`} title={b.label || undefined}>
+            {b.label && <span className="legend-tick">{b.label}</span>}
+          </span>
+        ))}
+      </span>
+      <span className="legend-high">높음</span>
+      <span className="legend-none">
+        <span className="swatch band-none" /> {SMALL_SAMPLE}경기 미만
+      </span>
+    </div>
+  );
+}
+
+/**
+ * 플레이어 × 라인 표. 머리 행은 화면을 내려도 붙어 있고(sticky), 라인에는 아이콘, 이름은 개인 통계로 가는 버튼이다.
+ * 칸은 승률(굵게)과 경기 수(작게). 색은 막대와 같은 단계(heatBarClass): 옅은 바탕 + 왼쪽 진한 띠.
+ */
+function MatrixTable(props: {
+  rows: PersonRecord[];
+  matrix: ReturnType<typeof playerLineMatrix>;
+  nameOf: (id: string) => string;
+  playerId: string;
+  openPerson: (id: string) => void;
+}) {
+  const { rows, matrix, nameOf, playerId } = props;
+  if (rows.length === 0) return null;
+  return (
+    <table className="matrix">
+      <thead>
+        <tr>
+          <th scope="col">이름</th>
+          {POSITIONS.map((p) => (
+            <th key={p} scope="col">
+              <PosLabel position={p} />
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => {
+          const row = matrix.get(r.participantId) ?? {};
+          return (
+            <tr key={r.participantId} className={r.participantId === playerId ? "picked" : undefined}>
+              <th scope="row" title={nameOf(r.participantId)}>
+                <button type="button" className="matrix-name" onClick={() => props.openPerson(r.participantId)}>
+                  {nameOf(r.participantId)}
+                </button>
+              </th>
+              {POSITIONS.map((position) => {
+                const tally = row[position];
+                return tally ? (
+                  <td
+                    key={position}
+                    className={cellBand(tally)}
+                    title={`${nameOf(r.participantId)} ${POSITION_LABEL[position]}: ${tally.wins}승 ${tally.games - tally.wins}패`}
+                  >
+                    <strong className="cell-rate">{Math.round(percent(tally.wins, tally.games))}%</strong>
+                    <span className="cell-games">{tally.games}경기</span>
+                  </td>
+                ) : (
+                  <td key={position} className="band-empty" aria-label="기록 없음">
+                    —
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

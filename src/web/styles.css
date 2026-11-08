@@ -1027,8 +1027,10 @@ button.bar-row:hover {
   color: var(--muted);
   font-weight: 400;
 }
+.matrix th:first-child {
+  width: 29%;
+}
 .matrix th[scope="row"] {
-  width: 26%;
   text-align: left;
   font-weight: 400;
   overflow: hidden;
@@ -1038,16 +1040,125 @@ button.bar-row:hover {
 .matrix tr.picked th[scope="row"] {
   font-weight: 700;
 }
-.cell-games {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-/* 표 칸: 막대 색을 45% 섞은 옅은 바탕. 색 칸에서는 보조 글자 대비가 모자라 본문 색을 쓴다. */
+/* 표 칸(2026-11-08 재설계): 옅은 바탕(막대 색 22%) + 왼쪽 3px 진한 띠(막대 색 그대로). 색이 탁해지지 않고 글자 대비도 지킨다.
+   승률은 굵게, 경기 수는 작고 흐리게. */
 .matrix td[class*="heat-"] {
-  background: color-mix(in oklab, var(--heat-bar) 45%, var(--viz-surface));
+  background: color-mix(in oklab, var(--heat-bar) 22%, var(--viz-surface));
+  box-shadow: inset 3px 0 0 var(--heat-bar);
 }
-.matrix td[class*="heat-"] .cell-games {
+.matrix td {
+  display: table-cell;
+}
+.cell-rate {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.cell-games {
+  display: block;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
+/* 머리 행은 화면을 내려도 붙어 있다. 상단 바(56px) 아래. */
+.matrix thead th {
+  position: sticky;
+  top: 56px;
+  z-index: 1;
+  background: var(--viz-surface);
+}
+.matrix thead th .pos {
+  justify-content: center;
+  width: auto;
+  color: var(--muted);
+}
+/* 이름은 개인 통계로 가는 버튼 */
+.matrix-name {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--text);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.matrix-name:hover {
+  color: var(--ih-link);
+  text-decoration: underline;
+}
+/* 플레이어 필터로 고른 사람의 행 */
+.matrix tr.picked > th,
+.matrix tr.picked > td {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+/* 5경기 미만 묶음(접힘) */
+.matrix-few {
+  margin-top: 8px;
+}
+.matrix-few > summary {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+/* 승률 색 범례 띠(HeatLegend) */
+.legend-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 2px 0 8px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.legend-bands {
+  display: flex;
+  gap: 2px;
+}
+.legend-bands .swatch {
+  position: relative;
+  width: 30px;
+  height: 12px;
+  border-radius: 2px;
+}
+.legend-bands .swatch:first-child {
+  border-radius: 6px 2px 2px 6px;
+}
+.legend-bands .swatch:last-child {
+  border-radius: 2px 6px 6px 2px;
+}
+.legend-tick {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+}
+.legend-bands .swatch:last-child .legend-tick {
+  left: auto;
+  right: 0;
+}
+.legend-strip {
+  max-width: 100%;
+  overflow: hidden;
+}
+@media (max-width: 419px) {
+  .legend-bands .swatch {
+    width: 24px;
+  }
+}
+.legend-bands {
+  margin-bottom: 14px;
+}
+.legend-none {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ---------- 배치 보정 ---------- */
@@ -4050,5 +4161,20 @@ label:has(> select) {
 /* 날짜 점검 "범위 직접 고르기": 경기 번호 칸은 숫자 몇 자리면 되므로 짧게 */
 .inline-label > input[type="number"] {
   width: 7em;
+}
+
+/* 그래프 분석: 고른 플레이어의 라인별 승률은 맨 위에서 두 단을 가로지른다(2026-11-08). 고른 사람 이름을 강조. */
+@media (min-width: 1024px) {
+  .screen.cols > section.line-first {
+    grid-column: 1 / -1;
+  }
+  .line-first .bars {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+.line-first {
+  border-color: var(--primary);
 }
 

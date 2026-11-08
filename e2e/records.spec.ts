@@ -274,12 +274,16 @@ test("그래프 분석", async ({ page }) => {
   await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
 
   // 플레이어 × 라인: 표로 읽을 수 있고 기록 없는 칸은 —, 5경기 미만은 색을 칠하지 않는다.
-  const matrix = page.getByRole("region", { name: "플레이어 × 라인" }).getByRole("table");
+  const matrixRegion = page.getByRole("region", { name: "플레이어 × 라인" });
+  const matrix = matrixRegion.getByRole("table").first();
   const row02 = matrix.getByRole("row").filter({ hasText: "선수02" });
   await expect(row02.getByRole("cell").nth(1)).toContainText("73%");
   await expect(row02.getByRole("cell").nth(1)).toContainText("11");
   await expect(row02.getByRole("cell").nth(0)).toHaveText("—");
-  const row11 = matrix.getByRole("row").filter({ hasText: "선수11" });
+  // 5경기 미만인 사람은 "자료 적음" 접힘 안에 있다(2026-11-08). 펼친 뒤 찾는다.
+  const few = matrixRegion.locator("details.matrix-few > summary");
+  if (await few.count()) await few.click();
+  const row11 = matrixRegion.getByRole("table").last().getByRole("row").filter({ hasText: "선수11" });
   await expect(row11.getByRole("cell").nth(0)).toHaveClass(/band-none/);
   // 72.7%: 승률 색 단계의 가장 붉은 단계(70% 이상).
   await expect(row02.getByRole("cell").nth(1)).toHaveClass(/heat-h4/);
