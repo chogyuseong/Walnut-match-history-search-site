@@ -1,0 +1,19 @@
+-- 합치기 때 바꾼 참가자 본인 연결을 합치기 기록에 남긴다(2026-11-08, docs/개선-합치기-2026-11-08.md).
+-- 확장만 한다(열 추가). 이전 앱 버전은 이 열을 읽지 않고, 넣지 않으면 NULL이다.
+--
+-- 문제: 합치기는 합칠 대상(source)의 본인 연결(participant_links)을 남길 대상(target)에게 옮기는데(남길 대상에
+-- 연결이 없을 때), 되돌려도 연결이 돌아가지 않았다. 되돌리는 경우는 곧 "같은 사람이 아니었다"이므로 다른 사람의
+-- 계정이 남길 대상의 "본인"으로 남아 그 사람의 기피 라인을 바꾸고 그 이름으로 요청을 남길 수 있었다.
+--
+--   moved_link: 합치기 때 합칠 대상에 있던 연결과 그 처리(JSON). 되돌리기(src/server/merge.ts undoMerge)가 읽는다.
+--     NULL  = 기록 없음(이 마이그레이션 전의 합치기, 백업에서 복원한 합치기). 되돌릴 때 연결을 건드리지 않고
+--             남길 대상에 합치기 전부터 있던 연결이 있으면 확인하라고 알린다.
+--     {}    = 합칠 대상에 연결이 없었음.
+--     {"accountId", "linkedAt", "avoidSelfAt", "action", "requestIds"}
+--       action "moved"  : 남길 대상에 연결이 없어 연결을 옮겼다. requestIds = 함께 옮긴 요청(participant_requests) ID.
+--       action "removed": 남길 대상에 이미 연결이 있어 합칠 대상의 연결을 지웠다(requestIds는 빈 배열, 요청은 그대로).
+--       linkedAt·avoidSelfAt: 원래 연결 행의 created_at·avoid_self_at(되돌릴 때 그대로 돌려놓는다).
+--
+-- 계정 ID가 들어 있으므로 백업 파일에 넣지 않는다(README 5절 "참가자 연결은 백업에 들어가지 않습니다").
+-- 백업 내보내기(src/server/groups.ts)는 열을 골라 읽고, 복원(src/server/restore.ts)은 이 열을 넣지 않아 NULL이 된다.
+ALTER TABLE participant_merges ADD COLUMN moved_link TEXT;

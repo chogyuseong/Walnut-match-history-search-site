@@ -58,10 +58,25 @@ export async function readJsonBody(
   req: Request,
   maxBytes = MAX_BODY_BYTES,
 ): Promise<Record<string, unknown>> {
+  return (await readJsonBodyWithText(req, maxBytes)).body;
+}
+
+/**
+ * readJsonBody와 같고 원문 텍스트도 돌려준다. 큰 본문(백업 복원)이 요청 해시(runMutation payloadText)를
+ * 다시 직렬화하지 않고 원문으로 계산하게 하려는 것이다.
+ */
+export async function readJsonBodyWithText(
+  req: Request,
+  maxBytes = MAX_BODY_BYTES,
+): Promise<{ body: Record<string, unknown>; text: string }> {
   if (!isJsonContentType(req.headers.get("Content-Type"))) {
     throw new ApiError(415, "UNSUPPORTED_MEDIA_TYPE", "요청 형식이 올바르지 않습니다(JSON만 받습니다).");
   }
   const text = await readBodyText(req, maxBytes);
+  return { body: parseJsonObject(text), text };
+}
+
+function parseJsonObject(text: string): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);

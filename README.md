@@ -75,7 +75,7 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 src/server/   Workers API(Hono). index.ts 라우팅, mutation.ts(모임 안 쓰기 공통 경로), snapshot.ts, auth.ts, matches.ts, groups.ts …
 src/shared/   서버·화면 공용 순수 로직. stats(통계) · draft/prepTools/rotation/priority/avoid(편성) · titles(칭호) · rating(MMR) · search · seasonAwards …
 src/web/      React 화면. App.tsx 라우팅, useApp.ts 상태, lazyScreens.ts 지연 로딩, screens/*(화면), screens/prep/*(준비 화면 조각), styles.css(토큰·스타일)
-migrations/   D1 마이그레이션 0001~0021(0004는 비어 있음)
+migrations/   D1 마이그레이션 0001~0023(0004는 비어 있음)
 test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서 · scripts/  seed, check-bundle
 ```
 
@@ -97,7 +97,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 
 ### 배포(요약)
 
-`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → staging 배포·마이그레이션 0001~0021·확인 → production. wrangler 명령에는 **항상 `--env production`**(빠뜨리면 가짜 로그인 설정이 올라가지만 공개 주소에서는 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
+`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → staging 배포·마이그레이션 0001~0023·확인 → production. wrangler 명령에는 **항상 `--env production`**(빠뜨리면 가짜 로그인 설정이 올라가지만 공개 주소에서는 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
 
 ---
 
@@ -134,7 +134,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 - 첫 방문 소개와 예시 모임(`#/demo`, 서버 없이 기기에서 만든 데이터), 오류 수집(가린 값만), 사이트 현황(`#/admin`)
 
 ### 서버·운영
-- 쓰기 공통 경로(`runMutation`), 요청 ID 필수·재전송 동일 응답, 낙관적 잠금(`version`/409), 요청 수 제한(304는 세지 않음), Origin 확인, 보안 헤더·CSP, 비밀번호 PBKDF2 + 페퍼, 조회 ETag/304, 자동 백업 크론(R2, 30일), 스냅숏·백업 batch 1회
+- 쓰기 공통 경로(`runMutation`), 요청 ID 필수·재전송 동일 응답, 낙관적 잠금(`version`/409), 요청 수 제한(304는 세지 않음), Origin 확인, 보안 헤더·CSP, 비밀번호 PBKDF2 + 페퍼, 조회 ETag/304(운영자 ETag는 연결 링크 만료 때만 바뀜), 쓰기 batch 안 점검 재확인, 자동 백업 크론(R2, 30일, 모임 삭제 때 함께 지움), 스냅숏·백업 batch 1회
 
 ### 화면·디자인(2026-11-08 정리)
 - 고르기 칸(select)은 가장 긴 선택지에 딱 맞는 폭, 글자와 칸 사이 간격
@@ -167,6 +167,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 ### 검증 범위
 - 모든 검증은 **로컬**(Workers 로컬 런타임 + 로컬 D1, 헤드리스 Chromium·WebKit)에서 했습니다. 운영 D1, 실기기, 실제 OAuth는 미확인입니다.
 - 자체 계정 비밀번호 해시가 무료 요금제 CPU 한도에 걸리면 `PASSWORD_PBKDF2_ITERATIONS`를 낮추거나 유료 요금제를 씁니다.
+- 큰 모임의 **백업 복원**은 무료 요금제에서 CPU 초과(1102)로 끊길 수 있습니다(staging에서 522경기로 측정 예정). 운영에 기존 기록을 처음 옮길 때는 '기존 사이트 기록 가져오기'(50경기씩)를 씁니다(`docs/배포안내.md` 8-1·13절).
 
 ### 사용할 때 알아 둘 동작
 - **티어는 기본 비공개**(운영자만). 미지정은 "못하는 사람"이 아니라 "아직 안 정한 사람"입니다.
@@ -180,7 +181,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 - **경기 메모와 시리즈는 공개 정보**(조회 링크에서도 보임)입니다. 시리즈에는 두 팀 5명 구성이 같은 경기만 넣을 수 있고 통계는 판 단위입니다.
 - 시즌 시상 기준: 최고 승률 50경기 이상(랭킹의 "누적 50경기 이상" 묶음과 같음), 라인별 최고 승률은 총 50경기 이상인 사람 중 그 라인 5경기 이상, 가장 많이 성장 10경기 이상, 듀오·천적 5경기 이상.
 - 모임 수 한도(대표 + 공동 운영 5개)는 만들기·복원·넘겨받기·초대 수락에 모두 적용됩니다.
-- **참가자 연결은 백업에 들어가지 않습니다**(계정 정보). 익명 처리는 되돌릴 수 없지만 그 전 백업으로 복원하면 이름이 돌아옵니다.
+- **참가자 연결은 백업에 들어가지 않습니다**(계정 정보). 익명 처리는 되돌릴 수 없지만 그 전 백업으로 복원하면 이름이 돌아옵니다(서버 자동 백업에도 최대 30일 옛 이름이 남음. 모임 삭제 때는 자동 백업도 함께 지움). 합치기를 되돌리면 옮긴 본인 연결도 원래 사람에게 돌아오지만, 2026-11-08 전에 한 합치기와 백업에서 복원한 합치기는 연결 기록이 없어 돌아가지 않습니다(되돌린 뒤 확인하라고 안내).
 - 공동 운영자를 내보내는 순간과 거의 동시에 들어온 그 계정의 쓰기 하나는 저장될 수 있습니다.
 
 ### 결정이 필요한 것

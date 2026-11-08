@@ -117,7 +117,7 @@ import {
 import { applyRestore, importAsNewGroup, previewRestore } from "./restore";
 import { fixturesEnabled, listImportFingerprints, readSheet, registerFixture } from "./sheets";
 import { readLegacy, registerLegacyFixture } from "./legacy";
-import { buildSnapshot, etagMatches, loadEtagHead, loadEtagHeadByViewToken, snapshotEtag } from "./snapshot";
+import { etagMatches, loadEtagHead, loadEtagHeadByViewToken, snapshotBody, snapshotEtag } from "./snapshot";
 import { runBackups } from "./backupCron";
 import { recordClientError, recordServerError } from "./errorLog";
 import { clearErrorLogs, isSiteAdmin, requireSiteAdmin, siteOverview } from "./siteAdmin";
@@ -427,7 +427,7 @@ app.get("/api/groups/:gid/snapshot", async (c) => {
   c.header("ETag", etag);
   c.header("Cache-Control", REVALIDATE);
   if (etagMatches(c.req.header("If-None-Match"), etag)) return c.body(null, 304);
-  return c.json(await buildSnapshot(c.env, gid, "operator"));
+  return c.json(await snapshotBody(c.env, gid, "operator", etag));
 });
 
 app.patch("/api/groups/:gid", async (c) => {
@@ -924,7 +924,7 @@ app.get("/api/view/:token", async (c) => {
   c.header("Cache-Control", REVALIDATE);
   if (notModified) return c.body(null, 304);
   // 칭호 구간·점검 여부는 buildSnapshot의 조회용 허용 목록에서 붙는다(snapshot.ts의 viewerSettings).
-  return c.json(await buildSnapshot(c.env, head.id, "viewer"));
+  return c.json(await snapshotBody(c.env, head.id, "viewer", etag));
 });
 
 app.all("/api/*", () => {

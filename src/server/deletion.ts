@@ -10,6 +10,7 @@
  *   첫 batch가 모임을 점검 상태로 바꾸고 조회 토큰을 새 무작위 값으로 바꿔(링크 즉시 무효) 다른 쓰기를 막은 뒤,
  *   표마다 정해진 수만큼 지우고, 마지막 batch가 운영자와 모임 행을 지운다. 중간에 끊기면 점검 상태로 남고
  *   같은 삭제를 다시 실행하면 남은 행부터 이어서 지운다.
+ * - D1 삭제가 끝나면 그 모임의 서버 자동 백업(R2)도 지운다(deleteStoredBackups, 2026-11-08). 실패해도 삭제는 성공이다.
  * - 요청 기록(requests)도 지우므로 runMutation의 요청 ID 재전송 경로를 쓰지 않는다. 다시 보내면 모임이 없어
  *   "찾을 수 없음"이 돌아온다(화면은 이것을 "이미 삭제됨"으로 안내한다).
  *
@@ -20,8 +21,9 @@
  *   같은 카카오·Google 계정으로 다시 로그인하면 새 계정 번호로 처음부터 시작한다.
  */
 import { newViewToken } from "./auth";
+import { BACKUP_PREFIX } from "./backupCron";
 import type { Env } from "./env";
-import { ApiError, assertOnlyKeys } from "./http";
+import { ApiError, assertOnlyKeys, nowIso } from "./http";
 import { DELETE_JOB, GROUP_DATA_TABLES, NOW_MS_SQL } from "./restore";
 import { failureKeysFor, LOCAL_PROVIDER } from "./local";
 
@@ -95,6 +97,7 @@ export async function deleteGroup(env: Env, groupId: string, body: Body): Promis
 
   if (total <= limit) {
     await env.DB.batch([...GROUP_TABLES.map(byGroup), dropGroup]);
+    await deleteStoredBackups(env, groupId);
     return result;
   }
 
@@ -156,7 +159,49 @@ export async function deleteGroup(env: Env, groupId: string, body: Body): Promis
   } catch {
     throw incomplete();
   }
+  await deleteStoredBackups(env, groupId);
   return result;
+}
+
+/**
+ * 모임 삭제 뒤 그 모임의 서버 자동 백업(R2 `backups/{모임 ID}/`, src/server/backupCron.ts)을 지운다.
+ *
+ * 순서(D1 삭제가 끝난 뒤, 실패해도 삭제는 성공): 먼저 지우면 D1 삭제가 실패·중단됐을 때 모임은 남고 백업만
+ * 사라진다. 또 D1에서 모임 행이 사라진 뒤에는 자동 백업이 그 모임을 고르지 않으므로(groups 목록 기준) 지운 뒤
+ * 새 백업이 다시 생기지 않는다(여러 단계 삭제는 첫 단계가 점검을 켜므로 그 사이 자동 백업도 이 모임을 건너뛴다).
+ * R2 실패는 기록만 남기고 삭제 응답은 성공으로 둔다: 모임 자료는 이미 지워졌고, 남은 백업은 R2 수명 주기
+ * 규칙(backups/ 30일, docs/배포안내.md)이 마저 지운다. 이미 시작된 자동 백업 실행이 지운 직후 한 개를 넣는
+ * 드문 경우도 같은 규칙이 지운다.
+ * BACKUPS 바인딩이 없는 환경(자동 백업을 켜지 않은 배포)에서는 지울 것이 없으므로 건너뛴다.
+ */
+async function deleteStoredBackups(env: Env, groupId: string): Promise<void> {
+  if (!env.BACKUPS) return;
+  const prefix = `${BACKUP_PREFIX}${groupId}/`;
+  let deleted = 0;
+  try {
+    let cursor: string | undefined;
+    do {
+      // list 한 번은 최대 1000개, delete 한 번도 최대 1000개다. 모임당 하루 1개 × 30일이라 보통 한 번에 끝난다.
+      const listed = await env.BACKUPS.list({ prefix, cursor, limit: 1000 });
+      const keys = listed.objects.map((o) => o.key);
+      if (keys.length > 0) {
+        await env.BACKUPS.delete(keys);
+        deleted += keys.length;
+      }
+      cursor = listed.truncated ? listed.cursor : undefined;
+    } while (cursor);
+  } catch (error) {
+    // backupCron.ts와 같은 꼴의 한 줄 기록(Workers Logs). 오류 내용은 짧게만.
+    console.error(
+      JSON.stringify({
+        at: nowIso(),
+        backup: "delete-failed",
+        group: groupId,
+        deleted,
+        error: String(error instanceof Error ? error.message : error).slice(0, 200),
+      }),
+    );
+  }
 }
 
 function incomplete(): ApiError {

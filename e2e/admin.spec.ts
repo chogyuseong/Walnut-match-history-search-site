@@ -37,9 +37,10 @@ test("일괄 입력으로 넣은 경기를 한 번에 전적 제외하고 복구
   await page.getByRole("button", { name: "3경기 넣기" }).click();
   await expect(page.getByText("3경기 저장됨 · 진영 미상")).toBeVisible();
 
-  // 모임 탭에 이번 일괄 입력 기록이 보이고, 한 번에 전적 제외할 수 있다.
+  // 모임 탭의 "날짜 점검" 구역(묶음 목록이 2026-11-08 날짜 점검 기능과 함께 이리로 옮겨 왔다)에 이번 일괄 입력 기록이
+  // 보이고, 한 번에 전적 제외할 수 있다.
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "모임" }).click();
-  const section = page.getByRole("region", { name: "표 일괄 입력" });
+  const section = page.getByRole("region", { name: "날짜 점검" });
   await expect(section.getByRole("listitem")).toHaveCount(1);
   await expect(section.getByRole("listitem")).toContainText("3경기");
   await section.getByRole("button", { name: "모두 전적 제외" }).click();

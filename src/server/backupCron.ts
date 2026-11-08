@@ -13,8 +13,8 @@
  * - 점검 중(복원·삭제 진행 중)인 모임은 건너뛴다(반쯤 바뀐 상태를 백업하지 않는다).
  * - 모임마다 걸린 시간(벽시계 ms)·크기를 로그(Workers Logs)에 남긴다. 모임 이름·내용은 남기지 않는다.
  *
- * 한계: 지운 모임의 지난 백업은 이 코드가 지우지 않는다(모임 목록에 없으므로). R2 수명 주기 규칙
- * (backups/ 접두어, 30일)을 함께 걸어 둔다(docs/배포안내.md).
+ * 지운 모임의 지난 백업은 모임 삭제가 지운다(src/server/deletion.ts deleteStoredBackups, 2026-11-08). 그것이 실패했을
+ * 때를 위해 R2 수명 주기 규칙(backups/ 접두어, 30일)을 함께 걸어 둔다(docs/배포안내.md).
  */
 import type { Env } from "./env";
 import { exportBackup } from "./groups";

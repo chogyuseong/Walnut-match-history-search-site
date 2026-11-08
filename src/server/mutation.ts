@@ -29,6 +29,13 @@ export interface MutationArgs {
   op: string;
   /** 요청 내용. 해시해서 같은 요청인지 비교한다. */
   payload: unknown;
+  /**
+   * 요청 본문 원문(JSON 텍스트). 있으면 payload를 다시 직렬화하지 않고 이것을 해시한다(백업 복원처럼 수 MB 본문의
+   * CPU를 아끼려는 것. 8MB 본문에서 약 2ms). 원문 전체(요청 ID·확인 문구 포함)가 payload의 내용을 모두 담고 있어야 한다:
+   * 같은 요청 ID + 같은 본문이면 같은 요청이라는 뜻은 그대로다. 같은 내용이라도 바이트가 다르면(공백·키 순서) 다른
+   * 요청으로 보지만, 재시도는 같은 본문을 그대로 다시 보내므로 문제가 없다.
+   */
+  payloadText?: string;
   /** 읽고 검증해서 실행 계획을 만든다. 검증 실패는 ApiError로 던진다. */
   build: () => Promise<Plan>;
   /** batch가 제약 위반으로 실패했을 때 돌려줄 오류의 부가 정보. */
@@ -83,7 +90,10 @@ export async function runMutation(
   env: Env,
   args: MutationArgs,
 ): Promise<{ stored: Record<string, unknown>; replayed: boolean }> {
-  const hash = await sha256Hex(`${args.op}\n${JSON.stringify(args.payload)}`);
+  // 원문 해시는 "raw:"로 구분한다(직렬화 해시와 우연히 같은 값이 될 일이 없게).
+  const hash = await sha256Hex(
+    args.payloadText !== undefined ? `${args.op}\nraw:${args.payloadText}` : `${args.op}\n${JSON.stringify(args.payload)}`,
+  );
 
   const before = await findRequest(env, args.groupId, args.requestId);
   if (before) return { stored: replay(before, hash), replayed: true };
@@ -97,6 +107,17 @@ export async function runMutation(
   }
 
   const plan = await args.build();
+  // 위의 확인은 batch 밖의 읽기라, 확인과 batch 사이에 복원·모임 삭제가 점검을 켤 수 있다. 그래서 점검을 허용하지
+  // 않는 요청은 첫 batch 맨 앞에 보호 문장을 넣어 batch 안에서 다시 확인한다(실패하면 classifyBatchError가
+  // maintenanceError로 바꾼다). allowMaintenance가 있는 요청(복원)은 넣지 않는다: 스스로 점검을 켜고 이어 가며,
+  // 겹치는 실행은 작업 잠금(claimJob·jobOwnerGuard)이 막는다.
+  if (!args.allowMaintenance) {
+    if (plan.stages && plan.stages.length > 0) {
+      plan.stages = [[maintenanceGuard(env, args.groupId), ...plan.stages[0]!], ...plan.stages.slice(1)];
+    } else {
+      plan.statements = [maintenanceGuard(env, args.groupId), ...plan.statements];
+    }
+  }
   const stages = plan.stages ?? [];
   // 단계 도중 실패: 다른 실행이 작업을 이어받아 주인 확인에서 멈췄으면 그 실행에 맡기고, 아니면 잠금을 놓는다.
   const incomplete = async (error: unknown): Promise<ApiError> => {
@@ -157,6 +178,13 @@ export function maintenanceError(): ApiError {
   );
 }
 
+/** 모임이 점검 중이면 batch를 실패시키는 보호 문장(guard_maintenance, migrations/0022). 행 1개만 읽는다. */
+export function maintenanceGuard(env: Env, groupId: string): D1PreparedStatement {
+  return env.DB.prepare(
+    "INSERT INTO guard (maintenance) SELECT 1 FROM groups WHERE id = ?1 AND maintenance = 1",
+  ).bind(groupId);
+}
+
 /** 복원·삭제 작업 잠금의 주인 확인(guard_job_busy, migrations/0008)에 걸린 실패인지. */
 function isJobBusy(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -174,6 +202,8 @@ function takenOverError(): ApiError {
 /** batch 실패를 화면이 이해하는 오류로 바꾼다. */
 async function classifyBatchError(args: MutationArgs, error: unknown): Promise<unknown> {
   const message = error instanceof Error ? error.message : String(error);
+  // 확인 뒤 batch 전에 복원·모임 삭제가 점검을 켰다(maintenanceGuard).
+  if (message.includes("guard_maintenance")) return maintenanceError();
   if (isJobBusy(error)) {
     return new ApiError(
       409,

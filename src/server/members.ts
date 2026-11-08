@@ -36,7 +36,7 @@ export const MAX_OPEN_REQUESTS = 5;
 export const ANONYMIZE_CONFIRM_TEXT = "익명";
 /** 익명 처리한 이름의 앞부분. 뒤에 모임 안에서 겹치지 않는 번호를 붙인다. */
 export const ANON_NAME_PREFIX = "탈퇴한 참가자";
-const ANON_NAME_PATTERN = /^탈퇴한 참가자 \d+$/;
+export const ANON_NAME_PATTERN = /^탈퇴한 참가자 \d+$/;
 
 type Body = Record<string, unknown>;
 

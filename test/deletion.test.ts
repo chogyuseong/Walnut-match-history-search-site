@@ -1,6 +1,8 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
+import { backupKey } from "../src/server/backupCron";
 import { deletionHooks } from "../src/server/deletion";
+import type { Env } from "../src/server/env";
 import { direct } from "./direct";
 import {
   api,
@@ -154,6 +156,81 @@ describe("모임 삭제", () => {
     });
     expect(again.status).toBe(200);
     expect(await leftovers(g.gid)).toEqual({});
+  });
+
+  describe("서버 자동 백업(R2)도 함께 지운다", () => {
+    const bucket = () => (env as unknown as Env).BACKUPS!;
+    const keysOf = async (gid: string) =>
+      (await bucket().list({ prefix: `backups/${gid}/` })).objects.map((o) => o.key).sort();
+
+    it("한 batch 삭제: 그 모임의 백업만 지우고 다른 모임의 백업은 남긴다", async () => {
+      const g = await setupGroup(10);
+      const other = await setupGroup(10);
+      await bucket().put(backupKey(g.gid, "2026-11-01"), "{}");
+      await bucket().put(backupKey(g.gid, "2026-11-02"), "{}");
+      await bucket().put(backupKey(other.gid, "2026-11-01"), "{}");
+
+      expect((await deleteGroup(g)).status).toBe(200);
+      expect(await keysOf(g.gid)).toEqual([]);
+      expect(await keysOf(other.gid)).toEqual([backupKey(other.gid, "2026-11-01")]);
+    });
+
+    it("여러 단계 삭제: 중간에 끊기면 백업은 남고(모임도 남음), 다시 실행해 끝나면 지운다", async () => {
+      const g = await fullGroup();
+      await bucket().put(backupKey(g.gid, "2026-11-01"), "{}");
+      const small = { GROUP_DELETE_BATCH_ROWS: "7" };
+      deletionHooks.afterStage = (i) => {
+        if (i === 1) throw new Error("끊김");
+      };
+      const cut = await direct(small, "POST", `/api/groups/${g.gid}/delete`, { cookie: g.cookie, body: { confirm: "삭제" } });
+      expect(cut.status).toBe(503);
+      expect(await keysOf(g.gid)).toEqual([backupKey(g.gid, "2026-11-01")]);
+
+      deletionHooks.afterStage = null;
+      const again = await direct(small, "POST", `/api/groups/${g.gid}/delete`, { cookie: g.cookie, body: { confirm: "삭제" } });
+      expect(again.status).toBe(200);
+      expect(await keysOf(g.gid)).toEqual([]);
+    });
+
+    it("1000개가 넘어도(목록이 여러 쪽) 모두 지운다", async () => {
+      const g = await setupGroup(0);
+      const keys = Array.from({ length: 1005 }, (_, i) => `backups/${g.gid}/x-${String(i).padStart(4, "0")}.json`);
+      for (let i = 0; i < keys.length; i += 100) {
+        await Promise.all(keys.slice(i, i + 100).map((k) => bucket().put(k, "{}")));
+      }
+      expect((await deleteGroup(g)).status).toBe(200);
+      expect(await keysOf(g.gid)).toEqual([]);
+    });
+
+    it("R2가 실패해도 모임 삭제는 성공한다(오류는 기록만). 바인딩이 없어도 지운다", async () => {
+      const g = await setupGroup(10);
+      const broken = {
+        list: () => Promise.reject(new Error("R2 끊김")),
+        delete: () => Promise.reject(new Error("R2 끊김")),
+      } as unknown as R2Bucket;
+      const errors: string[] = [];
+      const original = console.error;
+      console.error = (...args: unknown[]) => void errors.push(args.map(String).join(" "));
+      try {
+        const res = await direct({ BACKUPS: broken }, "POST", `/api/groups/${g.gid}/delete`, {
+          cookie: g.cookie,
+          body: { confirm: "삭제" },
+        });
+        expect(res.status).toBe(200);
+      } finally {
+        console.error = original;
+      }
+      expect(await leftovers(g.gid)).toEqual({});
+      expect(errors.some((e) => e.includes('"backup":"delete-failed"') && e.includes(g.gid))).toBe(true);
+
+      const h = await setupGroup(10);
+      const res = await direct({ BACKUPS: undefined }, "POST", `/api/groups/${h.gid}/delete`, {
+        cookie: h.cookie,
+        body: { confirm: "삭제" },
+      });
+      expect(res.status).toBe(200);
+      expect(await leftovers(h.gid)).toEqual({});
+    });
   });
 });
 

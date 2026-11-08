@@ -100,6 +100,35 @@ describe("조회 링크 ETag(304)", () => {
     expect((await get(path, { Cookie: g.cookie, "If-None-Match": etag })).status).toBe(200);
   });
 
+  it("운영자 ETag는 시간만으로 바뀌지 않고, 연결 링크가 만료되는 순간에만 바뀐다(만료된 링크는 304로 남지 않는다)", async () => {
+    const g = await setupGroup(3);
+    const path = `/api/groups/${g.gid}/snapshot`;
+    const claim = (token: string, participantId: string, expiresAt: string) =>
+      env.DB.prepare(
+        `INSERT INTO participant_claims (token_hash, group_id, participant_id, created_at, expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)`,
+      )
+        .bind(unique(token), g.gid, participantId, new Date().toISOString(), expiresAt)
+        .run();
+    // 이미 만료된 링크(ETag 재료에서 빠진다)와 곧 만료될 링크.
+    await claim("old", g.people[0]!.id, new Date(Date.now() - 60_000).toISOString());
+    await claim("soon", g.people[1]!.id, new Date(Date.now() + 1500).toISOString());
+    const first = await get(path, { Cookie: g.cookie });
+    const etag = first.headers.get("ETag")!;
+    const claims = (await first.json()) as { memberClaims: { participantId: string }[] };
+    expect(claims.memberClaims.map((c) => c.participantId)).toEqual([g.people[1]!.id]);
+    expect((await get(path, { Cookie: g.cookie, "If-None-Match": etag })).status).toBe(304);
+
+    await new Promise((resolve) => setTimeout(resolve, 1700));
+    const expired = await get(path, { Cookie: g.cookie, "If-None-Match": etag });
+    expect(expired.status).toBe(200);
+    expect(((await expired.json()) as { memberClaims: unknown[] }).memberClaims).toEqual([]);
+    const next = expired.headers.get("ETag")!;
+    expect(next).not.toBe(etag);
+    // 남은 링크가 없으면 시간이 지나도 같은 ETag(예전에는 1분마다 바뀌었다).
+    expect((await get(path, { Cookie: g.cookie, "If-None-Match": next })).status).toBe(304);
+  });
+
   it("참가 신청 공개 조회도 ETag로 304, 신청이 들어오면 바뀐다. 다른 경로는 no-store 그대로", async () => {
     const g = await setupGroup(3);
     const token = (await api(g.cookie, "POST", `/api/groups/${g.gid}/join/link`)).body.token as string;

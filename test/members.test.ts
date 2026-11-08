@@ -558,8 +558,142 @@ describe("익명 처리", () => {
   });
 });
 
+// 합치기를 되돌리면 옮긴 본인 연결도 원래 사람에게 돌아간다(migrations/0023, docs/개선-합치기-2026-11-08.md).
+describe("합치기 되돌리기와 본인 연결", () => {
+  const mergeOf = (g: TestGroup, sourceId: string, targetId: string) =>
+    api(g.cookie, "POST", `/api/groups/${g.gid}/merges`, { requestId: requestId(), sourceId, targetId });
+  const undoOf = (g: TestGroup, mergeId: string) =>
+    api(g.cookie, "POST", `/api/groups/${g.gid}/merges/${mergeId}/undo`, { requestId: requestId() });
+  const membershipOf = async (cookie: string, gid: string) =>
+    ((await api(cookie, "GET", "/api/me")).body.memberships as { id: string; participantId: string }[]).find((m) => m.id === gid);
+
+  it("잘못 합친 '김철수'를 되돌리면 연결·요청이 철수에게 돌아오고, 김철의 본인으로 남지 않는다", async () => {
+    const g = await setupGroup();
+    const [chulsoo, chul] = g.people;
+    const member = await linkNew(g, chulsoo!.id);
+    await api(member, "PUT", `/api/member/${g.gid}/avoid`, { avoidPositions: ["top"] });
+    await api(member, "POST", `/api/member/${g.gid}/requests`, { kind: "erase", text: "합치기 전 요청" });
+    const merged = await mergeOf(g, chulsoo!.id, chul!.id);
+    expect(merged.status).toBe(200);
+    const row = await env.DB.prepare("SELECT moved_link FROM participant_merges WHERE id = ?1")
+      .bind(merged.body.mergeId)
+      .first<{ moved_link: string }>();
+    expect(JSON.parse(row!.moved_link)).toMatchObject({ accountId: await accountIdOf(member), action: "moved" });
+    // 합쳐져 있는 동안: 철수의 계정이 김철의 본인이다(기피 라인·요청).
+    expect((await membershipOf(member, g.gid))!.participantId).toBe(chul!.id);
+    expect((await api(member, "PUT", `/api/member/${g.gid}/avoid`, { avoidPositions: ["jungle"] })).status).toBe(200);
+    await api(member, "POST", `/api/member/${g.gid}/requests`, { kind: "erase", text: "합친 뒤 요청" });
+
+    const undo = await undoOf(g, merged.body.mergeId);
+    expect(undo.status).toBe(200);
+    expect(undo.body.link).toEqual({ outcome: "returned", avoidChanged: true });
+    // /api/me와 멤버 읽기 모두 철수를 가리킨다.
+    expect((await membershipOf(member, g.gid))!.participantId).toBe(chulsoo!.id);
+    const me = (await memberSnap(member, g.gid)).body.me!;
+    expect(me.participantId).toBe(chulsoo!.id);
+    expect(me.requests.map((r) => r.text).sort()).toEqual(["합치기 전 요청", "합친 뒤 요청"]);
+    // 철수 자신의 기피 라인 표시("본인이 정함")는 합치기 전 그대로다.
+    expect(me.avoidPositions).toEqual(["top"]);
+    expect(me.avoidBySelf).toBe(true);
+    // 운영자 화면: 김철에는 연결도 요청도 없다.
+    const snap = await snapshot(g);
+    expect(snap.memberLinks!.map((l) => l.participantId)).toEqual([chulsoo!.id]);
+    expect(snap.memberRequests!.every((r) => r.participantId === chulsoo!.id)).toBe(true);
+    // 이제 철수 계정으로 기피 라인을 바꾸면 철수의 것이 바뀌고 김철의 것은 그대로다.
+    const chulAvoid = (await snapshot(g)).participants.find((p) => p.id === chul!.id)!.avoidPositions;
+    await api(member, "PUT", `/api/member/${g.gid}/avoid`, { avoidPositions: ["mid"] });
+    const after = await snapshot(g);
+    expect(after.participants.find((p) => p.id === chul!.id)!.avoidPositions).toEqual(chulAvoid);
+    expect(after.participants.find((p) => p.id === chulsoo!.id)!.avoidPositions).toEqual(["mid"]);
+  });
+
+  it("되돌리기를 다시 보내면(같은 요청 ID) 처음 결과(link 포함)를 그대로 준다", async () => {
+    const g = await setupGroup();
+    const [a, b] = g.people;
+    await linkNew(g, a!.id);
+    const merged = await mergeOf(g, a!.id, b!.id);
+    const rid = requestId();
+    const first = await api(g.cookie, "POST", `/api/groups/${g.gid}/merges/${merged.body.mergeId}/undo`, { requestId: rid });
+    const again = await api(g.cookie, "POST", `/api/groups/${g.gid}/merges/${merged.body.mergeId}/undo`, { requestId: rid });
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual(first.body);
+  });
+
+  it("그 사이 남는 사람에게 다른 계정이 연결됐으면 그 연결은 그대로 두고, 원래 계정은 다시 연결하지 않는다", async () => {
+    const g = await setupGroup();
+    const [a, b] = g.people;
+    const memberA = await linkNew(g, a!.id);
+    await api(memberA, "POST", `/api/member/${g.gid}/requests`, { kind: "erase", text: "A 요청" });
+    const merged = await mergeOf(g, a!.id, b!.id);
+    // 운영자가 잘못 옮겨진 연결을 끊고 김철 본인을 새로 연결했다.
+    expect((await api(g.cookie, "DELETE", `/api/groups/${g.gid}/participants/${b!.id}/link`, { requestId: requestId() })).status).toBe(200);
+    const memberB = await linkNew(g, b!.id);
+
+    const undo = await undoOf(g, merged.body.mergeId);
+    expect(undo.status).toBe(200);
+    expect(undo.body.link).toEqual({ outcome: "not_returned", avoidChanged: false });
+    expect((await membershipOf(memberB, g.gid))!.participantId).toBe(b!.id);
+    expect(await membershipOf(memberA, g.gid)).toBeUndefined();
+    const snap = await snapshot(g);
+    expect(snap.memberLinks!.map((l) => l.participantId)).toEqual([b!.id]);
+    // 합칠 때 옮긴 요청은 원래 사람의 것이라 돌아간다(김철의 새 본인에게 보이지 않는다).
+    expect(snap.memberRequests!.find((r) => r.text === "A 요청")!.participantId).toBe(a!.id);
+    expect((await memberSnap(memberB, g.gid)).body.me!.requests).toEqual([]);
+  });
+
+  it("남는 사람에게 이미 연결이 있어 지운 연결은 되돌리면 다시 만든다", async () => {
+    const g = await setupGroup();
+    const [a, b] = g.people;
+    const memberA = await linkNew(g, a!.id);
+    const memberB = await linkNew(g, b!.id);
+    const merged = await mergeOf(g, a!.id, b!.id);
+    expect(await membershipOf(memberA, g.gid)).toBeUndefined();
+    const undo = await undoOf(g, merged.body.mergeId);
+    expect(undo.body.link).toEqual({ outcome: "returned", avoidChanged: false });
+    expect((await membershipOf(memberA, g.gid))!.participantId).toBe(a!.id);
+    expect((await membershipOf(memberB, g.gid))!.participantId).toBe(b!.id);
+  });
+
+  it("합칠 대상에 연결이 없었으면 link는 null이고 남는 사람의 연결은 그대로다", async () => {
+    const g = await setupGroup();
+    const [a, b] = g.people;
+    const memberB = await linkNew(g, b!.id);
+    const merged = await mergeOf(g, a!.id, b!.id);
+    const undo = await undoOf(g, merged.body.mergeId);
+    expect(undo.body.link).toBeNull();
+    expect((await membershipOf(memberB, g.gid))!.participantId).toBe(b!.id);
+  });
+
+  it("원래 사람에게 그 사이 다른 연결이 생겼으면 남는 사람에게 남은 원래 계정의 연결은 끊는다", async () => {
+    const g = await setupGroup();
+    const [a, b] = g.people;
+    const memberA = await linkNew(g, a!.id);
+    const merged = await mergeOf(g, a!.id, b!.id);
+    // 정상 경로로는 생기지 않는다(합쳐진 사람은 연결할 수 없다). 직접 넣어 "돌려놓을 수 없는" 경우를 만든다.
+    const other = await login();
+    await env.DB.prepare("INSERT INTO participant_links (group_id, participant_id, account_id, created_at) VALUES (?1, ?2, ?3, ?4)")
+      .bind(g.gid, a!.id, await accountIdOf(other), new Date().toISOString())
+      .run();
+    const undo = await undoOf(g, merged.body.mergeId);
+    expect(undo.body.link).toEqual({ outcome: "cut", avoidChanged: false });
+    expect(await membershipOf(memberA, g.gid)).toBeUndefined();
+    expect((await snapshot(g)).memberLinks!.map((l) => l.participantId)).toEqual([a!.id]);
+  });
+
+  it("연결 기록이 없는 예전 합치기는 연결을 건드리지 않고 확인하라고 알린다", async () => {
+    const g = await setupGroup();
+    const [a, b] = g.people;
+    const memberA = await linkNew(g, a!.id);
+    const merged = await mergeOf(g, a!.id, b!.id);
+    await env.DB.prepare("UPDATE participant_merges SET moved_link = NULL WHERE id = ?1").bind(merged.body.mergeId).run();
+    const undo = await undoOf(g, merged.body.mergeId);
+    expect(undo.body.link).toEqual({ outcome: "unknown", avoidChanged: false });
+    expect((await membershipOf(memberA, g.gid))!.participantId).toBe(b!.id);
+  });
+});
+
 describe("다른 기능과의 정리", () => {
-  it("합치기: 남은 사람에게 연결이 없으면 옮기고, 있으면 합쳐진 쪽 연결을 지운다. 되돌려도 연결은 남은 사람에게 남는다", async () => {
+  it("합치기: 남은 사람에게 연결이 없으면 옮기고, 있으면 합쳐진 쪽 연결을 지운다. 되돌리면 연결이 원래 사람에게 돌아온다", async () => {
     const g = await setupGroup();
     const [a, b, c, d] = g.people;
     const memberA = await linkNew(g, a!.id);
@@ -571,8 +705,10 @@ describe("다른 기능과의 정리", () => {
     expect(me.requests.map((r) => r.text)).toEqual(["A 요청"]);
     const undo = await api(g.cookie, "POST", `/api/groups/${g.gid}/merges/${merged.body.mergeId}/undo`, { requestId: requestId() });
     expect(undo.status).toBe(200);
+    expect(undo.body.link).toEqual({ outcome: "returned", avoidChanged: false });
     me = (await memberSnap(memberA, g.gid)).body.me!;
-    expect(me.participantId).toBe(b!.id);
+    expect(me.participantId).toBe(a!.id);
+    expect(me.requests.map((r) => r.text)).toEqual(["A 요청"]);
 
     const memberC = await linkNew(g, c!.id);
     const memberD = await linkNew(g, d!.id);

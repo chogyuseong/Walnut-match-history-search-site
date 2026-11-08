@@ -31,7 +31,7 @@ import {
   parseSettings,
   tooManyGroupsError,
 } from "./groups";
-import { ApiError, assertOnlyKeys, nowIso, readJsonBody, requireInt, requireString } from "./http";
+import { ApiError, assertOnlyKeys, nowIso, readJsonBody, readJsonBodyWithText, requireInt, requireString } from "./http";
 import { runMutation, sha256Hex, type Plan } from "./mutation";
 import { newViewToken } from "./auth";
 
@@ -1330,7 +1330,8 @@ export async function applyRestore(
   groupId: string,
   req: Request,
 ): Promise<Record<string, unknown>> {
-  const body = await readJsonBody(req, MAX_RESTORE_BODY_BYTES);
+  // 요청 해시는 원문으로 계산한다(runMutation payloadText: 수 MB 백업을 다시 직렬화하지 않는다).
+  const { body, text } = await readJsonBodyWithText(req, MAX_RESTORE_BODY_BYTES);
   assertOnlyKeys(body, ["requestId", "confirm", "baseGeneration", "backup"]);
   const { requestId, backup } = parseApplyBody(body);
   const baseGeneration = requireInt(body.baseGeneration, "baseGeneration");
@@ -1349,6 +1350,7 @@ export async function applyRestore(
     requestId,
     op: "restore",
     payload: { baseGeneration, backup },
+    payloadText: text,
     allowMaintenance: () => canResumeRestore(env, groupId, requestId),
     onStageDone: (i) => restoreHooks.afterStage?.(i),
     conflictDetails: async () => ({
@@ -1374,7 +1376,7 @@ export async function importAsNewGroup(
   accountId: string,
   req: Request,
 ): Promise<Record<string, unknown>> {
-  const body = await readJsonBody(req, MAX_RESTORE_BODY_BYTES);
+  const { body, text } = await readJsonBodyWithText(req, MAX_RESTORE_BODY_BYTES);
   assertOnlyKeys(body, ["requestId", "confirm", "backup"]);
   const { requestId, backup } = parseApplyBody(body);
   const result = validateBackup(backup);
@@ -1441,6 +1443,7 @@ export async function importAsNewGroup(
     requestId,
     op: "restore-new-group",
     payload: { backup },
+    payloadText: text,
     allowMaintenance: () => canResumeRestore(env, groupId, requestId),
     onStageDone: (i) => restoreHooks.afterStage?.(i),
     build: async () => {

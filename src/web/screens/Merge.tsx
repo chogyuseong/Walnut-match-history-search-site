@@ -3,8 +3,27 @@ import { titleBandsOf, titleGradeFor, type Standing } from "../../shared/titles"
 import type { MatchState, ParticipantView } from "../../shared/types";
 import { call, mutate, newRequestId } from "../api";
 import { formatDate, formatTime, nameMap } from "../format";
-import { Dialog, ErrorNote, TitleBadge } from "../ui";
+import { Dialog, ErrorNote, Help, TitleBadge } from "../ui";
 import { go, useAppValue } from "../useApp";
+
+/** 되돌리기 응답의 본인 연결 결과(src/server/merge.ts UndoLinkResult). */
+interface UndoLink {
+  outcome: "returned" | "not_returned" | "cut" | "unknown";
+  avoidChanged: boolean;
+}
+
+/** 되돌리기 뒤 본인 연결 안내. 연결이 없었으면 빈 글. */
+function undoLinkText(link: UndoLink | null | undefined, source: string, target: string): string {
+  if (!link) return "";
+  const parts = {
+    returned: `본인 연결도 '${source}'에게 돌려놓았어요.`,
+    not_returned: `본인 연결은 그 사이 끊기거나 바뀌어 돌려놓지 않았어요. 필요하면 '${source}'에게 연결 링크를 새로 보내 주세요.`,
+    cut: `'${target}'에 남아 있던 '${source}'의 본인 연결을 끊었어요. 필요하면 연결 링크를 새로 보내 주세요.`,
+    unknown: `예전에 한 합치기라 연결 기록이 없어요. '${target}'의 본인 연결이 맞는 사람인지 확인해 주세요.`,
+  };
+  const avoid = link.avoidChanged ? ` 합쳐져 있는 동안 본인이 '${target}'의 기피 라인을 바꿨어요. 확인해 주세요.` : "";
+  return ` ${parts[link.outcome]}${avoid}`;
+}
 
 /** 서버의 합치기 미리보기 응답(src/server/merge.ts의 MergePreview). */
 interface Preview {
@@ -117,15 +136,19 @@ export function Merge() {
     }
   }
 
-  async function runUndo(mergeId: string) {
+  async function runUndo(mergeId: string, sourceName: string, targetName: string) {
     setBusy(true);
     setError(null);
     try {
-      const result = await mutate<{ matchCount: number }>(`/api/groups/${gid}/merges/${mergeId}/undo`, {
-        requestId: undoRequestId.current,
-      });
+      const result = await mutate<{ matchCount: number; link?: UndoLink | null }>(
+        `/api/groups/${gid}/merges/${mergeId}/undo`,
+        { requestId: undoRequestId.current },
+      );
       await app.refreshAfterOwnChange();
-      app.setNotice(`합치기를 되돌렸어요. 경기 ${result.matchCount}개를 원래 이름으로 돌렸습니다.`);
+      app.setNotice(
+        `합치기를 되돌렸어요. 경기 ${result.matchCount}개를 원래 이름으로 돌렸습니다.` +
+          undoLinkText(result.link, sourceName, targetName),
+      );
       undoRequestId.current = newRequestId();
       setUndoing(null);
     } catch (e) {
@@ -138,6 +161,7 @@ export function Merge() {
 
   const merges = snapshot.merges ?? [];
   const pendingUndo = merges.find((m) => m.id === undoing) ?? null;
+  const linked = new Set((snapshot.memberLinks ?? []).map((l) => l.participantId));
 
   return (
     <div className="screen merge">
@@ -288,6 +312,24 @@ export function Merge() {
             결과 확정 경기만 셉니다. 합친 뒤 '{preview.source.name}'은(는) 보관되어 참가자 고르기에 보이지 않고, 이
             기기의 작성 중 편성에 있던 '{preview.source.name}'은(는) '{preview.target.name}'(으)로 바뀝니다.
           </p>
+          {linked.has(preview.source.id) && (
+            <p className="note" role="note">
+              {linked.has(preview.target.id)
+                ? `'${preview.target.name}'에 이미 본인 연결이 있어 '${preview.source.name}'의 본인 연결은 끊겨요. 되돌리면 다시 이어져요.`
+                : `'${preview.source.name}'의 본인 연결도 '${preview.target.name}'에게 옮겨지고, 되돌리면 함께 돌아와요.`}
+            </p>
+          )}
+          <Help label="본인 연결은 어떻게 되나요">
+            <p>
+              연결이 옮겨지면 그 계정이 '{preview.target.name}'의 본인이 되어 기피 라인을 정하고 정정·삭제 요청을 남길 수
+              있어요. 같은 사람일 때만 합쳐 주세요.
+            </p>
+            <p>
+              되돌리면 연결과 합칠 때 함께 옮긴 요청이 원래 이름으로 돌아가요. 그 사이 연결이 끊기거나 다른 계정으로
+              바뀌었으면 연결은 되돌리지 않아요(필요하면 연결 링크를 새로 보내요). 합쳐져 있는 동안 본인이 기피 라인을
+              바꿨으면 되돌린 뒤 알려 드려요. 2026년 11월 8일 전에 한 합치기는 연결 기록이 없어 연결이 돌아가지 않아요.
+            </p>
+          </Help>
           <ErrorNote error={error} onCheck={() => void runMerge()} />
           <div className="button-row">
             <button type="button" className="primary" disabled={busy} onClick={() => void runMerge()}>
@@ -331,11 +373,19 @@ export function Merge() {
         <Dialog title="합치기 되돌리기" onClose={() => setUndoing(null)}>
           <p>
             '{nameOf(pendingUndo.sourceId)}'의 경기 기록을 원래 이름으로 돌려놓고 보관을 풉니다. 합친 뒤 '
-            {nameOf(pendingUndo.targetId)}'(으)로 새로 저장한 경기는 그대로 둡니다.
+            {nameOf(pendingUndo.targetId)}'(으)로 새로 저장한 경기는 그대로 둡니다. 옮겨진 본인 연결도 원래 이름으로 돌려놓아요.
           </p>
-          <ErrorNote error={error} onCheck={() => void runUndo(pendingUndo.id)} />
+          <ErrorNote
+            error={error}
+            onCheck={() => void runUndo(pendingUndo.id, nameOf(pendingUndo.sourceId), nameOf(pendingUndo.targetId))}
+          />
           <div className="button-row">
-            <button type="button" className="primary" disabled={busy} onClick={() => void runUndo(pendingUndo.id)}>
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() => void runUndo(pendingUndo.id, nameOf(pendingUndo.sourceId), nameOf(pendingUndo.targetId))}
+            >
               되돌리기
             </button>
             <button type="button" className="secondary" disabled={busy} onClick={() => setUndoing(null)}>

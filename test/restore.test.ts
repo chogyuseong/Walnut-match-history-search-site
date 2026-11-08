@@ -2,6 +2,8 @@ import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
 import { deletionHooks } from "../src/server/deletion";
+import { ApiError } from "../src/server/http";
+import { runMutation } from "../src/server/mutation";
 import { chunkRows, JOB_STALE_MS, restoreHooks, utf8Bytes } from "../src/server/restore";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
@@ -588,6 +590,61 @@ describe("여러 단계 복원의 잠금(검토 M2)", () => {
       .first<{ n: number }>();
     expect(rows!.n).toBe(0);
     expect((await jobOf(g.gid))!.run_token).toBe("someone-else");
+  });
+
+  it("점검 확인을 통과한 다른 운영자의 쓰기라도 그 사이 복원 1단계가 점검을 켰으면 batch에서 점검 오류로 막힌다", async () => {
+    const g = await richGroup();
+    const file = await exportOf(g);
+    const before = await snapshot(g);
+    const writeId = requestId();
+    // 쓰기: 점검 확인(batch 밖)까지 마친 뒤 build 안에서 멈춰 있다가, 복원 1단계 뒤에 batch를 실행한다.
+    let entered!: () => void;
+    const enteredBuild = new Promise<void>((resolve) => (entered = resolve));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const write = runMutation(env as unknown as Env, {
+      groupId: g.gid,
+      requestId: writeId,
+      op: "season-create",
+      payload: { name: "끼어든 시즌" },
+      build: async () => {
+        entered();
+        await gate;
+        return {
+          stored: {},
+          statements: [
+            env.DB.prepare(
+              `INSERT INTO seasons (id, group_id, name, starts_on, ends_on, created_at)
+               VALUES (?1, ?2, '끼어든 시즌', '2026-01-01', '2026-12-31', '2026-11-08T00:00:00.000Z')`,
+            ).bind(crypto.randomUUID(), g.gid),
+          ],
+        };
+      },
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await enteredBuild;
+    let writeError: unknown = undefined;
+    restoreHooks.afterStage = async (i) => {
+      if (i === 0) {
+        release();
+        writeError = await write;
+      }
+    };
+    const res = await run(g, bodyOf(file, before.group.generation));
+    restoreHooks.afterStage = null;
+    expect(res.status).toBe(200);
+    expect(writeError).toBeInstanceOf(ApiError);
+    expect((writeError as ApiError).code).toBe("MAINTENANCE");
+    // 쓰기는 아무것도 남기지 않았다: 시즌은 백업의 것뿐이고 요청 기록도 없다.
+    const after = await snapshot(g);
+    expect(after.seasons.map((s) => s.name)).toEqual(before.seasons.map((s) => s.name));
+    expect(content(after)).toBe(content(before));
+    const record = await env.DB.prepare("SELECT 1 AS ok FROM requests WHERE group_id = ?1 AND request_id = ?2")
+      .bind(g.gid, writeId)
+      .first();
+    expect(record).toBeNull();
   });
 
   it("모임 삭제가 진행 중인 복원을 끊으면 복원은 멈추고, 복원은 삭제 작업을 이어받지 못한다(삭제를 다시 실행해 끝낸다)", async () => {

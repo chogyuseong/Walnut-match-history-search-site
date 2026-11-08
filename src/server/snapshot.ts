@@ -175,14 +175,31 @@ export interface EtagHead {
   generation: number;
   maintenance: number;
   data_version: number;
+  /**
+   * 운영자만: 쓰지 않은 연결 링크 중 아직 만료되지 않은 것의 가장 이른 만료 시각(없으면 null).
+   * 운영자 스냅숏의 memberClaims는 "지금 만료되지 않은 링크"만 싣기 때문에 시간이 지나기만 해도 내용이 바뀐다.
+   * 링크 행이 바뀌면(만들기·쓰기·지우기) data_version이 오르고, 행이 그대로일 때 내용이 바뀌는 순간은 어떤 링크의
+   * 만료 시각이 지나는 순간뿐이다. 그 순간에는 이 값(가장 이른 "아직 안 지난" 만료)도 반드시 다음 값으로 바뀌므로,
+   * 이 값이 같으면 실린 링크 목록도 같다. 그냥 MIN(expires_at)을 쓰면 지난 만료가 계속 최솟값으로 남아 ETag가
+   * 그대로인 채 목록만 달라지므로(만료된 링크가 304로 계속 보임) 만료가 지난 것은 뺀다.
+   */
+  claims_next_expiry?: string | null;
 }
 
 const ETAG_HEAD_COLUMNS =
   "id, name, timezone, live_version, settings_version_id, view_token, generation, maintenance, data_version";
 
-/** 운영자 스냅숏의 ETag용 모임 행(1행 읽기). 없으면 null. */
+/** 운영자 스냅숏의 ETag용 모임 행(1행 읽기 + 연결 링크 색인 몇 행). 없으면 null. */
 export async function loadEtagHead(env: Env, groupId: string): Promise<EtagHead | null> {
-  return env.DB.prepare(`SELECT ${ETAG_HEAD_COLUMNS} FROM groups WHERE id = ?1`).bind(groupId).first<EtagHead>();
+  // 비교 기준 시각은 스냅숏의 memberClaims 질의(snapshotStatements)와 같은 nowIso() 꼴이다.
+  return env.DB.prepare(
+    `SELECT ${ETAG_HEAD_COLUMNS},
+       (SELECT MIN(expires_at) FROM participant_claims
+        WHERE group_id = ?1 AND used_at IS NULL AND expires_at > ?2) AS claims_next_expiry
+     FROM groups WHERE id = ?1`,
+  )
+    .bind(groupId, nowIso())
+    .first<EtagHead>();
 }
 
 /** 조회 토큰으로 모임 행을 찾는다(조회 링크 경로가 토큰 확인과 ETag 계산을 한 번에 한다). 없으면 null. */
@@ -195,8 +212,6 @@ export async function loadEtagHeadByViewToken(env: Env, token: string): Promise<
  * 버전 정보가 없는 환경(로컬)에서 응답 모양을 바꿨을 때를 위해 둔다.
  */
 const ETAG_SHAPE = "s1";
-/** 운영자 스냅숏에는 시각에 따라 달라지는 값(연결 링크 만료)이 있어 이 간격마다 ETag를 바꾼다. */
-const OPERATOR_ETAG_BUCKET_MS = 60_000;
 
 async function shortHash(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -206,16 +221,13 @@ async function shortHash(text: string): Promise<string> {
 /**
  * 스냅숏 ETag(약한 비교: 본문의 serverTime은 매번 다르지만 같은 자료로 본다).
  * 넣는 값: 역할, 모임 ID, 화면 자료 버전(data_version), 진행 상태 버전, 세대(복원), 설정 버전 ID, 점검 여부,
- * 이름·시간대·조회 토큰, 배포 버전. 운영자는 1분 단위 시각도 넣는다(연결 링크 만료가 시간에 따라 바뀐다).
+ * 이름·시간대·조회 토큰, 배포 버전. 운영자는 가장 이른 "아직 안 지난" 연결 링크 만료 시각도 넣는다
+ * (EtagHead.claims_next_expiry. 2026-11-08 전에는 1분 단위 시각을 넣어 1분마다 304가 깨졌다).
  * 이 값들이 같으면 buildSnapshot의 결과(serverTime 말고)가 같다는 것이 이 설계의 약속이다:
  * 스냅숏에 새 표를 싣게 되면 그 표에도 data_version 트리거를 만들어야 한다(migrations/0021 머리말).
+ * 시각에 따라 달라지는 값을 스냅숏에 새로 넣으면 그 "다음 바뀌는 시각"도 claims_next_expiry처럼 재료에 넣어야 한다.
  */
-export async function snapshotEtag(
-  env: Env,
-  head: EtagHead,
-  role: "operator" | "viewer",
-  now = Date.now(),
-): Promise<string> {
+export async function snapshotEtag(env: Env, head: EtagHead, role: "operator" | "viewer"): Promise<string> {
   const parts: (string | number | null)[] = [
     ETAG_SHAPE,
     env.CF_VERSION_METADATA?.id ?? "",
@@ -230,8 +242,28 @@ export async function snapshotEtag(
     head.timezone,
     head.view_token,
   ];
-  if (role === "operator") parts.push(Math.floor(now / OPERATOR_ETAG_BUCKET_MS));
+  if (role === "operator") parts.push(head.claims_next_expiry ?? null);
   return `W/"${await shortHash(JSON.stringify(parts))}"`;
+}
+
+/**
+ * ETag 경로(GET 운영자 스냅숏·조회 링크, src/server/index.ts)가 200 본문을 만드는 단일 경계.
+ * 순서: loadEtagHead(ByViewToken) → snapshotEtag → (If-None-Match가 맞으면 304) → 이 함수.
+ *
+ * 확장 자리(지금은 구현하지 않음): 나중에 gzip 본문을 ETag 열쇠로 D1 한 행에 캐시할 자리다.
+ * 같은 ETag면 본문이 같다는 것이 snapshotEtag의 약속이므로, 여기서 (모임 ID, 역할) 행의 저장된 ETag가 같으면
+ * 저장된 본문을 그대로 내보내고 다르면 buildSnapshot 후 갈아 끼운다. serverTime은 캐시 본문에서는 굳으므로 그때는
+ * 응답 헤더 등 다른 곳으로 옮겨야 한다.
+ * 도입 기준: 가장 큰 모임이 약 1000경기(서버 JS 시간이 무료 요금제 요청당 CPU 10ms에 닿는 지점.
+ * 522경기에서 4~5ms 실측). 그 전에는 D1 쓰기만 늘어 이득이 없다.
+ */
+export async function snapshotBody(
+  env: Env,
+  groupId: string,
+  role: "operator" | "viewer",
+  _etag: string,
+): Promise<Snapshot> {
+  return buildSnapshot(env, groupId, role);
 }
 
 /** If-None-Match 헤더가 이 ETag와 맞는지(약한 비교, 여러 값·"*" 허용). */
@@ -605,10 +637,13 @@ function seriesStatements(env: Env, groupId: string): D1PreparedStatement[] {
     env.DB.prepare(
       "SELECT id, name, format, created_at FROM match_series WHERE group_id = ?1 ORDER BY created_at, id",
     ).bind(groupId),
+    // 시리즈에 든 경기에서 출발해(idx_series_members) 경기 행은 기본 키로 찾는다. CROSS JOIN은 SQLite에서 이 순서를
+    // 고정한다: 그냥 JOIN이면 통계 없는 계획기가 matches(모임의 경기 전부)에서 출발해 시리즈가 0개여도 다 훑었다
+    // (2026-11-08 EXPLAIN QUERY PLAN 확인). 정렬(경기 시각 → 경기 번호)은 parseSeries가 JS에서 한다.
     env.DB.prepare(
-      `SELECT s.series_id, s.match_id FROM match_series_members s
-       JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
-       WHERE s.group_id = ?1 ORDER BY m.played_at, m.match_no`,
+      `SELECT s.series_id, s.match_id, m.played_at, m.match_no FROM match_series_members s
+       CROSS JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
+       WHERE s.group_id = ?1`,
     ).bind(groupId),
   ];
 }
@@ -618,7 +653,18 @@ function parseSeries(rows: D1Result | undefined, members: D1Result | undefined):
   for (const r of rows!.results as unknown as { id: string; name: string | null; format: SeriesFormat; created_at: string }[]) {
     byId.set(r.id, { id: r.id, name: r.name, format: r.format, createdAt: r.created_at, matchIds: [] });
   }
-  for (const m of members!.results as unknown as { series_id: string; match_id: string }[]) {
+  const memberRows = members!.results as unknown as {
+    series_id: string;
+    match_id: string;
+    played_at: string;
+    match_no: number;
+  }[];
+  // 예전 SQL의 ORDER BY m.played_at, m.match_no와 같은 순서(played_at은 ASCII 시각 문자열이라 JS 문자열 비교가
+  // SQLite의 기본 BINARY 비교와 같다. 경기 번호는 모임 안에서 겹치지 않아(UNIQUE) 순서가 하나로 정해진다).
+  memberRows.sort((a, b) =>
+    a.played_at < b.played_at ? -1 : a.played_at > b.played_at ? 1 : a.match_no - b.match_no,
+  );
+  for (const m of memberRows) {
     byId.get(m.series_id)?.matchIds.push(m.match_id);
   }
   return [...byId.values()];
@@ -671,9 +717,12 @@ function revisionStatements(env: Env, groupId: string): D1PreparedStatement[] {
     env.DB.prepare(
       `${select} WHERE r.group_id = ?1 AND ${MERGE_REF} IS NULL ORDER BY r.id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_REVISIONS),
+    // ORDER BY +r.id: "+"는 id 순서를 색인으로 맞추지 말라는 표시다. 이게 없으면 계획기가 정렬을 아끼려고
+    // idx_revisions_group을 거꾸로 걸으며 종류를 하나씩 걸러 사실상 이력 전부를 읽는다. 있으면
+    // idx_revisions_group_kind(migrations/0022)로 세 종류의 줄만 읽고 그것만 정렬한다(결과는 같다. id는 겹치지 않는다).
     env.DB.prepare(
       `${select} WHERE r.group_id = ?1 AND r.kind IN ('correction', 'exclude', 'restore')
-         AND ${MERGE_REF} IS NULL ORDER BY r.id DESC LIMIT ?2`,
+         AND ${MERGE_REF} IS NULL ORDER BY +r.id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_CHANGES),
     env.DB.prepare(
       `SELECT ref, MAX(id) AS id, COUNT(*) AS match_count, MAX(created_at) AS created_at,
