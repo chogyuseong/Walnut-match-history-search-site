@@ -6,6 +6,7 @@
  * - 점수에는 결과가 확정된 판만 센다. 전적 제외·미진행 취소된 판은 빼고, 진행 중·결과 대기 판은 "진행 중"으로 둔다.
  * - 형식의 승수를 채운 뒤 더 넣는 것은 막지 않고 표시에 경고를 붙인다(overflow).
  * - 합치기 되돌리기·참가자 교체 정정처럼 넣은 뒤에 구성이 달라진 판은 점수에서 빼고 "구성 다름"으로 알린다.
+ *   기준 구성은 첫 판이 아니라 "가장 많은 판이 쓴 구성"이다(seriesReferenceOf, 2026-11-08).
  * 통계(승률·랭킹)는 지금처럼 판 단위로 센다. 여기의 점수는 보여 주기만 한다.
  */
 import { isCounted } from "./stats";
@@ -50,13 +51,13 @@ export type SeriesGameStatus = "counted" | "pending" | "dropped" | "mismatch";
 export interface SeriesGame {
   match: MatchView;
   status: SeriesGameStatus;
-  /** 이긴 쪽(0: 첫 판의 팀 A였던 사람들, 1: 그 상대). 센 판만. */
+  /** 이긴 쪽(0: 기준 판의 팀 A였던 사람들, 1: 그 상대). 센 판만. */
   winner: 0 | 1 | null;
 }
 
 export interface SeriesScore {
   series: SeriesView;
-  /** 두 팀의 구성원(0: 첫 판의 팀 A였던 사람들). 판이 없으면 빈 목록. */
+  /** 두 팀의 구성원(0: 기준 판의 팀 A였던 사람들). 판이 없으면 빈 목록. */
   teams: [string[], string[]];
   wins: [number, number];
   games: SeriesGame[];
@@ -73,6 +74,29 @@ export function byPlayOrder(a: MatchView, b: MatchView): number {
   return a.playedAt.localeCompare(b.playedAt) || a.matchNo - b.matchNo;
 }
 
+/**
+ * 시리즈의 기준 판(2026-11-08 정합성 점검에서 바꿈). 전적 제외·미진행 취소가 아닌 판들 중 가장 많은 판이 쓴 두 팀
+ * 구성을 고르고(같으면 그 구성의 첫 판이 이른 쪽), 그 구성의 첫 판을 돌려준다. 그런 판이 없으면(모두 제외·취소) 첫 판.
+ * 예전에는 늘 첫 판이라, 첫 판만 참가자 정정되면 나머지 판이 모두 "구성 다름"이 되어 점수가 사라졌다.
+ * members는 이 시리즈의 경기다(순서 무관). 화면의 점수(seriesScore)·넣기 안내(seriesReference)와 서버의 넣기 검사가
+ * 모두 이 함수를 쓴다.
+ */
+export function seriesReferenceOf(members: readonly MatchView[]): MatchView | null {
+  const ordered = [...members].sort(byPlayOrder);
+  const groups = new Map<string, { first: MatchView; count: number }>();
+  for (const m of ordered) {
+    if (m.state === "excluded" || m.state === "canceled") continue;
+    const key = compositionKey(m.roster);
+    const found = groups.get(key);
+    if (found) found.count += 1;
+    else groups.set(key, { first: m, count: 1 });
+  }
+  let best: { first: MatchView; count: number } | null = null;
+  // Map은 넣은 순서(= 각 구성의 첫 판이 이른 순)를 지키므로, 더 많을 때만 바꾸면 동률은 이른 쪽이 남는다.
+  for (const g of groups.values()) if (best === null || g.count > best.count) best = g;
+  return best?.first ?? ordered[0] ?? null;
+}
+
 /** 시리즈의 점수를 계산한다. matches는 모임의 경기 전체(또는 이 시리즈의 경기를 포함한 목록)다. */
 export function seriesScore(series: SeriesView, matches: readonly MatchView[]): SeriesScore {
   const byId = new Map(matches.map((m) => [m.id, m]));
@@ -80,7 +104,8 @@ export function seriesScore(series: SeriesView, matches: readonly MatchView[]): 
     .map((id) => byId.get(id))
     .filter((m): m is MatchView => m !== undefined)
     .sort(byPlayOrder);
-  const first = members[0];
+  // 점수의 0쪽은 기준 판(seriesReferenceOf)의 팀 A였던 사람들이다.
+  const first = seriesReferenceOf(members) ?? undefined;
   const teams: [string[], string[]] = first
     ? [teamKey(first.roster, "A").split(","), teamKey(first.roster, "B").split(",")]
     : [[], []];
@@ -116,7 +141,7 @@ export function seriesTitle(series: SeriesView): string {
 }
 
 /**
- * 시리즈 한 줄 요약: "결승 · 3판 2선승 · 2:1". 점수는 첫 판의 팀 A였던 사람들 쪽이 앞이다.
+ * 시리즈 한 줄 요약: "결승 · 3판 2선승 · 2:1". 점수는 기준 판(seriesReferenceOf)의 팀 A였던 사람들 쪽이 앞이다.
  */
 export function seriesLine(score: SeriesScore): string {
   return `${seriesTitle(score.series)} · ${SERIES_FORMAT_LABEL[score.series.format]} · ${score.wins[0]}:${score.wins[1]}`;
@@ -145,15 +170,10 @@ export function seriesIndex(series: readonly SeriesView[] | undefined): Map<stri
   return index;
 }
 
-/** 시리즈의 기준 판(첫 판). 새 판은 이 판과 구성이 같아야 넣을 수 있다. */
+/** 시리즈의 기준 판(seriesReferenceOf). 새 판은 이 판과 구성이 같아야 넣을 수 있다. */
 export function seriesReference(series: SeriesView, matches: readonly MatchView[]): MatchView | null {
   const byId = new Map(matches.map((m) => [m.id, m]));
-  return (
-    series.matchIds
-      .map((id) => byId.get(id))
-      .filter((m): m is MatchView => m !== undefined)
-      .sort(byPlayOrder)[0] ?? null
-  );
+  return seriesReferenceOf(series.matchIds.map((id) => byId.get(id)).filter((m): m is MatchView => m !== undefined));
 }
 
 /** 구성이 달라 넣을 수 없을 때의 안내(서버 오류 문구와 같다). */

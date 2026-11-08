@@ -732,7 +732,8 @@ export async function exportBackup(env: Env, groupId: string): Promise<Record<st
     q("SELECT id, kind, source_key, label, created_at, options FROM import_batches WHERE group_id = ?1 ORDER BY created_at, id"),
     q("SELECT id, created_at FROM participants WHERE group_id = ?1"),
     // 형식 3: 합치기 기록. 되돌리기에 필요한 옮긴 행 목록을 그대로 넣는다.
-    // moved_link(migrations/0023)는 계정 ID라 넣지 않는다(연결은 백업 밖). 복원한 합치기는 연결 기록 없음(NULL)이 된다.
+    // moved_link(migrations/0023)는 계정 ID라 넣지 않는다(연결은 백업 밖). 새 모임으로 가져온 합치기는 연결 기록 없음(NULL)이
+    // 된다. 같은 모임 복구는 지금 DB에도 유효한 같은 합치기면 그 값을 그대로 이어 쓴다(restore.ts rewindMergeLinks).
     q(
       `SELECT id, source_id, target_id, source_prev_status, moved_matches, rotation_changes, created_at, undone_at
        FROM participant_merges WHERE group_id = ?1 ORDER BY created_at, id`,

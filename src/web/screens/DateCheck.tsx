@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FUTURE_TOLERANCE_MS } from "../../shared/backfill";
 import { dateFindings, shiftYears, type YearRun } from "../../shared/dateCheck";
 import type { MatchView } from "../../shared/types";
 import { mutate, newRequestId } from "../api";
@@ -25,6 +26,12 @@ export function DateCheck() {
   const tz = snapshot?.group.timezone ?? "Asia/Seoul";
   const confirmed = useMemo(
     () => (snapshot ? snapshot.matches.filter((m) => m.state === "confirmed") : []),
+    [snapshot],
+  );
+  // 전적 제외 경기는 찾기에는 쓰지 않지만, 옮길 때는 같은 묶음·범위에 있으면 함께 옮긴다(제외 상태는 그대로라
+  // 통계에는 영향이 없다). 같은 묶음의 제외 경기만 틀린 연도로 남지 않게 하려는 것이다(2026-11-08 정합성 점검).
+  const excluded = useMemo(
+    () => (snapshot ? snapshot.matches.filter((m) => m.state === "excluded") : []),
     [snapshot],
   );
   const findings = useMemo(
@@ -77,8 +84,25 @@ export function DateCheck() {
     const from = Number(rangeFrom);
     const to = Number(rangeTo);
     if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from) return [];
-    return confirmed.filter((m) => m.matchNo >= from && m.matchNo <= to);
+    return [...confirmed, ...excluded]
+      .filter((m) => m.matchNo >= from && m.matchNo <= to)
+      .sort((a, b) => a.matchNo - b.matchNo);
   })();
+
+  /**
+   * 묶음을 옮길 때 함께 옮길 제외 경기를 더한다. 묶음과 같은 기준으로 고른다: 연도 +1 묶음은 경기 번호가 묶음 안이고
+   * 날짜가 기준(바로 앞 경기)보다 앞인 것, 미래 묶음(−1)은 아직 오지 않은 시각인 것.
+   */
+  const runTargets = (run: YearRun<MatchView>): MatchView[] => {
+    const first = run.items[0]!.matchNo;
+    const last = run.items[run.items.length - 1]!.matchNo;
+    const extra = excluded.filter((m) => {
+      const at = Date.parse(m.playedAt);
+      if (run.before) return m.matchNo >= first && m.matchNo <= last && at < Date.parse(run.before.playedAt);
+      return at > Date.now() + FUTURE_TOLERANCE_MS;
+    });
+    return [...run.items, ...extra].sort((a, b) => a.matchNo - b.matchNo);
+  };
 
   const preview = (items: MatchView[], years: 1 | -1) => {
     const shown = items.length <= 4 ? items : [...items.slice(0, 3), items[items.length - 1]!];
@@ -91,7 +115,8 @@ export function DateCheck() {
               {m.matchNo}경기
             </span>
             <span className="stat">
-              {when(m)} → {whenIso(shiftYears(m.playedAt, years))}
+              {when(m)} → {whenIso(shiftYears(m.playedAt, years, tz))}
+              {m.state === "excluded" ? " (전적 제외)" : ""}
             </span>
           </li>
         ))}
@@ -102,6 +127,8 @@ export function DateCheck() {
   const runBlock = (run: YearRun<MatchView>, index: number) => {
     const first = run.items[0]!;
     const last = run.items[run.items.length - 1]!;
+    const targets = runTargets(run);
+    const extra = targets.length - run.items.length;
     return (
       <section key={index} className="prep-tools" aria-label={`연도 묶음 ${index + 1}`}>
         <h2>
@@ -111,14 +138,15 @@ export function DateCheck() {
           {run.before
             ? `바로 앞 ${run.before.matchNo}경기(${localDate(run.before.playedAt, tz)})보다 날짜가 반년 넘게 앞으로 돌아가요. 해를 안 넘긴 것 같아요.`
             : "아직 오지 않은 날짜예요. 한 해 앞으로 옮기면 지난 경기가 돼요."}
+          {extra > 0 ? ` 전적 제외 경기 ${extra}개도 함께 옮겨요(통계에는 그대로 빠져 있어요).` : ""}
         </p>
-        {preview(run.items, run.years)}
+        {preview(targets, run.years)}
         <div className="button-row">
           <button
             type="button"
             className="primary"
             disabled={busy}
-            onClick={() => setConfirm({ items: run.items, years: run.years })}
+            onClick={() => setConfirm({ items: targets, years: run.years })}
           >
             {run.years > 0 ? "연도 +1 적용" : "연도 −1 적용"}
           </button>
@@ -145,7 +173,7 @@ export function DateCheck() {
       <Help>
         <p>연도 묶음: 입력 순서는 뒤인데 날짜가 반년 넘게 앞으로 돌아간 자리부터, 돌아가기 전 날짜를 다시 넘기기 전까지. 보통 12월 → 1월에서 해를 안 넘긴 경우라 연도 +1을 제안해요. 아직 오지 않은 날짜는 −1을 제안해요.</p>
         <p>같은 시각: 시각이 정확히 같은 경기 둘 이상. 열 명까지 같으면 같은 경기를 두 번 넣었을 수 있어요. 경기 상세에서 시각을 고치거나 전적 제외로 빼세요.</p>
-        <p>적용하면 경기마다 "경기 시각 수정" 정정 기록이 남고, 같은 범위에 반대 부호를 적용하면 되돌아가요. 전적·통계는 바로 다시 계산돼요.</p>
+        <p>적용하면 경기마다 "경기 시각 수정" 정정 기록이 남고, 같은 범위에 반대 부호를 적용하면 되돌아가요. 전적·통계는 바로 다시 계산돼요. 전적 제외 경기는 찾기에는 쓰지 않지만 같은 묶음·범위에 있으면 함께 옮겨요(제외 상태는 그대로).</p>
       </Help>
       <ErrorNote error={error} />
 

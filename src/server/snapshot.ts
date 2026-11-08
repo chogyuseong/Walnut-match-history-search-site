@@ -160,6 +160,36 @@ export async function loadMatch(env: Env, groupId: string, matchId: string): Pro
   return view;
 }
 
+/**
+ * 여러 경기를 명단과 함께 한 번(batch 1회)에 읽는다. 다른 모임의 경기·없는 경기는 빠진다(순서는 정하지 않는다).
+ * loadMatch를 경기마다 부르면 경기당 질의 2회라 무료 요금제 한도(호출당 50회)에 금방 닿는다(2026-11-08 정합성 점검).
+ */
+export async function loadMatchesByIds(env: Env, groupId: string, matchIds: readonly string[]): Promise<MatchView[]> {
+  if (matchIds.length === 0) return [];
+  const list = JSON.stringify(matchIds);
+  const [rows, roster] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
+    ).bind(groupId, list),
+    env.DB.prepare(
+      `SELECT match_id, participant_id, team, position FROM match_roster
+       WHERE group_id = ?1 AND match_id IN (SELECT value FROM json_each(?2))`,
+    ).bind(groupId, list),
+  ]);
+  const views = new Map(
+    (rows!.results as unknown as MatchRow[]).map((r) => [r.id, toMatchView(r)] as const),
+  );
+  for (const r of roster!.results as unknown as {
+    match_id: string;
+    participant_id: string;
+    team: Team;
+    position: Position | null;
+  }[]) {
+    views.get(r.match_id)?.roster.push({ participantId: r.participant_id, team: r.team, position: r.position });
+  }
+  return [...views.values()];
+}
+
 /* ------------------------------------------------------------------ */
 /* ETag(조건부 요청)                                                     */
 /* ------------------------------------------------------------------ */

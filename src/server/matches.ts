@@ -1145,7 +1145,9 @@ export async function correctMatch(
             env.DB.prepare("UPDATE rotation_events SET voided = 1 WHERE id = ?1").bind(event.id),
           );
         } else {
-          // 새 서포터가 같은 주기에서 이미 차례를 썼다면 이 사건은 "반복"으로 남긴다.
+          // 새 서포터가 같은 주기에서 이미 차례를 썼다면 이 사건은 "반복"으로, 아니면 "사용"으로 남긴다. 예전 사건의
+          // 종류(event.kind)를 물려받으면, 반복이던 서포터를 아직 차례를 안 쓴 사람으로 고쳐도 반복으로 남아 그 사람의
+          // 차례가 소비되지 않았다(진행 중 교체와 같은 규칙으로 맞춤, 2026-11-08 정합성 점검).
           const already = await env.DB.prepare(
             `SELECT 1 AS ok FROM rotation_events
              WHERE cycle_id = ?1 AND participant_id = ?2 AND kind = 'used' AND voided = 0 AND id <> ?3`,
@@ -1155,7 +1157,7 @@ export async function correctMatch(
           statements.push(
             env.DB.prepare(
               "UPDATE rotation_events SET participant_id = ?1, kind = ?2 WHERE id = ?3",
-            ).bind(after, already ? "repeat" : event.kind, event.id),
+            ).bind(after, already ? "repeat" : "used", event.id),
           );
         }
         changes[`rotation:${team}`] = { from: before, to: after };
@@ -1685,11 +1687,19 @@ async function restoreImportBatch(env: Env, groupId: string, batchId: string, sk
 /* ------------------------------------------------------------------ */
 
 const MAX_SHIFT_MATCHES = 500;
+/** 날짜 일괄 정정 요청 본문 상한. 경기 ID(UUID) 500개가 약 20KB라 기본 16KB로는 400개 남짓에서 413이 났다. */
+export const SHIFT_DATES_BODY_BYTES = 64 * 1024;
 
 /**
- * 여러 확정 경기의 시각을 한 해 뒤(+1) 또는 앞(-1)으로 옮긴다(화면 "날짜 점검"). 가져온 기록의 연도가 통째로 틀린 경우를
+ * 여러 경기의 시각을 한 해 뒤(+1) 또는 앞(-1)으로 옮긴다(화면 "날짜 점검"). 가져온 기록의 연도가 통째로 틀린 경우를
  * 한 번에 고치려는 것이다. 경기마다 "경기 시각 수정"과 같은 정정 기록(correction, playedAt)을 남기고 경기 버전을 올린다.
- * 한 경기라도 옮긴 시각이 미래이거나 확정 경기가 아니면 전체를 거절한다(부분 적용 없음). 되돌리기는 같은 경기에 반대 부호.
+ * 확정 경기와 전적 제외 경기를 옮길 수 있다(2026-11-08 정합성 점검: 같은 묶음의 제외 경기만 틀린 연도로 남지 않게).
+ * 제외 경기는 제외 상태 그대로라 통계에는 영향이 없다.
+ * 한 경기라도 옮긴 시각이 미래이거나 옮길 수 없는 상태(진행 중·결과 대기·취소)이면 전체를 거절한다(부분 적용 없음).
+ * 되돌리기는 같은 경기에 반대 부호. 연도는 모임 시간대의 날짜·시각을 기준으로 옮긴다(shiftYears의 timeZone).
+ *
+ * 질의 수(무료 요금제: 호출당 50회): 경기 수와 상관없이 읽기 1회(경기 전부를 json_each로) + batch 1회.
+ * 예전에는 경기마다 loadMatch(질의 2회)라 21경기부터 한도를 넘었다.
  */
 export async function shiftMatchDates(env: Env, groupId: string, body: Body): Promise<{ changed: number }> {
   assertOnlyKeys(body, ["requestId", "matchIds", "years"]);
@@ -1710,27 +1720,61 @@ export async function shiftMatchDates(env: Env, groupId: string, body: Body): Pr
     conflictDetails: () => matchConflictDetails(env, groupId, matchIds[0]!),
     build: async () => {
       const now = nowIso();
-      const statements: D1PreparedStatement[] = [];
+      const list = JSON.stringify(matchIds);
+      const rows = await env.DB.prepare(
+        `SELECT id, match_no, version, state, played_at,
+           (SELECT timezone FROM groups WHERE id = ?1) AS timezone
+         FROM matches WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
+      )
+        .bind(groupId, list)
+        .all<{ id: string; match_no: number; version: number; state: string; played_at: string; timezone: string }>();
+      const byId = new Map(rows.results.map((r) => [r.id, r]));
+      // 각 경기: [id, 읽은 버전, 읽은 상태, 옮긴 시각, 정정 기록(JSON)]. batch 문장은 경기 수와 상관없이 3개다.
+      const items: [string, number, string, string, string][] = [];
       for (const matchId of matchIds) {
-        const match = await loadMatch(env, groupId, matchId);
-        assertState(match, ["confirmed"]);
-        const to = shiftYears(match.playedAt, years);
+        const row = byId.get(matchId);
+        if (!row) throw new ApiError(404, "NOT_FOUND", "경기를 찾을 수 없습니다.");
+        if (row.state !== "confirmed" && row.state !== "excluded") {
+          throw new ApiError(409, "STATE_CONFLICT", "지금 상태에서는 할 수 없는 작업입니다.", {
+            match: { version: row.version, state: row.state },
+          });
+        }
+        const to = shiftYears(row.played_at, years, row.timezone);
         if (Date.parse(to) > Date.now() + FUTURE_TOLERANCE_MS) {
           throw new ApiError(
             400,
             "FUTURE_MATCH",
-            `${match.matchNo}경기를 옮기면 아직 오지 않은 시각이 됩니다. 범위를 확인해 주세요.`,
+            `${row.match_no}경기를 옮기면 아직 오지 않은 시각이 됩니다. 범위를 확인해 주세요.`,
           );
         }
-        statements.push(
-          matchGuard(env, groupId, matchId, match.version, "confirmed"),
-          env.DB.prepare(
-            "UPDATE matches SET played_at = ?1, version = version + 1 WHERE id = ?2 AND group_id = ?3",
-          ).bind(to, matchId, groupId),
-          insertRevision(env, groupId, matchId, "correction", { playedAt: { from: match.playedAt, to } }, now),
-        );
+        items.push([matchId, row.version, row.state, to, JSON.stringify({ playedAt: { from: row.played_at, to } })]);
       }
-      statements.push(bumpLiveVersion(env, groupId));
+      const payload = JSON.stringify(items);
+      const statements: D1PreparedStatement[] = [
+        // 읽은 뒤 한 경기라도 버전·상태가 바뀌었으면 batch 전체를 실패시킨다(경기마다 matchGuard를 둔 것과 같다).
+        env.DB.prepare(
+          `INSERT INTO guard (version_conflict)
+           SELECT 1 WHERE (
+             SELECT COUNT(*) FROM json_each(?2) j
+             JOIN matches m ON m.group_id = ?1 AND m.id = json_extract(j.value, '$[0]')
+               AND m.version = json_extract(j.value, '$[1]') AND m.state = json_extract(j.value, '$[2]')
+           ) <> ?3`,
+        ).bind(groupId, payload, items.length),
+        // 정정 기록은 요청 순서대로 남긴다(경기마다 insertRevision을 부른 예전과 같은 순서).
+        env.DB.prepare(
+          `INSERT INTO match_revisions (group_id, match_id, kind, changes, created_at)
+           SELECT ?1, json_extract(value, '$[0]'), 'correction', json_extract(value, '$[4]'), ?3
+           FROM json_each(?2) ORDER BY key`,
+        ).bind(groupId, payload, now),
+        env.DB.prepare(
+          `UPDATE matches
+           SET played_at = (SELECT json_extract(value, '$[3]') FROM json_each(?2)
+                            WHERE json_extract(value, '$[0]') = matches.id),
+               version = version + 1
+           WHERE group_id = ?1 AND id IN (SELECT json_extract(value, '$[0]') FROM json_each(?2))`,
+        ).bind(groupId, payload),
+        bumpLiveVersion(env, groupId),
+      ];
       return { stored: { changed: matchIds.length }, statements };
     },
   });

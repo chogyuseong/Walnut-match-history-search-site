@@ -3,24 +3,22 @@
  *
  * - 만드는 길 두 가지: ① 경기 시작 때 "시리즈로 이어가기"(startMatch의 series 선택 필드, seriesContinuePlan)
  *   ② 기록 화면·경기 상세에서 확정 경기로 새 시리즈를 만들거나(createSeries) 넣고 빼기(addToSeries, removeFromSeries).
- * - 두 팀의 5명 구성이 시리즈의 첫 판과 같아야 넣을 수 있다(src/shared/series.ts compositionKey). 다르면 거절한다.
+ * - 두 팀의 5명 구성이 시리즈의 기준 판과 같아야 넣을 수 있다(src/shared/series.ts compositionKey·seriesReferenceOf:
+ *   제외·취소가 아닌 판들 중 가장 많은 구성, 동률이면 이른 쪽. 2026-11-08 전에는 첫 판). 다르면 거절한다.
+ * - 질의 수(무료 요금제: 호출당 50회): 판 수와 상관없이 몇 회로 끝난다(경기·명단은 json_each로 한 번에 읽는다).
+ * - 같은 요청 ID의 재전송은 요청 기록에 남긴 시리즈를 그대로 돌려준다(storedSeries).
  * - 한 경기는 한 시리즈에만 들어간다(match_series_members 기본 키). 마지막 판을 빼면 시리즈도 지운다.
  * - 모임 경계: 경기·시리즈는 그 모임의 것만 찾는다(group_id 조건). 표의 복합 외래 키도 막는다.
  * - 경기 버전·진행 상태 버전은 올리지 않는다(시리즈는 기록을 묶어 보여 주는 것뿐이고 승패·명단은 그대로다).
  *   대신 확인한 때의 경기 버전·상태가 저장할 때도 같은지 보호 문장으로 확인한다(그 사이 참가자 교체 정정 등).
  */
-import {
-  byPlayOrder,
-  compositionKey,
-  SERIES_NAME_MAX,
-  SERIES_TEAMS_DIFFER_TEXT,
-} from "../shared/series";
+import { compositionKey, SERIES_NAME_MAX, SERIES_TEAMS_DIFFER_TEXT, seriesReferenceOf } from "../shared/series";
 import { cleanName } from "../shared/names";
 import { SERIES_FORMATS, type MatchView, type RosterEntry, type SeriesFormat, type SeriesView } from "../shared/types";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireString } from "./http";
 import { runMutation, type Plan } from "./mutation";
-import { loadMatch, loadSeries } from "./snapshot";
+import { loadMatch, loadMatchesByIds, loadSeries } from "./snapshot";
 
 type Body = Record<string, unknown>;
 
@@ -54,13 +52,35 @@ async function findSeries(env: Env, groupId: string, seriesId: string): Promise<
   return found;
 }
 
-async function seriesOfMatch(env: Env, groupId: string, matchId: string): Promise<string | null> {
-  const row = await env.DB.prepare(
-    "SELECT series_id FROM match_series_members WHERE group_id = ?1 AND match_id = ?2",
+/** 경기 ID → 그 경기가 든 시리즈 ID(시리즈에 없는 경기는 빠진다). 경기 수와 상관없이 질의 1회. */
+async function seriesOfMatches(env: Env, groupId: string, matchIds: readonly string[]): Promise<Map<string, string>> {
+  const rows = await env.DB.prepare(
+    `SELECT match_id, series_id FROM match_series_members
+     WHERE group_id = ?1 AND match_id IN (SELECT value FROM json_each(?2))`,
   )
-    .bind(groupId, matchId)
-    .first<{ series_id: string }>();
-  return row?.series_id ?? null;
+    .bind(groupId, JSON.stringify(matchIds))
+    .all<{ match_id: string; series_id: string }>();
+  return new Map(rows.results.map((r) => [r.match_id, r.series_id]));
+}
+
+/**
+ * 시리즈 안의 경기 순서(경기 시각 → 경기 번호). loadSeries(snapshot.ts parseSeries)와 같은 비교라 저장해 두는 응답의
+ * matchIds 순서가 다시 읽은 것과 같다.
+ */
+function playOrderIds(matches: readonly MatchView[]): string[] {
+  return [...matches]
+    .sort((a, b) => (a.playedAt < b.playedAt ? -1 : a.playedAt > b.playedAt ? 1 : a.matchNo - b.matchNo))
+    .map((m) => m.id);
+}
+
+/**
+ * 요청 기록에 남긴 시리즈(재전송 때 그대로 돌려준다). runMutation의 재생은 처음 응답을 그대로 주는 것이 원칙인데,
+ * 예전에는 시리즈를 다시 읽어 그 사이 시리즈가 지워졌으면 같은 요청 ID의 재전송이 404가 됐다(2026-11-08 정합성 점검).
+ * 이 변경 전에 남은 요청 기록에는 series가 없어 예전처럼 다시 읽는다.
+ */
+async function storedSeries(env: Env, groupId: string, stored: Record<string, unknown>, seriesId: string): Promise<SeriesView> {
+  if (stored.series && typeof stored.series === "object") return stored.series as SeriesView;
+  return findSeries(env, groupId, seriesId);
 }
 
 /** 확인한 때의 경기 버전·상태가 저장할 때도 같아야 한다(아니면 batch 전체 실패). */
@@ -101,10 +121,17 @@ function insertSeries(
   ).bind(seriesId, groupId, name, format, at);
 }
 
-/** 시리즈의 기준 판(첫 판). 새 판은 이 판과 구성이 같아야 한다. */
-async function referenceOf(env: Env, groupId: string, series: SeriesView): Promise<MatchView | null> {
-  const members = await Promise.all(series.matchIds.map((id) => loadMatch(env, groupId, id)));
-  return members.sort(byPlayOrder)[0] ?? null;
+/**
+ * 시리즈의 판들(명단 포함)과 기준 판(src/shared/series.ts seriesReferenceOf: 제외·취소가 아닌 판들 중 가장 많은 구성).
+ * 새 판은 기준 판과 구성이 같아야 한다. 판 수와 상관없이 batch 1회(예전에는 판마다 loadMatch 2회).
+ */
+async function referenceOf(
+  env: Env,
+  groupId: string,
+  series: SeriesView,
+): Promise<{ reference: MatchView | null; members: MatchView[] }> {
+  const members = await loadMatchesByIds(env, groupId, series.matchIds);
+  return { reference: seriesReferenceOf(members), members };
 }
 
 /* ------------------------------------------------------------------ */
@@ -150,11 +177,11 @@ export async function seriesContinuePlan(
     throw new ApiError(409, "STATE_CONFLICT", "직전 경기가 취소·전적 제외돼 시리즈로 이어갈 수 없어요.");
   }
   if (compositionKey(from.roster) !== compositionKey(roster)) throw teamsDiffer();
-  const existing = await seriesOfMatch(env, groupId, from.id);
+  const existing = (await seriesOfMatches(env, groupId, [from.id])).get(from.id);
   if (existing) {
     const series = await findSeries(env, groupId, existing);
     if (series.matchIds.length >= MAX_SERIES_GAMES) throw tooManyGames();
-    const reference = await referenceOf(env, groupId, series);
+    const { reference } = await referenceOf(env, groupId, series);
     if (reference && compositionKey(reference.roster) !== compositionKey(roster)) throw teamsDiffer();
     return [seriesStillGuard(env, groupId, series), insertMember(env, groupId, series.id, newMatchId, at)];
   }
@@ -175,18 +202,27 @@ function tooManyGames(): ApiError {
 /* ② 기록 화면·경기 상세에서 만들기·넣기·빼기·고치기                    */
 /* ------------------------------------------------------------------ */
 
-/** 시리즈에 넣을 수 있는 경기: 이 모임의 결과 확정 경기, 아직 다른 시리즈에 없음. */
-async function loadJoinable(env: Env, groupId: string, matchId: string): Promise<MatchView> {
-  const match = await loadMatch(env, groupId, matchId);
-  if (match.state !== "confirmed") {
-    throw new ApiError(409, "STATE_CONFLICT", "결과가 확정된 경기만 시리즈에 넣을 수 있어요.", {
-      match: { version: match.version, state: match.state },
-    });
-  }
-  if (await seriesOfMatch(env, groupId, matchId)) {
-    throw new ApiError(409, "ALREADY_IN_SERIES", `${match.matchNo}경기는 이미 다른 시리즈에 있어요. 먼저 그 시리즈에서 빼 주세요.`);
-  }
-  return match;
+/**
+ * 시리즈에 넣을 수 있는 경기들(준 순서대로): 이 모임의 결과 확정 경기, 아직 다른 시리즈에 없음.
+ * 경기 수와 상관없이 질의 2회(경기·명단 batch 1회 + 시리즈 소속 1회). 예전에는 경기마다 3회라 15판 만들기가 50회를 넘었다.
+ * 오류는 예전처럼 준 순서대로 첫 문제 경기의 것(없음 404 → 확정 아님 → 다른 시리즈에 있음).
+ */
+async function loadJoinables(env: Env, groupId: string, matchIds: readonly string[]): Promise<MatchView[]> {
+  const found = new Map((await loadMatchesByIds(env, groupId, matchIds)).map((m) => [m.id, m]));
+  const inSeries = await seriesOfMatches(env, groupId, matchIds);
+  return matchIds.map((id) => {
+    const match = found.get(id);
+    if (!match) throw new ApiError(404, "NOT_FOUND", "경기를 찾을 수 없습니다.");
+    if (match.state !== "confirmed") {
+      throw new ApiError(409, "STATE_CONFLICT", "결과가 확정된 경기만 시리즈에 넣을 수 있어요.", {
+        match: { version: match.version, state: match.state },
+      });
+    }
+    if (inSeries.has(id)) {
+      throw new ApiError(409, "ALREADY_IN_SERIES", `${match.matchNo}경기는 이미 다른 시리즈에 있어요. 먼저 그 시리즈에서 빼 주세요.`);
+    }
+    return match;
+  });
 }
 
 /** 새 시리즈: 확정 경기 1판 이상, 두 팀 구성이 모두 같아야 한다. */
@@ -208,15 +244,15 @@ export async function createSeries(env: Env, groupId: string, body: Body): Promi
     op: "series-create",
     payload: { name, format, matchIds },
     build: async (): Promise<Plan> => {
-      const matches: MatchView[] = [];
-      for (const id of matchIds) matches.push(await loadJoinable(env, groupId, id));
+      const matches = await loadJoinables(env, groupId, matchIds);
       const key = compositionKey(matches[0]!.roster);
       const differ = matches.filter((m) => compositionKey(m.roster) !== key);
       if (differ.length > 0) throw teamsDiffer({ matchNos: differ.map((m) => m.matchNo) });
       const seriesId = newId();
       const at = nowIso();
+      const series: SeriesView = { id: seriesId, name, format, createdAt: at, matchIds: playOrderIds(matches) };
       return {
-        stored: { seriesId },
+        stored: { seriesId, series },
         statements: [
           ...matches.map((m) => matchStillGuard(env, groupId, m)),
           insertSeries(env, groupId, seriesId, name, format, at),
@@ -225,10 +261,10 @@ export async function createSeries(env: Env, groupId: string, body: Body): Promi
       };
     },
   });
-  return { series: await findSeries(env, groupId, stored.seriesId as string) };
+  return { series: await storedSeries(env, groupId, stored, stored.seriesId as string) };
 }
 
-/** 확정 경기를 기존 시리즈에 넣는다. 시리즈의 첫 판과 두 팀 구성이 같아야 한다. */
+/** 확정 경기를 기존 시리즈에 넣는다. 시리즈의 기준 판(가장 많은 구성)과 두 팀 구성이 같아야 한다. */
 export async function addToSeries(
   env: Env,
   groupId: string,
@@ -238,24 +274,25 @@ export async function addToSeries(
   assertOnlyKeys(body, ["requestId", "matchId"]);
   const requestId = requireString(body.requestId, "requestId", 8, 64);
   const matchId = requireString(body.matchId, "matchId", 1, 64);
-  await runMutation(env, {
+  const { stored } = await runMutation(env, {
     groupId,
     requestId,
     op: "series-add",
     payload: { seriesId, matchId },
     build: async (): Promise<Plan> => {
       const series = await findSeries(env, groupId, seriesId);
-      const match = await loadJoinable(env, groupId, matchId);
+      const [match] = await loadJoinables(env, groupId, [matchId]);
       if (series.matchIds.length >= MAX_SERIES_GAMES) throw tooManyGames();
-      const reference = await referenceOf(env, groupId, series);
-      if (reference && compositionKey(reference.roster) !== compositionKey(match.roster)) throw teamsDiffer();
-      const statements = [seriesStillGuard(env, groupId, series), matchStillGuard(env, groupId, match)];
+      const { reference, members } = await referenceOf(env, groupId, series);
+      if (reference && compositionKey(reference.roster) !== compositionKey(match!.roster)) throw teamsDiffer();
+      const statements = [seriesStillGuard(env, groupId, series), matchStillGuard(env, groupId, match!)];
       if (reference) statements.push(matchStillGuard(env, groupId, reference));
-      statements.push(insertMember(env, groupId, series.id, match.id, nowIso()));
-      return { stored: { seriesId }, statements };
+      statements.push(insertMember(env, groupId, series.id, match!.id, nowIso()));
+      const after: SeriesView = { ...series, matchIds: playOrderIds([...members, match!]) };
+      return { stored: { seriesId, series: after }, statements };
     },
   });
-  return { series: await findSeries(env, groupId, seriesId) };
+  return { series: await storedSeries(env, groupId, stored, seriesId) };
 }
 
 /** 시리즈에서 한 판을 뺀다. 마지막 판을 빼면 시리즈도 지운다. 경기 기록은 그대로다. */
@@ -290,11 +327,12 @@ export async function removeFromSeries(
           env.DB.prepare("DELETE FROM match_series WHERE group_id = ?1 AND id = ?2").bind(groupId, seriesId),
         );
       }
-      return { stored: { deleted: last }, statements };
+      const after: SeriesView | null = last ? null : { ...series, matchIds: series.matchIds.filter((id) => id !== matchId) };
+      return { stored: { deleted: last, series: after }, statements };
     },
   });
   if (stored.deleted === true) return { series: null };
-  return { series: await findSeries(env, groupId, seriesId) };
+  return { series: await storedSeries(env, groupId, stored, seriesId) };
 }
 
 /** 시리즈 이름·형식을 고친다. */
@@ -308,15 +346,15 @@ export async function updateSeries(
   const requestId = requireString(body.requestId, "requestId", 8, 64);
   const name = parseName(body.name);
   const format = parseFormat(body.format);
-  await runMutation(env, {
+  const { stored } = await runMutation(env, {
     groupId,
     requestId,
     op: "series-update",
     payload: { seriesId, name, format },
     build: async (): Promise<Plan> => {
-      await findSeries(env, groupId, seriesId);
+      const series = await findSeries(env, groupId, seriesId);
       return {
-        stored: { seriesId },
+        stored: { seriesId, series: { ...series, name, format } },
         statements: [
           env.DB.prepare("UPDATE match_series SET name = ?1, format = ?2 WHERE group_id = ?3 AND id = ?4").bind(
             name,
@@ -328,5 +366,5 @@ export async function updateSeries(
       };
     },
   });
-  return { series: await findSeries(env, groupId, seriesId) };
+  return { series: await storedSeries(env, groupId, stored, seriesId) };
 }

@@ -64,6 +64,7 @@ import {
   saveMemo,
   setImportBatchExcluded,
   shiftMatchDates,
+  SHIFT_DATES_BODY_BYTES,
   startMatch,
 } from "./matches";
 import { addToSeries, createSeries, removeFromSeries, updateSeries } from "./series";
@@ -871,7 +872,8 @@ app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
 app.post("/api/groups/:gid/matches/shift-dates", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);
-  return c.json(await shiftMatchDates(c.env, gid, await readJsonBody(c.req.raw)));
+  // 경기 ID 500개(약 20KB)가 기본 상한 16KB를 넘으므로 이 경로만 넉넉히 받는다(2026-11-08 정합성 점검).
+  return c.json(await shiftMatchDates(c.env, gid, await readJsonBody(c.req.raw, SHIFT_DATES_BODY_BYTES)));
 });
 
 // 진행 중 경기의 사람 교체(2026-11-07, src/server/matches.ts replaceLiveParticipant). 운영자·공동 운영자.

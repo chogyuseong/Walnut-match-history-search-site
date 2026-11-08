@@ -22,7 +22,7 @@ import { newViewToken, type MemberContext } from "./auth";
 import type { Env } from "./env";
 import { parseAvoidField } from "./groups";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireString } from "./http";
-import { maintenanceError, runMutation, sha256Hex } from "./mutation";
+import { maintenanceError, maintenanceGuard, runMutation, sha256Hex } from "./mutation";
 import { buildSnapshot, loadMemberRequests } from "./snapshot";
 
 /** 한 계정이 연결할 수 있는 참가자 수(모임마다 하나이므로 곧 참가 중인 모임 수). */
@@ -54,7 +54,13 @@ async function assertWritable(env: Env, groupId: string): Promise<void> {
   if (group.maintenance === 1) throw maintenanceError();
 }
 
+/**
+ * batch 실패 메시지가 어떤 보호 문장에 걸렸는지. 점검 보호(guard_maintenance)는 여기서 바로 maintenanceError로 던진다:
+ * assertWritable은 batch 밖의 읽기라 확인 뒤 batch 전에 복원·모임 삭제가 점검을 켤 수 있어, 각 batch 맨 앞에
+ * maintenanceGuard를 넣어 batch 안에서 다시 확인한다(runMutation과 같은 방식, 2026-11-08 정합성 점검).
+ */
 function guardError(message: string): "state" | "version" | null {
+  if (message.includes("guard_maintenance")) throw maintenanceError();
   if (message.includes("guard_state_conflict")) return "state";
   if (message.includes("guard_version_conflict")) return "version";
   return null;
@@ -112,15 +118,22 @@ export async function createClaimLink(
   const token = newViewToken();
   const now = nowIso();
   const expiresAt = new Date(Date.now() + CLAIM_HOURS * 3600_000).toISOString();
-  await env.DB.batch([
-    env.DB.prepare(
-      "DELETE FROM participant_claims WHERE group_id = ?1 AND participant_id = ?2 AND used_at IS NULL",
-    ).bind(groupId, participantId),
-    env.DB.prepare(
-      `INSERT INTO participant_claims (token_hash, group_id, participant_id, created_at, expires_at)
-       VALUES (?1, ?2, ?3, ?4, ?5)`,
-    ).bind(await sha256Hex(token), groupId, participantId, now, expiresAt),
-  ]);
+  const tokenHash = await sha256Hex(token);
+  try {
+    await env.DB.batch([
+      maintenanceGuard(env, groupId),
+      env.DB.prepare(
+        "DELETE FROM participant_claims WHERE group_id = ?1 AND participant_id = ?2 AND used_at IS NULL",
+      ).bind(groupId, participantId),
+      env.DB.prepare(
+        `INSERT INTO participant_claims (token_hash, group_id, participant_id, created_at, expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)`,
+      ).bind(tokenHash, groupId, participantId, now, expiresAt),
+    ]);
+  } catch (error) {
+    guardError(error instanceof Error ? error.message : String(error));
+    throw error;
+  }
   return { token, expiresAt };
 }
 
@@ -195,6 +208,7 @@ export async function acceptClaim(
   const now = nowIso();
   try {
     await env.DB.batch([
+      maintenanceGuard(env, row.group_id),
       // 확인과 저장 사이에 같은 링크가 쓰였거나 만료·무효가 됐으면 막는다.
       env.DB.prepare(
         `INSERT INTO guard (state_conflict)
@@ -380,6 +394,7 @@ export async function setOwnAvoid(env: Env, ctx: MemberContext, body: Body): Pro
   await assertWritable(env, ctx.groupId);
   try {
     await env.DB.batch([
+      maintenanceGuard(env, ctx.groupId),
       linkGuard(env, ctx),
       env.DB.prepare("UPDATE participants SET avoid_positions = ?1, version = version + 1 WHERE id = ?2 AND group_id = ?3").bind(
         value,
@@ -447,6 +462,7 @@ export async function createMemberRequest(env: Env, ctx: MemberContext, body: Bo
   const id = newId();
   try {
     await env.DB.batch([
+      maintenanceGuard(env, ctx.groupId),
       linkGuard(env, ctx),
       env.DB.prepare(
         `INSERT INTO guard (version_conflict)

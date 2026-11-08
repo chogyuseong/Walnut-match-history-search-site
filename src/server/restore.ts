@@ -32,6 +32,8 @@ import {
   tooManyGroupsError,
 } from "./groups";
 import { ApiError, assertOnlyKeys, nowIso, readJsonBody, readJsonBodyWithText, requireInt, requireString } from "./http";
+import { ANON_NAME_PATTERN, MAX_LINKS_PER_ACCOUNT } from "./members";
+import type { MovedLink } from "./merge";
 import { runMutation, sha256Hex, type Plan } from "./mutation";
 import { newViewToken } from "./auth";
 import { spendBulkRows, type BulkActor } from "./ratelimit";
@@ -1141,6 +1143,149 @@ function batchBytesOf(env: Env): number {
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_BATCH_BYTES;
 }
 
+interface CurrentLinkRow {
+  participant_id: string;
+  account_id: string;
+  created_at: string;
+  avoid_self_at: string | null;
+}
+
+/**
+ * 같은 모임 복구에서 합치기와 본인 연결을 맞춘다(2026-11-08 정합성 점검).
+ *
+ * 본인 연결(participant_links)·요청은 백업 밖이라 복원이 그대로 두는데, 합치기(merge.ts)는 합칠 대상의 연결을 남길
+ * 대상에게 옮긴다. 그래서 "합치기 전 백업"으로 복원하면 합치기는 사라지고(합칠 대상이 다시 활성) 연결은 남길 대상에
+ * 남아, 그 계정이 남의 기피 라인을 바꿀 수 있었다. 고치는 방법:
+ * (a) 지금 유효한 합치기인데 파일에는 없거나 되돌린 것: 되돌리기(merge.ts undoLinkPlan)와 같은 규칙으로 연결·요청을
+ *     원래 사람에게 돌려놓는다. 원래 사람에게 이미 다른 연결이 있으면 끊는다. 지웠던 연결(removed)은 원래 사람·그 계정
+ *     모두 이 모임 연결이 없고 계정이 남아 있고 한도 안이고 익명 처리되지 않았을 때만 다시 만든다. 기록이 없는
+ *     합치기(moved_link NULL, 0023 전·복원한 합치기)는 무엇을 옮겼는지 몰라 건드리지 않는다(되돌리기와 같다).
+ *     나중에 한 합치기부터 차례로 처리하고(이어진 합치기 A→B→C), 연결 상태는 JS로 따라가며 문장을 만든다.
+ *     undoLinkPlan을 합치기마다 부르지 않는 이유: 합치기마다 질의 1~2회라 무료 요금제 한도(호출당 50회)에 닿을 수 있고,
+ *     이어진 합치기에서 앞 처리의 결과를 보지 못한다. 질의는 합치기 수와 상관없이 2회다.
+ * (b) 지금도 파일에도 유효한 합치기: moved_link를 그대로 넣는다(예전에는 NULL이 되어 그 뒤 되돌리면 연결을 돌려놓지 못했다).
+ * 읽은 뒤 연결이 바뀌었으면 첫 batch의 보호 문장이 막는다(VERSION_CONFLICT, 다시 시도하면 새로 판단한다).
+ *
+ * 남는 한계: 파일에는 유효하지만 지금은 되돌린 합치기를 복원하면 연결은 합칠 대상(보관됨)에 그대로 남는다.
+ * 그 계정은 보관된 자기 이름만 다루므로 남의 것을 바꿀 수는 없다.
+ */
+async function rewindMergeLinks(
+  env: Env,
+  groupId: string,
+  data: BackupData,
+): Promise<{ statements: D1PreparedStatement[]; keepMovedLink: Map<string, string | null> }> {
+  const [mergeRows, linkRows] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT id, source_id, target_id, created_at, undone_at, moved_link
+       FROM participant_merges WHERE group_id = ?1 ORDER BY created_at DESC, id DESC`,
+    ).bind(groupId),
+    env.DB.prepare(
+      "SELECT participant_id, account_id, created_at, avoid_self_at FROM participant_links WHERE group_id = ?1",
+    ).bind(groupId),
+  ]);
+  const merges = (mergeRows!.results ?? []) as {
+    id: string;
+    source_id: string;
+    target_id: string;
+    created_at: string;
+    undone_at: string | null;
+    moved_link: string | null;
+  }[];
+  const links = (linkRows!.results ?? []) as CurrentLinkRow[];
+  const validInFile = new Map(data.merges.filter((m) => m.undoneAt === null).map((m) => [m.id, m]));
+  const names = new Map(data.participants.map((p) => [p.id, p.name]));
+  const keepMovedLink = new Map<string, string | null>();
+  const statements: D1PreparedStatement[] = [];
+
+  // 연결 상태를 따라간다: 참가자 → 연결, 계정 → 참가자.
+  const byParticipant = new Map(links.map((l) => [l.participant_id, l]));
+  const byAccount = new Map(links.map((l) => [l.account_id, l.participant_id]));
+  for (const m of merges) {
+    if (m.undone_at !== null) continue;
+    const inFile = validInFile.get(m.id);
+    if (inFile && inFile.sourceId === m.source_id && inFile.targetId === m.target_id) {
+      keepMovedLink.set(m.id, m.moved_link);
+      continue;
+    }
+    const recorded = m.moved_link === null ? null : (JSON.parse(m.moved_link) as Partial<MovedLink>);
+    if (!recorded?.accountId || !recorded.action || !recorded.linkedAt) continue;
+    const moved = recorded as MovedLink;
+    const source = m.source_id;
+    const target = m.target_id;
+    if (moved.action === "moved") {
+      // 합칠 때 옮긴 요청은 원래 사람의 것이라 연결 결과와 상관없이 돌려놓는다.
+      statements.push(
+        env.DB.prepare(
+          `UPDATE participant_requests SET participant_id = ?3
+           WHERE group_id = ?1 AND participant_id = ?2 AND id IN (SELECT value FROM json_each(?4))`,
+        ).bind(groupId, target, source, JSON.stringify(moved.requestIds ?? [])),
+      );
+      if (byAccount.get(moved.accountId) !== target) continue;
+      const link = byParticipant.get(target)!;
+      if (byParticipant.has(source)) {
+        // 원래 사람에게 이미 다른 연결이 있어 돌려놓을 수 없다: 끊는다.
+        statements.push(
+          env.DB.prepare(
+            "DELETE FROM participant_links WHERE group_id = ?1 AND participant_id = ?2 AND account_id = ?3",
+          ).bind(groupId, target, moved.accountId),
+        );
+        byParticipant.delete(target);
+        byAccount.delete(moved.accountId);
+        continue;
+      }
+      if (link.created_at === moved.linkedAt) {
+        statements.push(
+          env.DB.prepare(
+            `UPDATE participant_requests SET participant_id = ?3
+             WHERE group_id = ?1 AND participant_id = ?2 AND created_at >= ?4`,
+          ).bind(groupId, target, source, m.created_at),
+        );
+      }
+      statements.push(
+        env.DB.prepare(
+          `UPDATE participant_links SET participant_id = ?3, avoid_self_at = ?5
+           WHERE group_id = ?1 AND participant_id = ?2 AND account_id = ?4`,
+        ).bind(groupId, target, source, moved.accountId, moved.avoidSelfAt ?? null),
+      );
+      byParticipant.delete(target);
+      byParticipant.set(source, { ...link, participant_id: source, avoid_self_at: moved.avoidSelfAt ?? null });
+      byAccount.set(moved.accountId, source);
+      continue;
+    }
+    // removed: 지웠던 연결을 다시 만들 수 있으면 만든다(계정 존재·연결 수 한도는 문장 안에서 확인).
+    const name = names.get(source);
+    if (byParticipant.has(source) || byAccount.has(moved.accountId) || name === undefined || ANON_NAME_PATTERN.test(name)) {
+      continue;
+    }
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO participant_links (group_id, participant_id, account_id, created_at, avoid_self_at)
+         SELECT ?1, ?2, ?3, ?4, ?5
+         WHERE EXISTS (SELECT 1 FROM accounts WHERE id = ?3)
+           AND (SELECT COUNT(*) FROM participant_links WHERE account_id = ?3) < ?6
+           AND NOT EXISTS (SELECT 1 FROM participant_links WHERE group_id = ?1 AND (participant_id = ?2 OR account_id = ?3))`,
+      ).bind(groupId, source, moved.accountId, moved.linkedAt, moved.avoidSelfAt ?? null, MAX_LINKS_PER_ACCOUNT),
+    );
+    const row = { participant_id: source, account_id: moved.accountId, created_at: moved.linkedAt, avoid_self_at: null };
+    byParticipant.set(source, row);
+    byAccount.set(moved.accountId, source);
+  }
+  if (statements.length > 0) {
+    // 읽은 뒤 이 모임의 연결이 하나라도 바뀌었으면 막는다(행 수 + 읽은 행이 모두 그대로인지).
+    const read = JSON.stringify(links.map((l) => [l.participant_id, l.account_id]));
+    statements.unshift(
+      env.DB.prepare(
+        `INSERT INTO guard (state_conflict)
+         SELECT 1 WHERE (SELECT COUNT(*) FROM participant_links WHERE group_id = ?1) <> ?3
+           OR (SELECT COUNT(*) FROM participant_links l JOIN json_each(?2) j
+                 ON l.participant_id = json_extract(j.value, '$[0]') AND l.account_id = json_extract(j.value, '$[1]')
+               WHERE l.group_id = ?1) <> ?3`,
+      ).bind(groupId, read, links.length),
+    );
+  }
+  return { statements, keepMovedLink };
+}
+
 /**
  * 복원 실행 계획. stages가 있으면 runMutation이 그 batch들을 먼저 차례로 실행한다.
  * 첫 단계는 작업 잠금 + 세대 확인 + 점검 상태 전환 + 기존 행 삭제, 마지막(plan.statements)은 점검 해제·잠금 해제다.
@@ -1162,6 +1307,9 @@ async function buildRestorePlan(
         .bind(groupId)
         .first<{ v: number }>();
   const versionOffset = offsetRow?.v ?? 0;
+  // 같은 모임 복구: 본인 연결은 백업 밖이라 합치기와 어긋날 수 있다(rewindMergeLinks). 파일에도 유효한 합치기는
+  // 연결 기록(moved_link)을 그대로 넣어, 복원 뒤 되돌려도 연결을 원래 사람에게 돌려놓을 수 있게 한다.
+  const links = options.remap ? null : await rewindMergeLinks(env, groupId, data);
   const batchMap = new Map<string, string>();
   const batchId = (id: string | null) => {
     if (id === null || !options.remap) return id;
@@ -1223,14 +1371,14 @@ async function buildRestorePlan(
     // 합치기 기록: 참가자 뒤에 넣는다(참가자 외래 키). 안의 ID 목록도 같은 대응표로 바꾼다.
     ...insertStatements(env, groupId, "participant_merges",
       ["id", "source_id", "target_id", "source_prev_status", "moved_matches", "rotation_changes",
-        "created_at", "undone_at"],
+        "created_at", "undone_at", "moved_link"],
       data.merges.map((m) => [
         map(m.id), map(m.sourceId), map(m.targetId), m.sourcePrevStatus,
         JSON.stringify(m.movedMatches.map(map)),
         JSON.stringify(m.rotationChanges.map((c) => ({
           ...c, id: map(c.id), participantFrom: map(c.participantFrom), participantTo: map(c.participantTo),
         }))),
-        m.createdAt, m.undoneAt,
+        m.createdAt, m.undoneAt, links?.keepMovedLink.get(m.id) ?? null,
       ]), maxBytes),
   ];
 
@@ -1282,7 +1430,9 @@ async function buildRestorePlan(
     // 잠금도 같은 batch 안에서 잡고(claim) 마지막에 지운다(finish): 다른 실행의 여러 단계 복원이 진행 중이면 실패한다.
     return {
       stored,
-      statements: [claim, owner, guard, ...deletes, ...inserts.map((s) => s.statement), ...finish],
+      statements: [
+        claim, owner, guard, ...(links?.statements ?? []), ...deletes, ...inserts.map((s) => s.statement), ...finish,
+      ],
     };
   }
   // 여러 단계: 잠금 + 점검 상태로 바꾸고 지우기 → 넣기(크기별로 나눔) → 점검 해제.
@@ -1293,6 +1443,9 @@ async function buildRestorePlan(
       owner,
       guard,
       env.DB.prepare("UPDATE groups SET maintenance = 1 WHERE id = ?1").bind(groupId),
+      // 연결 되돌리기는 읽은 연결 상태와 함께 첫 단계에서 끝낸다. 중간에 끊겨 다시 실행하면 그때의 합치기 기록(지워졌거나
+      // 파일 것)에는 되돌릴 것이 없어 다시 하지 않는다.
+      ...(links?.statements ?? []),
       ...deletes,
     ],
   ];

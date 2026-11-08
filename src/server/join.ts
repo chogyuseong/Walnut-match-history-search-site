@@ -19,7 +19,7 @@ import { memberParticipantId, newViewToken, operatorRole } from "./auth";
 import type { Env } from "./env";
 import { parseName } from "./groups";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireString } from "./http";
-import { maintenanceError, runMutation, sha256Hex } from "./mutation";
+import { maintenanceError, maintenanceGuard, runMutation, sha256Hex } from "./mutation";
 import { etagMatches } from "./snapshot";
 
 /** 한 모임의 신청 상한. */
@@ -202,13 +202,21 @@ export async function createJoinLink(env: Env, groupId: string): Promise<{ token
   if (group.maintenance === 1) throw maintenanceError();
   const token = newViewToken();
   const now = nowIso();
-  await env.DB.prepare(
-    `INSERT INTO join_links (group_id, token_hash, is_open, created_at, updated_at, token) VALUES (?1, ?2, 1, ?3, ?3, ?4)
-     ON CONFLICT (group_id) DO UPDATE SET token_hash = excluded.token_hash, token = excluded.token, is_open = 1,
-       created_at = excluded.created_at, updated_at = excluded.updated_at`,
-  )
-    .bind(groupId, await sha256Hex(token), now, token)
-    .run();
+  const tokenHash = await sha256Hex(token);
+  try {
+    // 위의 점검 확인은 batch 밖의 읽기라, 확인 뒤 복원·모임 삭제가 점검을 켰으면 batch 안에서 다시 막는다.
+    await env.DB.batch([
+      maintenanceGuard(env, groupId),
+      env.DB.prepare(
+        `INSERT INTO join_links (group_id, token_hash, is_open, created_at, updated_at, token) VALUES (?1, ?2, 1, ?3, ?3, ?4)
+         ON CONFLICT (group_id) DO UPDATE SET token_hash = excluded.token_hash, token = excluded.token, is_open = 1,
+           created_at = excluded.created_at, updated_at = excluded.updated_at`,
+      ).bind(groupId, tokenHash, now, token),
+    ]);
+  } catch (error) {
+    if ((error instanceof Error ? error.message : String(error)).includes("guard_maintenance")) throw maintenanceError();
+    throw error;
+  }
   return { token };
 }
 
@@ -420,9 +428,11 @@ async function writable(env: Env, token: string): Promise<LinkRow> {
 
 async function runGuarded(env: Env, link: LinkRow, statements: D1PreparedStatement[]): Promise<void> {
   try {
-    await env.DB.batch(statements);
+    // writable()의 점검 확인은 batch 밖의 읽기라 batch 안에서 다시 확인한다(runMutation과 같은 방식).
+    await env.DB.batch([maintenanceGuard(env, link.group_id), ...statements]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("guard_maintenance")) throw maintenanceError();
     if (message.includes("guard_state_conflict")) {
       // 그 사이 링크가 닫혔거나 다시 만들어졌다.
       const now = await env.DB.prepare("SELECT token_hash, is_open FROM join_links WHERE group_id = ?1")
