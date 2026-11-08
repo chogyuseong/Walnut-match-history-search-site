@@ -1,10 +1,16 @@
-import { useMemo, useState } from "react";
-import { awardTitle, awardWinnersText, seasonSummary, seasonSummaryText, type Award } from "../../shared/seasonAwards";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
+import {
+  awardTitle,
+  seasonSummary,
+  seasonSummaryText,
+  type Award,
+  type AwardKey,
+} from "../../shared/seasonAwards";
 import { matchYears, type Scope } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap } from "../format";
 import { drawSeasonImage, ShareImageDialog } from "../shareImage";
-import { BackLink, CopyButton } from "../ui";
+import { BackLink, CopyButton, RoleIcon } from "../ui";
 
 // 주소 읽고 쓰기는 ../seasonRoute.ts에 있다(첫 화면 묶음이 이 화면 코드 없이 쓰도록). 기존 import를 위해 다시 내보낸다.
 import { seasonRoutePart, seasonScopeFromRoute } from "../seasonRoute";
@@ -13,6 +19,48 @@ export { seasonRoutePart, seasonScopeFromRoute };
 
 /** 가장 경기가 많았던 날이 동률로 많을 때(예: 하루 1경기씩) 날짜를 다 늘어놓지 않고 앞 5개만 보여 준다. */
 const BUSIEST_SHOWN = 5;
+
+/** 맨 위 큼직한 카드로 보여 줄 주요 상(seasonAwards.ts의 awards 배열 앞쪽). */
+const MAIN_KEYS: readonly AwardKey[] = ["bestRate", "mostWins", "mostGames"];
+
+/**
+ * 상 종류별 작은 기호(꾸밈, aria-hidden). 직접 그린 선 도형이며 이모지는 쓰지 않는다.
+ * 라인별 최고 승률은 라인 아이콘(RoleIcon)을 쓴다.
+ */
+const AWARD_MARKS: Record<Exclude<AwardKey, "lineBest">, ReactNode> = {
+  // 왕관
+  bestRate: <path d="M4 8l4 3.5L12 5l4 6.5L20 8l-2 10H6L4 8z" />,
+  // 트로피
+  mostWins: (
+    <>
+      <path d="M8 4h8v5a4 4 0 0 1-8 0V4z" />
+      <path d="M8 6H5.5a2.5 2.5 0 0 0 2.6 4M16 6h2.5a2.5 2.5 0 0 1-2.6 4M12 13v4M8.5 20h7M10 17h4" />
+    </>
+  ),
+  // 달력 + 체크
+  mostGames: (
+    <>
+      <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
+      <path d="M4 10h16M9 3.5v4M15 3.5v4M9.5 15l2 2 3.5-3.5" />
+    </>
+  ),
+  // 번개
+  longestStreak: <path d="M13 3L5.5 13.5h5.5l-1 7.5 8-11h-5.5L13 3z" />,
+  // 두 사람
+  bestDuo: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <circle cx="16.5" cy="9" r="2.5" />
+      <path d="M3.5 19.5c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5M15.5 14.2c2.9 0 5 1.9 5 5.3" />
+    </>
+  ),
+  // 엇갈린 칼
+  nemesis: <path d="M4.5 4.5l11 11M19.5 4.5l-11 11M6 15l3 3M18 15l-3 3M4.5 19.5l2.5-2.5M19.5 19.5L17 17" />,
+  // 오르는 선
+  mostImproved: <path d="M4 17l5.5-5.5 4 4L20 9M15 9h5v5" />,
+  // 하트
+  mostSupport: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
+};
 
 /**
  * 시즌 종료 요약과 시상(src/shared/seasonAwards.ts). 운영자·조회 링크가 같은 화면을 본다.
@@ -75,41 +123,82 @@ export function SeasonSummaryScreen(props: {
   }
 
   const blue = summary.sides.known > 0 ? Math.round((summary.sides.blueWins / summary.sides.known) * 100) : null;
+  const awardKey = (a: Award) => `${a.key}-${a.position ?? ""}`;
+  const mainAwards = summary.awards.filter((a) => MAIN_KEYS.includes(a.key));
+  const lineAwards = summary.awards.filter((a) => a.position !== undefined);
+  const otherAwards = summary.awards.filter((a) => !MAIN_KEYS.includes(a.key) && a.position === undefined);
   return (
-    <div className="screen">
+    <div className="screen season-summary">
       <header className="screen-head">
         <BackLink label="← 기록" fallback={props.back} />
         <h1>{summary.label} 요약</h1>
         <span className={summary.ongoing ? "badge" : "badge ok"}>{summary.ongoing ? "진행 중" : "종료"}</span>
       </header>
-      <p className="hint">
-        {summary.startsOn} ~ {summary.endsOn}
+      <p className="hint season-period">
+        <span className="season-dates">
+          {summary.startsOn} ~ {summary.endsOn}
+        </span>
         {summary.ongoing ? " · 진행 중이라 숫자가 바뀔 수 있어요." : ""}
       </p>
-      {picker}
+      <div className="season-tools">
+        {picker}
+        <div className="button-row">
+          <button type="button" className="secondary" disabled={summary.games === 0} onClick={() => setImageOpen(true)}>
+            요약 이미지
+          </button>
+          <CopyButton label="텍스트 복사" text={() => seasonSummaryText(summary, snapshot.group.name, nameOf)} />
+        </div>
+      </div>
 
       <section aria-label="요약">
         <h2>요약</h2>
         {summary.games === 0 ? (
           <p className="hint">이 범위에는 확정된 경기가 없어요.</p>
         ) : (
-          <p className="kpi">
-            <span>
-              경기<strong>{summary.games}경기</strong>
-            </span>
-            <span>
-              참가자<strong>{summary.participants}명</strong>
-            </span>
-            <span>
-              내전한 날<strong>{summary.days}일</strong>
-            </span>
-            {blue !== null && (
-              <span>
-                블루 : 레드 승률<strong className="blue">{blue}%</strong> :{" "}
-                <strong className="red">{100 - blue}%</strong>
-              </span>
-            )}
-          </p>
+          <dl className="ps-tiles season-tiles">
+            <div>
+              <dt className="tile-label">경기</dt>
+              <dd className="season-stat">
+                {summary.games}
+                <span className="season-unit">경기</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="tile-label">참가자</dt>
+              <dd className="season-stat">
+                {summary.participants}
+                <span className="season-unit">명</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="tile-label">내전한 날</dt>
+              <dd className="season-stat">
+                {summary.days}
+                <span className="season-unit">일</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="tile-label">블루 : 레드 승률</dt>
+              {blue !== null ? (
+                <dd className="season-stat season-sides">
+                  <span className="side-values">
+                    <span className="blue">{blue}%</span>
+                    <span className="side-colon"> : </span>
+                    <span className="red">{100 - blue}%</span>
+                  </span>
+                  <span className="side-bar" aria-hidden="true">
+                    <span className="side-blue" style={{ flexGrow: blue }} />
+                    <span className="side-red" style={{ flexGrow: 100 - blue }} />
+                  </span>
+                </dd>
+              ) : (
+                <dd className="season-stat season-sides">
+                  <span className="side-values none">—</span>
+                  <span className="tile-sub">진영 기록 없음</span>
+                </dd>
+              )}
+            </div>
+          </dl>
         )}
         {summary.busiestDays.length > 0 && (
           <p className="hint">
@@ -123,27 +212,39 @@ export function SeasonSummaryScreen(props: {
         )}
       </section>
 
-      <section aria-label="시상">
+      <section aria-label="시상" className="season-awards">
         <h2>시상</h2>
-        <ul className="award-list">
-          {summary.awards.map((award) => (
-            <AwardItem key={`${award.key}-${award.position ?? ""}`} award={award} nameOf={nameOf} />
-          ))}
-        </ul>
+        {mainAwards.length > 0 && (
+          <ul className="award-list award-list-main">
+            {mainAwards.map((award) => (
+              <AwardItem key={awardKey(award)} award={award} nameOf={nameOf} kind="main" />
+            ))}
+          </ul>
+        )}
+        {lineAwards.length > 0 && (
+          <>
+            <p className="row-label">라인별 최고 승률</p>
+            <ul className="award-list award-list-lines">
+              {lineAwards.map((award) => (
+                <AwardItem key={awardKey(award)} award={award} nameOf={nameOf} kind="line" />
+              ))}
+            </ul>
+          </>
+        )}
+        {otherAwards.length > 0 && (
+          <>
+            <p className="row-label">특별상</p>
+            <ul className="award-list award-list-more">
+              {otherAwards.map((award) => (
+                <AwardItem key={awardKey(award)} award={award} nameOf={nameOf} kind="more" />
+              ))}
+            </ul>
+          </>
+        )}
         <p className="hint">
           결과가 확정되고 전적 제외가 아닌 경기만 셉니다. 동률이면 공동 수상이고, 기준에 못 미치면 "해당 없음"이에요.
           {summary.previous ? "" : " 직전 시즌이 없어 '가장 많이 성장'은 넣지 않았어요."}
         </p>
-      </section>
-
-      <section aria-label="공유">
-        <h2>공유</h2>
-        <div className="button-row">
-          <button type="button" className="secondary" disabled={summary.games === 0} onClick={() => setImageOpen(true)}>
-            요약 이미지
-          </button>
-          <CopyButton label="텍스트 복사" text={() => seasonSummaryText(summary, snapshot.group.name, nameOf)} />
-        </div>
       </section>
 
       {imageOpen && (
@@ -158,14 +259,67 @@ export function SeasonSummaryScreen(props: {
   );
 }
 
-function AwardItem(props: { award: Award; nameOf: (id: string) => string }) {
+/**
+ * 수상자 한 줄을 이름(크게)과 근거 숫자(보조 톤)로 나눠 그린다.
+ * 글자 내용은 awardWinnersText와 똑같이 맞춘다(텍스트 복사·공유 이미지와 같은 글, e2e가 이 글을 본다).
+ * 공동 수상의 " / "는 줄을 나눠 보여 주므로 화면에서는 숨기고 화면 읽기 프로그램에는 남긴다.
+ */
+function Winners(props: { award: Award; nameOf: (id: string) => string }) {
+  const { award, nameOf } = props;
+  const joiner = award.key === "nemesis" ? " → " : " · ";
+  return (
+    <p className="winner">
+      {award.winners.map((w, i) => (
+        <Fragment key={w.participantIds.join("|")}>
+          {i > 0 && <span className="sr-only"> / </span>}
+          <span className="award-entry">
+            <span className="award-who">{w.participantIds.map(nameOf).join(joiner)}</span>{" "}
+            <span className="award-why">{w.value}</span>
+          </span>
+        </Fragment>
+      ))}
+      {award.winners.length > 1 && <span className="award-tie"> (공동)</span>}
+    </p>
+  );
+}
+
+function AwardItem(props: { award: Award; nameOf: (id: string) => string; kind: "main" | "line" | "more" }) {
   const { award } = props;
   const none = award.winners.length === 0;
+  const mark =
+    award.position !== undefined ? (
+      <RoleIcon position={award.position} />
+    ) : award.key !== "lineBest" ? (
+      <svg
+        className="award-mark-svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        {AWARD_MARKS[award.key]}
+      </svg>
+    ) : null;
   return (
-    <li className={none ? "award is-none" : "award"}>
-      <h3>{awardTitle(award)}</h3>
-      <p className="winner">{none ? `해당 없음 · ${award.none ?? ""}` : awardWinnersText(award, props.nameOf)}</p>
-      <p className="hint">{award.rule}</p>
+    <li
+      className={`award award-${props.kind} award-k-${award.key}${award.position ? ` award-p-${award.position}` : ""}${none ? " is-none" : ""}`}
+    >
+      <div className="award-head">
+        <span className="award-mark" aria-hidden="true">
+          {mark}
+        </span>
+        <h3>{awardTitle(award)}</h3>
+      </div>
+      {none ? (
+        <p className="winner">해당 없음 · {award.none ?? ""}</p>
+      ) : (
+        <Winners award={award} nameOf={props.nameOf} />
+      )}
+      <p className="award-rule">{award.rule}</p>
     </li>
   );
 }

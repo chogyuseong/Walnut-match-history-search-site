@@ -11,7 +11,9 @@ import { byPlayOrder } from "./series";
 import { isCounted, localDate, localYear, matchesInScope, scopeLabel, sideTotals, type Scope } from "./stats";
 import { POSITIONS, type MatchView, type Position, type Snapshot } from "./types";
 
-/** 최고 승률·가장 많이 성장: 그 범위에서 이만큼 이상 뛴 사람만. */
+/** 최고 승률: 그 범위에서 이만큼 이상 뛴 사람만(랭킹의 "누적 50경기 이상" 묶음과 같게, 2026-11-08). */
+export const AWARD_MIN_RATE_GAMES = 50;
+/** 가장 많이 성장: 두 범위 모두 이만큼 이상 뛴 사람만(배치 판수와 같게). */
 export const AWARD_MIN_GAMES = 10;
 /** 라인별 최고 승률: 그 라인으로 이만큼 이상. */
 export const AWARD_MIN_LINE_GAMES = 5;
@@ -184,14 +186,14 @@ export function seasonSummary(
 
   // 최고 승률
   {
-    const eligible = rows.filter((r) => r.t.games >= AWARD_MIN_GAMES);
+    const eligible = rows.filter((r) => r.t.games >= AWARD_MIN_RATE_GAMES);
     const winners = top(eligible, (a, b) => compareRate(a.t, b.t), idsOrder);
     awards.push({
       key: "bestRate",
       title: "최고 승률",
-      rule: `${AWARD_MIN_GAMES}경기 이상 뛴 사람 중 승률 1위`,
+      rule: `${AWARD_MIN_RATE_GAMES}경기 이상 뛴 사람 중 승률 1위`,
       winners: winners.map((r) => ({ participantIds: r.ids, value: `${record(r.t)} (${r.t.games}경기)` })),
-      none: eligible.length === 0 ? `${AWARD_MIN_GAMES}경기 이상 뛴 사람이 없어요.` : undefined,
+      none: eligible.length === 0 ? `${AWARD_MIN_RATE_GAMES}경기 이상 뛴 사람이 없어요.` : undefined,
     });
   }
   // 최다 승

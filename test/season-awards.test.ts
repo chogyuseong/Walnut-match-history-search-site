@@ -3,6 +3,7 @@ import {
   AWARD_MIN_GAMES,
   AWARD_MIN_LINE_GAMES,
   AWARD_MIN_PAIR_GAMES,
+  AWARD_MIN_RATE_GAMES,
   awardWinnersText,
   seasonSummary,
   seasonSummaryText,
@@ -113,24 +114,30 @@ describe("시즌 요약", () => {
 });
 
 describe("시상: 기준 경계와 공동 수상", () => {
-  it(`최고 승률은 ${AWARD_MIN_GAMES}경기 이상만, 동률은 공동 수상`, () => {
-    // 9경기 A 전승, 10경기째는 p0 대신 p10이 들어가 진다.
+  it(`최고 승률은 ${AWARD_MIN_RATE_GAMES}경기 이상만, 동률은 공동 수상`, () => {
+    // 49경기 A 전승, 50경기째는 p0 대신 p10이 들어가 진다.
     const matches = [
-      ...Array.from({ length: 9 }, () => game(A, B, "A")),
+      ...Array.from({ length: AWARD_MIN_RATE_GAMES - 1 }, () => game(A, B, "A")),
       game([10, 1, 2, 3, 4], B, "B"),
     ];
     let s = seasonSummary(snap(matches), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
     let best = award(s.awards, "bestRate");
-    // p0은 9경기 100%라 기준 미달. p1~p4가 10경기 90%로 공동.
+    // p0은 49경기 100%라 기준 미달. p1~p4가 50경기 98%로 공동.
     expect(ids(best)).toEqual(["p1", "p2", "p3", "p4"]);
-    expect(best.winners[0]!.value).toBe("90% · 9승 1패 (10경기)");
+    expect(best.winners[0]!.value).toBe("98% · 49승 1패 (50경기)");
     expect(awardWinnersText(best, nameOf)).toContain("(공동)");
 
-    // p0이 한 경기 더(이김) → 10경기 100%로 단독.
+    // p0이 한 경기 더(이김) → 50경기 100%로 단독.
     s = seasonSummary(snap([...matches, game(A, B, "A")]), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
     best = award(s.awards, "bestRate");
     expect(ids(best)).toEqual(["p0"]);
-    expect(best.winners[0]!.value).toBe("100% · 10승 0패 (10경기)");
+    expect(best.winners[0]!.value).toBe("100% · 50승 0패 (50경기)");
+
+    // 배치 완료(10경기)만으로는 부족하다: 10경기 전승이어도 해당 없음.
+    s = seasonSummary(snap(matches.slice(0, 10)), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
+    best = award(s.awards, "bestRate");
+    expect(best.winners).toEqual([]);
+    expect(best.none).toBe(`${AWARD_MIN_RATE_GAMES}경기 이상 뛴 사람이 없어요.`);
   });
 
   it("최다 승·개근상·최장 연승", () => {

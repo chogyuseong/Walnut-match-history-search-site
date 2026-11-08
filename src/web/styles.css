@@ -3622,7 +3622,96 @@ select option:disabled {
   max-height: 50vh;
   overflow-y: auto;
 }
-/* 시즌 요약과 시상. */
+/* 시즌 요약과 시상(src/web/screens/SeasonSummary.tsx).
+   머리 아래 기간 한 줄 → 범위·공유 도구 줄 → 통계 타일(.ps-tiles 재사용) → 시상(주요 3 · 라인 5 · 특별상). */
+.season-period {
+  margin-top: -4px;
+}
+.season-dates {
+  font-variant-numeric: tabular-nums;
+}
+.season-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.season-tools > .button-row {
+  min-width: 0;
+}
+/* 통계 타일: 숫자는 크게, 단위는 같은 칸 안에서 작게("10경기"가 한 덩어리로 읽히게). */
+.season-tiles > div {
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--ih-bg-surface);
+}
+.season-tiles dd.season-stat {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.season-unit {
+  margin-left: 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.season-tiles dd.season-sides {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  font-size: 1.25rem;
+}
+.side-values {
+  white-space: nowrap;
+}
+.side-values .blue {
+  color: var(--ih-win-text);
+}
+.side-values .red {
+  color: var(--ih-loss-text);
+}
+.side-values.none {
+  color: var(--muted);
+}
+.side-colon {
+  font-weight: 500;
+  color: var(--muted);
+}
+.side-bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-bg-subtle);
+}
+.side-bar > span {
+  flex-basis: 0;
+  min-width: 0;
+}
+.side-blue {
+  background: var(--ih-win-accent);
+}
+.side-red {
+  background: var(--ih-loss-accent);
+}
+.season-tiles .tile-sub {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* 시상 카드. 상 종류마다 --award-tone 하나로 기호와 띠 색을 정한다(칭호 등급 색을 빌려 두 테마 대비를 맞춘다). */
+.season-awards .row-label {
+  margin: 10px 0 6px;
+}
 .award-list {
   display: grid;
   gap: 8px;
@@ -3630,23 +3719,202 @@ select option:disabled {
   padding: 0;
   list-style: none;
 }
+.award-list-lines {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 480px) {
+  .award-list-lines {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 720px) {
+  .award-list-main {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .award-list-lines {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .award-list-more {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .award {
+  --award-tone: var(--ih-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
   background: var(--ih-bg-surface);
+}
+.award-k-bestRate {
+  --award-tone: var(--grade-1);
+}
+.award-k-mostWins {
+  --award-tone: var(--grade-5);
+}
+.award-k-mostGames {
+  --award-tone: var(--grade-6);
+}
+.award-k-longestStreak {
+  --award-tone: var(--grade-2);
+}
+.award-k-bestDuo {
+  --award-tone: var(--grade-4);
+}
+.award-k-nemesis {
+  --award-tone: var(--grade-3);
+}
+.award-k-mostImproved {
+  --award-tone: var(--grade-7);
+}
+.award-k-mostSupport {
+  --award-tone: var(--grade-6);
+}
+/* 라인별 최고 승률: 라인마다 다른 색(탑 주황, 정글 초록, 미드 보라, 원딜 금, 서폿 청록). */
+.award-p-top {
+  --award-tone: var(--grade-2);
+}
+.award-p-jungle {
+  --award-tone: var(--grade-7);
+}
+.award-p-mid {
+  --award-tone: var(--grade-4);
+}
+.award-p-adc {
+  --award-tone: var(--grade-1);
+}
+.award-p-support {
+  --award-tone: var(--grade-5);
+}
+.award-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 .award h3 {
-  margin: 0 0 2px;
-  font-size: 1rem;
-}
-.award .winner {
-  margin: 2px 0 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
-.award.is-none .winner {
+.award-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--ih-radius-sm);
+  color: var(--award-tone);
+  background: color-mix(in oklab, var(--award-tone) 14%, transparent);
+}
+.award-mark-svg,
+.award-mark .role-icon {
+  width: 16px;
+  height: 16px;
+}
+.award .winner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.award-who {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.award-why {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+  /* "(8경기)" 같은 낱말 중간에서 줄이 바뀌지 않게. */
+  word-break: keep-all;
+}
+.award-tie {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--award-tone);
+}
+.award-rule {
+  margin-top: auto;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ih-text-muted);
+}
+/* 주요 상: 큼직한 카드, 상 색을 아주 옅게 깐다. */
+.award-main {
+  gap: 8px;
+  padding: 14px 16px;
+  background: color-mix(in oklab, var(--award-tone) 5%, var(--ih-bg-surface));
+  border-color: color-mix(in oklab, var(--award-tone) 22%, var(--ih-border-subtle));
+}
+.award-main .award-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ih-radius-md);
+}
+.award-main .award-mark-svg {
+  width: 20px;
+  height: 20px;
+}
+.award-main h3 {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.award-main .award-who {
+  font-size: 1.375rem;
+  line-height: 1.25;
+}
+/* 주요 상: 이름 아래 줄에 근거 숫자(한 줄에 붙이면 괄호 중간에서 줄이 바뀐다). */
+.award-main .award-who,
+.award-main .award-why {
+  display: block;
+}
+.award-main .award-why {
+  font-size: 0.875rem;
+  margin-bottom: 6px;
+}
+/* 라인·특별상: 왼쪽 색 띠. 라인 카드는 이름과 숫자를 위아래로 쌓는다. */
+.award-line,
+.award-more {
+  box-shadow: inset 3px 0 0 var(--award-tone);
+}
+.award-line .award-who,
+.award-line .award-why {
+  display: block;
+}
+.award-line .award-who {
+  font-size: 1rem;
+}
+.award-line .award-why {
+  font-size: 0.75rem;
+}
+/* 해당 없음: 점선 테두리, 바탕 없이 옅게. */
+.award.is-none {
+  --award-tone: var(--ih-text-muted);
+  background: transparent;
+  border: 1px dashed var(--ih-border-strong);
+  box-shadow: none;
+}
+.award.is-none .award-mark {
+  opacity: 0.7;
+}
+.award.is-none h3 {
   color: var(--muted);
+}
+.award.is-none .winner {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--ih-text-muted);
 }
 /* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). */
 .intro h2 {

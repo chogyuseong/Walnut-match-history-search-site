@@ -68,14 +68,21 @@ const ROLE_SHAPES: Record<Position, ReactNode> = {
   ),
 };
 
+/** 라인 아이콘만(꾸밈). 뜻은 곁의 글자가 전해야 한다. */
+export function RoleIcon(props: { position: Position }) {
+  return (
+    <svg className="role-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      {ROLE_SHAPES[props.position]}
+    </svg>
+  );
+}
+
 /** 라인 이름과 아이콘. 아이콘은 꾸밈이고 뜻은 글자가 전한다. */
 export function PosLabel(props: { position: Position | null }) {
   if (!props.position) return <span className="pos">-</span>;
   return (
     <span className="pos">
-      <svg className="role-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-        {ROLE_SHAPES[props.position]}
-      </svg>
+      <RoleIcon position={props.position} />
       {POSITION_LABEL[props.position]}
     </span>
   );
