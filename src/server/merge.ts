@@ -345,7 +345,7 @@ export async function mergeParticipants(
            WHERE group_id = ?1 AND participant_id = ?2 AND id IN (SELECT value FROM json_each(?4))`,
         ).bind(groupId, sourceId, targetId, eventIds),
         env.DB.prepare(
-          "UPDATE participants SET status = 'archived' WHERE id = ?1 AND group_id = ?2",
+          "UPDATE participants SET status = 'archived', version = version + 1 WHERE id = ?1 AND group_id = ?2",
         ).bind(sourceId, groupId),
         // 참가자 본인 연결(migrations/0019): 남은 사람에게 연결이 없으면 합쳐진 쪽의 연결(과 그 요청)을 남은 사람에게 옮기고,
         // 이미 있으면 합쳐진 쪽 연결은 지운다(요청은 합쳐진 쪽에 남아 운영자만 본다). 쓰지 않은 연결 링크는 지운다.
@@ -520,7 +520,7 @@ export async function undoMerge(
              AND kind = (SELECT json_extract(value, '$.kindTo') FROM json_each(?2)
                          WHERE json_extract(value, '$.id') = rotation_events.id)`,
         ).bind(groupId, kindChanges),
-        env.DB.prepare("UPDATE participants SET status = ?1 WHERE id = ?2 AND group_id = ?3").bind(
+        env.DB.prepare("UPDATE participants SET status = ?1, version = version + 1 WHERE id = ?2 AND group_id = ?3").bind(
           merge.source_prev_status,
           merge.source_id,
           groupId,

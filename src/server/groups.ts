@@ -19,7 +19,7 @@ import {
   requireInt,
   requireString,
 } from "./http";
-import { bumpLiveVersion, liveVersionGuard, runMutation, sha256Hex } from "./mutation";
+import { bumpLiveVersion, liveVersionGuard, runMutation, sha256Hex, type Plan } from "./mutation";
 import { buildSnapshot, loadGroup, loadOpenSession } from "./snapshot";
 
 /** 한 계정이 맡을 수 있는 모임 수(대표 + 공동 운영 합계). 만들기·백업으로 새 모임·넘겨받기·공동 운영자 수락이 함께 지킨다. */
@@ -62,31 +62,97 @@ export function parseName(value: unknown): string {
   return name;
 }
 
-/** 모임을 만들고 만든 계정을 운영자로 등록한다. */
+/**
+ * 계정당 모임 수 한도를 batch 안에서 다시 확인하는 보호 문장(migrations/0021 guard_group_limit).
+ * "개수 확인 → 넣기" 사이에 같은 계정의 다른 요청이 끼어 한도를 넘기는 것을 막는다. 반드시 넣는 문장보다 앞에 둔다.
+ * exceptCoGroupId: 이 모임의 공동 운영자 행은 세지 않는다(넘겨받기: 공동 운영자 행이 지워지고 대표가 된다).
+ */
+export function groupLimitGuard(env: Env, accountId: string, exceptCoGroupId: string | null = null): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT INTO guard (group_limit)
+     SELECT 1 WHERE (SELECT COUNT(*) FROM group_operators WHERE account_id = ?1)
+       + (SELECT COUNT(*) FROM group_co_operators WHERE account_id = ?1 AND group_id IS NOT ?3) >= ?2`,
+  ).bind(accountId, MAX_GROUPS_PER_ACCOUNT, exceptCoGroupId);
+}
+
+/** batch 실패가 모임 수 한도 보호 문장(groupLimitGuard)에 걸린 것인지. */
+export function isGroupLimitError(error: unknown): boolean {
+  return String(error instanceof Error ? error.message : error).includes("guard_group_limit");
+}
+
+/**
+ * 요청 ID(선택). 화면이 보내면 runMutation이 같은 요청을 한 번만 처리한다(재전송 안전).
+ * 보내지 않으면 서버가 이 요청만의 ID를 만든다: 예전 화면도 그대로 동작하지만 재전송하면 두 번 처리될 수 있다.
+ * (2026-11-07: 웹이 모두 보내게 되면 필수로 바꾼다. docs/개선-서버-2026-11-07.md)
+ */
+export function optionalRequestId(body: Body): string {
+  if (body.requestId === undefined) return `srv-${newId()}`;
+  return requireString(body.requestId, "requestId", 8, 64);
+}
+
+/** (계정, 요청 ID)에서 정해지는 모임 ID. 같은 요청을 다시 보내면 같은 모임이 된다(백업으로 새 모임과 같은 방식). */
+async function groupIdFor(kind: string, accountId: string, requestId: string): Promise<string> {
+  const hex = await sha256Hex(`${kind}\n${accountId}\n${requestId}`);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * 모임을 만들고 만든 계정을 운영자로 등록한다.
+ * - 모임 수 한도는 미리 한 번 보고(빠른 거절), batch 안의 보호 문장으로 다시 확인한다(동시 요청 대비).
+ * - requestId를 보내면 모임 ID를 (계정, 요청 ID)에서 정한다. 응답을 못 받아 다시 보내도 모임이 두 개 생기지 않고
+ *   처음 만든 모임을 그대로 돌려준다. 모임이 아직 없으니 요청 기록 표(requests, 모임별)를 쓰는 runMutation 대신
+ *   모임 ID의 기본 키가 중복을 막는다.
+ */
 export async function createGroup(
   env: Env,
   accountId: string,
   body: Body,
 ): Promise<{ id: string; name: string }> {
-  assertOnlyKeys(body, ["name"]);
+  assertOnlyKeys(body, ["name", "requestId"]);
   const name = body.name === undefined ? "내 내전 모임" : parseName(body.name);
+  const requestId = body.requestId === undefined ? null : requireString(body.requestId, "requestId", 8, 64);
+  const id = requestId ? await groupIdFor("create-group", accountId, requestId) : newId();
+  const replay = async (): Promise<{ id: string; name: string } | null> => {
+    if (!requestId) return null;
+    const row = await env.DB.prepare(
+      `SELECT g.id, g.name, o.account_id FROM groups g LEFT JOIN group_operators o ON o.group_id = g.id WHERE g.id = ?1`,
+    )
+      .bind(id)
+      .first<{ id: string; name: string; account_id: string | null }>();
+    if (!row) return null;
+    // 그 사이 넘겨준 모임이면 같은 요청 ID를 다시 쓸 수 없다.
+    if (row.account_id !== accountId) {
+      throw new ApiError(409, "REQUEST_ID_REUSED", "같은 요청 ID로 다른 내용을 보낼 수 없습니다.");
+    }
+    return { id: row.id, name: row.name };
+  };
+  const done = await replay();
+  if (done) return done;
   if ((await accountGroupCount(env, accountId)) >= MAX_GROUPS_PER_ACCOUNT) throw tooManyGroupsError();
-  const id = newId();
   const settingsId = newId();
   const now = nowIso();
-  await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO groups (id, name, view_token, created_at) VALUES (?1, ?2, ?3, ?4)",
-    ).bind(id, name, newViewToken(), now),
-    env.DB.prepare(
-      `INSERT INTO settings_versions (id, group_id, version_no, payload, created_at)
-       VALUES (?1, ?2, 1, ?3, ?4)`,
-    ).bind(settingsId, id, JSON.stringify(DEFAULT_SETTINGS), now),
-    env.DB.prepare("UPDATE groups SET settings_version_id = ?1 WHERE id = ?2").bind(settingsId, id),
-    env.DB.prepare(
-      "INSERT INTO group_operators (group_id, account_id, created_at) VALUES (?1, ?2, ?3)",
-    ).bind(id, accountId, now),
-  ]);
+  try {
+    await env.DB.batch([
+      groupLimitGuard(env, accountId),
+      env.DB.prepare(
+        "INSERT INTO groups (id, name, view_token, created_at) VALUES (?1, ?2, ?3, ?4)",
+      ).bind(id, name, newViewToken(), now),
+      env.DB.prepare(
+        `INSERT INTO settings_versions (id, group_id, version_no, payload, created_at)
+         VALUES (?1, ?2, 1, ?3, ?4)`,
+      ).bind(settingsId, id, JSON.stringify(DEFAULT_SETTINGS), now),
+      env.DB.prepare("UPDATE groups SET settings_version_id = ?1 WHERE id = ?2").bind(settingsId, id),
+      env.DB.prepare(
+        "INSERT INTO group_operators (group_id, account_id, created_at) VALUES (?1, ?2, ?3)",
+      ).bind(id, accountId, now),
+    ]);
+  } catch (error) {
+    // 같은 요청이 동시에 먼저 처리됐을 수 있다(같은 모임 ID).
+    const again = await replay();
+    if (again) return again;
+    if (isGroupLimitError(error)) throw tooManyGroupsError();
+    throw error;
+  }
   return { id, name };
 }
 
@@ -111,22 +177,33 @@ export async function listGroups(
   return rows.results.map((r) => ({ id: r.id, name: r.name, role: r.role }));
 }
 
+/** 모임 이름 바꾸기. 공통 경로(runMutation: 요청 ID 중복 방지·점검 확인·batch). */
 export async function renameGroup(env: Env, groupId: string, body: Body): Promise<void> {
-  assertOnlyKeys(body, ["name"]);
+  assertOnlyKeys(body, ["name", "requestId"]);
   const name = parseName(body.name);
-  await env.DB.prepare("UPDATE groups SET name = ?1 WHERE id = ?2").bind(name, groupId).run();
+  await runMutation(env, {
+    groupId,
+    requestId: optionalRequestId(body),
+    op: "rename-group",
+    payload: { name },
+    build: async () => ({
+      stored: {},
+      statements: [env.DB.prepare("UPDATE groups SET name = ?1 WHERE id = ?2").bind(name, groupId)],
+    }),
+  });
 }
 
 /**
  * 이름 목록에 해당하는 활성 참가자를 돌려준다. 없는 이름은 새로 만든다.
- * 같은 이름으로 여러 번 불러도 결과가 같다.
+ * 같은 이름으로 여러 번 불러도 결과가 같다(요청 ID 없이 다시 보내도 같은 사람을 돌려준다).
+ * 넣기는 공통 경로(runMutation)를 거치고, 돌려줄 목록은 넣은 뒤 이름으로 다시 읽는다.
  */
 export async function ensureParticipants(
   env: Env,
   groupId: string,
   body: Body,
 ): Promise<ParticipantView[]> {
-  assertOnlyKeys(body, ["names"]);
+  assertOnlyKeys(body, ["names", "requestId"]);
   if (!Array.isArray(body.names) || body.names.length < 1 || body.names.length > 30) {
     throw new ApiError(400, "INVALID_FIELD", "names 값이 올바르지 않습니다.");
   }
@@ -135,22 +212,31 @@ export async function ensureParticipants(
   if (new Set(keys).size !== keys.length) {
     throw new ApiError(400, "DUPLICATE_NAME", "같은 이름이 두 번 들어 있습니다.");
   }
-  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM participants WHERE group_id = ?1")
-    .bind(groupId)
-    .first<{ n: number }>();
-  if ((count?.n ?? 0) >= MAX_PARTICIPANTS_PER_GROUP) {
-    throw new ApiError(409, "TOO_MANY_PARTICIPANTS", "참가자가 너무 많습니다.");
-  }
-  const now = nowIso();
-  await env.DB.batch(
-    names.map((name, i) =>
-      env.DB.prepare(
-        `INSERT INTO participants (id, group_id, name, name_key, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT (group_id, name_key) WHERE status = 'active' DO NOTHING`,
-      ).bind(newId(), groupId, name, keys[i], now),
-    ),
-  );
+  await runMutation(env, {
+    groupId,
+    requestId: optionalRequestId(body),
+    op: "ensure-participants",
+    payload: { names },
+    build: async () => {
+      const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM participants WHERE group_id = ?1")
+        .bind(groupId)
+        .first<{ n: number }>();
+      if ((count?.n ?? 0) >= MAX_PARTICIPANTS_PER_GROUP) {
+        throw new ApiError(409, "TOO_MANY_PARTICIPANTS", "참가자가 너무 많습니다.");
+      }
+      const now = nowIso();
+      return {
+        stored: {},
+        statements: names.map((name, i) =>
+          env.DB.prepare(
+            `INSERT INTO participants (id, group_id, name, name_key, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT (group_id, name_key) WHERE status = 'active' DO NOTHING`,
+          ).bind(newId(), groupId, name, keys[i], now),
+        ),
+      };
+    },
+  });
   const placeholders = keys.map((_, i) => `?${i + 2}`).join(", ");
   const rows = await env.DB.prepare(
     `SELECT id, name, status, skill_group, name_key FROM participants
@@ -171,16 +257,58 @@ export async function ensureParticipants(
   });
 }
 
-/** 참가자의 이름·실력 그룹·보관 상태를 바꾼다. 과거 경기의 소속과 승패는 바뀌지 않는다. */
+/**
+ * 참가자의 이름·실력 그룹·보관 상태·기피 라인을 바꾼다. 과거 경기의 소속과 승패는 바뀌지 않는다.
+ * 공통 경로(runMutation)를 거친다. 읽고-고쳐-쓰기라 동시 수정을 막는다(migrations/0021 participants.version):
+ * - batch 안의 보호 문장이 "읽은 뒤 그 사이 다른 수정이 없었는지"를 확인한다(서버 안의 경쟁, 화면 변경 없이 동작).
+ * - 화면이 baseVersion(운영자 스냅숏의 participants[].version)을 보내면 화면이 본 값과도 비교한다
+ *   (다른 기기에서 먼저 고친 것을 덮어쓰지 않는다). 다르면 409 VERSION_CONFLICT, details.version에 지금 버전.
+ */
 export async function updateParticipant(
   env: Env,
   groupId: string,
   participantId: string,
   body: Body,
 ): Promise<void> {
-  assertOnlyKeys(body, ["name", "skillGroup", "status", "avoidPositions"]);
+  assertOnlyKeys(body, ["name", "skillGroup", "status", "avoidPositions", "requestId", "baseVersion"]);
+  const baseVersion = body.baseVersion === undefined ? null : requireInt(body.baseVersion, "baseVersion");
+  const { requestId: _requestId, ...payload } = body;
+  const currentVersion = async () =>
+    (
+      await env.DB.prepare("SELECT version FROM participants WHERE id = ?1 AND group_id = ?2")
+        .bind(participantId, groupId)
+        .first<{ version: number }>()
+    )?.version;
+  try {
+    await runMutation(env, {
+      groupId,
+      requestId: optionalRequestId(body),
+      op: "update-participant",
+      payload: { participantId, ...payload },
+      conflictDetails: async () => ({ version: await currentVersion() }),
+      build: () => participantPlan(env, groupId, participantId, body, baseVersion),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("UNIQUE")) {
+      throw new ApiError(409, "NAME_TAKEN", "같은 이름의 참가자가 이미 있습니다.", {
+        name: body.name === undefined ? undefined : parseName(body.name),
+      });
+    }
+    throw error;
+  }
+}
+
+async function participantPlan(
+  env: Env,
+  groupId: string,
+  participantId: string,
+  body: Body,
+  baseVersion: number | null,
+): Promise<Plan> {
   const existing = await env.DB.prepare(
-    "SELECT id, name, name_key, skill_group, status, avoid_positions FROM participants WHERE id = ?1 AND group_id = ?2",
+    `SELECT id, name, name_key, skill_group, status, avoid_positions, version
+     FROM participants WHERE id = ?1 AND group_id = ?2`,
   )
     .bind(participantId, groupId)
     .first<{
@@ -190,8 +318,14 @@ export async function updateParticipant(
       skill_group: number | null;
       status: string;
       avoid_positions: string | null;
+      version: number;
     }>();
   if (!existing) throw new ApiError(404, "NOT_FOUND", "참가자를 찾을 수 없습니다.");
+  if (baseVersion !== null && baseVersion !== existing.version) {
+    throw new ApiError(409, "VERSION_CONFLICT", "그 사이 다른 기기에서 이 참가자를 고쳤습니다. 최신 상태를 확인해 주세요.", {
+      version: existing.version,
+    });
+  }
   // 합쳐진 사람을 다시 활성으로 바꾸면 그 사람이 새 경기에 들어가 되돌리기가 꼬인다. 되돌리기로만 돌린다.
   if (body.status === "active" && existing.status !== "active") {
     const merged = await env.DB.prepare(
@@ -236,10 +370,17 @@ export async function updateParticipant(
     }
     status = body.status;
   }
-  try {
-    await env.DB.batch([
+  return {
+    stored: {},
+    statements: [
+      // 읽은 뒤 그 사이 다른 수정(다른 요청·합치기·익명 처리·멤버의 기피 라인)이 있었으면 batch 전체를 되돌린다.
       env.DB.prepare(
-        `UPDATE participants SET name = ?1, name_key = ?2, skill_group = ?3, status = ?4, avoid_positions = ?7
+        `INSERT INTO guard (version_conflict)
+         SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM participants WHERE id = ?1 AND group_id = ?2 AND version = ?3)`,
+      ).bind(participantId, groupId, existing.version),
+      env.DB.prepare(
+        `UPDATE participants SET name = ?1, name_key = ?2, skill_group = ?3, status = ?4, avoid_positions = ?7,
+           version = version + 1
          WHERE id = ?5 AND group_id = ?6`,
       ).bind(name, key, skillGroup, status, participantId, groupId, avoidPositions),
       // 운영자가 기피 라인을 고치면 "본인이 정함" 표시를 지운다(migrations/0019). 보내지 않았으면 그대로.
@@ -250,14 +391,8 @@ export async function updateParticipant(
             ).bind(groupId, participantId),
           ]
         : []),
-    ]);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("UNIQUE")) {
-      throw new ApiError(409, "NAME_TAKEN", "같은 이름의 참가자가 이미 있습니다.", { name });
-    }
-    throw error;
-  }
+    ],
+  };
 }
 
 /**
@@ -476,50 +611,84 @@ export async function createSeason(
   groupId: string,
   body: Body,
 ): Promise<{ id: string }> {
-  assertOnlyKeys(body, ["name", "startsOn", "endsOn"]);
+  assertOnlyKeys(body, ["name", "startsOn", "endsOn", "requestId"]);
   const name = parseName(body.name);
   const startsOn = parseDate(body.startsOn, "startsOn");
   const endsOn = parseDate(body.endsOn, "endsOn");
   if (startsOn > endsOn) {
     throw new ApiError(400, "INVALID_FIELD", "시작일이 종료일보다 늦습니다.");
   }
-  const id = newId();
+  const overlap = () => new ApiError(409, "SEASON_OVERLAP", "다른 시즌과 날짜가 겹칩니다.");
   try {
-    await env.DB.batch([
-      env.DB.prepare(
-        `INSERT INTO guard (state_conflict)
-         SELECT 1 WHERE EXISTS (
-           SELECT 1 FROM seasons
-           WHERE group_id = ?1 AND starts_on <= ?3 AND ends_on >= ?2
-         )`,
-      ).bind(groupId, startsOn, endsOn),
-      env.DB.prepare(
-        `INSERT INTO seasons (id, group_id, name, starts_on, ends_on, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
-      ).bind(id, groupId, name, startsOn, endsOn, nowIso()),
-    ]);
+    const { stored } = await runMutation(env, {
+      groupId,
+      requestId: optionalRequestId(body),
+      op: "create-season",
+      payload: { name, startsOn, endsOn },
+      build: async () => {
+        const id = newId();
+        return {
+          stored: { id },
+          statements: [
+            env.DB.prepare(
+              `INSERT INTO guard (state_conflict)
+               SELECT 1 WHERE EXISTS (
+                 SELECT 1 FROM seasons
+                 WHERE group_id = ?1 AND starts_on <= ?3 AND ends_on >= ?2
+               )`,
+            ).bind(groupId, startsOn, endsOn),
+            env.DB.prepare(
+              `INSERT INTO seasons (id, group_id, name, starts_on, ends_on, created_at)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+            ).bind(id, groupId, name, startsOn, endsOn, nowIso()),
+          ],
+        };
+      },
+    });
+    return { id: stored.id as string };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("guard_state_conflict")) {
-      throw new ApiError(409, "SEASON_OVERLAP", "다른 시즌과 날짜가 겹칩니다.");
-    }
+    // 겹침 보호 문장(guard_state_conflict)은 공통 경로가 VERSION_CONFLICT로 바꾼다. 시즌에서는 겹침이라는 뜻이다.
+    if (error instanceof ApiError && error.code === "VERSION_CONFLICT") throw overlap();
     throw error;
   }
-  return { id };
 }
 
-/** 시즌을 지운다. 시즌은 통계 필터일 뿐이라 경기·배치·칭호는 바뀌지 않는다. */
-export async function deleteSeason(env: Env, groupId: string, seasonId: string): Promise<void> {
-  await env.DB.prepare("DELETE FROM seasons WHERE id = ?1 AND group_id = ?2")
-    .bind(seasonId, groupId)
-    .run();
+/** 시즌을 지운다. 시즌은 통계 필터일 뿐이라 경기·배치·칭호는 바뀌지 않는다. 본문(요청 ID)은 없어도 된다. */
+export async function deleteSeason(env: Env, groupId: string, seasonId: string, body: Body = {}): Promise<void> {
+  assertOnlyKeys(body, ["requestId"]);
+  await runMutation(env, {
+    groupId,
+    requestId: optionalRequestId(body),
+    op: "delete-season",
+    payload: { seasonId },
+    build: async () => ({
+      stored: {},
+      statements: [env.DB.prepare("DELETE FROM seasons WHERE id = ?1 AND group_id = ?2").bind(seasonId, groupId)],
+    }),
+  });
 }
 
-/** 조회 토큰을 새로 만든다. 이전 링크는 더 이상 열리지 않는다. */
-export async function regenerateViewToken(env: Env, groupId: string): Promise<string> {
-  const token = newViewToken();
-  await env.DB.prepare("UPDATE groups SET view_token = ?1 WHERE id = ?2").bind(token, groupId).run();
-  return token;
+/**
+ * 조회 토큰을 새로 만든다. 이전 링크는 더 이상 열리지 않는다.
+ * 요청 ID를 보내면 재전송에 같은 토큰을 돌려준다(요청 기록에 새 토큰이 14일 남는다. 토큰은 groups 표에도
+ * 원문으로 있으므로 노출 범위가 넓어지지는 않는다).
+ */
+export async function regenerateViewToken(env: Env, groupId: string, body: Body = {}): Promise<string> {
+  assertOnlyKeys(body, ["requestId"]);
+  const { stored } = await runMutation(env, {
+    groupId,
+    requestId: optionalRequestId(body),
+    op: "view-token",
+    payload: {},
+    build: async () => {
+      const token = newViewToken();
+      return {
+        stored: { viewToken: token },
+        statements: [env.DB.prepare("UPDATE groups SET view_token = ?1 WHERE id = ?2").bind(token, groupId)],
+      };
+    },
+  });
+  return stored.viewToken as string;
 }
 
 /**
@@ -624,7 +793,8 @@ export async function exportBackup(env: Env, groupId: string): Promise<Record<st
       currentSettingsVersionId: snapshot.group.settingsVersionId ?? null,
     },
     matchCount: snapshot.matches.length,
-    participants: snapshot.participants.map((p) => ({ ...p, createdAt: createdById.get(p.id) })),
+    // 행 버전(version)은 이 서버 안의 동시 수정 확인용이라 백업에 넣지 않는다(복원하면 새로 0부터 센다).
+    participants: snapshot.participants.map(({ version: _version, ...p }) => ({ ...p, createdAt: createdById.get(p.id) })),
     seasons: snapshot.seasons,
     // 시리즈 묶음(2026-11-06). 경기 메모는 경기 항목(memo)에 들어 있다. 둘 다 없는 예전 백업도 복원된다.
     series: snapshot.series ?? [],
@@ -772,6 +942,8 @@ export async function acceptTransfer(
   const now = nowIso();
   try {
     await env.DB.batch([
+      // 확인과 교체 사이에 같은 계정이 다른 모임을 맡아 한도를 넘으면 막는다(이 모임의 공동 운영자 행은 빼고 센다).
+      groupLimitGuard(env, accountId, row.group_id),
       // 확인과 교체 사이에 다른 사람이 같은 링크를 쓰면 여기서 막힌다.
       env.DB.prepare(
         `INSERT INTO guard (state_conflict)
@@ -800,6 +972,7 @@ export async function acceptTransfer(
     if (message.includes("guard_state_conflict")) {
       throw new ApiError(404, "TRANSFER_INVALID", "이 링크는 이미 썼거나 만료됐습니다.");
     }
+    if (isGroupLimitError(error)) throw tooManyGroupsError();
     throw error;
   }
   return { groupId: row.group_id };

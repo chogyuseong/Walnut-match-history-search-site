@@ -144,11 +144,11 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   await expect(tiles.locator("div").filter({ hasText: "어려운 상대" })).toContainText(locked);
   await expect(page.getByRole("group", { name: "시너지·상대 전적 순서" })).toHaveCount(0);
 
-  // 화면 순서: 요약 → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 참여 경기(맨 아래).
+  // 화면 순서: 요약 → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 한 사람과 맞대결(2026-11-07) → 참여 경기(맨 아래).
   const order = await page
     .getByRole("region")
     .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
-  expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "참여 경기"]);
+  expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "한 사람과 맞대결", "참여 경기"]);
   // 참여 경기는 최근 10경기만 먼저 그리고 "더 보기"로 나머지를 연다.
   const played = page.getByRole("region", { name: "참여 경기" });
   await expect(played.getByRole("listitem")).toHaveCount(10);

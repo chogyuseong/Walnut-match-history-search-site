@@ -23,6 +23,15 @@
       "migrations_dir": "migrations"
     }
   ],
+  // 자동 백업(src/server/backupCron.ts)을 넣는 R2 버킷. 로컬·테스트에서는 wrangler/miniflare가 흉내 낸다.
+  // 바인딩(r2_buckets·version_metadata·vars)은 env.*로 이어지지 않으므로 환경마다 다시 적는다.
+  "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "naejeon-local-backups" }],
+  // 배포 버전 정보. 스냅숏 ETag에 넣어, 새 코드를 배포하면 예전 응답 본문을 다시 쓰지 않게 한다(src/server/snapshot.ts).
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  // 예정 작업(Cron Trigger, UTC). 18~20시 UTC = 한국 03:00~05:55, 5분마다(하루 36번, 트리거 1개).
+  // 한 번에 모임 BACKUP_GROUPS_PER_RUN개(기본 5)까지 백업하고, 오늘 끝나지 않은 모임은 다음 실행이 잇는다.
+  // 무료 요금제는 예정 작업도 실행당 CPU 10ms이고 계정당 크론 트리거 5개까지다(docs/배포안내.md).
+  "triggers": { "crons": ["*/5 18-20 * * *"] },
   "vars": {
     // "fake"는 로컬·테스트 전용 로그인이다. 운영(env.production)은 "oauth"다.
     // 가짜 로그인과 테스트 훅(/api/test/*)은 허용 목록으로만 열린다: AUTH_MODE=fake 이고 DEPLOY_ENV=local 이고
@@ -70,7 +79,9 @@
         "RATE_WRITE_PER_ACCOUNT": "60",
         "RATE_WRITE_PER_IP": "120",
         "RATE_AUTH_PER_IP": "20",
-        "RATE_VIEW_PER_IP": "120",
+        // 조회 링크·참가 신청 등 로그인 없는 읽기(2026-11-07: 120 → 30). 화면은 탭으로 돌아올 때마다 다시 읽고, 바뀌지 않았으면
+        // 304라 읽기 비용은 작지만 요청 수 제한 자체가 요청마다 D1 쓰기 1행을 쓴다(무료 하루 10만 행).
+        "RATE_VIEW_PER_IP": "30",
         // 비싼 읽기(백업 내려받기·합치기 미리보기·가져오기 지문 목록).
         "RATE_HEAVY_PER_ACCOUNT": "60",
         "RATE_HEAVY_PER_IP": "120",
@@ -79,12 +90,22 @@
         "RATE_SIGNUP_PER_IP": "5",
         "RATE_LOGIN_PER_IP": "10",
         "RATE_RECOVER_PER_IP": "5",
+        // 비밀번호 해시 반복 횟수. 무료 요금제(요청당 CPU 10ms) 대응으로 20000. 서버 비밀값 페퍼(HMAC)를 먼저 씌우므로
+        // DB만 새어서는 추측할 수 없다(src/server/local.ts). Paid로 올리면 "100000"으로 바꾼다(다음 로그인 때 다시 저장된다).
+        "PASSWORD_PBKDF2_ITERATIONS": "20000",
         // 화면 오류 보고(로그인 없음)의 IP별 한도.
         "RATE_CLIENT_ERROR_PER_IP": "10",
+        // 자동 백업: 예정 작업 한 번에 백업할 모임 수, 보관 날수(src/server/backupCron.ts).
+        "BACKUP_GROUPS_PER_RUN": "5",
+        "BACKUP_KEEP_DAYS": "30",
         // [채워야 함] 사이트 운영자(현황 화면 #/admin)의 계정 ID. 쉼표로 여러 명. 비어 있으면 아무도 못 본다.
         // 내 계정 ID는 로그인한 뒤 주소창에 /api/me 를 열면 accountId로 보인다(docs/배포안내.md).
         "SITE_ADMIN_ACCOUNT_IDS": ""
       },
+      // [만들어야 함] npx wrangler r2 bucket create naejeon-prod-backups (docs/배포안내.md 13-4절)
+      "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "naejeon-prod-backups" }],
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "triggers": { "crons": ["*/5 18-20 * * *"] },
       // Workers Logs: console.log·console.error와 요청 기록을 Cloudflare 대시보드에서 본다(무료 요금제 하루 20만 줄, 3일 보관).
       // 형식은 공식 문서(https://developers.cloudflare.com/workers/observability/logs/workers-logs/)에서 2026-11-06에 확인.
       "observability": {
@@ -93,6 +114,55 @@
       }
       // 비밀값(wrangler secret put ... --env production): SESSION_SECRET,
       // KAKAO_CLIENT_ID, KAKAO_CLIENT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+    },
+    // -------------------------------------------------------------------------
+    // 시험 환경(staging). 운영과 같은 설정·같은 안전장치(DEPLOY_ENV=production)로 따로 띄운다.
+    // 순서: staging 배포 → 마이그레이션 → 스파이크·손 확인 → production(docs/배포안내.md 8-1절).
+    //   npx wrangler deploy --env staging
+    // 비밀값도 따로 넣는다(wrangler secret put ... --env staging). 운영과 다른 SESSION_SECRET을 쓴다.
+    // -------------------------------------------------------------------------
+    "staging": {
+      "name": "naejeon-v2-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "naejeon-staging",
+          // [채워야 함] `npx wrangler d1 create naejeon-staging`가 알려주는 database_id.
+          "database_id": "REPLACE-WITH-STAGING-D1-ID",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "AUTH_MODE": "oauth",
+        "DEPLOY_ENV": "production",
+        // [채워야 함] staging 주소(https). 예: https://naejeon-v2-staging.<계정>.workers.dev
+        "PUBLIC_ORIGIN": "https://REPLACE-WITH-STAGING-ORIGIN",
+        "SESSION_TTL_HOURS": "720",
+        "RATE_WINDOW_SECONDS": "60",
+        "RATE_WRITE_PER_ACCOUNT": "60",
+        "RATE_WRITE_PER_IP": "120",
+        "RATE_AUTH_PER_IP": "20",
+        "RATE_VIEW_PER_IP": "30",
+        "RATE_HEAVY_PER_ACCOUNT": "60",
+        "RATE_HEAVY_PER_IP": "120",
+        "RATE_SIGNUP_PER_IP": "5",
+        "RATE_LOGIN_PER_IP": "10",
+        "RATE_RECOVER_PER_IP": "5",
+        "PASSWORD_PBKDF2_ITERATIONS": "20000",
+        "RATE_CLIENT_ERROR_PER_IP": "10",
+        "BACKUP_GROUPS_PER_RUN": "5",
+        "BACKUP_KEEP_DAYS": "30",
+        "SITE_ADMIN_ACCOUNT_IDS": ""
+      },
+      // [만들어야 함] npx wrangler r2 bucket create naejeon-staging-backups
+      "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "naejeon-staging-backups" }],
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      // 크론은 계정당 5개까지라 staging은 하루 한 번만 돈다(한 번에 BACKUP_GROUPS_PER_RUN개).
+      "triggers": { "crons": ["0 18 * * *"] },
+      "observability": {
+        "enabled": true,
+        "head_sampling_rate": 1
+      }
     }
   }
 }

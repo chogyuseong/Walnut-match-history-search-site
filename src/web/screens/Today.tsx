@@ -1,17 +1,18 @@
 import { useMemo, useRef, useState } from "react";
+import { sessionSummary, sessionSummaryText } from "../../shared/sessionSummary";
 import { personRecords, searchByName, todayMatches } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
-import { formatTime, nameMap, rateTier, standingsOf } from "../format";
+import { formatDate, formatTime, nameMap, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import { drawDayImage, fileDate, ShareImageDialog } from "../shareImage";
-import { ErrorNote, KpiStrip, StandingNote } from "../ui";
+import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
+import { CopyButton, Dialog, ErrorNote, KpiStrip, StandingNote } from "../ui";
 import { Dashboard, DashboardEmpty } from "./Dashboard";
 import { go, useAppValue } from "../useApp";
 import { Intro, isFirstVisit } from "./Intro";
 import { LoginDialog } from "./Login";
 import { ResultSheet } from "./ResultSheet";
-import type { MatchView } from "../../shared/types";
+import type { MatchView, Snapshot } from "../../shared/types";
 
 /** 화면 1 — 오늘(홈). 상태 카드는 한 번에 하나의 주요 버튼만 낸다. */
 export function Today() {
@@ -24,6 +25,7 @@ export function Today() {
   // "버리기" 직후에만 쓰는 되돌리기.
   const [undo, setUndo] = useState<(() => void) | null>(null);
   const [imageOpen, setImageOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   // 처음 온 방문자(로그인 안 함, 기기에 기억한 모임·조회 링크·편성 없음)에게만 소개를 맨 위에 붙인다.
   // 이 화면이 열릴 때 한 번만 정한다(소개가 중간에 사라지거나 생겨 화면이 밀리지 않게).
   const [firstVisit] = useState(() => !app.draft && isFirstVisit());
@@ -231,9 +233,14 @@ export function Today() {
           <div className="section-head">
             <h2>오늘의 결과 · {confirmedToday.length}경기 확정</h2>
             {confirmedToday.length > 0 && (
-              <button type="button" className="secondary" onClick={() => setImageOpen(true)}>
-                결과 이미지
-              </button>
+              <div className="button-row">
+                <button type="button" className="secondary" onClick={() => setSummaryOpen(true)}>
+                  오늘 요약 공유
+                </button>
+                <button type="button" className="secondary" onClick={() => setImageOpen(true)}>
+                  결과 이미지
+                </button>
+              </div>
             )}
           </div>
           <ul className="list match-cards">
@@ -250,6 +257,14 @@ export function Today() {
             ))}
           </ul>
         </section>
+      )}
+      {summaryOpen && snapshot && confirmedToday.length > 0 && (
+        <SessionSummaryDialog
+          snapshot={snapshot}
+          today={today}
+          nameOf={nameOf}
+          onClose={() => setSummaryOpen(false)}
+        />
       )}
       {imageOpen && snapshot && confirmedToday.length > 0 && (
         <ShareImageDialog
@@ -319,5 +334,48 @@ export function Today() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * 오늘 요약 공유 창(2026-11-07). 집계는 src/shared/sessionSummary.ts.
+ * 카톡에 붙일 글(복사)과 이미지(결과 이미지 창 재사용)를 함께 준다. 티어 같은 비공개 정보는 넣지 않는다.
+ */
+function SessionSummaryDialog(props: {
+  snapshot: Snapshot;
+  today: readonly MatchView[];
+  nameOf: (id: string) => string;
+  onClose: () => void;
+}) {
+  const { snapshot, today, nameOf } = props;
+  const [imageOpen, setImageOpen] = useState(false);
+  const summary = useMemo(() => sessionSummary(today, snapshot.matches, nameOf), [today, snapshot, nameOf]);
+  const tz = snapshot.group.timezone;
+  const first = today.find((m) => m.state === "confirmed") ?? today[0];
+  const dateLabel = first ? formatDate(first.playedAt, tz) : "";
+  const text = sessionSummaryText(summary, snapshot.group.name, dateLabel);
+  if (imageOpen) {
+    return (
+      <ShareImageDialog
+        title="오늘 요약 이미지"
+        fileName={`오늘요약-${first ? fileDate(first.playedAt, tz) : "내전"}.png`}
+        make={() => drawSessionSummaryImage(snapshot, summary, dateLabel)}
+        onClose={props.onClose}
+      />
+    );
+  }
+  return (
+    <Dialog title="오늘 요약 공유" onClose={props.onClose}>
+      <p className="hint">확정 경기만 셉니다. 티어 같은 비공개 정보는 넣지 않았어요.</p>
+      <pre className="summary-text" aria-label="붙여 넣을 글">
+        {text}
+      </pre>
+      <div className="button-row">
+        <CopyButton label="글 복사" text={() => text} />
+        <button type="button" className="secondary" onClick={() => setImageOpen(true)}>
+          이미지로 만들기
+        </button>
+      </div>
+    </Dialog>
   );
 }

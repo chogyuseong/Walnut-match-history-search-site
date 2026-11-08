@@ -10,7 +10,8 @@ test.use({ viewport: { width: 390, height: 844 } });
 
 const names = Array.from({ length: 12 }, (_, i) => `준비${String(i + 1).padStart(2, "0")}`);
 
-async function openPrep(page: Page) {
+/** 로그인·모임·참가자 12명을 만들고 앞에서 count명을 골라 팀을 짠다. 11명 이상이면 넘는 사람은 대기자가 된다. 모임 ID를 돌려준다. */
+async function openPrep(page: Page, count = 10): Promise<string> {
   const login = await page.request.post("/api/auth/fake-login", {
     data: { subject: `e2e-walk-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
   });
@@ -21,9 +22,12 @@ async function openPrep(page: Page) {
   expect((await page.request.post(`/api/groups/${group.id}/participants`, { data: { names } })).ok()).toBe(true);
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });
-  for (const name of names.slice(0, 10)) await all.getByRole("button", { name: new RegExp(name) }).click();
-  await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
+  for (const name of names.slice(0, count)) await all.getByRole("button", { name: new RegExp(name) }).click();
+  await page
+    .getByRole("button", { name: count > 10 ? `팀 짜기 (10명 + 대기 ${count - 10}명)` : "팀 짜기 (10/10)" })
+    .click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
+  return group.id;
 }
 
 /** 준비 화면의 팀 상자. 팀 A(왼쪽)는 항상 블루팀, 팀 B(오른쪽)는 레드팀이다. */
@@ -196,7 +200,8 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
     await expect(page.getByRole("dialog", { name: "시작 전에 확인해 주세요" })).toHaveCount(0);
     await page.getByRole("button", { name: "결과 입력" }).click();
     const sheet = page.getByRole("dialog", { name: `${game}경기 결과` });
-    await sheet.getByRole("radio", { name: /블루팀 승/ }).check();
+    await sheet.getByRole("button", { name: /블루팀 승/ }).click();
+    await sheet.getByText("진영이 시작할 때와 달랐나요?").click();
     await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
     await sheet.getByRole("button", { name: "저장" }).click();
     await expect(sheet.getByText(`${game}경기 저장됨`)).toBeVisible();
@@ -235,4 +240,92 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   await shots(page, "07-after-reset");
   await noHorizontalOverflow(page);
+});
+
+test("준비 화면 추가 기능(390px): 대기자 교체 · 편성 균형 · 라인 맞대결 · 되돌리기 여러 번 · 편성 이미지", async ({ page }) => {
+  test.setTimeout(120000);
+  // 11명을 고르면 앞 10명으로 팀을 짜고 11번째(준비11)는 대기자가 된다.
+  await openPrep(page, 11);
+  const bench = page.getByRole("region", { name: "대기자" });
+  await expect(bench.getByRole("heading")).toHaveText("대기자 1명");
+  await expect(bench.getByRole("listitem")).toHaveCount(1);
+  await expect(bench).toContainText("준비11");
+  const inTeams = async () => [...(await readTeam(page, "A")), ...(await readTeam(page, "B"))].map((r) => r.name);
+  expect(await inTeams()).not.toContain("준비11");
+  await noHorizontalOverflow(page);
+
+  // 편성 균형: 접힌 채로 시작하고, 열면 두 팀 티어 점수와 티어별 인원이 보인다.
+  const balanceList = page.getByRole("list", { name: "티어별 인원" });
+  await expect(page.getByText("편성 균형", { exact: true })).toBeVisible();
+  await expect(balanceList).toBeHidden();
+  await page.getByText("편성 균형", { exact: true }).click();
+  await expect(balanceList).toBeVisible();
+  await expect(balanceList.getByRole("listitem")).toHaveCount(6);
+  // 아무도 티어를 정하지 않았으므로 두 팀 모두 0점이고 균형이다.
+  await expect(page.getByText(/블루팀 티어 점수 0 · 레드팀 0 · 균형/)).toBeVisible();
+  await expect(balanceList.getByRole("listitem").last()).toContainText("블루 5 · 레드 5");
+  await noHorizontalOverflow(page);
+
+  // 라인 맞대결: 다섯 줄, 지난 경기가 없으므로 모두 "첫 맞대결". 390px에서 한 줄에 들어간다.
+  const lanes = page.getByRole("list", { name: "라인 맞대결 목록" }).getByRole("listitem");
+  await expect(lanes).toHaveCount(5);
+  for (let i = 0; i < 5; i++) {
+    await expect(lanes.nth(i)).toContainText("첫 맞대결");
+    await expect(lanes.nth(i)).toContainText(" vs ");
+    const box = (await lanes.nth(i).boundingBox())!;
+    expect(box.height, `맞대결 ${i + 1}번째 줄 한 줄`).toBeLessThan(60);
+  }
+  // 왼쪽은 블루팀 같은 라인 사람이다.
+  const blueTop = (await readTeam(page, "A"))[0]!.name;
+  const redTop = (await readTeam(page, "B"))[0]!.name;
+  await expect(lanes.first()).toContainText(`${blueTop} vs ${redTop}`);
+
+  // 되돌리기 여러 번: 처음 만든 편성에는 이력이 없고, 섞을 때마다 단계 수가 늘어난다.
+  const tools = page.getByRole("region", { name: "섞기" });
+  await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(0);
+  const lineups: string[] = [JSON.stringify(await inTeams())];
+  for (let i = 1; i <= 3; i++) {
+    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+    await expect(page.getByRole("button", { name: `직전 편성으로 (${i})` })).toBeVisible();
+    lineups.push(JSON.stringify(await inTeams()));
+  }
+  for (let i = 2; i >= 0; i--) {
+    await page.getByRole("button", { name: /직전 편성으로/ }).click();
+    expect(JSON.stringify(await inTeams()), `${3 - i}번 되돌림`).toBe(lineups[i]);
+    if (i > 0) await expect(page.getByRole("button", { name: `직전 편성으로 (${i})` })).toBeVisible();
+  }
+  await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(0);
+  // 다시 앞으로(1단계): 마지막 되돌리기만 취소한다.
+  await page.getByRole("button", { name: "다시 앞으로" }).click();
+  expect(JSON.stringify(await inTeams())).toBe(lineups[1]);
+  await expect(page.getByRole("button", { name: "다시 앞으로" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "직전 편성으로 (1)" })).toBeVisible();
+
+  // 편성 이미지: 명단 텍스트 복사 옆 버튼. 누르면 미리보기 이미지가 만들어진다.
+  await expect(page.getByRole("button", { name: "명단 텍스트 복사" })).toBeVisible();
+  await page.getByRole("button", { name: "편성 이미지" }).click();
+  const imageDialog = page.getByRole("dialog", { name: "편성 이미지" });
+  await expect(imageDialog.getByRole("img", { name: "편성 이미지 미리보기" })).toBeVisible();
+  await imageDialog.getByRole("button", { name: "닫기" }).click();
+  await expect(imageDialog).toHaveCount(0);
+
+  // 대기자 교체: 블루팀 첫 사람을 누른 뒤 대기자를 누르면 둘이 바뀌고, 빠진 사람은 대기자로 간다.
+  const out = (await readTeam(page, "A"))[0]!.name;
+  await rows(team(page, "A")).nth(0).click();
+  await bench.getByRole("button").first().click();
+  expect((await readTeam(page, "A"))[0]!.name).toBe("준비11");
+  await expect(bench.getByRole("listitem")).toHaveCount(1);
+  await expect(bench).toContainText(out);
+  expect(await inTeams()).not.toContain(out);
+  // 교체하면 되돌리기 이력은 비워진다(다른 사람으로 교체와 같다).
+  await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(0);
+  await noHorizontalOverflow(page);
+
+  // 시작 요청 명단은 10명 그대로이고 대기자는 서버로 가지 않는다.
+  const playing = await inTeams();
+  await page.getByRole("button", { name: "이 팀으로 시작" }).click();
+  await expect(page.getByRole("heading", { name: /경기 진행 중/ })).toBeVisible();
+  await expect(page.locator("#root")).toContainText("준비11");
+  for (const name of playing) await expect(page.locator("#root")).toContainText(name);
+  await expect(page.locator("#root")).not.toContainText(out);
 });

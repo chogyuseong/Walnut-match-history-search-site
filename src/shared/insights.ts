@@ -9,6 +9,7 @@ import {
   type Placement,
   type Tally,
 } from "./stats";
+import { pairOutcome } from "./headToHead";
 import { POSITIONS, sideOfTeam, type MatchView, type Position } from "./types";
 
 /**
@@ -443,17 +444,17 @@ export function headToHead(matches: readonly MatchView[], a: string, b: string):
   const against = { games: 0, aWins: 0, bWins: 0 };
   const togetherMatches: MatchView[] = [];
   const againstMatches: MatchView[] = [];
+  // 경기 하나의 판정(같은 팀/상대, a가 이겼는지)은 src/shared/headToHead.ts를 쓴다(라인 맞대결과 같은 기준).
   for (const match of countedChronological(matches)) {
-    const ea = match.roster.find((r) => r.participantId === a);
-    const eb = match.roster.find((r) => r.participantId === b);
-    if (!ea || !eb || a === b) continue;
-    if (ea.team === eb.team) {
+    const outcome = pairOutcome(match, a, b);
+    if (!outcome) continue;
+    if (outcome.relation === "together") {
       together.games += 1;
-      if (ea.team === match.winnerTeam) together.wins += 1;
+      if (outcome.aWon) together.wins += 1;
       togetherMatches.push(match);
     } else {
       against.games += 1;
-      if (ea.team === match.winnerTeam) against.aWins += 1;
+      if (outcome.aWon) against.aWins += 1;
       else against.bWins += 1;
       againstMatches.push(match);
     }

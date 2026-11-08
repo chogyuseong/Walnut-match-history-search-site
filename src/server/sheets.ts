@@ -126,6 +126,7 @@ export function titleFromDisposition(header: string | null): string | null {
     name = plain ? plain[1]! : null;
   }
   if (name === null) return null;
+  // eslint-disable-next-line no-control-regex -- 파일 이름의 제어 문자를 일부러 찾아 지운다.
   const title = name.replace(/\.csv$/i, "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
   if (title === "" || title === "data") return null;
   return [...title].slice(0, 100).join("");

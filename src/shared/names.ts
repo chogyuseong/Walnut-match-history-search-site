@@ -3,6 +3,7 @@ export const MAX_NAME_LENGTH = 20;
 /** 제어 문자를 지우고 앞뒤 공백을 없애고 연속 공백을 하나로 줄인다. */
 export function cleanName(raw: string): string {
   return raw
+    // eslint-disable-next-line no-control-regex -- 제어 문자를 일부러 찾아 공백으로 바꾼다.
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

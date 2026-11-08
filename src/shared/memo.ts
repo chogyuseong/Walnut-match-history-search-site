@@ -12,6 +12,7 @@ export const MEMO_MAX = 200;
 export function normalizeMemo(raw: string): string | null {
   const text = raw
     .replace(/\r\n?/g, "\n")
+    // eslint-disable-next-line no-control-regex -- 제어 문자를 일부러 찾아 공백으로 바꾼다.
     .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ")
     .trim();
   return text === "" ? null : text;

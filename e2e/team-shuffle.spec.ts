@@ -125,13 +125,14 @@ test("올랜덤 → 블루팀·레드팀 → 진영 바꾸기·진영 랜덤 →
   await expect(page.getByRole("region", { name: "레드팀" }).getByRole("heading")).toHaveText("■ 레드팀");
   await expect(page.getByRole("region", { name: "블루팀" })).toHaveClass(/side-blue/);
 
-  // 결과 입력: "블루팀 승 / 레드팀 승"을 고르면 그 진영이 미리 골라져 있고 바꿀 수 있다.
+  // 결과 입력: "블루팀 승 / 레드팀 승" 큰 버튼을 고르면 그 진영이 미리 골라져 있고, 접힘 영역에서 바꿀 수 있다.
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: "1경기 결과" });
-  await sheet.getByRole("radio", { name: /레드팀 승/ }).check();
+  await sheet.getByRole("button", { name: /레드팀 승/ }).click();
+  await sheet.getByText("진영이 시작할 때와 달랐나요?").click();
   await expect(sheet.getByRole("radio", { name: "레드", exact: true })).toBeChecked();
   await expect(sheet.getByText("시작할 때 정한 진영으로 미리 골라 뒀어요.")).toBeVisible();
-  await sheet.getByRole("radio", { name: /블루팀 승/ }).check();
+  await sheet.getByRole("button", { name: /블루팀 승/ }).click();
   await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
   await sheet.getByRole("radio", { name: "기억나지 않음" }).check();
   await expect(sheet.getByText("1경기 · 팀 A 승 · 진영 미상")).toBeVisible();
@@ -157,7 +158,8 @@ test("올랜덤 + 서포터 공평하게 → 시작 → 결과 → 다음 준비
   await startMatch(page);
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: "1경기 결과" });
-  await sheet.getByRole("radio", { name: /블루팀 승/ }).check();
+  await sheet.getByRole("button", { name: /블루팀 승/ }).click();
+  await sheet.getByText("진영이 시작할 때와 달랐나요?").click();
   await sheet.getByRole("radio", { name: "블루", exact: true }).check();
   await sheet.getByRole("button", { name: "저장" }).click();
   await expect(sheet.getByText("1경기 저장됨")).toBeVisible();

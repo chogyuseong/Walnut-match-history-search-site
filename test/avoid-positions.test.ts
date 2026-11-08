@@ -234,7 +234,7 @@ describe("기피 라인 저장", () => {
   it("조회 링크 응답에는 티어 공개 설정과 상관없이 기피 라인이 없다", async () => {
     const g = await setupGroup();
     await patch(g, g.people[0]!.id, { avoidPositions: ["support"], skillGroup: 1 });
-    let snap = await snapshot(g);
+    const snap = await snapshot(g);
     const token = snap.group.viewToken!;
     let view = await api<Snapshot>(null, "GET", `/api/view/${token}`);
     expect(view.status).toBe(200);
@@ -246,7 +246,6 @@ describe("기피 라인 저장", () => {
       settings: { ...snap.group.settings, groupsPublic: true },
     });
     expect(saved.status).toBe(200);
-    snap = await snapshot(g);
     view = await api<Snapshot>(null, "GET", `/api/view/${token}`);
     expect(view.body.participants.find((p) => p.id === g.people[0]!.id)!.skillGroup).toBe(1);
     expect(JSON.stringify(view.body)).not.toContain("avoidPositions");

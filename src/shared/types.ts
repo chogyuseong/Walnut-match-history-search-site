@@ -73,6 +73,12 @@ export interface ParticipantView {
    * 기기에 남은 초안·"내 이름"의 옛 ID를 새 ID로 바꾸는 데 쓴다. 합쳐진 사람은 항상 보관 상태다.
    */
   mergedInto?: string;
+  /**
+   * 참가자 행 버전(migrations/0021). 운영자 스냅숏에만 있다(조회 응답·백업에는 없음).
+   * 참가자 수정(PATCH /api/groups/:gid/participants/:pid)에 baseVersion으로 보내면 그 사이 다른 수정이 있었을 때
+   * 409 VERSION_CONFLICT로 거절된다.
+   */
+  version?: number;
 }
 
 export interface Settings {

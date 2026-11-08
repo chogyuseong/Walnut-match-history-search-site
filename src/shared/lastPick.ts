@@ -18,6 +18,42 @@ export function lastLiveMatch(matches: readonly MatchView[]): MatchView | null {
   return best;
 }
 
+/**
+ * "지난 내전 참가자 그대로"(2026-11-07): 지난 경기(lastLiveMatch)가 속한 내전(세션, 같은 날 묶음)의 모든 경기 명단을 합친 사람들.
+ * - 세션은 서버가 정한다(시작 때 마지막 활동에서 12시간이 지났으면 새 내전을 묻는다, prep/usePrepStart.ts SESSION_GAP_MS).
+ *   세션이 없는 경기(예전 기록)면 그 경기 하나만 본다.
+ * - 그 세션에서 미진행 취소가 아닌 실시간 경기만 센다. 지금 활성인 참가자만(보관·합쳐진 사람은 빠지고 missing에 센다).
+ * - 순서: 그 내전에서 많이 뛴 사람 → 지난 경기에 있던 사람 → 이름. 고르기 화면은 앞 10명으로 팀을 짜고 나머지를 대기자로 둔다
+ *   (prepTools.ts splitBench). max명까지만 돌려준다.
+ */
+export function lastSessionPeople(
+  matches: readonly MatchView[],
+  participants: readonly ParticipantView[],
+  max = 20,
+): { match: MatchView; people: DraftPerson[]; missing: number; games: number } | null {
+  const last = lastLiveMatch(matches);
+  if (!last) return null;
+  const session = matches.filter((m) =>
+    last.sessionId === null
+      ? m.id === last.id
+      : m.sessionId === last.sessionId && m.source === "live" && m.state !== "canceled",
+  );
+  const games = new Map<string, number>();
+  for (const m of session) for (const r of m.roster) games.set(r.participantId, (games.get(r.participantId) ?? 0) + 1);
+  const inLast = new Set(last.roster.map((r) => r.participantId));
+  const active = participants.filter((p) => p.status === "active" && games.has(p.id));
+  const people = active
+    .sort(
+      (a, b) =>
+        games.get(b.id)! - games.get(a.id)! ||
+        Number(inLast.has(b.id)) - Number(inLast.has(a.id)) ||
+        a.name.localeCompare(b.name, "ko"),
+    )
+    .slice(0, max)
+    .map((p) => ({ key: `p:${p.id}`, name: p.name, participantId: p.id }));
+  return { match: last, people, missing: games.size - active.length, games: session.length };
+}
+
 export function lastMatchPeople(
   matches: readonly MatchView[],
   participants: readonly ParticipantView[],

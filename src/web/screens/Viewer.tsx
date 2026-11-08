@@ -317,7 +317,7 @@ export function viewerPage(
         back={() => go(`${base}/records`)}
         openMatch={(id) => go(`${base}/d/${id}`)}
         openPerson={(id) => go(`${base}/p/${id}`)}
-        openCompare={(id) => go(`${base}/compare/${id}/-`)}
+        openCompare={(id, other) => go(`${base}/compare/${id}/${other ?? "-"}`)}
       />
       ),
     };

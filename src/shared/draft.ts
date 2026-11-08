@@ -65,6 +65,48 @@ export interface Draft {
    * 시작할 때 서버에 series 필드로 보낸다(src/server/series.ts). 없거나 null이면 이어가지 않는다.
    */
   series?: { format: SeriesFormat; name: string } | null;
+  /**
+   * 되돌리기 이력(2026-11-07, 선택 필드라 형식 번호는 그대로). 오래된 것이 앞, 가장 최근 것이 마지막이고 최대 HISTORY_MAX개.
+   * previousSlots는 호환을 위해 남기며 항상 이력의 마지막과 같다(없으면 null). 이력이 없는 예전 초안은
+   * previousSlots 하나를 이력 1단계로 읽는다(historyOf).
+   */
+  history?: DraftSlot[][];
+  /** 되돌리기 직전의 자리(다시 앞으로 1단계). 이력을 새로 남기는 조작·고정·교체를 하면 지운다. */
+  redoSlots?: DraftSlot[] | null;
+  /**
+   * 대기자(2026-11-07, 선택 필드). 참가자를 11명 이상 고르면 10명으로 편성을 만들고 나머지를 여기에 둔다.
+   * 기기에만 있고 서버로 보내지 않는다(시작 요청 명단은 10명 그대로). "다음 경기 준비"로 만든 초안에는 이어지지 않는다.
+   */
+  bench?: DraftPerson[];
+}
+
+/** 되돌리기 이력의 최대 단계 수. */
+export const HISTORY_MAX = 5;
+
+/** 초안의 되돌리기 이력(오래된 것이 앞). 이력이 없는 예전 초안은 previousSlots 하나를 1단계로 본다. */
+export function historyOf(draft: Draft): DraftSlot[][] {
+  if (draft.history) return draft.history;
+  return draft.previousSlots ? [draft.previousSlots] : [];
+}
+
+/**
+ * base에서 next로 바뀐 조작을 되돌리기 이력에 남긴다: base의 자리를 이력 끝에 넣고(최대 HISTORY_MAX개),
+ * previousSlots = base의 자리, 다시 앞으로(redoSlots)는 지운다. 자리를 바꾸는 조작(섞기·추천 적용·자리 바꾸기·
+ * 서포터 바꾸기·포지션 유지)이 모두 이 함수 하나로 이력을 남긴다.
+ */
+export function pushHistory(base: Draft, next: Draft): Draft {
+  const { redoSlots: _redo, ...rest } = next;
+  return {
+    ...rest,
+    previousSlots: base.slots,
+    history: [...historyOf(base), base.slots].slice(-HISTORY_MAX),
+  };
+}
+
+/** 되돌리기 이력과 다시 앞으로를 모두 지운다(교체·처음 만든 초안). */
+export function withoutHistory(draft: Draft): Draft {
+  const { history: _history, redoSlots: _redo, ...rest } = draft;
+  return { ...rest, previousSlots: null };
 }
 
 /** 시드로 재현할 수 있는 난수. */
@@ -214,13 +256,12 @@ export function createDraft(people: DraftPerson[], options: NewDraftOptions): Dr
  */
 export function rerollPositions(draft: Draft, avoid?: AvoidMap): Draft {
   const rng = rngFromSeed(draft.seed);
-  return {
+  return pushHistory(draft, {
     ...draft,
-    previousSlots: draft.slots,
     slots: assignAllPositions(draft.slots, rng, avoid),
     draws: {},
     seed: nextSeed(draft.seed),
-  };
+  });
 }
 
 /** 두 사람의 자리(팀과 포지션)를 맞바꾼다. 손으로 옮긴 사람의 고정은 풀린다. */
@@ -229,15 +270,14 @@ export function swapPeople(draft: Draft, keyA: string, keyB: string): Draft {
   const a = draft.slots.find((s) => s.key === keyA);
   const b = draft.slots.find((s) => s.key === keyB);
   if (!a || !b) return draft;
-  return {
+  return pushHistory(draft, {
     ...draft,
-    previousSlots: draft.slots,
     slots: draft.slots.map((s) => {
       if (s.key === keyA) return { ...s, team: b.team, position: b.position, locked: false };
       if (s.key === keyB) return { ...s, team: a.team, position: a.position, locked: false };
       return s;
     }),
-  };
+  });
 }
 
 /**
@@ -255,13 +295,17 @@ export function swapSides(draft: Draft): Draft {
   const draws: Partial<Record<Team, DrawRecord>> = {};
   if (draft.draws.B) draws.A = draft.draws.B;
   if (draft.draws.A) draws.B = draft.draws.A;
-  return {
+  const next: Draft = {
     ...draft,
     slots: flip(draft.slots),
     previousSlots: draft.previousSlots ? flip(draft.previousSlots) : null,
     draws,
     teamASide: "blue",
   };
+  // 되돌리기 이력·다시 앞으로도 같은 방식으로 뒤집는다(이력에서 꺼낸 자리가 지금 진영 기준과 맞게).
+  if (draft.history) next.history = draft.history.map(flip);
+  if (draft.redoSlots) next.redoSlots = flip(draft.redoSlots);
+  return next;
 }
 
 /**
@@ -281,18 +325,22 @@ export function randomDraftSide(draft: Draft): Draft {
   return { ...next, seed: nextSeed(draft.seed) };
 }
 
-/** 한 사람을 초안에 없는 다른 사람으로 바꾼다. 자리(팀·포지션)는 그대로 물려받는다. */
+/**
+ * 한 사람을 초안에 없는 다른 사람으로 바꾼다. 자리(팀·포지션)는 그대로 물려받는다.
+ * 사람이 바뀌어 예전 자리로 되돌릴 수 없으므로 되돌리기 이력은 비운다. 넣은 사람이 대기자에 있었으면 대기자에서 뺀다.
+ */
 export function replacePerson(draft: Draft, oldKey: string, person: DraftPerson): Draft {
   if (draft.people.some((p) => p.key === person.key)) return draft;
   if (!draft.people.some((p) => p.key === oldKey)) return draft;
-  return {
-    ...draft,
-    previousSlots: null,
+  const next: Draft = {
+    ...withoutHistory(draft),
     people: draft.people.map((p) => (p.key === oldKey ? person : p)),
     // 빠진 사람에게 걸려 있던 조건은 함께 지운다.
     constraints: (draft.constraints ?? []).filter((c) => c.a !== oldKey && c.b !== oldKey),
     slots: draft.slots.map((s) => (s.key === oldKey ? { ...s, key: person.key, locked: false } : s)),
   };
+  if (draft.bench) next.bench = draft.bench.filter((p) => p.key !== person.key);
+  return next;
 }
 
 /** 두 사람 사이의 조건을 넣는다. 같은 두 사람의 이전 조건은 새 조건으로 바뀐다. */
@@ -316,9 +364,11 @@ export function violatedConstraints(draft: Draft): TeamConstraint[] {
   return (draft.constraints ?? []).filter((c) => !satisfies(teamA, c));
 }
 
+/** 포지션 고정을 켜고 끈다. 이력은 남기지 않고(예전과 같음) 다시 앞으로는 지운다(고정이 사라지지 않게). */
 export function toggleLock(draft: Draft, key: string): Draft {
+  const { redoSlots: _redo, ...rest } = draft;
   return {
-    ...draft,
+    ...rest,
     slots: draft.slots.map((s) => (s.key === key ? { ...s, locked: !s.locked } : s)),
   };
 }
@@ -341,19 +391,37 @@ export function applyTeams(draft: Draft, teamA: readonly string[], avoid?: Avoid
     }
     return { ...s, team, locked };
   });
-  return {
+  return pushHistory(draft, {
     ...draft,
-    previousSlots: draft.slots,
     slots: assignAllPositions(slots, rng, avoid),
     draws: {},
     seed: nextSeed(draft.seed),
+  });
+}
+
+/**
+ * 직전 편성으로 되돌린다(최근 HISTORY_MAX단계까지). 누를 때마다 이력에서 하나씩 꺼낸다.
+ * 되돌리기 직전의 자리는 redoSlots에 남겨 "다시 앞으로"(redoDraft)로 1단계 돌아올 수 있다.
+ * (2026-11-07 이전에는 한 단계뿐이라 한 번 더 누르면 되돌리기 전으로 돌아왔다. 그 동작은 redoDraft가 맡는다.)
+ * 이력이 없으면 같은 초안을 그대로 돌려준다.
+ */
+export function undoDraft(draft: Draft): Draft {
+  const history = historyOf(draft);
+  if (history.length === 0) return draft;
+  const rest = history.slice(0, -1);
+  return {
+    ...draft,
+    slots: history[history.length - 1]!,
+    history: rest,
+    previousSlots: rest[rest.length - 1] ?? null,
+    redoSlots: draft.slots,
   };
 }
 
-/** 직전 편성으로 되돌린다. 한 번 더 누르면 다시 돌아온다. */
-export function undoDraft(draft: Draft): Draft {
-  if (!draft.previousSlots) return draft;
-  return { ...draft, slots: draft.previousSlots, previousSlots: draft.slots };
+/** 다시 앞으로(1단계): 바로 앞의 되돌리기를 취소한다. 그 자리는 다시 이력 끝에 들어간다. 없으면 그대로. */
+export function redoDraft(draft: Draft): Draft {
+  if (!draft.redoSlots) return draft;
+  return pushHistory(draft, { ...draft, slots: draft.redoSlots });
 }
 
 /**
@@ -404,14 +472,17 @@ export function keepMatchPositions(
   });
   const keys = new Set(fresh.people.map((p) => p.key));
   const samePeople = draft.people.every((p) => keys.has(p.key));
-  const next: Draft = {
+  let next: Draft = {
     ...fresh,
     constraints: (draft.constraints ?? []).filter((c) => keys.has(c.a) && keys.has(c.b)),
-    previousSlots: samePeople ? draft.slots : null,
   };
   // 시리즈로 이어가기 선택(선택 필드)은 그대로 둔다.
   if (draft.sourceMatchId !== undefined) next.sourceMatchId = draft.sourceMatchId;
   if (draft.series !== undefined) next.series = draft.series;
+  // 대기자도 그대로 둔다(지난 경기 사람은 빼고).
+  if (draft.bench) next.bench = draft.bench.filter((p) => !keys.has(p.key));
+  // 같은 사람들이면 되돌리기 이력에 남기고, 사람이 다르면 이력을 비운다.
+  next = samePeople ? pushHistory(draft, next) : withoutHistory(next);
   return next;
 }
 
@@ -423,6 +494,23 @@ export function parseStoredDraft(text: string | null): Draft | null {
     if (value.formatVersion !== DRAFT_FORMAT_VERSION) return null;
     if (!Array.isArray(value.people) || !Array.isArray(value.slots)) return null;
     if (value.people.length !== 10 || value.slots.length !== 10) return null;
+    // 선택 필드(되돌리기 이력·다시 앞으로·대기자)는 모양이 어긋나면 그 필드만 버린다. 없는 예전 초안은 그대로 읽는다.
+    const slotsOk = (v: unknown): v is DraftSlot[] => Array.isArray(v) && v.length === 10;
+    if (value.history !== undefined) {
+      if (Array.isArray(value.history) && value.history.every(slotsOk)) {
+        value.history = value.history.slice(-HISTORY_MAX);
+        value.previousSlots = value.history[value.history.length - 1] ?? null;
+      } else {
+        delete value.history;
+      }
+    }
+    if (value.redoSlots !== undefined && value.redoSlots !== null && !slotsOk(value.redoSlots)) delete value.redoSlots;
+    if (value.bench !== undefined) {
+      const ok =
+        Array.isArray(value.bench) &&
+        value.bench.every((p) => typeof p?.key === "string" && typeof p?.name === "string");
+      if (!ok) delete value.bench;
+    }
     // 예전 초안(진영 "red"·없음)은 팀 A = 블루로 맞춘다.
     return normalizeDraftSide(value);
   } catch {

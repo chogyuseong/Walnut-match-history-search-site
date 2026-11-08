@@ -23,7 +23,14 @@ import { SERIES_NAME_MAX } from "../shared/series";
 import { isValidTimeZone } from "../shared/stats";
 import { MAX_SKILL_GROUP } from "../shared/types";
 import type { Env } from "./env";
-import { accountGroupCount, MAX_GROUPS_PER_ACCOUNT, parseSettings, tooManyGroupsError } from "./groups";
+import {
+  accountGroupCount,
+  groupLimitGuard,
+  isGroupLimitError,
+  MAX_GROUPS_PER_ACCOUNT,
+  parseSettings,
+  tooManyGroupsError,
+} from "./groups";
 import { ApiError, assertOnlyKeys, nowIso, readJsonBody, requireInt, requireString } from "./http";
 import { runMutation, sha256Hex, type Plan } from "./mutation";
 import { newViewToken } from "./auth";
@@ -1409,7 +1416,9 @@ export async function importAsNewGroup(
     if ((await accountGroupCount(env, accountId)) >= MAX_GROUPS_PER_ACCOUNT) throw tooManyGroupsError();
     const now = nowIso();
     // 빈 모임을 점검 상태로 먼저 만든다. 가져오기가 끝나야 점검이 풀린다.
+    // 첫 문장: 확인과 만들기 사이에 같은 계정의 다른 요청이 끼어 한도를 넘으면 막는다(migrations/0021).
     await env.DB.batch([
+      groupLimitGuard(env, accountId),
       env.DB.prepare(
         `INSERT INTO groups (id, name, view_token, maintenance, created_at) VALUES (?1, ?2, ?3, 1, ?4)
          ON CONFLICT (id) DO NOTHING`,
@@ -1423,7 +1432,9 @@ export async function importAsNewGroup(
         `INSERT INTO restore_jobs (group_id, started_at, request_id) VALUES (?1, ?2, ?3)
          ON CONFLICT (group_id) DO NOTHING`,
       ).bind(groupId, now, requestId),
-    ]);
+    ]).catch((error: unknown) => {
+      throw isGroupLimitError(error) ? tooManyGroupsError() : error;
+    });
   }
   const { stored } = await runMutation(env, {
     groupId,

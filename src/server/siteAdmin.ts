@@ -6,6 +6,7 @@
  * 보여 주는 것은 전체 수치와 오류 기록뿐이다. 모임 이름·참가자 이름·경기 내용 등 모임 안의 자료는 읽지도 돌려주지도 않는다.
  */
 import { fakeLoginEnabled, readSession } from "./auth";
+import { backupStatus } from "./backupCron";
 import type { Env } from "./env";
 import { ApiError } from "./http";
 
@@ -77,6 +78,11 @@ export interface Overview {
   };
   /** 요청 수 제한에 걸린 횟수(종류별, 최근 7일·30일). */
   rateLimited: { bucket: string; last7: number; last30: number }[];
+  /**
+   * 자동 백업(src/server/backupCron.ts, 2026-11-07). enabled: R2 바인딩이 있는지. lastBackupAt: 가장 최근에 끝난
+   * 모임 백업의 시각(없으면 null). backedUpToday·pendingToday: 오늘(KST) 끝난·남은 모임 수.
+   */
+  backup: { enabled: boolean; lastBackupAt: string | null; backedUpToday: number; pendingToday: number };
 }
 
 interface GroupRow {
@@ -139,6 +145,7 @@ export async function siteOverview(env: Env, now = Date.now()): Promise<Overview
   ]);
   const n = (countsResult!.results[0] ?? {}) as Record<string, number>;
   const num = (key: string) => Number(n[key] ?? 0);
+  const backup = await backupStatus(env, now);
 
   return {
     generatedAt: new Date(now).toISOString(),
@@ -174,6 +181,7 @@ export async function siteOverview(env: Env, now = Date.now()): Promise<Overview
       last7: r.last7 ?? 0,
       last30: r.last30 ?? 0,
     })),
+    backup,
   };
 }
 

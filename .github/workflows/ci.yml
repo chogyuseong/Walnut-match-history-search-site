@@ -1,0 +1,59 @@
+# 검사 자동화. 배포는 하지 않는다(배포 절차는 docs/배포안내.md, 사람이 직접 한다).
+# - check: 타입 검사 → 코드 검사 → 단위·통합 테스트 → 화면 빌드 → 번들 크기 검사
+# - e2e:   로컬 D1 + wrangler dev를 띄워 브라우저 흐름 테스트(Chromium만)
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      # 이 저장소의 테스트는 Workers 실행 환경(@cloudflare/vitest-plugin)을 띄워 기본 5초 제한을 넘길 수 있다.
+      - run: npx vitest run --testTimeout=30000
+      - run: npm run build
+      - run: npm run check:bundle
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # 로컬 비밀값 파일(.dev.vars)은 git에 없다. 가짜 로그인의 세션 서명에 SESSION_SECRET이 필요하므로
+      # 실행마다 새 값을 만든다(이 값은 CI 안의 로컬 서버에서만 쓰고 버린다. 운영 비밀값과 무관).
+      - name: .dev.vars 만들기
+        run: echo "SESSION_SECRET=$(openssl rand -hex 32)" > .dev.vars
+      # playwright.config.ts의 webServer가 npm run dev(화면 빌드 → 로컬 D1 마이그레이션 → wrangler dev)를 띄운다.
+      - run: npm run e2e
+        env:
+          CI: "true"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 7

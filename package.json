@@ -1,33 +1,70 @@
 {
-    "name":  "naejeon-v2",
-    "version":  "0.0.0",
-    "private":  true,
-    "type":  "module",
-    "scripts":  {
-                    "dev":  "vite build \u0026\u0026 wrangler d1 migrations apply naejeon --local \u0026\u0026 wrangler dev",
-                    "dev:web":  "vite",
-                    "build":  "vite build",
-                    "db:migrate:local":  "wrangler d1 migrations apply naejeon --local",
-                    "test":  "vitest run",
-                    "typecheck":  "tsc --noEmit \u0026\u0026 tsc --noEmit -p tsconfig.web.json",
-                    "e2e":  "playwright test",
-                    "seed":  "node scripts/seed.mjs"
-                },
-    "dependencies":  {
-                         "hono":  "4.13.16",
-                         "react":  "19.3.1",
-                         "react-dom":  "19.3.1"
-                     },
-    "devDependencies":  {
-                            "@cloudflare/vitest-plugin":  "1.5.1",
-                            "@cloudflare/workers-types":  "5.20261104.1",
-                            "@playwright/test":  "1.64.1",
-                            "@types/react":  "19.3.0",
-                            "@types/react-dom":  "19.3.0",
-                            "@vitejs/plugin-react":  "6.2.1",
-                            "typescript":  "7.0.2",
-                            "vite":  "8.3.5",
-                            "vitest":  "5.1.0",
-                            "wrangler":  "4.157.0"
-                        }
+  "name": "naejeon-v2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build && wrangler d1 migrations apply naejeon --local && wrangler dev",
+    "dev:web": "vite",
+    "build": "vite build",
+    "db:migrate:local": "wrangler d1 migrations apply naejeon --local",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint .",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "e2e": "playwright test",
+    "seed": "node scripts/seed.mjs"
+  },
+  "dependencies": {
+    "hono": "4.13.16",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.5.1",
+    "@cloudflare/workers-types": "5.20261104.1",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "eslint": "10.14.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "typescript": "7.0.2",
+    "typescript-eslint": "8.72.1",
+    "typescript-for-eslint": "npm:typescript@5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.1.0",
+    "wrangler": "4.157.0"
+  },
+  "overrides": {
+    "typescript-eslint": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/parser": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/utils": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/type-utils": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/project-service": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/tsconfig-utils": {
+      "typescript": "$typescript"
+    },
+    "ts-api-utils": {
+      "typescript": "$typescript"
+    }
+  }
 }

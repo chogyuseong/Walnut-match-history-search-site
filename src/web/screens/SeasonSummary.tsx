@@ -6,18 +6,9 @@ import { nameMap } from "../format";
 import { drawSeasonImage, ShareImageDialog } from "../shareImage";
 import { BackLink, CopyButton } from "../ui";
 
-/** 주소의 범위 부분: "시즌ID" 또는 "year/2026". */
-export function seasonScopeFromRoute(parts: readonly (string | undefined)[]): Scope | null {
-  const [first, second] = parts;
-  if (first === "year" && second && /^\d{4}$/.test(second)) return { kind: "year", year: Number(second) };
-  if (first && first !== "year") return { kind: "season", seasonId: first };
-  return null;
-}
-
-/** 범위 → 주소의 범위 부분. */
-export function seasonRoutePart(scope: Scope): string {
-  return scope.kind === "year" ? `year/${scope.year}` : scope.kind === "season" ? scope.seasonId : "";
-}
+// 주소 읽고 쓰기는 ../seasonRoute.ts에 있다(첫 화면 묶음이 이 화면 코드 없이 쓰도록). 기존 import를 위해 다시 내보낸다.
+import { seasonRoutePart, seasonScopeFromRoute } from "../seasonRoute";
+export { seasonRoutePart, seasonScopeFromRoute };
 
 /**
  * 시즌 종료 요약과 시상(src/shared/seasonAwards.ts). 운영자·조회 링크가 같은 화면을 본다.

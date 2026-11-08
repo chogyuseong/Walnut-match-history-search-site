@@ -1,15 +1,18 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../src/server/env";
-import { ApiError, pathForLog, readJsonBody } from "../src/server/http";
+import { ApiError, CONTENT_SECURITY_POLICY, PERMISSIONS_POLICY, pathForLog, readJsonBody } from "../src/server/http";
 import app from "../src/server/index";
+import { rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
 import { api, setupGroup, unique } from "./helpers";
 
 // 검토 L5(CSRF: Origin·Content-Type), L6(본문 크기), L7(비싼 GET 요청 수), L8(로그의 토큰).
 
+const realRateNow = rateClock.now;
 afterEach(() => {
   vi.restoreAllMocks();
+  rateClock.now = realRateNow;
 });
 
 /** 헤더를 그대로 실어 서버를 직접 부른다(direct는 Content-Type을 덮어쓴다). */
@@ -142,6 +145,9 @@ describe("본문 크기(검토 L6)", () => {
 describe("비싼 GET 경로의 요청 수 제한(검토 L7)", () => {
   it("백업 내려받기·합치기 미리보기·지문 목록은 계정별 한도를 넘으면 429", async () => {
     const g = await setupGroup(2);
+    // 세 번의 요청이 60초 창의 경계를 넘으면 숫자가 처음부터 다시 세어져 가끔 실패했다. 창 가운데에 시계를 고정한다.
+    const fixed = Math.floor(Date.now() / 60_000) * 60_000 + 50 * 60_000 + 30_000;
+    rateClock.now = () => fixed;
     const limits = { RATE_HEAVY_PER_ACCOUNT: "2", RATE_HEAVY_PER_IP: "1000" } as Partial<Env>;
     for (const path of [
       `/api/groups/${g.gid}/export`,
@@ -167,6 +173,42 @@ describe("비싼 GET 경로의 요청 수 제한(검토 L7)", () => {
       expect((await direct(limits, "GET", `/api/groups/${g.gid}/snapshot`, { cookie: g.cookie })).status).toBe(200);
       expect((await direct(limits, "GET", "/api/me", { cookie: g.cookie })).status).toBe(200);
     }
+  });
+});
+
+describe("보안 헤더(2026-11-07)", () => {
+  const expected = {
+    "content-security-policy": CONTENT_SECURITY_POLICY,
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": PERMISSIONS_POLICY,
+    "x-frame-options": "DENY",
+  };
+
+  it("API 응답(정상·오류·없는 경로)에 CSP·nosniff·Referrer-Policy·Permissions-Policy가 붙는다", async () => {
+    const g = await setupGroup(0);
+    const responses = [
+      await raw("GET", "/api/health"),
+      await raw("GET", `/api/groups/${g.gid}/snapshot`, { headers: { Cookie: g.cookie } }),
+      await raw("GET", "/api/nope"),
+      await raw("PATCH", `/api/groups/${g.gid}`, { headers: { Cookie: g.cookie, "Content-Type": "text/plain" }, body: "x" }),
+    ];
+    for (const res of responses) {
+      for (const [name, value] of Object.entries(expected)) expect(res.headers.get(name), `${res.status} ${name}`).toBe(value);
+      // HSTS는 운영에서만.
+      expect(res.headers.get("strict-transport-security")).toBeNull();
+    }
+    const csp = CONTENT_SECURITY_POLICY;
+    for (const part of ["default-src 'self'", "script-src 'self'", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "connect-src 'self'", "img-src 'self' data: blob:"]) {
+      expect(csp).toContain(part);
+    }
+    expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
+  });
+
+  it("운영(DEPLOY_ENV=production)에서는 HSTS도 붙는다(설정 오류 503 응답에도)", async () => {
+    const res = await raw("GET", "/api/health", {}, { DEPLOY_ENV: "production" } as Partial<Env>);
+    expect(res.headers.get("strict-transport-security")).toBe("max-age=31536000");
+    expect(res.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
   });
 });
 

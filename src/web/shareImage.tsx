@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import type { Draft } from "../shared/draft";
 import { dayRecords } from "../shared/insights";
 import { awardTitle, awardWinnersText, type SeasonSummary } from "../shared/seasonAwards";
+import type { SessionSummary } from "../shared/sessionSummary";
 import { isCounted, safeTimeZone } from "../shared/stats";
 import { sideOfTeam, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
 import { formatDate, formatTime, nameMap, POSITION_LABEL, teamName, teamRoster, winnerText } from "./format";
@@ -212,6 +214,56 @@ export async function drawMatchImage(snapshot: Snapshot, match: MatchView): Prom
   return toBlob(canvas);
 }
 
+/**
+ * 편성 이미지(준비 화면, 2026-11-07): 시작 전 편성의 블루팀·레드팀 5명(포지션별 이름), 모임 이름, 날짜.
+ * 경기 이미지의 팀 상자(drawTeamBox)를 그대로 쓴다. 승패가 없는 경기 모양으로 넘기므로 승리·패배 표시는 없다.
+ * 넣지 않는 것: 티어·서포터 횟수·기피 라인·대기자·조회 링크(비공개 정보).
+ */
+export async function drawDraftImage(draft: Draft, groupName: string, timeZone: string): Promise<Blob> {
+  const p = palette();
+  await fontsReady(p.font);
+  const names = new Map(draft.people.map((person) => [person.key, person.name]));
+  const nameOf = (key: string) => names.get(key) ?? "";
+  const now = new Date().toISOString();
+  // 화면의 팀 상자 그리기를 다시 쓰기 위한 계산용 경기 모양. 참가자 ID 자리에 초안 키를 넣는다.
+  const shape: MatchView = {
+    id: "draft",
+    matchNo: 0,
+    sessionId: null,
+    state: "in_progress",
+    source: "live",
+    startedAt: null,
+    endedAt: null,
+    playedAt: now,
+    confirmedAt: null,
+    winnerTeam: null,
+    teamASide: draft.teamASide ?? "blue",
+    version: 0,
+    roster: draft.slots.map((s) => ({ participantId: s.key, team: s.team, position: s.position })),
+  };
+  const rowH = 58;
+  const boxH = 72 + rowH * 5 + 16;
+  const height = PAD + 150 + boxH + 48 + 110;
+  const { canvas, ctx } = newCanvas(height);
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, WIDTH, height);
+
+  setFont(ctx, p, 800, 56);
+  ctx.fillStyle = p.text;
+  ctx.fillText("오늘의 편성", PAD, PAD + 34);
+  setFont(ctx, p, 600, 30);
+  ctx.fillStyle = p.muted;
+  ctx.fillText(`아직 시작 전 · ${formatTime(now, timeZone)} 기준`, PAD, PAD + 98);
+
+  const boxW = (WIDTH - PAD * 2 - 24) / 2;
+  const top = PAD + 150;
+  TEAMS.forEach((team, i) => {
+    drawTeamBox(ctx, p, shape, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+  });
+  drawFooter(ctx, p, height, groupName, formatDate(now, timeZone));
+  return toBlob(canvas);
+}
+
 /** 이름 목록을 너비에 맞춰 여러 줄로 나눈다(이름 중간에서는 끊지 않는다. 한 이름이 너무 길면 자른다). */
 function wrapNames(ctx: CanvasRenderingContext2D, names: readonly string[], max: number): string[] {
   const lines: string[] = [];
@@ -368,6 +420,104 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
 }
 
 /**
+ * 오늘 요약 이미지(2026-11-07): 경기 수·참가 수, 개인 승패(승 많은 순), 서포터를 간 사람, 연승 중인 사람.
+ * 집계는 src/shared/sessionSummary.ts, 그리기는 오늘의 결과 이미지의 개인 승패 칸·여러 줄 글 나누기를 그대로 쓴다.
+ * 넣지 않는 것: 티어·가중치·기피 라인·서포터 횟수 보정값·조회 링크.
+ */
+export async function drawSessionSummaryImage(
+  snapshot: Snapshot,
+  summary: SessionSummary,
+  dateLabel: string,
+): Promise<Blob> {
+  const p = palette();
+  await fontsReady(p.font);
+  const innerW = WIDTH - PAD * 2;
+  const lineH = 36;
+  const personRowH = 56;
+  const personCols = 2;
+  const personRows = Math.ceil(summary.people.length / personCols);
+
+  const measure = newCanvas(1).ctx;
+  setFont(measure, p, 600, 26);
+  const supportText =
+    summary.supporters.length > 0 ? summary.supporters.map((s) => `${s.name} ${s.count}번`).join(" · ") : "기록 없음";
+  const streakText =
+    summary.streaks.length > 0 ? summary.streaks.map((s) => `${s.name} ${s.wins}연승`).join(" · ") : "없음";
+  const supportLines = wrapText(measure, supportText, innerW - 48);
+  const streakLines = wrapText(measure, streakText, innerW - 48);
+  const boxH = (lines: number) => 56 + lines * lineH;
+
+  const height =
+    PAD + 150 + 56 + personRows * personRowH + 40 + boxH(supportLines.length) + 12 + boxH(streakLines.length) + 48 + 110;
+  const { canvas, ctx } = newCanvas(height);
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, WIDTH, height);
+
+  setFont(ctx, p, 800, 56);
+  ctx.fillStyle = p.text;
+  ctx.fillText("오늘 요약", PAD, PAD + 34);
+  setFont(ctx, p, 600, 30);
+  ctx.fillStyle = p.muted;
+  ctx.fillText(
+    fit(ctx, `${dateLabel} · 확정 ${summary.games}경기 · 참가 ${summary.people.length}명`, innerW),
+    PAD,
+    PAD + 98,
+  );
+
+  let y = PAD + 150;
+  setFont(ctx, p, 800, 32);
+  ctx.fillStyle = p.text;
+  ctx.fillText("개인 승패 (승 많은 순)", PAD, y + 20);
+  y += 56;
+  const colW = (innerW - 24) / personCols;
+  summary.people.forEach((row, i) => {
+    // 승 많은 순서가 위에서 아래로 읽히도록 왼쪽 열을 먼저 채운다.
+    const col = Math.floor(i / personRows);
+    const r = i % personRows;
+    const x = PAD + col * (colW + 24);
+    const rowY = y + r * personRowH + personRowH / 2;
+    if (r % 2 === 0) {
+      ctx.fillStyle = p.elevated;
+      ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
+    }
+    ctx.fillStyle = p.text;
+    const name = fitSized(ctx, p, 700, row.name, colW - 150, 26, 20);
+    ctx.fillText(name, x + 16, rowY);
+    ctx.textAlign = "right";
+    setFont(ctx, p, 800, 26);
+    ctx.fillText(`${row.wins}승 ${row.losses}패`, x + colW - 16, rowY);
+    ctx.textAlign = "left";
+  });
+  y += personRows * personRowH + 40;
+
+  for (const [title, lines] of [
+    ["서포터", supportLines],
+    ["연승 중", streakLines],
+  ] as const) {
+    const h = boxH(lines.length);
+    roundRect(ctx, PAD, y, innerW, h, 16);
+    ctx.fillStyle = p.surface;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = p.line;
+    ctx.stroke();
+    setFont(ctx, p, 800, 26);
+    ctx.fillStyle = p.text;
+    ctx.fillText(title, PAD + 24, y + 30);
+    setFont(ctx, p, 600, 26);
+    let lineY = y + 30 + lineH;
+    for (const line of lines) {
+      ctx.fillText(line, PAD + 24, lineY);
+      lineY += lineH;
+    }
+    y += h + 12;
+  }
+
+  drawFooter(ctx, p, height, snapshot.group.name, dateLabel);
+  return toBlob(canvas);
+}
+
+/**
  * 시즌 요약 이미지: 요약 숫자와 시상 목록(근거 숫자 포함). 티어·기피 라인·조회 링크는 넣지 않는다.
  * 수상자 글이 길면 줄을 바꿔 모두 싣는다.
  */
@@ -472,7 +622,6 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, max: number): str
       continue;
     }
     if (line !== "") lines.push(line);
-    line = "";
     let piece = "";
     for (const ch of word) {
       if (ctx.measureText(piece + ch).width > max && piece !== "") {

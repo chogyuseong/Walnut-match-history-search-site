@@ -56,6 +56,10 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
       headers: requestHeaders(method, path, body !== undefined),
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
+      // GET은 늘 서버에 다시 확인한다(no-cache = 캐시를 쓰되 쓰기 전에 매번 검증). 서버가 ETag를 주면 브라우저가
+      // If-None-Match를 붙이고 304를 받아 캐시 본문을 200처럼 돌려준다. 서버 응답에 Cache-Control이 빠져도
+      // 브라우저가 추측으로 캐시해 옛 스냅숏을 검증 없이 보여 주는 일이 없게 한다.
+      cache: method === "GET" ? "no-cache" : undefined,
     });
   } catch {
     throw new ApiFailure("unknown", "서버 응답을 받지 못했어요.");
@@ -94,7 +98,7 @@ export function newRequestId(): string {
 export async function mutate<T>(
   path: string,
   body: { requestId: string } & Record<string, unknown>,
-  method: "POST" | "PUT" = "POST",
+  method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
 ): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {

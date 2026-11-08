@@ -135,25 +135,31 @@ export function remapDraft(
     }
     rename.set(person.key, replaced);
   }
-  if (rename.size === 0) return { draft, changed: false, conflicts };
+  // 대기자(2026-11-07)도 합쳐진 사람을 남은 사람으로 바꾸고, 편성에 이미 있는 사람은 뺀다.
+  const bench = draft.bench ? remapPeople(draft.bench, participants) : null;
+  const finalKeys = new Set(draft.people.map((p) => rename.get(p.key)?.key ?? p.key));
+  const benchPeople = bench ? bench.people.filter((p) => !finalKeys.has(p.key)) : null;
+  const benchChanged = bench !== null && (bench.changed || benchPeople!.length !== bench.people.length);
+  if (rename.size === 0 && !benchChanged) return { draft, changed: false, conflicts };
+  if (rename.size === 0) return { draft: { ...draft, bench: benchPeople! }, changed: true, conflicts };
   const keyOf = (key: string) => rename.get(key)?.key ?? key;
+  const remapSlots = (slots: Draft["slots"]) => slots.map((s) => ({ ...s, key: keyOf(s.key) }));
   const touchedTeams = new Set(
     draft.slots.filter((s) => rename.has(s.key)).map((s) => s.team),
   );
   const draws = { ...draft.draws };
   for (const team of touchedTeams) delete draws[team];
-  return {
-    changed: true,
-    conflicts,
-    draft: {
-      ...draft,
-      people: draft.people.map((p) => rename.get(p.key) ?? p),
-      slots: draft.slots.map((s) => ({ ...s, key: keyOf(s.key) })),
-      previousSlots: draft.previousSlots
-        ? draft.previousSlots.map((s) => ({ ...s, key: keyOf(s.key) }))
-        : null,
-      constraints: draft.constraints?.map((c) => ({ ...c, a: keyOf(c.a), b: keyOf(c.b) })),
-      draws,
-    },
+  const next: Draft = {
+    ...draft,
+    people: draft.people.map((p) => rename.get(p.key) ?? p),
+    slots: remapSlots(draft.slots),
+    previousSlots: draft.previousSlots ? remapSlots(draft.previousSlots) : null,
+    constraints: draft.constraints?.map((c) => ({ ...c, a: keyOf(c.a), b: keyOf(c.b) })),
+    draws,
   };
+  // 되돌리기 이력·다시 앞으로(2026-11-07)도 같은 키로 바꾼다.
+  if (draft.history) next.history = draft.history.map(remapSlots);
+  if (draft.redoSlots) next.redoSlots = remapSlots(draft.redoSlots);
+  if (benchPeople) next.bench = benchPeople;
+  return { changed: true, conflicts, draft: next };
 }

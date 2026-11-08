@@ -10,7 +10,7 @@ import {
 import { normalizeMemo } from "../../shared/memo";
 import { mutate, newRequestId } from "../api";
 import { MemoField, memoTooLong } from "../memoField";
-import { formatTime, TEAM_MARK, teamName, teamRoster, winnerText } from "../format";
+import { formatTime, TEAM_MARK, teamBoxClass, teamName, teamRoster, winnerText } from "../format";
 import { Dialog, ErrorNote } from "../ui";
 import { useAppValue } from "../useApp";
 
@@ -24,8 +24,9 @@ const SIDE_CHOICES: { value: Side; label: string }[] = [
  * 화면 5 — 결과 입력 창(docs/P2 P2-7).
  * ① 명단을 보고 승리 팀 선택 → ② 승리 팀의 실제 진영 → ③ 요약 확인 후 저장.
  * 진영은 미리 선택돼 있지 않고, 승리 팀을 바꾸면 진영을 다시 묻는다.
- * 단, 준비 화면에서 시작한 경기(팀 A = 블루팀)처럼 진영이 정해진 경기는 승리 팀을 "블루팀 승"/"레드팀 승"으로 고르고
- * 진영은 그 값으로 미리 골라 둔다. 진영 단계는 실제와 다르면 바로잡는 확인용이다(저장 내용은 예전과 같다).
+ * 단, 준비 화면에서 시작한 경기(팀 A = 블루팀)처럼 진영이 정해진 경기의 결과 입력은 "블루팀 승"/"레드팀 승" 큰 버튼 두 개로
+ * 고르고(한 손 조작) 진영은 그 값으로 미리 골라 둔다. 진영 정정은 "진영이 시작할 때와 달랐나요?" 접힘 영역에 있다
+ * (2026-11-07 재배치. 저장 내용·요청은 예전과 같다). 진영을 모르는 예전 경기(팀 A/B)와 승리 팀 정정은 예전 3단계 그대로다.
  * mode가 "correct"면 확정 경기의 승리 팀 정정이다.
  */
 export function ResultSheet(props: {
@@ -116,6 +117,93 @@ export function ResultSheet(props: {
     teamASide !== "unknown" &&
     (match.teamASide === "blue" || match.teamASide === "red") &&
     teamASide !== match.teamASide;
+
+  // 진영이 정해진 경기의 결과 입력(2026-11-07): "블루팀 승 / 레드팀 승" 큰 버튼 두 개로 고르고 바로 저장한다.
+  // 진영 정정은 접힘 영역으로 내렸다. 보내는 내용(승리 팀 + 승리 팀의 진영)과 요청은 예전과 같다.
+  const quick = props.mode === "result" && presetWinnerSide("A", match.teamASide) !== null;
+  if (quick) {
+    return (
+      <Dialog title={title} onClose={props.onClose}>
+        <div className="result-pick" role="group" aria-label="어느 팀이 이겼나요?">
+          {TEAMS.map((team) => (
+            <button
+              key={team}
+              type="button"
+              className={`result-win ${teamBoxClass(team, match.teamASide)}`}
+              aria-pressed={winner === team}
+              onClick={() => {
+                setWinner(team);
+                // 승리 팀을 바꾸면 진영을 그 팀의 시작 진영으로 다시 채운다(접힘 영역에서 고친 값은 버린다).
+                setSide(presetWinnerSide(team, match.teamASide));
+              }}
+            >
+              <strong className="result-win-title">
+                <span aria-hidden="true">{TEAM_MARK[team]}</span> {teamName(team, match.teamASide)} 승
+                {winner === team && <span className="tag">선택</span>}
+              </strong>
+              <span className="hint result-win-names">
+                {teamRoster(match, team)
+                  .map((r) => nameOf(r.participantId))
+                  .join(" · ")}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {winner && side && (
+          <section aria-label="요약">
+            <p>
+              <strong>
+                {match.matchNo}경기 · {winnerText(winner, teamASide)}
+              </strong>
+            </p>
+            {flipped && (
+              <p className="hint">
+                시작할 때와 진영이 반대예요. 저장하면 {TEAM_MARK.A} 쪽이 {teamName("A", teamASide)}, {TEAM_MARK.B} 쪽이{" "}
+                {teamName("B", teamASide)}이 돼요.
+              </p>
+            )}
+            {side === "unknown" && <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠집니다.</p>}
+          </section>
+        )}
+
+        {winner && (
+          <details className="result-side">
+            <summary>진영이 시작할 때와 달랐나요?</summary>
+            <fieldset>
+              <legend>이긴 팀({teamName(winner, match.teamASide)})은 실제로 어느 진영이었나요?</legend>
+              <p className="hint">시작할 때 정한 진영으로 미리 골라 뒀어요. 실제와 다르면 바꿔 주세요.</p>
+              <div className="choice-row">
+                {SIDE_CHOICES.map((choice) => (
+                  <label key={choice.value} className={side === choice.value ? "choice chosen" : "choice"}>
+                    <input
+                      type="radio"
+                      name="side"
+                      checked={side === choice.value}
+                      onChange={() => setSide(choice.value)}
+                    />
+                    <span>{choice.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </details>
+        )}
+
+        {winner && <MemoField value={memo} onChange={setMemo} />}
+
+        <ErrorNote error={error} onCheck={() => void save()} />
+        <button
+          type="button"
+          className="primary wide"
+          disabled={!winner || !side || busy || memoTooLong(memo)}
+          onClick={() => void save()}
+        >
+          {busy ? "저장 중" : "저장"}
+        </button>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog title={title} onClose={props.onClose}>

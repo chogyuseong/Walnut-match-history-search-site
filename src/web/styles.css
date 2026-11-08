@@ -3542,3 +3542,57 @@ select option:disabled {
 .member-home .segmented {
   flex-wrap: wrap;
 }
+
+/* ---------- 사용자 편의 기능(2026-11-07) ---------- */
+/* 결과 입력 2버튼: 진영 색은 팀 상자(.team.side-blue/red)를 그대로 쓴다. 좁은 화면에서도 두 버튼을 나란히 둔다. */
+.result-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+@media (max-width: 359px) {
+  .result-pick {
+    grid-template-columns: 1fr;
+  }
+}
+.result-win {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 88px;
+  min-width: 0;
+  padding: 12px;
+  text-align: left;
+}
+.result-win-title {
+  font-size: 1.125rem;
+}
+.result-win-names {
+  overflow-wrap: anywhere;
+}
+.result-win[aria-pressed="true"] {
+  border: 3px solid var(--primary);
+  box-shadow: none;
+}
+.result-side {
+  margin: 8px 0 12px;
+}
+.result-side fieldset {
+  margin-bottom: 4px;
+}
+/* 오늘 요약 공유: 붙여 넣을 글 미리보기 */
+.summary-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0;
+  font: inherit;
+  font-size: 0.875rem;
+  max-height: 40vh;
+  overflow-y: auto;
+}

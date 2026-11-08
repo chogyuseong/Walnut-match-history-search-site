@@ -468,6 +468,112 @@ export async function confirmResult(
 }
 
 /* ------------------------------------------------------------------ */
+/* 진행 중 경기의 사람 교체(2026-11-07)                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 진행 중 경기의 한 사람을 같은 모임의 다른 활성 참가자로 바꾼다(운영자·공동 운영자).
+ * - 바뀐 사람은 나간 사람의 팀·포지션을 그대로 물려받는다. 경기 ID·번호·시작 시각은 그대로다.
+ * - 나간 사람이 이 경기에서 서포터 차례 사건을 가졌으면(서포터 자리) 그 사건도 들어온 사람에게 옮긴다.
+ *   들어온 사람이 이번 순환에서 이미 서포터를 했으면 사건은 "반복"이 되고, 시작 때처럼 확인(ackRepeat)을 받아야 한다.
+ *   차례를 아직 안 쓴 사람이면 "사용"이 된다(나간 사람의 반복 사건이었어도). 서포터 횟수 보정값은 건드리지 않는다.
+ * - 경기 버전·진행 상태 버전을 올리고 정정 이력(kind correction, participant 항목)을 남긴다.
+ * 결과가 정해진 경기의 사람 바꾸기는 기존 항목별 정정(correctMatch field "participant")을 쓴다.
+ */
+export async function replaceLiveParticipant(
+  env: Env,
+  groupId: string,
+  matchId: string,
+  body: Body,
+): Promise<MatchView> {
+  assertOnlyKeys(body, ["requestId", "baseMatchVersion", "outParticipantId", "inParticipantId", "ackRepeat"]);
+  const requestId = requestIdOf(body);
+  const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
+  const outId = requireString(body.outParticipantId, "outParticipantId", 1, 64);
+  const inId = requireString(body.inParticipantId, "inParticipantId", 1, 64);
+  const ackRepeat = body.ackRepeat === true;
+  if (outId === inId) {
+    throw new ApiError(400, "INVALID_PARTICIPANT", "같은 사람으로는 바꿀 수 없습니다.", { participantIds: [inId] });
+  }
+  // 반복 확인을 보내지 않은 요청은 확인 없는 내용으로 해시한다(확인 뒤 다시 보낼 때는 새 요청 ID를 쓴다).
+  const base = { matchId, baseMatchVersion, outId, inId };
+  await runMutation(env, {
+    groupId,
+    requestId,
+    op: "live-roster",
+    payload: ackRepeat ? { ...base, ackRepeat } : base,
+    conflictDetails: () => matchConflictDetails(env, groupId, matchId),
+    build: async () => {
+      const match = await loadMatch(env, groupId, matchId);
+      assertMatchVersion(match, baseMatchVersion);
+      assertState(match, ["in_progress"]);
+      if (!match.roster.some((r) => r.participantId === outId)) {
+        throw new ApiError(400, "INVALID_PARTICIPANT", "이 경기의 참가자가 아닙니다.", { participantIds: [outId] });
+      }
+      if (match.roster.some((r) => r.participantId === inId)) {
+        throw new ApiError(400, "INVALID_PARTICIPANT", "이미 이 경기에 있는 참가자입니다.", { participantIds: [inId] });
+      }
+      // 다른 모임·보관·합쳐진 참가자는 여기서 거절된다.
+      await assertActiveParticipants(env, groupId, [inId]);
+
+      const now = nowIso();
+      const statements: D1PreparedStatement[] = [
+        matchGuard(env, groupId, matchId, baseMatchVersion, "in_progress"),
+        env.DB.prepare(
+          "UPDATE match_roster SET participant_id = ?1 WHERE match_id = ?2 AND group_id = ?3 AND participant_id = ?4",
+        ).bind(inId, matchId, groupId, outId),
+      ];
+      const changes: Record<string, { from: unknown; to: unknown }> = {
+        participant: { from: outId, to: inId },
+      };
+
+      const event = await env.DB.prepare(
+        `SELECT id, cycle_id FROM rotation_events
+         WHERE match_id = ?1 AND participant_id = ?2 AND voided = 0`,
+      )
+        .bind(matchId, outId)
+        .first<{ id: string; cycle_id: string }>();
+      if (event) {
+        const already = await env.DB.prepare(
+          `SELECT 1 AS ok FROM rotation_events
+           WHERE cycle_id = ?1 AND participant_id = ?2 AND kind = 'used' AND voided = 0`,
+        )
+          .bind(event.cycle_id, inId)
+          .first<{ ok: number }>();
+        if (already && !ackRepeat) {
+          throw new ApiError(
+            409,
+            "SUPPORT_REPEAT",
+            "이번 순환에서 이미 서포터를 한 사람이 서포터 자리에 들어갑니다.",
+            { participantIds: [inId] },
+          );
+        }
+        statements.push(
+          env.DB.prepare("UPDATE rotation_events SET participant_id = ?1, kind = ?2 WHERE id = ?3").bind(
+            inId,
+            already ? "repeat" : "used",
+            event.id,
+          ),
+        );
+        const team = match.roster.find((r) => r.participantId === outId)!.team;
+        changes[`rotation:${team}`] = { from: outId, to: inId };
+      }
+
+      statements.push(
+        env.DB.prepare("UPDATE matches SET version = version + 1 WHERE id = ?1 AND group_id = ?2").bind(
+          matchId,
+          groupId,
+        ),
+        bumpLiveVersion(env, groupId),
+        insertRevision(env, groupId, matchId, "correction", changes, now),
+      );
+      return { stored: { matchId }, statements };
+    },
+  });
+  return loadMatch(env, groupId, matchId);
+}
+
+/* ------------------------------------------------------------------ */
 /* 경기 메모                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -1181,6 +1287,7 @@ function parseImportSource(value: unknown): ImportSource | undefined {
   }
   let label: string | null = null;
   if (raw.label !== undefined && raw.label !== null) {
+    // eslint-disable-next-line no-control-regex -- 제어 문자를 일부러 찾아 공백으로 바꾼다.
     label = requireString(raw.label, "source.label", 1, 100).replace(/[\u0000-\u001f\u007f]/g, " ").trim() || null;
   }
   if (raw.options !== undefined && raw.options !== null) {

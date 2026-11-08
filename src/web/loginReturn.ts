@@ -21,7 +21,7 @@ export function rememberLoginReturn(hash: string): void {
 /** 기억해 둔 화면으로 주소를 바꾼다(기록을 남기지 않음). "#/login-return"일 때만 동작한다. */
 export function resolveLoginReturn(): void {
   if (typeof location === "undefined" || location.hash !== LOGIN_RETURN_HASH) return;
-  let saved: string | null = null;
+  let saved: string | null;
   try {
     saved = sessionStorage.getItem(KEY);
     sessionStorage.removeItem(KEY);

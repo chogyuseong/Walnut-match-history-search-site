@@ -1,38 +1,62 @@
-import { useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { AccountControl, LOGIN_ONLY, LoginRequired } from "./account";
-import type { MatchView } from "../shared/types";
-import { nameMap } from "./format";
-import { Backfill } from "./screens/Backfill";
-import { Compare } from "./screens/Compare";
-import { DangerZone } from "./screens/DangerZone";
-import { Graphs } from "./screens/Graphs";
-import { Group } from "./screens/Group";
-import { Import } from "./screens/Import";
-import { SheetImport } from "./screens/SheetImport";
-import { LegacyImport } from "./screens/LegacyImport";
-import { Match } from "./screens/Match";
-import { Merge } from "./screens/Merge";
-import { Person } from "./screens/Person";
-import { Pick } from "./screens/Pick";
-import { Prep } from "./screens/Prep";
-import { PriorityScreen } from "./screens/Priority";
-import { MatchDetail, Records } from "./screens/Records";
-import { ResultSheet } from "./screens/ResultSheet";
-import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./screens/SeasonSummary";
-import { Search } from "./screens/Search";
-import { Today } from "./screens/Today";
-import { Transfer } from "./screens/Transfer";
-import { CoInvite } from "./screens/CoOperators";
-import { Viewer } from "./screens/Viewer";
-import { Demo } from "./screens/Demo";
-import { SiteAdmin } from "./screens/SiteAdmin";
-import { Join } from "./screens/Join";
-import { Claim, Member } from "./screens/Member";
+import {
+  Backfill,
+  Claim,
+  CoInvite,
+  Compare,
+  DangerZone,
+  Demo,
+  Graphs,
+  Group,
+  Import,
+  Join,
+  LegacyImport,
+  loadOperatorScreens,
+  Match,
+  MatchDetail,
+  Member,
+  Merge,
+  OperatorRecords,
+  Person,
+  Pick,
+  Prep,
+  preload,
+  PriorityScreen,
+  Privacy,
+  Search,
+  SeasonSummaryScreen,
+  SheetImport,
+  SiteAdmin,
+  Today,
+  Transfer,
+  Viewer,
+  ViewerLive,
+} from "./lazyScreens";
 import { LoginFailed } from "./screens/Login";
-import { Privacy } from "./screens/Privacy";
+import { seasonRoutePart, seasonScopeFromRoute } from "./seasonRoute";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
 import { useKeyboardFlag } from "./ui";
-import { AppContext, go, useApp, useAppValue, useRoute } from "./useApp";
+import { AppContext, go, useApp, useAppValue, useRoute, type AppValue } from "./useApp";
+
+/** 화면 코드를 받는 동안 보여 주는 표시. 모임 기록을 받는 동안의 표시와 같다. */
+const LOADING = <p className="screen">불러오는 중…</p>;
+
+/**
+ * 운영자 화면 묶음(src/web/screens/operator.ts)을 첫 화면을 그린 뒤 미리 받는다. 고르기·준비 화면으로 넘어갈 때
+ * "불러오는 중…"이 깜빡이지 않게 한다. 로그인했거나 이 기기에 작성 중인 편성이 있을 때만(곧 쓸 사람) 받는다.
+ */
+function usePrefetchOperator(app: AppValue, enabled: boolean): void {
+  const wanted = enabled && app.ready && (!!app.me?.accountId || app.draft !== null);
+  useEffect(() => {
+    if (!wanted) return;
+    const timer = setTimeout(() => {
+      // 미리 받기에 실패해도(오프라인 등) 화면을 열 때 다시 받는다.
+      preload(loadOperatorScreens).catch(() => undefined);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [wanted]);
+}
 
 export function App() {
   const route = useRoute();
@@ -41,15 +65,19 @@ export function App() {
   const isJoin = route[0] === "join" && typeof route[1] === "string";
   // 예시 모임(#/demo)은 기기에서 만든 합성 데이터만 보여 주므로 운영자 상태를 읽지 않는다.
   const isDemo = route[0] === "demo";
-  const app = useApp(!isViewer && !isJoin && !isDemo);
+  const operatorMode = !isViewer && !isJoin && !isDemo;
+  const app = useApp(operatorMode);
   useKeyboardFlag();
+  usePrefetchOperator(app, operatorMode);
 
   if (isJoin) {
     return (
       <>
         <TopBar />
         <main>
-          <Join token={route[1]!} rest={route.slice(2)} />
+          <Suspense fallback={LOADING}>
+            <Join token={route[1]!} rest={route.slice(2)} />
+          </Suspense>
           <LegalFooter privacyHref={`#/join/${route[1]}/privacy`} />
         </main>
       </>
@@ -61,7 +89,9 @@ export function App() {
       <>
         <TopBar homeLink />
         <main>
-          <Demo rest={route.slice(1)} />
+          <Suspense fallback={LOADING}>
+            <Demo rest={route.slice(1)} />
+          </Suspense>
           <LegalFooter />
         </main>
       </>
@@ -73,7 +103,14 @@ export function App() {
       <>
         <TopBar />
         <main>
-          <Viewer token={route[1]!} rest={route.slice(2)} />
+          <Suspense fallback={LOADING}>
+            {/* 참가자 편성(#/v/토큰/live)은 진행 중 편성만 보여 주는 작은 화면이라 조회 화면 묶음을 받지 않는다. */}
+            {route[2] === "live" ? (
+              <ViewerLive token={route[1]!} />
+            ) : (
+              <Viewer token={route[1]!} rest={route.slice(2)} />
+            )}
+          </Suspense>
           {/* 조회 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
           <LegalFooter privacyHref={`#/v/${route[1]}/privacy`} />
         </main>
@@ -86,10 +123,12 @@ export function App() {
       <TopBar homeLink actions={<AccountControl />} />
       <main>
         {!app.ready || app.switching ? (
-          <p className="screen">불러오는 중…</p>
+          LOADING
         ) : (
           // 모임을 바꾸면 화면을 새로 그린다(앞 모임에서 입력하던 상태가 남지 않게).
-          <OperatorScreen key={app.switchSeq} route={route} />
+          <Suspense fallback={LOADING}>
+            <OperatorScreen key={app.switchSeq} route={route} />
+          </Suspense>
         )}
         <LegalFooter />
       </main>
@@ -330,7 +369,7 @@ function OperatorScreen(props: { route: string[] }) {
         back={() => go("/records")}
         openMatch={(matchId) => go(`/m/${matchId}`)}
         openPerson={(personId) => go(`/p/${personId}`)}
-        openCompare={(personId) => go(`/compare/${personId}/-`)}
+        openCompare={(personId, other) => go(`/compare/${personId}/${other ?? "-"}`)}
       />
     );
   }
@@ -349,44 +388,6 @@ function OperatorScreen(props: { route: string[] }) {
     );
   }
   return <Today />;
-}
-
-function OperatorRecords() {
-  const app = useAppValue();
-  const [resultFor, setResultFor] = useState<MatchView | null>(null);
-  if (!app.snapshot) {
-    return (
-      <div className="screen">
-        <h1>기록</h1>
-        <p>아직 기록이 없어요.</p>
-        <button type="button" className="primary" onClick={() => go("/pick")}>
-          이름 넣고 팀 짜기
-        </button>
-      </div>
-    );
-  }
-  return (
-    <>
-      <Records
-        snapshot={app.snapshot}
-        openMatch={(matchId) => go(`/m/${matchId}`)}
-        openPerson={(personId) => go(`/p/${personId}`)}
-        openGraphs={() => go("/graphs")}
-        openBackfill={app.me?.accountId ? () => go("/backfill") : undefined}
-        onResult={setResultFor}
-        openSeason={(scope) => go(`/season/${seasonRoutePart(scope)}`)}
-        app={app.me?.accountId ? app : null}
-      />
-      {resultFor && (
-        <ResultSheet
-          match={resultFor}
-          mode="result"
-          nameOf={nameMap(app.snapshot)}
-          onClose={() => setResultFor(null)}
-        />
-      )}
-    </>
-  );
 }
 
 /** 주 메뉴: 오늘 · 검색 · 기록 · 분석 · 모임. 모임 탭은 로그인한 운영자에게만 보인다. */

@@ -104,7 +104,9 @@ describe("현황 응답", () => {
     expect(text).not.toContain(gid);
     expect(text).not.toContain(match.id);
     expect(text).not.toContain(adminId);
-    expect(Object.keys(body).sort()).toEqual(["errors", "generatedAt", "rateLimited", "recent", "totals"]);
+    // backup: 자동 백업 상태(시각·개수만, src/server/backupCron.ts backupStatus).
+    expect(Object.keys(body).sort()).toEqual(["backup", "errors", "generatedAt", "rateLimited", "recent", "totals"]);
+    expect(Object.keys(body.backup).sort()).toEqual(["backedUpToday", "enabled", "lastBackupAt", "pendingToday"]);
   });
 
   it("오류 목록은 같은 오류를 묶어 건수와 스택을 주고, 요청 수 제한에 걸린 횟수도 준다. 비우기는 사이트 운영자만", async () => {

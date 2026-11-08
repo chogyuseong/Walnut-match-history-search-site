@@ -21,7 +21,7 @@ import {
 } from "../shared/types";
 import { decodeAvoid } from "../shared/avoid";
 import type { Env } from "./env";
-import { loadAdjustmentsView } from "./supportCounts";
+import { foldAdjustments } from "./supportCounts";
 import { ApiError, nowIso } from "./http";
 
 interface GroupRow {
@@ -159,74 +159,247 @@ export async function loadMatch(env: Env, groupId: string, matchId: string): Pro
   return view;
 }
 
+/* ------------------------------------------------------------------ */
+/* ETag(조건부 요청)                                                     */
+/* ------------------------------------------------------------------ */
+
+/** ETag 계산에 쓰는 모임 행의 값. 화면 자료가 바뀌면 data_version(트리거, migrations/0021)이 오른다. */
+export interface EtagHead {
+  id: string;
+  name: string;
+  timezone: string;
+  live_version: number;
+  settings_version_id: string | null;
+  view_token: string;
+  generation: number;
+  maintenance: number;
+  data_version: number;
+}
+
+const ETAG_HEAD_COLUMNS =
+  "id, name, timezone, live_version, settings_version_id, view_token, generation, maintenance, data_version";
+
+/** 운영자 스냅숏의 ETag용 모임 행(1행 읽기). 없으면 null. */
+export async function loadEtagHead(env: Env, groupId: string): Promise<EtagHead | null> {
+  return env.DB.prepare(`SELECT ${ETAG_HEAD_COLUMNS} FROM groups WHERE id = ?1`).bind(groupId).first<EtagHead>();
+}
+
+/** 조회 토큰으로 모임 행을 찾는다(조회 링크 경로가 토큰 확인과 ETag 계산을 한 번에 한다). 없으면 null. */
+export async function loadEtagHeadByViewToken(env: Env, token: string): Promise<EtagHead | null> {
+  return env.DB.prepare(`SELECT ${ETAG_HEAD_COLUMNS} FROM groups WHERE view_token = ?1`).bind(token).first<EtagHead>();
+}
+
+/**
+ * 스냅숏 응답 모양이 바뀌면 올린다. 배포 버전(CF_VERSION_METADATA)도 함께 넣으므로 보통은 올리지 않아도 되지만,
+ * 버전 정보가 없는 환경(로컬)에서 응답 모양을 바꿨을 때를 위해 둔다.
+ */
+const ETAG_SHAPE = "s1";
+/** 운영자 스냅숏에는 시각에 따라 달라지는 값(연결 링크 만료)이 있어 이 간격마다 ETag를 바꾼다. */
+const OPERATOR_ETAG_BUCKET_MS = 60_000;
+
+async function shortHash(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest).slice(0, 12)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * 스냅숏 ETag(약한 비교: 본문의 serverTime은 매번 다르지만 같은 자료로 본다).
+ * 넣는 값: 역할, 모임 ID, 화면 자료 버전(data_version), 진행 상태 버전, 세대(복원), 설정 버전 ID, 점검 여부,
+ * 이름·시간대·조회 토큰, 배포 버전. 운영자는 1분 단위 시각도 넣는다(연결 링크 만료가 시간에 따라 바뀐다).
+ * 이 값들이 같으면 buildSnapshot의 결과(serverTime 말고)가 같다는 것이 이 설계의 약속이다:
+ * 스냅숏에 새 표를 싣게 되면 그 표에도 data_version 트리거를 만들어야 한다(migrations/0021 머리말).
+ */
+export async function snapshotEtag(
+  env: Env,
+  head: EtagHead,
+  role: "operator" | "viewer",
+  now = Date.now(),
+): Promise<string> {
+  const parts: (string | number | null)[] = [
+    ETAG_SHAPE,
+    env.CF_VERSION_METADATA?.id ?? "",
+    role,
+    head.id,
+    head.data_version,
+    head.live_version,
+    head.generation,
+    head.settings_version_id,
+    head.maintenance,
+    head.name,
+    head.timezone,
+    head.view_token,
+  ];
+  if (role === "operator") parts.push(Math.floor(now / OPERATOR_ETAG_BUCKET_MS));
+  return `W/"${await shortHash(JSON.stringify(parts))}"`;
+}
+
+/** If-None-Match 헤더가 이 ETag와 맞는지(약한 비교, 여러 값·"*" 허용). */
+export function etagMatches(ifNoneMatch: string | null | undefined, etag: string): boolean {
+  if (!ifNoneMatch) return false;
+  const bare = (t: string) => t.trim().replace(/^W\//, "");
+  const want = bare(etag);
+  return ifNoneMatch.split(",").some((t) => t.trim() === "*" || bare(t) === want);
+}
+
+/* ------------------------------------------------------------------ */
+/* 스냅숏                                                               */
+/* ------------------------------------------------------------------ */
+
+interface ParticipantRow {
+  id: string;
+  name: string;
+  status: "active" | "archived";
+  skill_group: number | null;
+  avoid_positions: string | null;
+  merged_into: string | null;
+  version: number;
+}
+
+/** batch 결과의 행 목록. */
+function rowsOf<T>(result: D1Result | undefined): T[] {
+  return (result?.results ?? []) as unknown as T[];
+}
+
 /**
  * 모임의 현재 상태 전체를 만든다.
  * 조회 응답·명단 텍스트·조회자용 내보내기는 모두 이 함수의 "viewer" 결과에서 나온다.
  * 비공개 모임에서 viewer 결과에는 실력 그룹·가중치·조회 토큰이 들어가지 않는다.
+ *
+ * 모든 읽기를 D1 batch 한 번(왕복 1회)으로 한다(2026-11-07). batch는 한 트랜잭션이라 모든 값이 같은 시점이다
+ * (예전에는 10번 넘게 따로 읽어, 읽는 사이에 저장이 끼면 경기와 명단이 서로 다른 시점일 수 있었다).
+ * 활성 순환 주기·보정값처럼 앞 결과에 기대는 값은 하위 질의로 같은 batch 안에서 찾는다.
  */
 export async function buildSnapshot(
   env: Env,
   groupId: string,
   role: "operator" | "viewer",
 ): Promise<Snapshot> {
-  const group = await loadGroup(env, groupId);
-  const settings = await loadSettings(env, group.settings_version_id);
   const includePrivate = role === "operator";
+  const db = env.DB;
+  // 열린 내전의 활성 순환 주기(없으면 NULL). 열린 내전은 모임당 하나다(uq_sessions_open).
+  const activeCycle = `(SELECT c.id FROM rotation_cycles c JOIN sessions s ON s.id = c.session_id
+     WHERE s.group_id = ?1 AND s.closed_at IS NULL AND c.status = 'active' LIMIT 1)`;
+  const common: D1PreparedStatement[] = [
+    db
+      .prepare(
+        `SELECT id, name, timezone, live_version, settings_version_id, view_token, next_match_no, generation, maintenance
+         FROM groups WHERE id = ?1`,
+      )
+      .bind(groupId),
+    db
+      .prepare(
+        "SELECT payload FROM settings_versions WHERE id = (SELECT settings_version_id FROM groups WHERE id = ?1)",
+      )
+      .bind(groupId),
+    // 합쳐진 사람에게는 남은 사람의 ID를 붙인다(되돌리지 않은 합치기만). 공개 정보다: 이름과 같은 수준.
+    db
+      .prepare(
+        `SELECT p.id, p.name, p.status, p.skill_group, p.avoid_positions, p.version, m.target_id AS merged_into
+         FROM participants p
+         LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
+         WHERE p.group_id = ?1 ORDER BY p.created_at, p.id`,
+      )
+      .bind(groupId),
+    db
+      .prepare("SELECT id, started_at, last_activity_at FROM sessions WHERE group_id = ?1 AND closed_at IS NULL")
+      .bind(groupId),
+    db.prepare(`SELECT ${activeCycle} AS id`).bind(groupId),
+    db
+      .prepare(
+        `SELECT match_id, participant_id, kind FROM rotation_events
+         WHERE cycle_id = ${activeCycle} AND voided = 0 ORDER BY created_at, id`,
+      )
+      .bind(groupId),
+    db.prepare(`SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 ORDER BY played_at, match_no`).bind(groupId),
+    db.prepare("SELECT match_id, participant_id, team, position FROM match_roster WHERE group_id = ?1").bind(groupId),
+    ...revisionStatements(env, groupId),
+    db
+      .prepare("SELECT id, name, starts_on, ends_on FROM seasons WHERE group_id = ?1 ORDER BY starts_on")
+      .bind(groupId),
+    ...seriesStatements(env, groupId),
+  ];
+  const operatorOnly: D1PreparedStatement[] = includePrivate
+    ? [
+        // 서포터 횟수 보정값: 활성 주기의 것, 주기가 없으면 첫 경기 전에 받아 둔 것(cycle_id IS NULL).
+        db
+          .prepare(
+            `SELECT participant_id, delta FROM support_adjustments WHERE group_id = ?1 AND cycle_id IS ${activeCycle}`,
+          )
+          .bind(groupId),
+        db
+          .prepare(
+            `SELECT import_batch_id AS id, COUNT(*) AS count,
+               SUM(CASE WHEN state = 'excluded' THEN 1 ELSE 0 END) AS excluded,
+               MIN(confirmed_at) AS imported_at
+             FROM matches WHERE group_id = ?1 AND import_batch_id IS NOT NULL
+             GROUP BY import_batch_id ORDER BY imported_at DESC`,
+          )
+          .bind(groupId),
+        db.prepare("SELECT id, kind, label FROM import_batches WHERE group_id = ?1").bind(groupId),
+        db
+          .prepare(
+            `SELECT id, source_id, target_id, json_array_length(moved_matches) AS match_count, created_at, undone_at
+             FROM participant_merges WHERE group_id = ?1 ORDER BY created_at DESC, id LIMIT 50`,
+          )
+          .bind(groupId),
+        db
+          .prepare(
+            "SELECT participant_id, created_at, avoid_self_at FROM participant_links WHERE group_id = ?1 ORDER BY created_at",
+          )
+          .bind(groupId),
+        db
+          .prepare(
+            `SELECT participant_id, MAX(expires_at) AS expires_at FROM participant_claims
+             WHERE group_id = ?1 AND used_at IS NULL AND expires_at > ?2 GROUP BY participant_id`,
+          )
+          .bind(groupId, nowIso()),
+        ...memberRequestStatements(env, groupId),
+      ]
+    : [];
+  const results = await db.batch([...common, ...operatorOnly]);
+  let i = 0;
+  const next = () => results[i++];
+
+  const group = rowsOf<GroupRow>(next())[0];
+  if (!group) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  const settingsRow = rowsOf<{ payload: string }>(next())[0];
+  const settings = settingsFromPayload(group.settings_version_id ? settingsRow?.payload : undefined);
   const includeGroups = includePrivate || settings.groupsPublic;
 
-  // 합쳐진 사람에게는 남은 사람의 ID를 붙인다(되돌리지 않은 합치기만). 공개 정보다: 이름과 같은 수준.
-  const participantRows = await env.DB.prepare(
-    `SELECT p.id, p.name, p.status, p.skill_group, p.avoid_positions, m.target_id AS merged_into
-     FROM participants p
-     LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
-     WHERE p.group_id = ?1 ORDER BY p.created_at, p.id`,
-  )
-    .bind(groupId)
-    .all<{
-      id: string;
-      name: string;
-      status: "active" | "archived";
-      skill_group: number | null;
-      avoid_positions: string | null;
-      merged_into: string | null;
-    }>();
-  const participants: ParticipantView[] = participantRows.results.map((p) => {
+  const participants: ParticipantView[] = rowsOf<ParticipantRow>(next()).map((p) => {
     const view: ParticipantView = { id: p.id, name: p.name, status: p.status };
     if (includeGroups) view.skillGroup = p.skill_group;
     // 기피 라인은 운영자에게만(티어 공개 설정과 무관). 없으면 필드를 넣지 않는다.
     if (includePrivate) {
       const avoid = decodeAvoid(p.avoid_positions);
       if (avoid.length > 0) view.avoidPositions = avoid;
+      // 참가자 수정의 동시 수정 확인에 쓰는 버전(migrations/0021). 운영자에게만.
+      view.version = p.version;
     }
     if (p.merged_into) view.mergedInto = p.merged_into;
     return view;
   });
 
-  const session = await loadOpenSession(env, groupId);
-  let rotation = session ? await loadActiveRotation(env, session.id) : null;
-  // 서포터 횟수 직접 입력의 보정값은 운영자에게만 준다(조회 응답에 새 정보를 늘리지 않는다).
-  if (includePrivate) {
-    const adjustments = await loadAdjustmentsView(env, groupId, rotation?.cycleId ?? null, participants);
-    if (adjustments.length > 0) rotation = { ...(rotation ?? { cycleId: null, events: [] }), adjustments };
-  }
+  const sessionRow = rowsOf<{ id: string; started_at: string; last_activity_at: string }>(next())[0];
+  const session: SessionView | null = sessionRow
+    ? { id: sessionRow.id, startedAt: sessionRow.started_at, lastActivityAt: sessionRow.last_activity_at }
+    : null;
+  const cycleId = rowsOf<{ id: string | null }>(next())[0]?.id ?? null;
+  const eventRows = rowsOf<{ match_id: string; participant_id: string; kind: "used" | "repeat" }>(next());
+  let rotation: RotationView | null = cycleId
+    ? {
+        cycleId,
+        events: eventRows.map((e) => ({ matchId: e.match_id, participantId: e.participant_id, kind: e.kind })),
+      }
+    : null;
 
-  const matchRows = await env.DB.prepare(
-    `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 ORDER BY played_at, match_no`,
-  )
-    .bind(groupId)
-    .all<MatchRow>();
   const byId = new Map<string, MatchView>();
-  const matches = matchRows.results.map((row) => {
+  const matches = rowsOf<MatchRow>(next()).map((row) => {
     const view = toMatchView(row);
     byId.set(view.id, view);
     return view;
   });
-  const rosterRows = await env.DB.prepare(
-    "SELECT match_id, participant_id, team, position FROM match_roster WHERE group_id = ?1",
-  )
-    .bind(groupId)
-    .all<{ match_id: string; participant_id: string; team: Team; position: Position | null }>();
-  for (const r of rosterRows.results) {
+  for (const r of rowsOf<{ match_id: string; participant_id: string; team: Team; position: Position | null }>(next())) {
     byId.get(r.match_id)?.roster.push({
       participantId: r.participant_id,
       team: r.team,
@@ -234,15 +407,15 @@ export async function buildSnapshot(
     });
   }
 
-  const revisions = await loadRevisions(env, groupId);
+  const revisions = parseRevisions(next(), next(), next());
+  const seasonRows = rowsOf<{ id: string; name: string; starts_on: string; ends_on: string }>(next());
+  const series = parseSeries(next(), next());
 
-  const seasonRows = await env.DB.prepare(
-    "SELECT id, name, starts_on, ends_on FROM seasons WHERE group_id = ?1 ORDER BY starts_on",
-  )
-    .bind(groupId)
-    .all<{ id: string; name: string; starts_on: string; ends_on: string }>();
-
-  const series = await loadSeries(env, groupId);
+  // 서포터 횟수 직접 입력의 보정값은 운영자에게만 준다(조회 응답에 새 정보를 늘리지 않는다).
+  if (includePrivate) {
+    const adjustments = foldAdjustments(rowsOf<{ participant_id: string; delta: number }>(next()), participants);
+    if (adjustments.length > 0) rotation = { ...(rotation ?? { cycleId: null, events: [] }), adjustments };
+  }
 
   const snapshot: Snapshot = {
     role,
@@ -261,7 +434,7 @@ export async function buildSnapshot(
     rotation,
     matches,
     revisions,
-    seasons: seasonRows.results.map((s) => ({
+    seasons: seasonRows.map((s) => ({
       id: s.id,
       name: s.name,
       startsOn: s.starts_on,
@@ -274,50 +447,28 @@ export async function buildSnapshot(
     snapshot.group.settingsVersionId = group.settings_version_id ?? undefined;
     snapshot.group.viewToken = group.view_token;
     snapshot.group.generation = group.generation;
-    const batches = await env.DB.prepare(
-      `SELECT import_batch_id AS id, COUNT(*) AS count,
-         SUM(CASE WHEN state = 'excluded' THEN 1 ELSE 0 END) AS excluded,
-         MIN(confirmed_at) AS imported_at
-       FROM matches WHERE group_id = ?1 AND import_batch_id IS NOT NULL
-       GROUP BY import_batch_id ORDER BY imported_at DESC`,
-    )
-      .bind(groupId)
-      .all<{ id: string; count: number; excluded: number; imported_at: string }>();
+    const batches = rowsOf<{ id: string; count: number; excluded: number; imported_at: string }>(next());
     // 묶음의 출처(붙여 넣기 / 구글 시트, migrations/0007). 출처를 남기기 전에 넣은 묶음은 출처가 없다.
     // 출처 열쇠(시트 문서 ID·기존 사이트 배포 ID)는 내보내지 않는다. 종류와 이름만.
     const sources = new Map<string, { kind: "paste" | "sheet" | "legacy"; label: string | null }>();
-    if (batches.results.length > 0) {
-      try {
-        const rows = await env.DB.prepare("SELECT id, kind, label FROM import_batches WHERE group_id = ?1")
-          .bind(groupId)
-          .all<{ id: string; kind: "paste" | "sheet" | "legacy"; label: string | null }>();
-        for (const r of rows.results) sources.set(r.id, { kind: r.kind, label: r.label });
-      } catch (error) {
-        // 0007 마이그레이션 전의 DB(마이그레이션 전에 띄운 로컬 서버)에서도 스냅숏은 내려가게 한다. 출처만 빠진다.
-        if (!String(error).includes("no such table")) throw error;
-      }
+    for (const r of rowsOf<{ id: string; kind: "paste" | "sheet" | "legacy"; label: string | null }>(next())) {
+      sources.set(r.id, { kind: r.kind, label: r.label });
     }
-    snapshot.importBatches = batches.results.map((b) => ({
+    snapshot.importBatches = batches.map((b) => ({
       id: b.id,
       count: b.count,
       excluded: b.excluded,
       importedAt: b.imported_at,
       ...sources.get(b.id),
     }));
-    const merges = await env.DB.prepare(
-      `SELECT id, source_id, target_id, json_array_length(moved_matches) AS match_count, created_at, undone_at
-       FROM participant_merges WHERE group_id = ?1 ORDER BY created_at DESC, id LIMIT 50`,
-    )
-      .bind(groupId)
-      .all<{
-        id: string;
-        source_id: string;
-        target_id: string;
-        match_count: number;
-        created_at: string;
-        undone_at: string | null;
-      }>();
-    snapshot.merges = merges.results.map((m) => ({
+    snapshot.merges = rowsOf<{
+      id: string;
+      source_id: string;
+      target_id: string;
+      match_count: number;
+      created_at: string;
+      undone_at: string | null;
+    }>(next()).map((m) => ({
       id: m.id,
       sourceId: m.source_id,
       targetId: m.target_id,
@@ -326,25 +477,23 @@ export async function buildSnapshot(
       undoneAt: m.undone_at,
     }));
     // 참가자 본인 연결·연결 링크·참가자 요청(migrations/0019). 계정 ID·토큰은 넣지 않는다.
-    const [links, claims] = await env.DB.batch([
-      env.DB.prepare(
-        "SELECT participant_id, created_at, avoid_self_at FROM participant_links WHERE group_id = ?1 ORDER BY created_at",
-      ).bind(groupId),
-      env.DB.prepare(
-        `SELECT participant_id, MAX(expires_at) AS expires_at FROM participant_claims
-         WHERE group_id = ?1 AND used_at IS NULL AND expires_at > ?2 GROUP BY participant_id`,
-      ).bind(groupId, nowIso()),
-    ]);
-    snapshot.memberLinks = (
-      links!.results as unknown as { participant_id: string; created_at: string; avoid_self_at: string | null }[]
+    snapshot.memberLinks = rowsOf<{ participant_id: string; created_at: string; avoid_self_at: string | null }>(
+      next(),
     ).map((l) => ({ participantId: l.participant_id, linkedAt: l.created_at, avoidBySelf: l.avoid_self_at !== null }));
-    snapshot.memberClaims = (claims!.results as unknown as { participant_id: string; expires_at: string }[]).map((c) => ({
+    snapshot.memberClaims = rowsOf<{ participant_id: string; expires_at: string }>(next()).map((c) => ({
       participantId: c.participant_id,
       expiresAt: c.expires_at,
     }));
-    snapshot.memberRequests = await loadMemberRequests(env, groupId, null);
+    snapshot.memberRequests = parseMemberRequests(next(), next());
   }
   return snapshot;
+}
+
+/** 저장된 설정 JSON을 읽는다. 없으면 기본값. 티어 4단계 시절의 가중치 4개는 5개로 맞춘다. */
+function settingsFromPayload(payload: string | undefined): Settings {
+  if (!payload) return { ...DEFAULT_SETTINGS };
+  const settings = JSON.parse(payload) as Settings;
+  return { ...settings, groupWeights: upgradeGroupWeights(settings.groupWeights) };
 }
 
 /** 운영자 화면에 싣는 처리한 요청 수(열린 요청은 모두 싣는다). */
@@ -385,33 +534,46 @@ export async function loadMemberRequests(
   groupId: string,
   participantId: string | null,
 ): Promise<MemberRequestView[]> {
-  const columns = "id, participant_id, kind, match_id, body, status, reply, created_at, resolved_at";
   if (participantId !== null) {
     const rows = await env.DB.prepare(
-      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND participant_id = ?2
+      `SELECT ${REQUEST_COLUMNS} FROM participant_requests WHERE group_id = ?1 AND participant_id = ?2
        ORDER BY created_at DESC, id LIMIT ?3`,
     )
       .bind(groupId, participantId, RECENT_RESOLVED_REQUESTS)
       .all<RequestRow>();
     return rows.results.map(toRequestView);
   }
-  const [open, resolved] = await env.DB.batch([
+  const [open, resolved] = await env.DB.batch(memberRequestStatements(env, groupId));
+  return parseMemberRequests(open, resolved);
+}
+
+const REQUEST_COLUMNS = "id, participant_id, kind, match_id, body, status, reply, created_at, resolved_at";
+
+/** 모임 전체 참가자 요청(열린 것 전부 + 처리한 것 최근 몇 개)을 읽는 두 문장. buildSnapshot의 batch에도 들어간다. */
+function memberRequestStatements(env: Env, groupId: string): D1PreparedStatement[] {
+  return [
     env.DB.prepare(
-      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND status = 'open' ORDER BY created_at DESC, id`,
+      `SELECT ${REQUEST_COLUMNS} FROM participant_requests WHERE group_id = ?1 AND status = 'open' ORDER BY created_at DESC, id`,
     ).bind(groupId),
     env.DB.prepare(
-      `SELECT ${columns} FROM participant_requests WHERE group_id = ?1 AND status <> 'open'
+      `SELECT ${REQUEST_COLUMNS} FROM participant_requests WHERE group_id = ?1 AND status <> 'open'
        ORDER BY resolved_at DESC, id LIMIT ?2`,
     ).bind(groupId, RECENT_RESOLVED_REQUESTS),
-  ]);
-  return [...(open!.results as unknown as RequestRow[]), ...(resolved!.results as unknown as RequestRow[])].map(
-    toRequestView,
-  );
+  ];
+}
+
+function parseMemberRequests(open: D1Result | undefined, resolved: D1Result | undefined): MemberRequestView[] {
+  return [...rowsOf<RequestRow>(open), ...rowsOf<RequestRow>(resolved)].map(toRequestView);
 }
 
 /** 시리즈 묶음과 속한 경기(경기 시각 → 경기 번호 순). */
 export async function loadSeries(env: Env, groupId: string): Promise<SeriesView[]> {
-  const [rows, members] = await env.DB.batch([
+  const [rows, members] = await env.DB.batch(seriesStatements(env, groupId));
+  return parseSeries(rows, members);
+}
+
+function seriesStatements(env: Env, groupId: string): D1PreparedStatement[] {
+  return [
     env.DB.prepare(
       "SELECT id, name, format, created_at FROM match_series WHERE group_id = ?1 ORDER BY created_at, id",
     ).bind(groupId),
@@ -420,7 +582,10 @@ export async function loadSeries(env: Env, groupId: string): Promise<SeriesView[
        JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
        WHERE s.group_id = ?1 ORDER BY m.played_at, m.match_no`,
     ).bind(groupId),
-  ]);
+  ];
+}
+
+function parseSeries(rows: D1Result | undefined, members: D1Result | undefined): SeriesView[] {
   const byId = new Map<string, SeriesView>();
   for (const r of rows!.results as unknown as { id: string; name: string | null; format: SeriesFormat; created_at: string }[]) {
     byId.set(r.id, { id: r.id, name: r.name, format: r.format, createdAt: r.created_at, matchIds: [] });
@@ -471,10 +636,10 @@ interface RevisionRow {
  *   그래서 많이 뛴 사람을 합쳐도 실제 정정이 상한에 밀려 사라지지 않는다.
  * 합친 사람·남은 사람의 ID는 참가자 목록의 mergedInto와 같은 공개 정보다.
  */
-async function loadRevisions(env: Env, groupId: string): Promise<RevisionView[]> {
+function revisionStatements(env: Env, groupId: string): D1PreparedStatement[] {
   const select = `SELECT r.id, r.match_id, m.match_no, r.kind, r.changes, r.created_at
      FROM match_revisions r JOIN matches m ON m.id = r.match_id AND m.group_id = r.group_id`;
-  const [recent, changes, merges] = await env.DB.batch([
+  return [
     env.DB.prepare(
       `${select} WHERE r.group_id = ?1 AND ${MERGE_REF} IS NULL ORDER BY r.id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_REVISIONS),
@@ -490,7 +655,14 @@ async function loadRevisions(env: Env, groupId: string): Promise<RevisionView[]>
              FROM match_revisions r WHERE r.group_id = ?1 AND r.kind = 'correction')
        WHERE ref IS NOT NULL GROUP BY ref ORDER BY id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_MERGES),
-  ]);
+  ];
+}
+
+function parseRevisions(
+  recent: D1Result | undefined,
+  changes: D1Result | undefined,
+  merges: D1Result | undefined,
+): RevisionView[] {
   const byId = new Map<number, RevisionView>();
   for (const r of [...(recent!.results as unknown as RevisionRow[]), ...(changes!.results as unknown as RevisionRow[])]) {
     byId.set(r.id, {

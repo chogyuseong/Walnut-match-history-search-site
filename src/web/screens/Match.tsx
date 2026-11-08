@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { avoidMapFor } from "../../shared/avoid";
 import { draftFromMatch } from "../../shared/draft";
+import { nameKey } from "../../shared/names";
 import type { MatchView } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
-import { formatTime, matchRosterText, nameMap, viewLink } from "../format";
+import { formatTime, matchRosterText, nameMap, POSITION_LABEL, teamName, viewLink } from "../format";
 import { CopyButton, Dialog, ErrorNote, MatchTeams, StickyAction } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
@@ -46,6 +47,9 @@ export function Match() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [cancelAsk, setCancelAsk] = useState<null | { needsDecision: boolean }>(null);
+  const [sendOpen, setSendOpen] = useState(false);
+  // 교체할 사람(진행 중 명단에서 누른 사람)의 참가자 ID.
+  const [replacing, setReplacing] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
 
   // 진행 중 화면에서는 긴 주기로 최신 상태를 확인한다.
@@ -149,9 +153,13 @@ export function Match() {
         </span>
       </header>
 
-      <MatchTeams match={match} nameOf={nameOf} />
+      <MatchTeams match={match} nameOf={nameOf} onPick={(id) => setReplacing(id)} />
+      <p className="hint">사람을 누르면 다른 사람으로 바꿀 수 있어요(팀·포지션은 그대로).</p>
 
       <div className="button-row">
+        <button type="button" className="secondary" onClick={() => setSendOpen(true)}>
+          참가자에게 편성 보내기
+        </button>
         <button type="button" className="secondary" onClick={() => setSharing(true)}>
           명단 공유
         </button>
@@ -201,6 +209,36 @@ export function Match() {
             />
           </div>
         </Dialog>
+      )}
+
+      {sendOpen && (
+        <Dialog title="참가자에게 편성 보내기" onClose={() => setSendOpen(false)}>
+          {snapshot.group.viewToken ? (
+            <>
+              <p>
+                링크를 단톡방에 붙여 넣으면 참가자가 로그인 없이 휴대폰으로 블루·레드 10명과 포지션, 시작 시각을 봐요.
+                티어·서포터 횟수는 보이지 않아요.
+              </p>
+              <p className="hint">링크는 항상 지금 진행 중인 경기를 보여 줘요(사람을 바꾸면 그대로 반영돼요).</p>
+              <div className="button-row">
+                <CopyButton label="편성 링크 복사" text={() => viewLink(snapshot.group.viewToken!, "live")} />
+              </div>
+            </>
+          ) : (
+            <p className="note" role="status">
+              모임 탭에서 조회 링크를 먼저 만들어요. 그 링크로 참가자 편성 화면이 열려요.
+            </p>
+          )}
+        </Dialog>
+      )}
+
+      {replacing && (
+        <ReplaceDialog
+          key={replacing}
+          match={match}
+          outId={replacing}
+          onClose={() => setReplacing(null)}
+        />
       )}
 
       {cancelAsk && (
@@ -255,5 +293,121 @@ export function Match() {
         </Dialog>
       )}
     </div>
+  );
+}
+
+/**
+ * 진행 중 경기에서 한 사람을 같은 모임의 다른 활성 참가자로 바꾸는 창(PATCH /api/groups/:gid/matches/:mid/roster).
+ * 들어오는 사람은 나간 사람의 팀·포지션을 물려받는다. 서포터 자리면 서포터 차례 기록도 서버가 함께 옮긴다.
+ * 들어오는 사람이 이번 순환에서 이미 서포터를 했으면(SUPPORT_REPEAT) 한 번 더 묻고 확인을 실어 다시 보낸다.
+ */
+function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => void }) {
+  const app = useAppValue();
+  const snapshot = app.snapshot!;
+  const nameOf = nameMap(snapshot);
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [repeatAsk, setRepeatAsk] = useState<string | null>(null);
+  // 요청 ID는 같은 내용(나가는 사람·들어오는 사람·확인)이면 재시도에 같은 값을 쓴다.
+  const request = useRef<{ id: string; key: string } | null>(null);
+  const seat = props.match.roster.find((r) => r.participantId === props.outId);
+  const inRoster = new Set(props.match.roster.map((r) => r.participantId));
+  const q = nameKey(query);
+  const candidates = snapshot.participants
+    .filter((p) => p.status === "active" && !p.mergedInto && !inRoster.has(p.id))
+    .filter((p) => q === "" || nameKey(p.name).includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+
+  async function replace(inId: string, ackRepeat: boolean) {
+    const key = `${props.outId}:${inId}:${ackRepeat}`;
+    if (!request.current || request.current.key !== key) request.current = { id: newRequestId(), key };
+    setBusy(true);
+    setError(null);
+    try {
+      await mutate(
+        `/api/groups/${snapshot.group.id}/matches/${props.match.id}/roster`,
+        {
+          requestId: request.current.id,
+          baseMatchVersion: props.match.version,
+          outParticipantId: props.outId,
+          inParticipantId: inId,
+          ...(ackRepeat ? { ackRepeat: true } : {}),
+        },
+        "PATCH",
+      );
+      request.current = null;
+      await app.refreshAfterOwnChange();
+      app.setNotice(`${nameOf(props.outId)} 자리에 ${nameOf(inId)} 님이 들어갔어요.`);
+      props.onClose();
+    } catch (e) {
+      if (!(e instanceof ApiFailure) || e.kind !== "unknown") request.current = null;
+      if (e instanceof ApiFailure && e.code === "SUPPORT_REPEAT") {
+        setRepeatAsk(inId);
+      } else {
+        setError(e);
+        void app.refresh();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!seat) return null;
+  const seatText = `${teamName(seat.team, props.match.teamASide)} ${seat.position ? POSITION_LABEL[seat.position] : ""}`.trim();
+
+  return (
+    <Dialog title="다른 사람으로 교체" onClose={props.onClose}>
+      <p>
+        <strong>{nameOf(props.outId)}</strong> 님 자리({seatText})에 들어갈 사람을 고르세요. 팀과 포지션은 그대로예요.
+      </p>
+      {seat.position === "support" && (
+        <p className="hint">서포터 자리예요. 이 경기의 서포터 차례 기록도 들어오는 사람에게 옮겨요.</p>
+      )}
+      {repeatAsk ? (
+        <div className="note warn" role="alert">
+          <p>
+            {nameOf(repeatAsk)} 님은 이번 순환에서 이미 서포터를 했어요. 그래도 서포터 자리에 넣을까요? 서포터 횟수가 한
+            번 더 늘어요.
+          </p>
+          <div className="button-row">
+            <button type="button" className="primary" disabled={busy} onClick={() => void replace(repeatAsk, true)}>
+              {busy ? "저장 중" : "그래도 교체"}
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={() => setRepeatAsk(null)}>
+              다른 사람 고르기
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <label>
+            이름 찾기
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+          </label>
+          {candidates.length === 0 ? (
+            <p className="hint">
+              {q === "" ? "바꿀 수 있는 다른 참가자가 없어요. 모임 탭에서 참가자를 먼저 넣어 주세요." : "일치하는 이름이 없어요."}
+            </p>
+          ) : (
+            <ul className="list" aria-label="들어갈 사람">
+              {candidates.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    className="list-row"
+                    disabled={busy}
+                    onClick={() => void replace(p.id, false)}
+                  >
+                    <span className="name">{p.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      <ErrorNote error={error} onCheck={() => void app.refresh()} />
+    </Dialog>
   );
 }

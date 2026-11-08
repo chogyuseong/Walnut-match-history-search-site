@@ -64,8 +64,15 @@ export async function loadAdjustmentsView(
   cycleId: string | null,
   participants: readonly Pick<ParticipantView, "id" | "mergedInto">[],
 ): Promise<SupportAdjustmentView[]> {
-  const folded = fold(await loadRows(env, groupId, cycleId), participants);
-  return [...folded].map(([participantId, delta]) => ({ participantId, delta }));
+  return foldAdjustments(await loadRows(env, groupId, cycleId), participants);
+}
+
+/** 이미 읽은 보정값 행을 화면용으로 바꾼다(스냅숏의 batch가 행을 함께 읽는다, src/server/snapshot.ts). */
+export function foldAdjustments(
+  rows: readonly { participant_id: string; delta: number }[],
+  participants: readonly Pick<ParticipantView, "id" | "mergedInto">[],
+): SupportAdjustmentView[] {
+  return [...fold(rows, participants)].map(([participantId, delta]) => ({ participantId, delta }));
 }
 
 /**

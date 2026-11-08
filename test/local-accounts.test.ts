@@ -1,7 +1,9 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
-import { FAILURE_LIMITS, INVALID_LOGIN_MESSAGE } from "../src/server/local";
+import { normalizePassword } from "../src/shared/account";
+import { toBase64Url } from "../src/server/auth";
+import { FAILURE_LIMITS, hashPassword, INVALID_LOGIN_MESSAGE } from "../src/server/local";
 import { rateClock } from "../src/server/ratelimit";
 import { cookieFrom, direct } from "./direct";
 import { unique } from "./helpers";
@@ -125,7 +127,8 @@ describe("가입", () => {
     )
       .bind(s.username)
       .first<{ password_hash: string; recovery_hash: string }>();
-    expect(row!.password_hash).toMatch(/^pbkdf2-sha256\$100000\$[\w-]{22}\$[\w-]{43}$/);
+    // pbkdf2p: 서버 비밀값 페퍼(HMAC)를 씌운 형식(2026-11-07). 로컬 설정은 반복 횟수 기본값(100000).
+    expect(row!.password_hash).toMatch(/^pbkdf2p-sha256\$100000\$[\w-]{22}\$[\w-]{43}$/);
     expect(row!.password_hash).not.toContain(PASSWORD);
     expect(row!.recovery_hash).toMatch(/^sha256\$[0-9a-f]{64}$/);
     const code = (s.body.recoveryCode as string).replace(/-/g, "");
@@ -191,6 +194,98 @@ describe("로그인", () => {
     expect([400, 415]).toContain(form.status);
     const big = await call("POST", "/api/auth/login", { username: s.username, password: "x".repeat(3000) });
     expect(big.status).toBe(413);
+  });
+});
+
+describe("페퍼·반복 횟수(2026-11-07)", () => {
+  /** 페퍼 전의 예전 형식(pbkdf2-sha256$…) 해시를 만든다. */
+  async function legacyHash(password: string, iterations: number): Promise<string> {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(normalizePassword(password)), "PBKDF2", false, [
+      "deriveBits",
+    ]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
+    return `pbkdf2-sha256$${iterations}$${toBase64Url(salt)}$${toBase64Url(new Uint8Array(bits))}`;
+  }
+
+  async function storedHash(username: string): Promise<string> {
+    const row = await env.DB.prepare(
+      "SELECT c.password_hash FROM local_credentials c JOIN accounts a ON a.id = c.account_id WHERE a.provider = 'local' AND a.subject = ?1",
+    )
+      .bind(username)
+      .first<{ password_hash: string }>();
+    return row!.password_hash;
+  }
+
+  async function setHash(username: string, hash: string): Promise<void> {
+    await env.DB.prepare(
+      "UPDATE local_credentials SET password_hash = ?2 WHERE account_id = (SELECT id FROM accounts WHERE provider = 'local' AND subject = ?1)",
+    )
+      .bind(username, hash)
+      .run();
+  }
+
+  it("예전 형식(페퍼 없음) 해시로도 로그인되고, 그 로그인에서 새 형식(pbkdf2p)으로 다시 저장된다", async () => {
+    const s = await signup();
+    await setHash(s.username, await legacyHash(PASSWORD, 100_000));
+    // 틀린 비밀번호는 예전 형식에서도 거절하고, 다시 저장하지 않는다.
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: "wrong password" })).status).toBe(400);
+    expect(await storedHash(s.username)).toMatch(/^pbkdf2-sha256\$100000\$/);
+    const ok = await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD });
+    expect(ok.status).toBe(200);
+    expect(await storedHash(s.username)).toMatch(/^pbkdf2p-sha256\$100000\$[\w-]{22}\$[\w-]{43}$/);
+    // 새 형식으로 다시 로그인된다.
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(200);
+  });
+
+  it("운영 설정(20000회)에서: 가입은 20000회 새 형식, 예전 형식 100000회는 20000회 새 형식으로, 새 형식 100000회는 그대로", async () => {
+    const low = { PASSWORD_PBKDF2_ITERATIONS: "20000" } as Partial<Env>;
+    const a = await call("POST", "/api/auth/signup", { username: newName(), password: PASSWORD }, { overrides: low });
+    expect(a.status).toBe(200);
+    const legacyUser = newName();
+    expect((await call("POST", "/api/auth/signup", { username: legacyUser, password: PASSWORD })).status).toBe(200);
+    // 100000회 새 형식(기본 설정으로 가입) → 20000 설정으로 로그인해도 약하게 바꾸지 않는다.
+    const strong = await storedHash(legacyUser);
+    expect(strong).toMatch(/^pbkdf2p-sha256\$100000\$/);
+    expect((await call("POST", "/api/auth/login", { username: legacyUser, password: PASSWORD }, { overrides: low })).status).toBe(200);
+    expect(await storedHash(legacyUser)).toBe(strong);
+    // 예전 형식은 페퍼를 씌워 지금 설정(20000)으로 다시 저장한다.
+    await setHash(legacyUser, await legacyHash(PASSWORD, 100_000));
+    expect((await call("POST", "/api/auth/login", { username: legacyUser, password: PASSWORD }, { overrides: low })).status).toBe(200);
+    expect(await storedHash(legacyUser)).toMatch(/^pbkdf2p-sha256\$20000\$/);
+  });
+
+  it("서버 비밀값(SESSION_SECRET)이 다르면 새 형식 비밀번호가 맞지 않는다(페퍼가 실제로 쓰인다)", async () => {
+    const s = await signup();
+    const other = { SESSION_SECRET: "another-secret-for-pepper-check-0123456789" } as Partial<Env>;
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD }, { overrides: other })).status).toBe(400);
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(200);
+  });
+
+  it("[측정] 해시 한 번 계산 시간(20000회·100000회). 로컬 workerd 기준이며 운영 CPU 시간과 다를 수 있다", async () => {
+    // Workers는 I/O가 끝날 때만 시계가 움직이므로 계산 앞뒤에 아주 가벼운 D1 읽기를 두고 잰다(그 대기 시간은 따로 빼 준다).
+    const tick = () => env.DB.prepare("SELECT 1 AS x").first();
+    const measure = async (fn: () => Promise<unknown>) => {
+      const samples: number[] = [];
+      for (let i = 0; i < 7; i++) {
+        await tick();
+        const t0 = Date.now();
+        await fn();
+        await tick();
+        samples.push(Date.now() - t0);
+      }
+      samples.sort((x, y) => x - y);
+      return samples[Math.floor(samples.length / 2)]!;
+    };
+    const base = await measure(async () => undefined);
+    const report: Record<string, number> = {};
+    for (const iterations of [20_000, 100_000]) {
+      const e = { ...(env as unknown as Env), PASSWORD_PBKDF2_ITERATIONS: String(iterations) };
+      await hashPassword(e, PASSWORD); // 데우기
+      report[`pbkdf2p ${iterations}`] = Math.max(0, (await measure(() => hashPassword(e, PASSWORD))) - base);
+    }
+    console.log(`[측정] 비밀번호 해시 한 번(중앙값 ms, D1 왕복 ${base}ms 뺌): ${JSON.stringify(report)}`);
+    expect(report["pbkdf2p 20000"]).toBeLessThanOrEqual(report["pbkdf2p 100000"]! + 1);
   });
 });
 

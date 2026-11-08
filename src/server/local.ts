@@ -3,9 +3,11 @@
  *
  * 저장(migrations/0009_local_accounts.sql):
  * - 계정 행은 accounts 표(provider = 'local', subject = 정규화한 아이디)를 그대로 쓴다. 세션·로그아웃·탈퇴도 같다.
- * - 비밀번호: PBKDF2-HMAC-SHA-256(WebCrypto), 계정마다 무작위 16바이트 솔트, 32바이트 결과.
- *   반복 횟수는 100,000(Workers 런타임이 받는 최대값). 해시 문자열에 방식·횟수를 함께 적어, 나중에 횟수를 올리면
- *   로그인에 성공할 때 새 횟수로 다시 저장한다. 비교는 상수 시간.
+ * - 비밀번호: HMAC-SHA-256(서버 비밀값 페퍼) → PBKDF2-HMAC-SHA-256(WebCrypto), 계정마다 무작위 16바이트 솔트,
+ *   32바이트 결과. 저장 형식 `pbkdf2p-sha256$횟수$솔트$해시`. 페퍼 전의 예전 형식(`pbkdf2-sha256$…`)도 검증하고,
+ *   맞으면 그 로그인에서 새 형식으로 다시 저장한다.
+ *   반복 횟수는 기본 100,000(Workers 런타임이 받는 최대값), 운영 무료 요금제는 20,000(wrangler.jsonc).
+ *   해시 문자열에 방식·횟수를 함께 적어, 나중에 횟수를 올리면 로그인에 성공할 때 새 횟수로 다시 저장한다. 비교는 상수 시간.
  *   - node:crypto의 scrypt는 이 프로젝트가 nodejs_compat 호환 플래그를 켜지 않아 쓸 수 없다(wrangler.jsonc).
  *   - Workers 무료 요금제의 요청당 CPU 시간(10ms)은 100,000회 계산보다 짧을 수 있다(docs/배포안내.md).
  * - 복구 코드: 160비트 무작위 값. 서버에는 SHA-256만 둔다(추측할 수 없는 값이라 느린 해시가 필요 없다).
@@ -65,14 +67,37 @@ function iterationsOf(env: Env): number {
 
 /* ------------------------------ 해시 ------------------------------ */
 
-async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+/** 예전 형식(페퍼 없음). 읽기만 하고, 맞으면 다음 로그인 때 새 형식으로 다시 저장한다. */
+const SCHEME_PLAIN = "pbkdf2-sha256";
+/** 지금 형식: 비밀번호에 서버 비밀값(페퍼)으로 HMAC-SHA-256을 한 번 씌운 뒤 PBKDF2. */
+const SCHEME_PEPPERED = "pbkdf2p-sha256";
+
+/**
+ * 페퍼: PBKDF2에 넣기 전에 SESSION_SECRET(접두어 "password-pepper:"로 다른 용도와 구분)으로 HMAC-SHA-256을 씌운다.
+ * DB만 새어 나가면(서버 비밀값은 그대로) 반복 횟수를 낮춘 운영(20,000회)에서도 비밀번호를 오프라인으로 추측할 수 없다.
+ * 주의: SESSION_SECRET을 바꾸면 이 형식의 비밀번호는 모두 맞지 않게 된다(복구 코드로만 다시 정할 수 있다. docs/배포안내.md).
+ */
+async function pepper(env: Env, password: string): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(normalizePassword(password)),
-    "PBKDF2",
+    new TextEncoder().encode(`password-pepper:${env.SESSION_SECRET}`),
+    { name: "HMAC", hash: "SHA-256" },
     false,
-    ["deriveBits"],
+    ["sign"],
   );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(normalizePassword(password)));
+  return new Uint8Array(mac);
+}
+
+async function pbkdf2(
+  env: Env,
+  password: string,
+  salt: Uint8Array,
+  iterations: number,
+  peppered: boolean,
+): Promise<Uint8Array> {
+  const material = peppered ? await pepper(env, password) : new TextEncoder().encode(normalizePassword(password));
+  const key = await crypto.subtle.importKey("raw", material, "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
     { name: "PBKDF2", hash: "SHA-256", salt, iterations },
     key,
@@ -92,11 +117,15 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
 export async function hashPassword(env: Env, password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const iterations = iterationsOf(env);
-  const hash = await pbkdf2(password, salt, iterations);
-  return `pbkdf2-sha256$${iterations}$${toBase64Url(salt)}$${toBase64Url(hash)}`;
+  const hash = await pbkdf2(env, password, salt, iterations, true);
+  return `${SCHEME_PEPPERED}$${iterations}$${toBase64Url(salt)}$${toBase64Url(hash)}`;
 }
 
-/** 저장된 해시와 비교한다. ok와 함께, 지금 설정보다 약한 해시인지(다시 저장할지)를 돌려준다. */
+/**
+ * 저장된 해시와 비교한다. ok와 함께, 다시 저장할지(outdated)를 돌려준다:
+ * - 예전 형식(pbkdf2-sha256, 페퍼 없음)은 맞으면 늘 다시 저장한다(새 형식으로 바꾼다).
+ * - 지금 형식은 지금 설정보다 반복 횟수가 적을 때만 다시 저장한다(설정을 낮춰도 강한 해시는 그대로 둔다).
+ */
 export async function verifyPassword(
   env: Env,
   password: string,
@@ -104,23 +133,25 @@ export async function verifyPassword(
 ): Promise<{ ok: boolean; outdated: boolean }> {
   const parts = stored.split("$");
   const iterations = Number(parts[1]);
+  const scheme = parts[0];
   if (
     parts.length !== 4 ||
-    parts[0] !== "pbkdf2-sha256" ||
+    (scheme !== SCHEME_PLAIN && scheme !== SCHEME_PEPPERED) ||
     !Number.isInteger(iterations) ||
     iterations < 1 ||
     iterations > PBKDF2_MAX_ITERATIONS
   ) {
     return { ok: false, outdated: false };
   }
-  const actual = await pbkdf2(password, fromBase64Url(parts[2]!), iterations);
+  const peppered = scheme === SCHEME_PEPPERED;
+  const actual = await pbkdf2(env, password, fromBase64Url(parts[2]!), iterations, peppered);
   const ok = constantTimeEqual(actual, fromBase64Url(parts[3]!));
-  return { ok, outdated: ok && iterations < iterationsOf(env) };
+  return { ok, outdated: ok && (!peppered || iterations < iterationsOf(env)) };
 }
 
-/** 없는 아이디로 로그인할 때도 같은 시간이 걸리게 같은 횟수로 한 번 계산한다. 결과는 버린다. */
+/** 없는 아이디로 로그인할 때도 같은 시간이 걸리게 같은 방식·횟수로 한 번 계산한다. 결과는 버린다. */
 async function dummyVerify(env: Env, password: string): Promise<void> {
-  await pbkdf2(password, new Uint8Array(SALT_BYTES), iterationsOf(env));
+  await pbkdf2(env, password, new Uint8Array(SALT_BYTES), iterationsOf(env), true);
 }
 
 /** 새 복구 코드: 화면에 보여줄 값(XXXX-XXXX-…)과 저장할 해시. */

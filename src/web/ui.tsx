@@ -338,7 +338,13 @@ export function SavedBadge(props: { at: string | null | undefined; timeZone?: st
  * 확정 명단. 좁은 화면에서는 두 팀을 위아래로 쌓는다(CSS).
  * 팀 이름·테두리는 teamName 규칙: 진영이 정해진 경기는 "블루팀"/"레드팀"과 그 색, 모르면 "팀 A"/"팀 B"와 중립 테두리.
  */
-export function MatchTeams(props: { match: MatchView; nameOf: (id: string) => string; highlightId?: string | null }) {
+export function MatchTeams(props: {
+  match: MatchView;
+  nameOf: (id: string) => string;
+  highlightId?: string | null;
+  /** 있으면 사람 줄이 버튼이 된다(진행 중 화면의 "다른 사람으로 교체"). 화면 읽기 이름은 "{포지션} {이름} 교체". */
+  onPick?: (participantId: string) => void;
+}) {
   return (
     <div className="teams">
       {TEAMS.map((team) => (
@@ -351,17 +357,29 @@ export function MatchTeams(props: { match: MatchView; nameOf: (id: string) => st
             <span aria-hidden="true">{TEAM_MARK[team]}</span> {teamName(team, props.match.teamASide)}
           </h3>
           <ul>
-            {teamRoster(props.match, team).map((entry) => (
-              <li
-                key={entry.participantId}
-                className={entry.participantId === props.highlightId ? "row me" : "row"}
-              >
-                <PosLabel position={entry.position} />
-                <span className="name" title={props.nameOf(entry.participantId)}>
-                  {props.nameOf(entry.participantId)}
-                </span>
-              </li>
-            ))}
+            {teamRoster(props.match, team).map((entry) =>
+              props.onPick ? (
+                <li key={entry.participantId}>
+                  <button type="button" className="row" onClick={() => props.onPick!(entry.participantId)}>
+                    <PosLabel position={entry.position} />
+                    <span className="name" title={props.nameOf(entry.participantId)}>
+                      {props.nameOf(entry.participantId)}
+                    </span>
+                    <span className="sr-only"> 교체</span>
+                  </button>
+                </li>
+              ) : (
+                <li
+                  key={entry.participantId}
+                  className={entry.participantId === props.highlightId ? "row me" : "row"}
+                >
+                  <PosLabel position={entry.position} />
+                  <span className="name" title={props.nameOf(entry.participantId)}>
+                    {props.nameOf(entry.participantId)}
+                  </span>
+                </li>
+              ),
+            )}
           </ul>
         </section>
       ))}

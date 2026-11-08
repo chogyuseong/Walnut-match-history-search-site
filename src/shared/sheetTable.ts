@@ -1157,7 +1157,7 @@ const ACROSS_LOSS = /^(패|패배|lose|loss|l)$/i;
 function acrossClean(cell: string): string {
   return cell
     .replace(/&nbsp;|&#(?:160|x[aA]0);|&#(?:32|x20);/g, " ")
-    .replace(/ /g, " ")
+    .replace(/\u00a0/g, " ")
     .trim()
     .replace(/^\*\*([\s\S]*)\*\*$/, "$1")
     .replace(/^__([\s\S]*)__$/, "$1")

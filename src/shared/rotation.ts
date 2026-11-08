@@ -1,4 +1,4 @@
-import { rerollPositions, rngFromSeed, type AvoidMap, type Draft, type DraftSlot, type DrawRecord } from "./draft";
+import { pushHistory, rerollPositions, rngFromSeed, type AvoidMap, type Draft, type DraftSlot, type DrawRecord } from "./draft";
 import { TEAMS, type Position, type RotationView, type Team } from "./types";
 
 /**
@@ -186,9 +186,9 @@ export function drawStatus(draft: Draft, team: Team, ctx: RotationContext): Draw
 }
 
 function applyRecord(draft: Draft, team: Team, record: DrawRecord): Draft {
+  // 되돌리기 이력은 drawSupport가 추첨 전 편성 기준으로 한 번만 남긴다.
   return {
     ...draft,
-    previousSlots: draft.slots,
     slots: draft.slots.map((s) => {
       if (s.key === record.inKey) return { ...s, position: "support" as Position };
       if (s.key === record.outKey) return { ...s, position: record.fromPosition };
@@ -262,8 +262,8 @@ export function drawSupport(draft: Draft, teams: readonly Team[], ctx: RotationC
     if (outcome.kind === "drawn") drew = true;
   }
   if (drew) next = { ...next, seed: (Math.imul(next.seed, 1664525) + 1013904223) >>> 0 };
-  // 여러 팀을 한 번에 적용해도 되돌리기는 추첨 전 편성으로 간다.
-  if (next !== draft) next = { ...next, previousSlots: draft.slots };
+  // 여러 팀을 한 번에 적용해도 되돌리기 이력은 한 단계(추첨 전 편성)만 남긴다.
+  if (next !== draft) next = pushHistory(draft, next);
   return { draft: next, outcomes, allAssigned };
 }
 

@@ -12,7 +12,7 @@ import type { ParticipantView } from "./types";
 
 /** 비슷한 이름 비교용: 전각→반각(NFKC), 모든 공백 제거, 소문자. */
 export function looseKey(name: string): string {
-  return name.normalize("NFKC").replace(/[\s​]+/g, "").toLowerCase();
+  return name.normalize("NFKC").replace(/[\s\u200b]+/g, "").toLowerCase();
 }
 
 export interface NameLink {

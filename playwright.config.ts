@@ -1,20 +1,29 @@
 import { defineConfig } from "@playwright/test";
 
 // 브라우저에서 실제 흐름을 확인한다. 로컬 Worker와 로컬 D1만 쓰고 운영 주소는 쓰지 않는다.
+// E2E_PORT로 다른 포트의 로컬 서버를 쓸 수 있다(기본 8787). 예: 떠 있는 8787 서버를 건드리지 않고
+// 새 빌드를 8790에서 확인할 때 `$env:E2E_PORT="8790"; npx playwright test e2e/prep-walkthrough.spec.ts`.
+const PORT = process.env.E2E_PORT ?? "8787";
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+
 export default defineConfig({
   testDir: "e2e",
   timeout: 60000,
   fullyParallel: false,
   workers: 1,
-  reporter: [["list"]],
+  // CI에서는 실패한 테스트를 한 번 더 돌려 일시적인 지연을 걸러 낸다(두 번 다 실패해야 실패).
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [["list"], ["github"]] : [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:8787",
+    baseURL: BASE_URL,
     locale: "ko-KR",
     timezoneId: "Asia/Seoul",
   },
   webServer: {
-    command: "npm run dev -- --port 8787 --ip 127.0.0.1",
-    url: "http://127.0.0.1:8787/api/health",
+    // 화면 빌드 → 로컬 D1 마이그레이션 → wrangler dev. 이미 떠 있으면 그 서버를 그대로 쓴다.
+    // 가짜 로그인에는 .dev.vars의 SESSION_SECRET이 필요하다(CI는 워크플로가 만들어 둔다).
+    command: `npm run dev -- --port ${PORT} --ip 127.0.0.1`,
+    url: `${BASE_URL}/api/health`,
     reuseExistingServer: true,
     timeout: 120000,
   },

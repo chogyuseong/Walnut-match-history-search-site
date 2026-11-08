@@ -418,15 +418,13 @@ test("30: 변경 내역에 정정·전적 제외·복구가 경기·시각·항�
 test("30·합치기: 많이 뛴 사람을 합쳐도 변경 내역은 한 줄로 묶이고 실제 정정은 남는다", async ({ page }) => {
   const s = await setup(page, { rotation: false, names: [...Array.from({ length: 11 }, (_, i) => `선수${String(i + 1).padStart(2, "0")}`), "부캐"] });
   const dup = s.people.find((p) => p.name === "부캐")!;
-  let first = await finish(page.request, s, await start(page.request, s, s.people.slice(0, 10)), "A", "unknown");
-  first = (
-    await post(page.request, `/api/groups/${s.groupId}/matches/${first.id}/correct`, {
-      requestId: requestId(),
-      baseMatchVersion: first.version,
-      field: "side",
-      winnerSide: "blue",
-    })
-  ).match;
+  const first = await finish(page.request, s, await start(page.request, s, s.people.slice(0, 10)), "A", "unknown");
+  await post(page.request, `/api/groups/${s.groupId}/matches/${first.id}/correct`, {
+    requestId: requestId(),
+    baseMatchVersion: first.version,
+    field: "side",
+    winnerSide: "blue",
+  });
   const withDup = [dup, ...s.people.slice(1, 10)];
   for (let i = 0; i < 3; i++) await finish(page.request, s, await start(page.request, s, withDup), "B", "red");
   await post(page.request, `/api/groups/${s.groupId}/merges`, {

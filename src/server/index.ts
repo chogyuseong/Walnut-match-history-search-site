@@ -4,7 +4,6 @@ import {
   clearSessionCookie,
   createSessionValue,
   fakeLoginEnabled,
-  groupIdFromViewToken,
   productionConfigProblem,
   readSession,
   requireAccountId,
@@ -47,7 +46,9 @@ import {
   nowIso,
   pathForLog,
   readJsonBody,
+  readOptionalJsonBody,
   requireString,
+  securityHeaders,
 } from "./http";
 import {
   backfillMatch,
@@ -58,6 +59,7 @@ import {
   excludeMatch,
   importMatches,
   MAX_IMPORT_BODY_BYTES,
+  replaceLiveParticipant,
   restoreMatch,
   saveMemo,
   setImportBatchExcluded,
@@ -71,7 +73,7 @@ import {
   joinAdd,
   joinAdminView,
   joinCancel,
-  joinInfo,
+  joinInfoConditional,
   removeJoinEntry,
   setJoinOpen,
 } from "./join";
@@ -114,7 +116,8 @@ import {
 import { applyRestore, importAsNewGroup, previewRestore } from "./restore";
 import { fixturesEnabled, listImportFingerprints, readSheet, registerFixture } from "./sheets";
 import { readLegacy, registerLegacyFixture } from "./legacy";
-import { buildSnapshot } from "./snapshot";
+import { buildSnapshot, etagMatches, loadEtagHead, loadEtagHeadByViewToken, snapshotEtag } from "./snapshot";
+import { runBackups } from "./backupCron";
 import { recordClientError, recordServerError } from "./errorLog";
 import { clearErrorLogs, isSiteAdmin, requireSiteAdmin, siteOverview } from "./siteAdmin";
 
@@ -150,11 +153,21 @@ app.onError(async (error, c) => {
   return c.json({ error: { code: "INTERNAL", message: "서버 오류가 발생했습니다." } }, 500);
 });
 
-// API 응답은 캐시하지 않는다.
+// 보안 헤더(src/server/http.ts securityHeaders). 오류 응답에도 붙도록 가장 바깥에서 넣는다.
+app.use("*", async (c, next) => {
+  await next();
+  for (const [name, value] of Object.entries(securityHeaders(c.env.DEPLOY_ENV))) c.header(name, value);
+});
+
+// API 응답은 캐시하지 않는다. 조건부 요청을 쓰는 스냅숏·조회·참가 신청 경로만 경로 안에서
+// "private, no-cache"(저장은 하되 쓸 때마다 서버에 확인)를 정하고, 여기서는 덮어쓰지 않는다.
 app.use("/api/*", async (c, next) => {
   await next();
-  c.header("Cache-Control", "no-store");
+  if (!c.res.headers.has("Cache-Control")) c.header("Cache-Control", "no-store");
 });
+
+/** 조건부 요청(ETag) 경로의 캐시 헤더: 브라우저가 저장하되 매번 If-None-Match로 확인한다. 공용 캐시는 저장하지 않는다. */
+const REVALIDATE = "private, no-cache";
 
 // 운영 환경 안전장치: 운영(DEPLOY_ENV=production)에서 가짜 로그인이 켜져 있거나 필수 값이 없으면
 // 어떤 API도 처리하지 않는다. 이유는 응답에 싣지 않고 로그에만 남긴다.
@@ -401,9 +414,17 @@ app.post("/api/groups", async (c) => {
   return c.json(await createGroup(c.env, accountId, await readJsonBody(c.req.raw)));
 });
 
+// 운영자 스냅숏. ETag(모임 행 1행만 읽어 계산)가 화면이 가진 것과 같으면 304로 답해 나머지를 읽지 않는다.
+// 응답 본문은 예전과 같다(헤더만 더함). 브라우저 fetch는 304를 저장해 둔 본문으로 바꿔 주므로 화면 변경이 필요 없다.
 app.get("/api/groups/:gid/snapshot", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);
+  const head = await loadEtagHead(c.env, gid);
+  if (!head) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  const etag = await snapshotEtag(c.env, head, "operator");
+  c.header("ETag", etag);
+  c.header("Cache-Control", REVALIDATE);
+  if (etagMatches(c.req.header("If-None-Match"), etag)) return c.body(null, 304);
   return c.json(await buildSnapshot(c.env, gid, "operator"));
 });
 
@@ -467,14 +488,14 @@ app.post("/api/groups/:gid/seasons", async (c) => {
 app.delete("/api/groups/:gid/seasons/:sid", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);
-  await deleteSeason(c.env, gid, c.req.param("sid"));
+  await deleteSeason(c.env, gid, c.req.param("sid"), await readOptionalJsonBody(c.req.raw));
   return c.json({ ok: true });
 });
 
 app.post("/api/groups/:gid/view-token", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);
-  return c.json({ viewToken: await regenerateViewToken(c.env, gid) });
+  return c.json({ viewToken: await regenerateViewToken(c.env, gid, await readOptionalJsonBody(c.req.raw)) });
 });
 
 /* ---------------------------- 백업 복원 ---------------------------- */
@@ -713,9 +734,17 @@ app.post("/api/groups/:gid/join/remove", async (c) => {
 });
 
 // 로그인 없이도 쓴다. 로그인한 멤버면 계정을 넘겨 본인 확인 신청·내 이름 표시에 쓴다(src/server/join.ts).
-app.get("/api/join/:token", async (c) =>
-  c.json(await joinInfo(c.env, c.req.param("token"), (await readSession(c.env, c.req.raw))?.id ?? null)),
-);
+// 조건부 요청: 링크 행 1행으로 ETag를 만들고, 같으면 304(명단·신청을 읽지 않는다).
+app.get("/api/join/:token", async (c) => {
+  const accountId = (await readSession(c.env, c.req.raw))?.id ?? null;
+  const result = await joinInfoConditional(c.env, c.req.param("token"), accountId, c.req.header("If-None-Match") ?? null);
+  c.header("ETag", result.etag);
+  c.header("Cache-Control", REVALIDATE);
+  // 로그인 여부에 따라 본문이 다르다(ETag에 계정을 넣었다). 중간 캐시가 섞지 않게 알린다.
+  c.header("Vary", "Cookie");
+  if (result.notModified) return c.body(null, 304);
+  return c.json(result.view);
+});
 
 app.post("/api/join/:token", async (c) =>
   c.json(
@@ -822,6 +851,15 @@ app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
   });
 });
 
+// 진행 중 경기의 사람 교체(2026-11-07, src/server/matches.ts replaceLiveParticipant). 운영자·공동 운영자.
+app.patch("/api/groups/:gid/matches/:mid/roster", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json({
+    match: await replaceLiveParticipant(c.env, gid, c.req.param("mid"), await readJsonBody(c.req.raw)),
+  });
+});
+
 /* ---------------------------- 시리즈 묶음 ---------------------------- */
 // src/server/series.ts. 운영자·공동 운영자. 만들기는 확정 경기로, 시작 때 이어가기는 matches/start의 series 필드로.
 
@@ -851,14 +889,37 @@ app.post("/api/groups/:gid/series/:sid/:action", async (c) => {
 /* ---------------------------- 조회 링크 ---------------------------- */
 
 // 조회 토큰은 읽기만 허용한다. 수정 경로는 모두 운영자 확인을 거친다.
+// 조건부 요청: 토큰으로 모임 행 1행을 읽어 ETag를 만들고, 같으면 304(경기·명단을 읽지 않는다).
+// 조회 토큰을 다시 만들면 예전 토큰은 행을 찾지 못해 404다(ETag가 같아도 304를 주지 않는다).
 app.get("/api/view/:token", async (c) => {
-  const gid = await groupIdFromViewToken(c.env, c.req.param("token"));
+  const head = await loadEtagHeadByViewToken(c.env, c.req.param("token"));
+  if (!head) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  const etag = await snapshotEtag(c.env, head, "viewer");
+  c.header("ETag", etag);
+  c.header("Cache-Control", REVALIDATE);
+  if (etagMatches(c.req.header("If-None-Match"), etag)) return c.body(null, 304);
   // 칭호 구간·점검 여부는 buildSnapshot의 조회용 허용 목록에서 붙는다(snapshot.ts의 viewerSettings).
-  return c.json(await buildSnapshot(c.env, gid, "viewer"));
+  return c.json(await buildSnapshot(c.env, head.id, "viewer"));
 });
 
 app.all("/api/*", () => {
   throw new ApiError(404, "NOT_FOUND", "찾을 수 없습니다.");
 });
 
-export default app;
+/**
+ * Worker 진입점. fetch는 Hono 앱, scheduled는 자동 백업(src/server/backupCron.ts, wrangler.jsonc의 triggers.crons).
+ * 테스트(test/direct.ts 등)는 이 객체의 fetch를 그대로 부른다.
+ */
+const worker = {
+  fetch: app.fetch,
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      runBackups(env, controller.scheduledTime).then(
+        (result) => console.log(JSON.stringify({ at: nowIso(), cron: controller.cron, backups: result })),
+        (error: unknown) => console.error(JSON.stringify({ at: nowIso(), cron: controller.cron, error: String(error) })),
+      ),
+    );
+  },
+} satisfies ExportedHandler<Env>;
+
+export default worker;

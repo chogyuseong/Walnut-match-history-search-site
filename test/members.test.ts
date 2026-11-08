@@ -514,7 +514,8 @@ describe("익명 처리", () => {
 
     const after = await snapshot(g);
     const p = after.participants.find((x) => x.id === target.id)!;
-    expect(p).toEqual({ id: target.id, name: "탈퇴한 참가자 1", status: "archived", skillGroup: null });
+    // version: 참가자 행 버전(migrations/0021, 운영자 스냅숏에만).
+    expect(p).toEqual({ id: target.id, name: "탈퇴한 참가자 1", status: "archived", skillGroup: null, version: expect.any(Number) });
     expect(after.memberLinks).toEqual([]);
     expect(after.memberRequests).toEqual([]);
     expect((await memberSnap(member, g.gid)).status).toBe(404);

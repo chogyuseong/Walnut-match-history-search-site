@@ -247,34 +247,44 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await expect(matrix.locator(".swatch.heat-h4")).toHaveCount(1);
   await expect(matrix.locator(".swatch.heat-l4")).toHaveCount(1);
 
-  // 칭호 설정: 구간 수를 7개로 늘려도, 2개로 줄여도 등급이 순서대로 붙는다.
+  // 칭호 설정: 기본 6구간은 다섯 등급에 비율로 대응해 가운데 두 구간이 같은 등급(1·2·3·3·4·5).
+  // 구간 수를 8개로 늘려도, 2개로 줄여도 등급이 순서대로 붙는다.
   await page.goto("/#/group");
   const section = page.getByRole("region", { name: "칭호" });
   const sectionGrades = () =>
     section.locator(".title-chip").evaluateAll((nodes) => nodes.map((n) => n.className.match(/grade-\d/)?.[0]));
-  expect(await sectionGrades()).toEqual(["grade-1", "grade-2", "grade-3", "grade-4", "grade-5"]);
+  expect(await sectionGrades()).toEqual(["grade-1", "grade-2", "grade-3", "grade-3", "grade-4", "grade-5"]);
   await section.getByRole("button", { name: "칭호 바꾸기" }).click();
   const dialog = page.getByRole("dialog", { name: "칭호 바꾸기" });
-  await expect(dialog.locator(".title-preview")).toHaveCount(5);
+  await expect(dialog.locator(".title-preview")).toHaveCount(6);
   await dialog.getByRole("button", { name: "맨 위에 구간 더하기" }).click();
   await dialog.getByRole("button", { name: "맨 위에 구간 더하기" }).click();
-  await expect(dialog.locator(".title-preview")).toHaveCount(7);
+  await expect(dialog.locator(".title-preview")).toHaveCount(8);
   await dialog.getByLabel("1번째 칭호 이름").fill("전설");
   await dialog.getByLabel("1번째 칭호 경계(% 이상)").fill("90");
   await dialog.getByLabel("2번째 칭호 이름").fill("영웅");
   await dialog.getByLabel("2번째 칭호 경계(% 이상)").fill("80");
   await dialog.getByRole("button", { name: "저장" }).click();
   await expect(dialog).toBeHidden();
-  await expect(section.locator(".title-chip")).toHaveCount(7);
-  expect(await sectionGrades()).toEqual(["grade-1", "grade-2", "grade-2", "grade-3", "grade-4", "grade-4", "grade-5"]);
-  // 7구간: 선수12(70% 이상 → 65% 구간, 위에서 3번째)는 2등급.
+  await expect(section.locator(".title-chip")).toHaveCount(8);
+  expect(await sectionGrades()).toEqual([
+    "grade-1",
+    "grade-2",
+    "grade-2",
+    "grade-3",
+    "grade-3",
+    "grade-4",
+    "grade-4",
+    "grade-5",
+  ]);
+  // 8구간: 선수12(70% 이상 → 65% 구간, 위에서 3번째)는 2등급.
   await page.goto(`/#/p/${top.id}`);
   await page.reload();
   await expect(page.getByRole("region", { name: "요약" }).locator(".title-chip")).toHaveClass(/grade-2/);
 
   await page.goto("/#/group");
   await section.getByRole("button", { name: "칭호 바꾸기" }).click();
-  for (let i = 0; i < 5; i++) await dialog.getByRole("button", { name: "1번째 칭호 빼기" }).click();
+  for (let i = 0; i < 6; i++) await dialog.getByRole("button", { name: "1번째 칭호 빼기" }).click();
   await expect(dialog.locator(".title-preview")).toHaveCount(2);
   await dialog.getByRole("button", { name: "저장" }).click();
   await expect(dialog).toBeHidden();

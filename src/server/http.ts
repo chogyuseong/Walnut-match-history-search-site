@@ -75,6 +75,52 @@ export async function readJsonBody(
 }
 
 /**
+ * 본문이 없어도 되는 경로(예전 화면은 본문 없이, 새 화면은 { requestId }를 보낸다).
+ * Content-Type이 없고 본문 길이가 0이거나 없으면 빈 객체, 그 밖에는 readJsonBody와 같다.
+ */
+export async function readOptionalJsonBody(req: Request, maxBytes = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
+  const type = req.headers.get("Content-Type");
+  const length = req.headers.get("Content-Length");
+  if (type === null && (req.body === null || length === "0")) return {};
+  return readJsonBody(req, maxBytes);
+}
+
+/**
+ * 보안 헤더(2026-11-07). API 응답(index.ts 공통 앞단)과 정적 화면(public/_headers)이 같은 값을 쓴다.
+ * 값을 바꾸면 public/_headers도 함께 바꾼다(test/security.test.ts가 API 쪽을 확인한다).
+ * - 외부 출처: 글꼴 CSS·글꼴 파일(Pretendard, cdn.jsdelivr.net, src/web/index.html). 그 밖에는 모두 같은 출처.
+ * - 화면에 인라인 스크립트는 없다(빌드된 index.html은 모듈 스크립트 파일 하나). 인라인 스타일은 React style 속성 때문에 허용.
+ * - img-src의 data:·blob:은 공유 이미지(캔버스)·백업 파일 내려받기(Blob URL)에 쓴다.
+ */
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "font-src 'self' https://cdn.jsdelivr.net data:",
+  "img-src 'self' data: blob:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
+export const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
+
+/** HSTS는 운영(DEPLOY_ENV=production)에서만 붙인다(로컬 http 개발 주소를 브라우저가 https로 고정하지 않게). */
+export function securityHeaders(deployEnv: string | undefined): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": PERMISSIONS_POLICY,
+    "X-Frame-Options": "DENY",
+  };
+  if (deployEnv === "production") headers["Strict-Transport-Security"] = "max-age=31536000";
+  return headers;
+}
+
+/**
  * 상태를 바꾸는 요청(GET·HEAD·OPTIONS 밖)의 Origin 확인(검토 L5). 세션 쿠키의 SameSite=Lax에 더해 두는 두 번째 방어다.
  * - Origin 헤더가 없으면 통과한다(같은 사이트 화면의 일부 요청, 서버 간 호출·테스트·npm run seed).
  *   브라우저는 다른 사이트에서 보내는 POST·PUT·PATCH·DELETE에 항상 Origin을 붙인다.

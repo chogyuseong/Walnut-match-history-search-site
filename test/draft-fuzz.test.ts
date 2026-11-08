@@ -3,9 +3,12 @@ import {
   addConstraint,
   applyTeams,
   createDraft,
+  HISTORY_MAX,
+  historyOf,
   isCompleteDraft,
   parseStoredDraft,
   randomDraftSide,
+  redoDraft,
   removeConstraint,
   rerollPositions,
   rngFromSeed,
@@ -93,6 +96,7 @@ type Op =
   | "legacySide"
   | "randomSide"
   | "undo"
+  | "redo"
   | "lock"
   | "constraint"
   | "removeConstraint"
@@ -109,6 +113,7 @@ const OPS: Op[] = [
   "legacySide",
   "randomSide",
   "undo",
+  "redo",
   "lock",
   "constraint",
   "removeConstraint",
@@ -194,6 +199,8 @@ function apply(
       return randomDraftSide(d);
     case "undo":
       return undoDraft(d);
+    case "redo":
+      return redoDraft(d);
     case "lock":
       return toggleLock(d, any());
     case "constraint": {
@@ -261,7 +268,20 @@ function checkStep(step: Step, ctx: RotationContext, where: string, priorities: 
   if (recordsPrevious) {
     // 직전 편성으로 되돌리면 조작 직전 자리와 정확히 같다.
     expect(undoDraft(after).slots, `${where}: 되돌리기`).toEqual(before.slots);
+    // 이력을 남긴 조작은 다시 앞으로를 지운다.
+    expect(after.redoSlots ?? null, `${where}: 다시 앞으로 지움`).toBeNull();
   }
+  // 되돌리기 이력(2026-11-07): 5개 이하, previousSlots는 이력의 마지막과 같다. 이력을 끝까지 되돌리면 이력 순서대로 복원된다.
+  const history = historyOf(after);
+  expect(history.length, `${where}: 이력 ${HISTORY_MAX}개 이하`).toBeLessThanOrEqual(HISTORY_MAX);
+  expect(after.previousSlots ?? null, `${where}: previousSlots = 이력 마지막`).toEqual(history[history.length - 1] ?? null);
+  let rewound = after;
+  for (let k = history.length - 1; k >= 0; k--) {
+    rewound = undoDraft(rewound);
+    expect(rewound.slots, `${where}: ${history.length - k}번 되돌리기`).toEqual(history[k]);
+    expect(isCompleteDraft(rewound)).toBe(true);
+  }
+  expect(undoDraft(rewound), `${where}: 이력 끝`).toBe(rewound);
 
   switch (op) {
     case "teamShuffle": {
@@ -373,10 +393,24 @@ function checkStep(step: Step, ctx: RotationContext, where: string, priorities: 
       expect([before.slots, swapSides(before).slots], `${where}: 진영 랜덤`).toContainEqual(after.slots);
       expect(after.seed).not.toBe(before.seed);
       break;
-    case "undo":
-      if (before.previousSlots) {
-        expect(after.slots).toEqual(before.previousSlots);
-        expect(after.previousSlots).toEqual(before.slots);
+    case "undo": {
+      // 여러 단계(2026-11-07): 이력에서 하나를 꺼내고, 되돌리기 전 자리는 다시 앞으로에 남는다.
+      // (예전 한 단계 동작 "한 번 더 누르면 돌아온다"는 다시 앞으로(redo)가 맡는다.)
+      const was = historyOf(before);
+      if (was.length > 0) {
+        expect(after.slots).toEqual(was[was.length - 1]);
+        expect(historyOf(after)).toEqual(was.slice(0, -1));
+        expect(after.redoSlots).toEqual(before.slots);
+        expect(redoDraft(after).slots, `${where}: 다시 앞으로`).toEqual(before.slots);
+      } else {
+        expect(after).toBe(before);
+      }
+      break;
+    }
+    case "redo":
+      if (before.redoSlots) {
+        expect(after.slots).toEqual(before.redoSlots);
+        expect(recordsPrevious, `${where}: 다시 앞으로도 이력에 남김`).toBe(true);
       } else {
         expect(after).toBe(before);
       }
@@ -457,6 +491,10 @@ function run(seed: number, check: boolean, withAvoid = false): { final: Draft; s
   let d = createDraft(ps, { groupId: "g", baseLiveVersion: 0, seed, now, teamOf: rng() < 0.5 ? teamOf : undefined, avoid });
   if (check && avoid) checkAvoid("reroll", d, avoid, `seed ${seed} createDraft`);
   const length = 20 + Math.floor(rng() * 21);
+  // 되돌리기 이력의 독립 모형: 자리를 남긴 조작마다 직전 자리를 넣고(최근 5개), 되돌리기는 하나 꺼내고,
+  // 진영 바꾸기(진영 랜덤·예전 "red" 초안 읽기 포함)는 모두 뒤집는다. 초안의 이력이 이 모형과 늘 같아야 한다.
+  let model: DraftSlot[][] = [];
+  const flip = (slots: DraftSlot[]) => slots.map((s) => ({ ...s, team: (s.team === "A" ? "B" : "A") as Team }));
   for (let i = 0; i < length; i++) {
     const op = OPS[Math.floor(rng() * OPS.length)]!;
     const before = d;
@@ -465,6 +503,14 @@ function run(seed: number, check: boolean, withAvoid = false): { final: Draft; s
       const where = `seed ${seed}${avoid ? " 기피" : ""} step ${i} ${op}`;
       checkStep({ op, before, after: d }, ctx, where, priorities, avoid);
       if (avoid) checkAvoid(op, d, avoid, where);
+      if (d !== before && d.previousSlots === before.slots) model = [...model, before.slots].slice(-HISTORY_MAX);
+      else if (op === "undo" && d !== before) model = model.slice(0, -1);
+      else if (
+        (op === "swapSides" || op === "randomSide" || op === "legacySide") &&
+        JSON.stringify(d.slots) === JSON.stringify(swapSides(before).slots)
+      )
+        model = model.map(flip);
+      expect(historyOf(d), `${where}: 이력 모형과 같음`).toEqual(model);
     }
   }
   return { final: d, steps: length };

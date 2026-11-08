@@ -70,10 +70,14 @@ test.describe("첫 이용 흐름 (390px)", () => {
     await expect(page.getByText("2명이 더 필요해요.")).toBeVisible();
     await expect(page.getByRole("button", { name: "팀 짜기 (8/10)" })).toBeDisabled();
 
-    // 중복과 초과를 구체적으로 안내한다.
+    // 중복과 10명 초과를 구체적으로 안내한다. 11번째부터는 대기자가 된다(2026-11-07, 예전에는 넣지 않았다).
     await enterNames(page, ["김용호", ...NAMES.slice(8), "초과한사람"]);
+    await expect(page.getByText("10/10 +1", { exact: true })).toBeVisible();
+    await expect(page.getByText(/10명이 넘었어요. 먼저 고른 10명으로 팀을 짜고 나머지 1명은 대기자로/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "팀 짜기 (10명 + 대기 1명)" })).toBeEnabled();
+    // 이 흐름은 10명으로 이어간다(대기자 흐름은 prep-walkthrough.spec.ts).
+    await page.getByRole("button", { name: "초과한사람 빼기" }).click();
     await expect(page.getByText("10/10", { exact: true })).toBeVisible();
-    await expect(page.getByText(/10명까지만 고를 수 있어 1명\(초과한사람\)/)).toBeVisible();
     await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
 
     // 다음 경기 준비: 로그인 없이 편성이 보이고 기기 보관임을 표시한다.
@@ -124,10 +128,13 @@ test.describe("첫 이용 흐름 (390px)", () => {
     const sheet = page.getByRole("dialog", { name: "1경기 결과" });
     await expect(sheet.getByRole("button", { name: "저장" })).toBeDisabled();
     await expect(sheet.getByText(/팀 [AB]/)).toHaveCount(0);
-    await sheet.getByRole("radio", { name: /레드팀 승/ }).check();
+    // 결과 입력 2버튼(2026-11-07): 큰 버튼으로 고르고, 진영 정정은 "진영이 시작할 때와 달랐나요?" 접힘 영역 안이다.
+    await sheet.getByRole("button", { name: /레드팀 승/ }).click();
+    await expect(sheet.getByRole("button", { name: /레드팀 승/ })).toHaveAttribute("aria-pressed", "true");
+    await sheet.getByText("진영이 시작할 때와 달랐나요?").click();
     await expect(sheet.getByRole("radio", { name: "레드", exact: true })).toBeChecked();
     await expect(sheet.getByRole("button", { name: "저장" })).toBeEnabled();
-    await sheet.getByRole("radio", { name: /블루팀 승/ }).check();
+    await sheet.getByRole("button", { name: /블루팀 승/ }).click();
     await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
 
     // 실제로는 왼쪽 팀이 레드였다: 진영 단계에서 바로잡는다. 요약이 곧 확인이다. (2)

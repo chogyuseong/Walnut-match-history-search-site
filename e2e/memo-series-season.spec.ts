@@ -84,7 +84,9 @@ async function noHorizontalOverflow(page: Page, where: string) {
 async function chooseBlueWin(page: Page, matchNo: number) {
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: `${matchNo}경기 결과` });
-  await sheet.getByRole("radio", { name: /블루팀 승/ }).check();
+  // 결과 입력 2버튼(2026-11-07): "블루팀 승" 큰 버튼. 진영 정정은 접힘 영역 안에 있다.
+  await sheet.getByRole("button", { name: /블루팀 승/ }).click();
+  await sheet.getByText("진영이 시작할 때와 달랐나요?").click();
   await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
   return sheet;
 }

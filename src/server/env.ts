@@ -55,11 +55,30 @@ export interface Env {
    * 기본은 켜짐. 이미 로그인한 자체 계정의 세션은 끄더라도 만료·로그아웃 전까지 그대로다.
    */
   LOCAL_ACCOUNTS?: string;
-  /** 비밀번호 PBKDF2 반복 횟수. 기본·최대 100000(Workers 런타임의 상한). 저장한 해시에 횟수가 함께 적힌다. */
+  /**
+   * 비밀번호 PBKDF2 반복 횟수. 기본·최대 100000(Workers 런타임의 상한). 저장한 해시에 횟수가 함께 적힌다.
+   * 운영(무료 요금제, 요청당 CPU 10ms)은 20000으로 둔다(wrangler.jsonc). Paid로 올리면 100000으로 되돌린다.
+   */
   PASSWORD_PBKDF2_ITERATIONS?: string;
 
   /** 복원 한 batch에 넣을 데이터 크기 상한(바이트). 넘으면 점검 상태에서 여러 단계로 나눠 넣는다. */
   RESTORE_BATCH_BYTES?: string;
   /** 모임 삭제 한 batch에서 지울 행 수 상한. 넘으면 점검 상태에서 여러 단계로 나눠 지운다(src/server/deletion.ts). */
   GROUP_DELETE_BATCH_ROWS?: string;
+
+  /**
+   * 자동 백업(src/server/backupCron.ts)을 넣을 R2 버킷. 없으면 예정 작업이 아무것도 하지 않고 로그만 남긴다.
+   * 운영 버킷: naejeon-prod-backups(docs/배포안내.md).
+   */
+  BACKUPS?: R2Bucket;
+  /** 예정 작업 한 번에 백업할 모임 수 상한. 기본 5. 나머지는 다음 실행이 이어서 한다. */
+  BACKUP_GROUPS_PER_RUN?: string;
+  /** 자동 백업 보관 날수. 기본 30. */
+  BACKUP_KEEP_DAYS?: string;
+
+  /**
+   * 배포 버전 정보(wrangler.jsonc의 version_metadata). 스냅숏 ETag에 넣어, 새 코드를 배포하면
+   * 자료가 그대로여도 예전 응답 본문을 다시 쓰지 않게 한다(응답 모양이 바뀌었을 수 있다). 없으면 빈 값.
+   */
+  CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
 }

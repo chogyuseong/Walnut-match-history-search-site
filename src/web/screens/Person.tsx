@@ -20,6 +20,7 @@ import {
   type Scope,
   type Tally,
 } from "../../shared/stats";
+import { pairRecord } from "../../shared/headToHead";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, rateTier, standingsOf } from "../format";
@@ -86,8 +87,8 @@ export function Person(props: {
   back: () => void;
   openMatch: (id: string) => void;
   openPerson: (id: string) => void;
-  /** 이 사람과 다른 사람을 비교하는 화면으로 간다. */
-  openCompare?: (id: string) => void;
+  /** 이 사람과 다른 사람을 비교하는 화면으로 간다. other가 있으면 그 사람과 바로 비교한다. */
+  openCompare?: (id: string, other?: string) => void;
 }) {
   const { snapshot, participantId } = props;
   const [scope, setScope] = useState<Scope>({ kind: "all" });
@@ -114,6 +115,19 @@ export function Person(props: {
   );
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
+  // 상대 전적 보기(2026-11-07): 같은 모임의 활성 참가자 중 한 명을 골라 이 사람 기준 상대·같은 팀 전적을 본다.
+  const [rival, setRival] = useState<string | null>(null);
+  const rivals = useMemo(
+    () =>
+      snapshot.participants
+        .filter((p) => p.status === "active" && !p.mergedInto && p.id !== participantId)
+        .sort((a, b) => a.name.localeCompare(b.name, "ko")),
+    [snapshot, participantId],
+  );
+  const pair = useMemo(
+    () => (rival ? pairRecord(scoped, participantId, rival) : null),
+    [scoped, participantId, rival],
+  );
 
   // 중복 참가자 합치기로 다른 사람에게 합쳐진 이름: 기록은 모두 남은 사람에게 옮겨졌으므로 그쪽으로 안내한다.
   const mergedTarget = person?.mergedInto
@@ -477,6 +491,60 @@ export function Person(props: {
         <h2>상대 팀일 때 ({scopeLabel})</h2>
         {pairList(cmp.versus, detail.versus, "상대 팀으로 만난 경기가 없어요.", "versus")}
         <p className="hint">승률은 {person.name} 기준입니다. 경기 수가 적으면 우연일 수 있습니다.</p>
+      </section>
+
+      {/* 영역 이름은 위 "상대 전적"(상대 팀일 때 목록)과 겹치지 않게 따로 둔다. */}
+      <section aria-label="한 사람과 맞대결">
+        <h2>한 사람과 맞대결 ({scopeLabel})</h2>
+        <label>
+          상대 고르기
+          <select value={rival ?? ""} onChange={(e) => setRival(e.target.value || null)}>
+            <option value="">고르기</option>
+            {rivals.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {rival && pair && (
+          <ul className="list" aria-label={`${nameOf(rival)} 님과의 전적`}>
+            <li className="list-row static has-bar">
+              <span>상대 팀으로</span>
+              <span className="stat">
+                {pair.against.games === 0 ? (
+                  "만난 적 없음"
+                ) : (
+                  <>
+                    {pair.against.games}경기 · {pair.against.wins}승 {pair.against.losses}패
+                  </>
+                )}
+              </span>
+              <RateBar wins={pair.against.wins} games={pair.against.games} small />
+            </li>
+            <li className="list-row static has-bar">
+              <span>같은 팀으로</span>
+              <span className="stat">
+                {pair.together.games === 0 ? (
+                  "같은 팀으로 뛴 적 없음"
+                ) : (
+                  <>
+                    {pair.together.games}경기 · 승률 <RateText tally={pair.together} />
+                  </>
+                )}
+              </span>
+              <RateBar wins={pair.together.wins} games={pair.together.games} small />
+            </li>
+          </ul>
+        )}
+        {rival && props.openCompare && (
+          <button type="button" className="link" onClick={() => props.openCompare!(participantId, rival)}>
+            두 사람 비교에서 자세히 보기
+          </button>
+        )}
+        <p className="hint">
+          {person.name} 기준입니다. 결과가 확정된 경기만 셉니다(라인 맞대결·두 사람 비교와 같은 기준).
+        </p>
       </section>
 
       <section className="full" aria-label="참여 경기">

@@ -361,7 +361,7 @@ export async function setOwnAvoid(env: Env, ctx: MemberContext, body: Body): Pro
   try {
     await env.DB.batch([
       linkGuard(env, ctx),
-      env.DB.prepare("UPDATE participants SET avoid_positions = ?1 WHERE id = ?2 AND group_id = ?3").bind(
+      env.DB.prepare("UPDATE participants SET avoid_positions = ?1, version = version + 1 WHERE id = ?2 AND group_id = ?3").bind(
         value,
         ctx.participantId,
         ctx.groupId,
@@ -574,7 +574,7 @@ export async function anonymizeParticipant(
         ),
         ...renames.map((r) =>
           env.DB.prepare(
-            `UPDATE participants SET name = ?1, name_key = ?2, status = 'archived', avoid_positions = NULL, skill_group = NULL
+            `UPDATE participants SET name = ?1, name_key = ?2, status = 'archived', avoid_positions = NULL, skill_group = NULL, version = version + 1
              WHERE id = ?3 AND group_id = ?4`,
           ).bind(r.name, r.key, r.id, groupId),
         ),

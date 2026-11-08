@@ -150,6 +150,12 @@ export function useApp(enabled: boolean): AppValue {
   const [switching, setSwitching] = useState(false);
   const groupRef = useRef<string | null>(null);
   const draftRef = useRef<Draft | null>(draft);
+  /**
+   * 스냅숏 요청 순번. 요청마다 올리고, 응답이 왔을 때 순번이 그대로일 때만 화면 상태에 반영한다.
+   * 모임을 바꾸는 중에 앞 모임의 늦은 응답이 뒤에 도착해도 다른 모임의 스냅숏이 보이지 않게 한다
+   * (같은 모임의 겹친 새로 고침도 마지막 요청의 응답만 남는다). 스냅숏을 비울 때(로그아웃 등)도 올린다.
+   */
+  const snapshotSeq = useRef(0);
 
   const setDraft = useCallback((next: Draft | null) => {
     draftRef.current = next;
@@ -165,8 +171,13 @@ export function useApp(enabled: boolean): AppValue {
   }, []);
 
   const loadSnapshot = useCallback(async (gid: string): Promise<Snapshot | null> => {
+    const seq = ++snapshotSeq.current;
     try {
       const next = await call<Snapshot>("GET", `/api/groups/${gid}/snapshot`);
+      if (seq !== snapshotSeq.current) {
+        // 더 나중에 보낸 요청이 있다: 화면 상태는 그 요청이 정한다. 부른 쪽에는 지금 모임 것일 때만 돌려준다.
+        return next.group.id === groupRef.current ? next : null;
+      }
       setSnapshot(next);
       setLoadedAt(Date.now());
       setLoadError(null);
@@ -196,6 +207,8 @@ export function useApp(enabled: boolean): AppValue {
       }
       return next;
     } catch (error) {
+      // 늦게 실패한 앞 요청은 지금 화면의 상태(오류 표시·로그인 상태)를 바꾸지 않는다.
+      if (seq !== snapshotSeq.current) return null;
       if (error instanceof ApiFailure) {
         setLoadError(error);
         // 로그인이 만료되면 계정 상태를 비운다. 입력 중인 초안은 그대로 둔다.
@@ -204,25 +217,6 @@ export function useApp(enabled: boolean): AppValue {
       return null;
     }
   }, [setDraft]);
-
-  // 계정 정보를 아직 못 받았으면(첫 불러오기가 네트워크 오류로 실패) 계정부터 다시 읽는다.
-  const loadMeRef = useRef<(() => Promise<Me | null>) | null>(null);
-  const refresh = useCallback(async () => {
-    if (!groupRef.current) {
-      await loadMeRef.current?.();
-      return null;
-    }
-    return loadSnapshot(groupRef.current);
-  }, [loadSnapshot]);
-
-  const refreshAfterOwnChange = useCallback(async () => {
-    const next = await refresh();
-    const current = draftRef.current;
-    if (next && current && current.baseLiveVersion !== next.group.liveVersion) {
-      setDraft({ ...current, baseLiveVersion: next.group.liveVersion, groupId: next.group.id });
-    }
-    return next;
-  }, [refresh, setDraft]);
 
   const selectGroup = useCallback(
     async (gid: string | null) => {
@@ -248,6 +242,7 @@ export function useApp(enabled: boolean): AppValue {
         }
         await loadSnapshot(gid);
       } else {
+        snapshotSeq.current++;
         setSnapshot(null);
       }
     },
@@ -274,7 +269,24 @@ export function useApp(enabled: boolean): AppValue {
     }
   }, [selectGroup]);
 
-  loadMeRef.current = loadMe;
+  // 계정 정보를 아직 못 받았으면(첫 불러오기가 네트워크 오류로 실패) 계정부터 다시 읽는다.
+  // loadMe를 먼저 정의해 의존성으로 받는다(렌더 중에 ref에 대입하지 않는다: react-hooks 규칙).
+  const refresh = useCallback(async () => {
+    if (!groupRef.current) {
+      await loadMe();
+      return null;
+    }
+    return loadSnapshot(groupRef.current);
+  }, [loadSnapshot, loadMe]);
+
+  const refreshAfterOwnChange = useCallback(async () => {
+    const next = await refresh();
+    const current = draftRef.current;
+    if (next && current && current.baseLiveVersion !== next.group.liveVersion) {
+      setDraft({ ...current, baseLiveVersion: next.group.liveVersion, groupId: next.group.id });
+    }
+    return next;
+  }, [refresh, setDraft]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -317,6 +329,7 @@ export function useApp(enabled: boolean): AppValue {
     await call("POST", "/api/auth/logout");
     groupRef.current = null;
     setGroupId(null);
+    snapshotSeq.current++;
     setSnapshot(null);
     setMe((m) => (m ? { ...m, accountId: null, groups: [], memberships: [] } : m));
   }, []);

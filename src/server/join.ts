@@ -20,6 +20,7 @@ import type { Env } from "./env";
 import { parseName } from "./groups";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireString } from "./http";
 import { maintenanceError, runMutation, sha256Hex } from "./mutation";
+import { etagMatches } from "./snapshot";
 
 /** 한 모임의 신청 상한. */
 export const MAX_JOIN_ENTRIES = 30;
@@ -63,16 +64,33 @@ interface PersonRow {
   merged_into: string | null;
 }
 
-async function loadPeople(env: Env, groupId: string): Promise<PersonRow[]> {
-  const rows = await env.DB.prepare(
+function peopleStatement(env: Env, groupId: string): D1PreparedStatement {
+  return env.DB.prepare(
     `SELECT p.id, p.name, p.name_key, p.status, m.target_id AS merged_into
      FROM participants p
      LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
      WHERE p.group_id = ?1 ORDER BY p.created_at, p.id`,
-  )
-    .bind(groupId)
-    .all<PersonRow>();
-  return rows.results;
+  ).bind(groupId);
+}
+
+function entryRowsStatement(env: Env, groupId: string): D1PreparedStatement {
+  return env.DB.prepare(
+    `SELECT id, participant_id, new_name, name_key, created_at, account_id FROM join_requests
+     WHERE group_id = ?1 ORDER BY created_at, id`,
+  ).bind(groupId);
+}
+
+interface EntryRow {
+  id: string;
+  participant_id: string | null;
+  new_name: string | null;
+  name_key: string | null;
+  created_at: string;
+  account_id: string | null;
+}
+
+async function loadPeople(env: Env, groupId: string): Promise<PersonRow[]> {
+  return (await peopleStatement(env, groupId).all<PersonRow>()).results;
 }
 
 /** 신청할 수 있는 사람: 활성이고 다른 사람에게 합쳐지지 않은 참가자. */
@@ -89,24 +107,17 @@ interface Grouped extends JoinEntry {
 /** 신청 행을 사람 단위로 묶는다(합쳐진 사람 → 남은 사람, 같은 이름의 새 이름 → 그 참가자). 신청 순. */
 async function loadEntries(env: Env, groupId: string, people?: PersonRow[]): Promise<Grouped[]> {
   const list = people ?? (await loadPeople(env, groupId));
-  const rows = await env.DB.prepare(
-    `SELECT id, participant_id, new_name, name_key, created_at, account_id FROM join_requests
-     WHERE group_id = ?1 ORDER BY created_at, id`,
-  )
-    .bind(groupId)
-    .all<{
-      id: string;
-      participant_id: string | null;
-      new_name: string | null;
-      name_key: string | null;
-      created_at: string;
-      account_id: string | null;
-    }>();
+  const rows = await entryRowsStatement(env, groupId).all<EntryRow>();
+  return groupEntries(rows.results, list);
+}
+
+/** 이미 읽은 신청 행을 사람 단위로 묶는다(loadEntries와 공개 응답의 batch가 함께 쓴다). */
+function groupEntries(rows: readonly EntryRow[], list: readonly PersonRow[]): Grouped[] {
   const merged = list.map((p) => ({ id: p.id, mergedInto: p.merged_into ?? undefined }));
   const byId = new Map(list.map((p) => [p.id, p]));
   const activeByKey = new Map(activePeople(list).map((p) => [p.name_key, p]));
   const groups = new Map<string, Grouped>();
-  for (const r of rows.results) {
+  for (const r of rows) {
     let participantId: string | null = null;
     let name: string;
     if (r.participant_id) {
@@ -297,13 +308,15 @@ interface LinkRow {
   is_open: number;
   name: string;
   maintenance: number;
+  /** 모임 화면 자료 버전(migrations/0021 트리거). 신청·명단이 바뀌면 오른다. 공개 응답의 ETag에 쓴다. */
+  data_version: number;
 }
 
 async function findLink(env: Env, token: string): Promise<LinkRow> {
   // 토큰 모양이 아니면 DB를 보지 않고 같은 답을 준다.
   if (typeof token !== "string" || token.length < 8 || token.length > 64) throw invalidLink();
   const row = await env.DB.prepare(
-    `SELECT l.group_id, l.token_hash, l.is_open, g.name, g.maintenance
+    `SELECT l.group_id, l.token_hash, l.is_open, g.name, g.maintenance, g.data_version
      FROM join_links l JOIN groups g ON g.id = l.group_id WHERE l.token_hash = ?1`,
   )
     .bind(await sha256Hex(token))
@@ -312,9 +325,20 @@ async function findLink(env: Env, token: string): Promise<LinkRow> {
   return row;
 }
 
+/**
+ * 공개 응답. 명단·신청·내 연결을 D1 batch 한 번(왕복 1회, 같은 시점)으로 읽는다(2026-11-07).
+ */
 async function publicView(env: Env, link: LinkRow, accountId: string | null): Promise<JoinPublicView> {
-  const people = await loadPeople(env, link.group_id);
-  const entries = await loadEntries(env, link.group_id, people);
+  const [peopleResult, entryResult, mineResult] = await env.DB.batch([
+    peopleStatement(env, link.group_id),
+    entryRowsStatement(env, link.group_id),
+    env.DB.prepare("SELECT participant_id FROM participant_links WHERE group_id = ?1 AND account_id = ?2").bind(
+      link.group_id,
+      accountId ?? "",
+    ),
+  ]);
+  const people = (peopleResult?.results ?? []) as unknown as PersonRow[];
+  const entries = groupEntries((entryResult?.results ?? []) as unknown as EntryRow[], people);
   const active = activePeople(people);
   const view: JoinPublicView = {
     groupName: link.name,
@@ -329,7 +353,9 @@ async function publicView(env: Env, link: LinkRow, accountId: string | null): Pr
     })),
     people: active.map((p) => ({ id: p.id, name: p.name })),
   };
-  const mine = accountId ? await memberParticipantId(env, link.group_id, accountId) : null;
+  const mine = accountId
+    ? (((mineResult?.results ?? [])[0] as { participant_id?: string } | undefined)?.participant_id ?? null)
+    : null;
   if (mine && active.some((p) => p.id === mine)) view.me = { participantId: mine };
   return view;
 }
@@ -337,6 +363,33 @@ async function publicView(env: Env, link: LinkRow, accountId: string | null): Pr
 /** 공개 정보. accountId는 로그인한 사람의 계정(없으면 null): 멤버면 내 이름·내 신청 표시가 붙는다. */
 export async function joinInfo(env: Env, token: string, accountId: string | null = null): Promise<JoinPublicView> {
   return publicView(env, await findLink(env, token), accountId);
+}
+
+/**
+ * 조건부 공개 조회(GET /api/join/:token). 링크 행 하나만 읽어 ETag를 만들고, 화면이 가진 것과 같으면
+ * 명단·신청을 읽지 않고 notModified로 돌려준다. ETag에는 계정도 넣는다(로그인한 멤버의 "내 신청" 표시가 다르다).
+ */
+export async function joinInfoConditional(
+  env: Env,
+  token: string,
+  accountId: string | null,
+  ifNoneMatch: string | null,
+): Promise<{ etag: string; notModified: true } | { etag: string; notModified: false; view: JoinPublicView }> {
+  const link = await findLink(env, token);
+  const parts = [
+    "j1",
+    env.CF_VERSION_METADATA?.id ?? "",
+    link.group_id,
+    link.token_hash,
+    link.data_version,
+    link.is_open,
+    link.name,
+    link.maintenance,
+    accountId ?? "",
+  ];
+  const etag = `W/"${(await sha256Hex(JSON.stringify(parts))).slice(0, 24)}"`;
+  if (etagMatches(ifNoneMatch, etag)) return { etag, notModified: true };
+  return { etag, notModified: false, view: await publicView(env, link, accountId) };
 }
 
 /** 링크가 그대로이고 열려 있는지 batch 안에서 다시 확인하는 보호 문장(확인과 저장 사이의 닫기·다시 만들기). */
