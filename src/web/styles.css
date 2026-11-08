@@ -37,19 +37,19 @@
   --ih-loss-border: rgba(239, 68, 68, 0.35);
   --ih-loss-text: #f87171;
 
-  /* 승률 색 단계(format.ts의 rateHeat). 0은 기준(45~55%), h1~h4는 높을수록 붉게(주황빛 다홍 —
-     패배·레드팀의 빨강과 색조를 띄운다), l1~l4는 낮을수록 가라앉게.
-     막대(bar)는 막대 바탕(--viz-track #262b36) 대비 3:1 이상, 글자(text)는 바탕 대비 4.5:1 이상.
-     다크·바이올렛이 같은 값을 쓴다(값과 대비는 docs/구현현황.md "승률 그래프 색 단계"). */
-  --heat-bar-h4: #ff6a1f;
-  --heat-bar-h3: #fb7a2e;
-  --heat-bar-h2: #f39445;
-  --heat-bar-h1: #e8b06a;
-  --heat-bar-0: #3987e5;
-  --heat-bar-l1: #3d80d4;
-  --heat-bar-l2: #4679be;
-  --heat-bar-l3: #5276a2;
-  --heat-bar-l4: #63778f;
+  /* 승률 색 단계(format.ts의 rateHeat). 0은 기준(45~55%, 파랑), h1~h4는 높을수록 노랑 → 주황 → 다홍 → 빨강,
+     l1~l4는 낮을수록 연보라 → 보라 → 자주 → 회색(2026-11-08: 예전에는 낮은 구간이 모두 파란 계열이라
+     막대끼리 구별이 어려웠다). 막대(bar)는 막대 바탕(--viz-track #262b36) 대비 3:1 이상, 글자(text)는 바탕 대비
+     4.5:1 이상. 다크·바이올렛이 같은 값을 쓴다. 바꿀 때는 light 토큰도 함께. */
+  --heat-bar-h4: #ff5a5a;
+  --heat-bar-h3: #ff7a3a;
+  --heat-bar-h2: #f5973d;
+  --heat-bar-h1: #e9b84a;
+  --heat-bar-0: #3f8ef0;
+  --heat-bar-l1: #6e8be8;
+  --heat-bar-l2: #8f7ce0;
+  --heat-bar-l3: #ad6fd2;
+  --heat-bar-l4: #7c8795;
   --heat-text-h4: #ff7a3a;
   --heat-text-h3: #fb8a45;
   --heat-text-h2: #f9a660;
@@ -147,15 +147,16 @@
   /* 밝은 테마의 승률 색 단계. 막대는 바탕 막대(#e1e0d9) 대비 3:1 이상이 되도록 붉은 쪽도 어둡게 두고,
      낮은 쪽은 짙은 남회색으로 어두워진다. 글자는 밝은 바탕 대비 4.5:1 이상이고
      낮은 쪽 글자는 검정에서 회색으로 가라앉는다. */
-  --heat-bar-h4: #cc4b0c;
-  --heat-bar-h3: #c2520e;
-  --heat-bar-h2: #b65d14;
-  --heat-bar-h1: #a8671c;
+  /* 승률 막대(라이트): 같은 순서(노랑 → 주황 → 다홍 → 빨강 / 파랑 / 연보라 → 보라 → 자주 → 회색)를 흰 바탕에서 진하게. */
+  --heat-bar-h4: #d1302f;
+  --heat-bar-h3: #d9502a;
+  --heat-bar-h2: #c96a16;
+  --heat-bar-h1: #ad7d10;
   --heat-bar-0: #2a78d6;
-  --heat-bar-l1: #2b5f9e;
-  --heat-bar-l2: #2c4c78;
-  --heat-bar-l3: #2f3d57;
-  --heat-bar-l4: #283244;
+  --heat-bar-l1: #4b63c9;
+  --heat-bar-l2: #6a4fc0;
+  --heat-bar-l3: #8a3fb5;
+  --heat-bar-l4: #5a6473;
   --heat-text-h4: #b0440a;
   --heat-text-h3: #ab4b0a;
   --heat-text-h2: #9e520c;
@@ -4012,5 +4013,13 @@ label:has(> select) {
   flex-wrap: wrap;
   gap: 8px 20px;
   align-items: center;
+}
+
+/* 그래프 막대 5경기 미만(tone-muted): 작은 막대(meter)와 같이 회색. 예전에는 기본 파랑이라 45~55% 구간과 헷갈렸다(2026-11-08). */
+.bar-fill.tone-muted {
+  background: var(--viz-axis);
+}
+[data-theme="light"] .bar-fill.tone-muted {
+  background: var(--ih-text-muted);
 }
 
