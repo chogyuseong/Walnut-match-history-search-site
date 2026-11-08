@@ -1,5 +1,5 @@
 import { toCsv, type CsvValue } from "../shared/csv";
-import { localDate, safeTimeZone, type PersonRecord } from "../shared/stats";
+import { localDate, ratePercent, safeTimeZone, type PersonRecord } from "../shared/stats";
 import { POSITIONS, type MatchView, type Snapshot, type Team } from "../shared/types";
 import { knownSideOf, nameMap, POSITION_LABEL, STATE_LABEL, teamName, type ShownStanding } from "./format";
 
@@ -140,7 +140,7 @@ export function rankingCsv(
         r.games,
         r.wins,
         r.losses,
-        r.games === 0 ? "" : Math.round((r.wins / r.games) * 100),
+        r.games === 0 ? "" : ratePercent(r.wins, r.games),
         s?.done ? "배치 완료" : "배치 중",
         s?.title ?? "",
         ratings.has(r.participantId) ? Math.round(ratings.get(r.participantId)!) : "",

@@ -1,7 +1,16 @@
 import { canGoBack } from "./nav";
 import { SessionExpiredNote } from "./screens/Login";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { isCounted, matchYears, PLACEMENT_GAMES, sideTotals, SMALL_SAMPLE, type Scope } from "../shared/stats";
+import {
+  fractionPercent,
+  isCounted,
+  matchYears,
+  PLACEMENT_GAMES,
+  ratePercent,
+  sideTotals,
+  SMALL_SAMPLE,
+  type Scope,
+} from "../shared/stats";
 import type { TitleGrade } from "../shared/titles";
 import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/types";
 import { ApiFailure } from "./api";
@@ -240,7 +249,7 @@ export function KpiStrip(props: { snapshot: Snapshot }) {
   const sides = sideTotals(snapshot.matches);
   const people = snapshot.participants.filter((p) => p.status === "active").length;
   // 목록·요약의 승률은 정수(%)로 쓴다(소수 한 자리는 그래프 분석 화면에서만). 두 값의 합이 100이 되게 한다.
-  const blueRate = Math.round((sides.blueWins / Math.max(1, sides.known)) * 100);
+  const blueRate = ratePercent(sides.blueWins, sides.known);
   return (
     <p className="kpi">
       <span>
@@ -549,7 +558,7 @@ export function TrendLine(props: { points: readonly { game: number; rate: number
   const x = (game: number) => ((game - first.game) / Math.max(1, last.game - first.game)) * W;
   const y = (rate: number) => 4 + ((0.5 + spread - rate) / (spread * 2)) * (H - 8);
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.game).toFixed(1)},${y(p.rate).toFixed(1)}`).join("");
-  const pct = (r: number) => `${Math.round(r * 100)}%`;
+  const pct = (r: number) => `${fractionPercent(r)}%`;
   return (
     <figure className="trend viz-root">
       <svg
@@ -708,7 +717,7 @@ export function RateRing(props: { wins: number; games: number }) {
         <line className="ring-mid" x1="34" x2="34" y1={34 + R - 7} y2={34 + R + 7} />
       </svg>
       <span className="ring-text">
-        <strong className={rateTier(wins, games)}>{Math.round(rate * 100)}%</strong>
+        <strong className={rateTier(wins, games)}>{ratePercent(wins, games)}%</strong>
         <span>승률</span>
       </span>
     </div>

@@ -1,5 +1,5 @@
 import { MAX_NAME_LENGTH, cleanName } from "./names";
-import { personRecords, PLACEMENT_GAMES } from "./stats";
+import { personRecords, PLACEMENT_GAMES, ratePercent } from "./stats";
 import type { MatchView, Settings, TitleBand } from "./types";
 
 /**
@@ -70,13 +70,15 @@ export function parseTitleBands(
 
 /**
  * 누적 승·패로 칭호를 고른다. 경계는 "이상"이다(정확히 65%면 65% 이상 구간).
- * 소수 오차를 피하려고 승률을 나누지 않고 곱해서 비교한다.
+ * 화면에 보이는 정수 승률(ratePercent, 0.5%는 올림)로 비교한다: "65%"로 보이는 64.5%는 65% 이상 구간이다
+ * (2026-11-08. 예전에는 정확한 분수로 비교해 "65%"로 보이는데 아래 구간 칭호가 붙을 수 있었다).
  * 가장 낮은 경계보다 낮으면 칭호가 없다.
  */
 export function titleFor(wins: number, games: number, bands: readonly TitleBand[]): TitleBand | null {
   if (games <= 0) return null;
   const sorted = [...bands].sort((a, b) => b.minRate - a.minRate);
-  return sorted.find((band) => wins * 100 >= band.minRate * games) ?? null;
+  const pct = ratePercent(wins, games);
+  return sorted.find((band) => pct >= band.minRate) ?? null;
 }
 
 /** 한 사람의 누적 기준 상태. 어느 화면에서 보든 이 값 하나를 쓴다(docs/P4 시나리오 35). */

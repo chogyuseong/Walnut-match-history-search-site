@@ -180,6 +180,25 @@ export interface DateCell {
   time: string | null;
 }
 
+/** 26.11.05, 26-11-05처럼 연도가 두 자리인 날짜. */
+const TWO_DIGIT_YEAR = /^(\d{2})\s*[-.]\s*(\d{1,2})\s*[-.]\s*(\d{1,2})\.?(?: (.+))?$/;
+
+/** 날짜 칸 글 정리: 공백을 하나로, 요일((목), (Thu), 목요일)을 뗀다. */
+function cleanDateText(cell: string): string {
+  return cell
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\s*\((?:[월화수목금토일]|mon|tue|wed|thu|fri|sat|sun)[a-z]*\)/i, "")
+    .replace(/\s*[월화수목금토일]요일/, "")
+    .trim();
+}
+
+/** 날짜 칸의 연도가 두 자리면 그 두 자리. 아니면 undefined. */
+function twoDigitYearOf(cell: string): string | undefined {
+  return TWO_DIGIT_YEAR.exec(cleanDateText(cell))?.[1];
+}
+
 /**
  * 날짜 표기를 읽는다. 받는 모양:
  * 2026-11-05, 2026.11.5, 2026. 11. 5(구글 시트 한국어 표시), 2026/11/05, 2026년 11월 5일,
@@ -187,12 +206,7 @@ export interface DateCell {
  * 날짜 뒤의 시각 "2026. 11. 5 오후 8:30:00", "2026-11-05 20:30".
  */
 export function parseDateCell(cell: string): DateCell | null {
-  let text = cell.normalize("NFKC").trim().replace(/\s+/g, " ");
-  // 요일 떼기: (목), (Thu), 목요일
-  text = text
-    .replace(/\s*\((?:[월화수목금토일]|mon|tue|wed|thu|fri|sat|sun)[a-z]*\)/i, "")
-    .replace(/\s*[월화수목금토일]요일/, "")
-    .trim();
+  const text = cleanDateText(cell);
   const finish = (year: number | null, month: number, day: number, rest: string | undefined): DateCell | null => {
     if (month < 1 || month > 12 || day < 1 || day > 31) return null;
     let time: string | null = null;
@@ -206,7 +220,8 @@ export function parseDateCell(cell: string): DateCell | null {
   if (m) return finish(Number(m[1]), Number(m[2]), Number(m[3]), m[4]);
   m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?: (.+))?$/.exec(text);
   if (m) return finish(Number(m[3]), Number(m[1]), Number(m[2]), m[4]);
-  m = /^(\d{2})\s*[-.]\s*(\d{1,2})\s*[-.]\s*(\d{1,2})\.?(?: (.+))?$/.exec(text);
+  m = TWO_DIGIT_YEAR.exec(text);
+  // 두 자리 연도는 20xx로 읽는다. 그 해가 내년보다 뒤면(예: "99.1.1" → 2099) 표 읽기(parseSheet)가 틀린 줄로 알린다.
   if (m) return finish(2000 + Number(m[1]), Number(m[2]), Number(m[3]), m[4]);
   m = /^(\d{1,2})\s*[-./월]\s*(\d{1,2})\s*(?:일|\.)?(?: (.+))?$/.exec(text);
   if (m) return finish(null, Number(m[1]), Number(m[2]), m[3]);
@@ -421,8 +436,11 @@ export function detectMapping(rows: readonly (readonly string[])[], layout?: Lay
   };
 
   if (chosen === "wide") {
-    const a = orderByHeaderLane(nameCols.slice(0, 5));
-    const b = orderByHeaderLane(nameCols.slice(5, 10));
+    let a = orderByHeaderLane(nameCols.slice(0, 5));
+    let b = orderByHeaderLane(nameCols.slice(5, 10));
+    // 앞 5개 열 머리글이 레드, 뒤 5개가 블루면 맞바꾼다. 이긴 팀 칸의 "블루"는 늘 팀 A로 읽으므로(parseTeamLabel)
+    // 팀 A가 블루 열이어야 승패가 뒤바뀌지 않는다.
+    if (groupSide(header, a) === "red" && groupSide(header, b) === "blue") [a, b] = [b, a];
     a.forEach((c, i) => {
       take(`a${i}`, c);
       const lane = laneAfter.get(c);
@@ -444,6 +462,48 @@ export function detectMapping(rows: readonly (readonly string[])[], layout?: Lay
     if (laneCols[0] !== undefined) take("lane", laneCols[0]);
   }
   return { layout: chosen, headerRow, skip: [], columns, lanesByOrder: true, year: null };
+}
+
+/** 머리글 칸의 진영 단어("레드 탑", "Blue Mid", "블루팀 서폿"). 라인 단어를 떼고 남은 앞부분으로 읽는다. */
+function headerSide(cell: string): "blue" | "red" | null {
+  const value = norm(cell);
+  if (value === "") return null;
+  const lane = parseLaneInHeader(cell);
+  let rest = value;
+  if (lane !== null) {
+    for (const word of Object.keys(LANE_WORDS).sort((x, y) => y.length - x.length)) {
+      if (LANE_WORDS[word] === lane && rest.endsWith(word)) {
+        rest = rest.slice(0, -word.length);
+        break;
+      }
+    }
+  }
+  rest = rest.replace(/[-_:./()[\]]+/g, "");
+  if (/블루|blue|파랑/.test(rest)) return /레드|red|빨강/.test(rest) ? null : "blue";
+  if (/레드|red|빨강/.test(rest)) return "red";
+  return parseSide(rest);
+}
+
+/** 열 묶음의 머리글이 모두 같은 진영이면 그 진영. 아니면 null. */
+function groupSide(header: readonly string[], cols: readonly number[]): "blue" | "red" | null {
+  if (cols.length === 0) return null;
+  const sides = cols.map((c) => headerSide(header[c] ?? ""));
+  return sides.every((s) => s === sides[0]) ? sides[0]! : null;
+}
+
+/**
+ * 한 줄 한 경기 표에서 이름 열 머리글로 알 수 있는 팀 A의 진영(팀 A 열이 모두 블루, 팀 B 열이 모두 레드면 "blue",
+ * 반대면 "red"). 머리글이 없거나 섞여 있으면 null. 진영 열이 없을 때 경기의 sideA로 쓴다.
+ */
+export function headerSideA(rows: readonly (readonly string[])[], mapping: SheetMapping): "blue" | "red" | null {
+  if (mapping.layout !== "wide" || mapping.headerRow <= 0) return null;
+  const header = rows[mapping.headerRow - 1] ?? [];
+  const cols = (prefix: "a" | "b") =>
+    SLOTS.map((i) => mapping.columns[`${prefix}${i}`]).filter((c): c is number => c !== undefined);
+  const a = groupSide(header, cols("a"));
+  const b = groupSide(header, cols("b"));
+  if (a === null || b === null || a === b) return null;
+  return a;
 }
 
 function parseLaneInHeader(cell: string): Position | null {
@@ -551,6 +611,8 @@ interface Draft {
   teamB: SheetPlayer[];
   winner: Team;
   sideA: "blue" | "red" | null;
+  /** 날짜 칸의 연도가 두 자리였으면 그 두 자리("99"). */
+  twoDigitYear?: string;
 }
 
 class RowError extends Error {}
@@ -746,6 +808,7 @@ function buildDraft(g: RawGroup, mapping: SheetMapping): Draft {
     teamB: all.slice(5),
     winner,
     sideA,
+    ...(twoDigitYearOf(dateText) !== undefined ? { twoDigitYear: twoDigitYearOf(dateText) } : {}),
   };
 }
 
@@ -873,6 +936,22 @@ export function fingerprinter(): (m: FingerprintInput) => string {
 }
 
 /**
+ * 같은 내용(날짜·명단·결과)의 경기가 이미 들어가 있을 때, 이 경기를 "따로 한 경기"로 넣을 지문.
+ * taken(이미 있는 지문들, 예: imports/fingerprints 응답)에 없는 가장 작은 순번(#1, #2, …)의 지문을 돌려준다.
+ *
+ * 지문은 내용만으로 만들어서 "같은 경기를 다시 붙여 넣음"과 "같은 날 같은 10명·같은 결과의 두 번째 경기만 따로
+ * 붙여 넣음"을 구별할 수 없다. 그래서 fingerprinter가 자동으로 이 순번을 쓰지는 않는다(다시 붙여 넣을 때마다
+ * 중복 경기가 생긴다). 화면이 "이미 들어간 경기"로 분류된 줄에 대해 사용자가 다른 경기라고 고를 때만 쓴다.
+ */
+export function nextFreeFingerprint(m: FingerprintInput, taken: ReadonlySet<string>): string {
+  const base = fingerprintBase(m);
+  for (let occurrence = 1; ; occurrence++) {
+    const fp = `v1-${hash64(`${base}#${occurrence}`)}`;
+    if (!taken.has(fp)) return fp;
+  }
+}
+
+/**
  * 서버로 보낼 경기 시각(UTC ISO). 시각이 있으면 모임 시간대의 그 시각, 없으면 그날 정오.
  * 같은 칸(날짜+시각)의 경기가 여럿이면 표 순서대로 1초씩 늦춰 순서를 지킨다.
  */
@@ -959,7 +1038,20 @@ export function parseSheet(rows: readonly (readonly string[])[], mapping: SheetM
   let matches: SheetMatch[] = [];
   const perDay = new Map<string, number>();
   const fingerprintOf = fingerprinter();
+  // 진영 열이 없으면 이름 열 머리글(레드 탑·블루 탑…)로 팀 A의 진영을 안다.
+  const sideFromHeader = c.side === undefined ? headerSideA(rows, mapping) : null;
+  const thisYear = Number(options.today.slice(0, 4));
   drafts.forEach((d, i) => {
+    if (d.twoDigitYear !== undefined && years[i]! > thisYear + 1) {
+      // "99.1.1"을 2099년으로 읽으면 미래, 1999년이면 이 사이트가 생기기 훨씬 전이라 어느 쪽인지 정하지 않는다.
+      const yy = d.twoDigitYear;
+      errors.push({
+        line: d.line,
+        ...(d.where ? { where: d.where } : {}),
+        message: `연도가 두 자리(${yy})라 20${yy}년인지 19${yy}년인지 확실하지 않아요. 네 자리 연도(예: ${thisYear}-${String(d.dateCell.month).padStart(2, "0")}-${String(d.dateCell.day).padStart(2, "0")})로 적어 주세요.`,
+      });
+      return;
+    }
     const date = isoDate(years[i]!, d.dateCell.month, d.dateCell.day);
     if (date === null) {
       errors.push({
@@ -981,7 +1073,7 @@ export function parseSheet(rows: readonly (readonly string[])[], mapping: SheetM
       teamA: d.teamA,
       teamB: d.teamB,
       winner: d.winner,
-      sideA: d.sideA,
+      sideA: d.sideA ?? sideFromHeader,
       orderInDay,
       fingerprint: fingerprintOf({ date, time: d.dateCell.time, teamA: d.teamA, teamB: d.teamB, winner: d.winner }),
       rowKey: `${date}#${orderInDay}`,

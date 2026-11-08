@@ -39,31 +39,44 @@ describe("승률 색 단계", () => {
   it("경계와 그 바로 위아래(1000경기로 0.1%p 단위)", async () => {
     const { rateHeat } = await loadFormat();
     const at = (pct: number) => rateHeat(Math.round(pct * 10), 1000);
-    // 높은 쪽: 55는 기준, 55 초과부터 붉어진다. 60·65·70은 "이상".
+    // 2026-11-08: 경계를 정확한 분수가 아니라 화면에 보이는 정수 승률(ratePercent, 0.5 올림)로 비교한다.
+    // 그래서 55.1%("55%"로 보임)는 이제 기준 구간이고(예전 1), 69.5%("70%")는 4단계(예전 3),
+    // 44.9%("45%")는 기준 구간(예전 -1)이다. 보이는 숫자와 색이 어긋나지 않게 하려는 변경이다.
+    // 높은 쪽: 보이는 값이 55 이하면 기준, 56 이상부터 붉어진다. 60·65·70은 "이상".
     expect(at(54.9)).toBe(0);
     expect(at(55)).toBe(0);
-    expect(at(55.1)).toBe(1);
-    expect(at(59.9)).toBe(1);
-    expect(at(60)).toBe(2);
-    expect(at(64.9)).toBe(2);
-    expect(at(65)).toBe(3);
-    expect(at(69.9)).toBe(3);
+    expect(at(55.4)).toBe(0);
+    expect(at(55.5)).toBe(1);
+    expect(at(59.4)).toBe(1);
+    expect(at(59.5)).toBe(2);
+    expect(at(64.4)).toBe(2);
+    expect(at(64.5)).toBe(3);
+    expect(at(69.4)).toBe(3);
+    expect(at(69.5)).toBe(4);
     expect(at(70)).toBe(4);
-    expect(at(70.1)).toBe(4);
     expect(at(100)).toBe(4);
-    // 낮은 쪽: 45는 기준, 45 미만부터 가라앉는다. 40·35·30은 "이하".
+    // 낮은 쪽: 보이는 값이 45 이상이면 기준, 44 이하부터 가라앉는다. 40·35·30은 "이하".
     expect(at(45.1)).toBe(0);
     expect(at(45)).toBe(0);
-    expect(at(44.9)).toBe(-1);
-    expect(at(40.1)).toBe(-1);
-    expect(at(40)).toBe(-2);
-    expect(at(35.1)).toBe(-2);
-    expect(at(35)).toBe(-3);
-    expect(at(30.1)).toBe(-3);
-    expect(at(30)).toBe(-4);
-    expect(at(29.9)).toBe(-4);
+    expect(at(44.5)).toBe(0);
+    expect(at(44.4)).toBe(-1);
+    expect(at(40.5)).toBe(-1);
+    expect(at(40.4)).toBe(-2);
+    expect(at(35.5)).toBe(-2);
+    expect(at(35.4)).toBe(-3);
+    expect(at(30.5)).toBe(-3);
+    expect(at(30.4)).toBe(-4);
     expect(at(0)).toBe(-4);
     expect(at(50)).toBe(0);
+  });
+
+  it("보이는 정수 승률과 색 단계가 어긋나지 않는다(리뷰에서 찾은 값)", async () => {
+    const { rateHeat } = await loadFormat();
+    expect(rateHeat(39, 56)).toBe(4); // 69.64% → "70%" (예전 3)
+    expect(rateHeat(23, 33)).toBe(4); // 69.70% → "70%" (예전 3)
+    expect(rateHeat(31, 56)).toBe(0); // 55.36% → "55%" (예전 1)
+    expect(rateHeat(40, 89)).toBe(0); // 44.94% → "45%" (예전 -1)
+    expect(rateHeat(6, 11)).toBe(0); // 54.55% → "55%"
   });
 
   it("나누어떨어지지 않는 승률도 곱셈으로 정확히 비교한다", async () => {

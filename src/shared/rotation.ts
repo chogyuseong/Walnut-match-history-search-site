@@ -1,4 +1,13 @@
-import { pushHistory, rerollPositions, rngFromSeed, type AvoidMap, type Draft, type DraftSlot, type DrawRecord } from "./draft";
+import {
+  nextSeed,
+  pushHistory,
+  rerollPositions,
+  rngFromSeed,
+  type AvoidMap,
+  type Draft,
+  type DraftSlot,
+  type DrawRecord,
+} from "./draft";
 import { TEAMS, type Position, type RotationView, type Team } from "./types";
 
 /**
@@ -306,22 +315,11 @@ export function fairRepeatSupporterIds(draft: Draft, ctx: RotationContext): stri
   return repeatIds(draft, ctx, true);
 }
 
-/** 두 사람의 포지션만 맞바꾼 자리. */
-function swapPositions(slots: DraftSlot[], keyA: string, keyB: string): DraftSlot[] {
-  const a = slots.find((s) => s.key === keyA)!;
-  const b = slots.find((s) => s.key === keyB)!;
-  return slots.map((s) => {
-    if (s.key === keyA) return { ...s, position: b.position };
-    if (s.key === keyB) return { ...s, position: a.position };
-    return s;
-  });
-}
-
 /**
  * 라인 섞기(준비 화면). 팀원은 그대로 두고 각 팀 안에서 라인만 섞는다. 한 함수로 두 가지:
  * - fairSupport=false "올랜덤": 팀마다 포지션 무작위(고정 유지). draft.ts의 rerollPositions와 같다.
- * - fairSupport=true "올랜덤 + 서포터 공평하게": 위와 같이 섞은 뒤 각 팀에 서포터 고르기 규칙(fairSupportPool)을
- *   적용해 아직 안 간 사람 중 뽑힌 사람과 지금 서포터의 포지션만 맞바꾼다. 팀에 안 간 사람이 없으면
+ * - fairSupport=true "올랜덤 + 서포터 공평하게": 먼저 각 팀에 서포터 고르기 규칙(fairSupportPool)을 적용해
+ *   아직 안 간 사람 중 한 명을 서포터로 뽑고, 나머지 넷의 라인을 위와 같이 섞는다. 팀에 안 간 사람이 없으면
  *   그 팀 서포터는 무작위 결과 그대로 둔다(화면은 allAssignedTeams로 "모두 배정받았어요"를 알린다).
  * 섞은 뒤에도 "서포터만 바꾸기"가 같은 규칙으로 이어서 동작한다. 같은 팀·다른 팀 조건은 팀 추천에만 쓴다.
  * 추첨 기록은 비우고, 직전 편성으로 되돌릴 수 있다. 진영 선택은 A/B 자리 기준이라 그대로 둔다.
@@ -333,18 +331,22 @@ export function shuffleDraft(
   options: { fairSupport: boolean; avoid?: AvoidMap },
   ctx: RotationContext,
 ): Draft {
-  const shuffled = rerollPositions(draft, options.avoid);
-  if (!options.fairSupport) return shuffled;
-  // 섞기에 쓴 난수와 겹치지 않게, 섞은 뒤의 시드로 서포터를 고른다.
-  const rng = rngFromSeed(shuffled.seed);
-  let slots = shuffled.slots;
+  if (!options.fairSupport) return rerollPositions(draft, options.avoid);
+  // 서포터를 먼저 뽑고(섞기에 쓰는 난수와 겹치지 않게 다음 시드로), 뽑힌 사람을 서포터 자리에 잠시 고정한 채
+  // 나머지 넷의 라인을 기피를 피해 섞는다. 예전에는 다 섞은 뒤 서포터와 맞바꿔, 맞바꾼 사람이 기피 라인으로
+  // 밀려나 피할 수 있는 기피를 어기는 일이 있었다(2026-11-08).
+  const rng = rngFromSeed(nextSeed(draft.seed));
+  const pinned = new Set<string>();
+  let slots = draft.slots;
   for (const team of TEAMS) {
-    const current = { ...shuffled, slots };
-    const pool = fairSupportPool(current, team, ctx);
+    const pool = fairSupportPool({ ...draft, slots }, team, ctx);
     if (pool.locked || pool.keys.length === 0) continue;
     const pick = pool.keys[Math.floor(rng() * pool.keys.length)]!;
-    const supporter = supporterKey(current, team);
-    if (supporter && pick !== supporter) slots = swapPositions(slots, pick, supporter);
+    pinned.add(pick);
+    slots = slots.map((s) => (s.key === pick ? { ...s, position: "support" as Position, locked: true } : s));
   }
-  return { ...shuffled, slots, seed: (Math.imul(shuffled.seed, 1664525) + 1013904223) >>> 0 };
+  const shuffled = rerollPositions({ ...draft, slots }, options.avoid);
+  // 잠시 건 고정을 풀고, 되돌리기 이력은 섞기 전 초안 기준으로 다시 남긴다.
+  const unpinned = shuffled.slots.map((s) => (pinned.has(s.key) ? { ...s, locked: false } : s));
+  return pushHistory(draft, { ...shuffled, slots: unpinned, seed: nextSeed(shuffled.seed) });
 }

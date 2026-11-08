@@ -1,4 +1,5 @@
 import { FUTURE_TOLERANCE_MS } from "./backfill";
+import { DEFAULT_TIME_ZONE, safeTimeZone } from "./stats";
 
 /**
  * 날짜 점검(2026-11-08). 사용자가 날짜·연도를 잘못 넣은 경기를 찾아 알려 준다. 아무것도 바꾸지 않는 순수 계산이다.
@@ -96,14 +97,41 @@ export function dateFindings<T>(
   return { future, sameTime, yearRuns, checked: rows.length };
 }
 
-/** 연도를 옮긴 시각(ISO). 2월 29일이 없는 해로 가면 2월 28일로 둔다. 시각·시간대는 그대로(UTC 문자열 기준). */
-export function shiftYears(iso: string, years: number): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const month = d.getUTCMonth();
-  const day = d.getUTCDate();
-  d.setUTCFullYear(d.getUTCFullYear() + years, month, 1);
-  const last = new Date(Date.UTC(d.getUTCFullYear(), month + 1, 0)).getUTCDate();
-  d.setUTCDate(Math.min(day, last));
-  return d.toISOString();
+/** 그 시각이 timeZone에서 보이는 벽시계 시각을 UTC로 가정한 밀리초(초·밀리초 포함). */
+function wallClockMs(ms: number, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: safeTimeZone(timeZone),
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(ms));
+  const get = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+  const floorSecond = Math.floor(ms / 1000) * 1000;
+  return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second")) + (ms - floorSecond);
+}
+
+/**
+ * 연도를 옮긴 시각(ISO). 모임 시간대(timeZone)의 날짜·시각을 그대로 두고 해만 옮긴다
+ * (2025-02-28T22:00Z는 한국 날짜 2025-03-01이므로 -1년 → 한국 2024-03-01 07:00). 예전에는 UTC 날짜로 옮겨
+ * 한국 날짜가 2024-02-29가 되는 것처럼 날짜가 하루 어긋날 수 있었다(2026-11-08).
+ * 2월 29일이 없는 해로 가면 2월 28일로 둔다. timeZone을 주지 않으면 기본 시간대(Asia/Seoul).
+ */
+export function shiftYears(iso: string, years: number, timeZone: string = DEFAULT_TIME_ZONE): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return iso;
+  const wall = new Date(wallClockMs(ms, timeZone));
+  const month = wall.getUTCMonth();
+  const day = wall.getUTCDate();
+  const year = wall.getUTCFullYear() + years;
+  const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  wall.setUTCFullYear(year, month, Math.min(day, last));
+  const wanted = wall.getTime();
+  // 벽시계 시각 → UTC: 시차를 구해 두 번 맞춘다(zonedTimeToUtc와 같은 방법, 초·밀리초를 지킨다).
+  let guess = wanted - (wallClockMs(ms, timeZone) - ms);
+  for (let i = 0; i < 2; i++) guess += wanted - wallClockMs(guess, timeZone);
+  return new Date(guess).toISOString();
 }

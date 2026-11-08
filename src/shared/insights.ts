@@ -1,6 +1,7 @@
 import {
   isCounted,
   personRecordsByLine,
+  roundRatio,
   searchByName,
   SMALL_SAMPLE,
   sortByWinRate,
@@ -507,9 +508,12 @@ export function rateLeadOf(a: Tally, b: Tally): CompareLead {
  */
 export function synergyPoints(together: Tally, a: Tally, b: Tally): number | null {
   if (together.games === 0 || a.games === 0 || b.games === 0) return null;
-  const average = (a.wins / a.games + b.wins / b.games) / 2;
+  // 같은 팀 승률 − 평균 = N / D(정수 분수). 소수로 빼면 7.5가 7.4999…로 계산돼 7이 되므로 정수로 반올림한다.
+  // 0.5는 0에서 먼 쪽으로(+7.5 → +8, −12.5 → −13: 부호 대칭).
+  const num = 2 * together.wins * a.games * b.games - a.wins * together.games * b.games - b.wins * together.games * a.games;
+  const den = 2 * together.games * a.games * b.games;
   // -0을 0으로(화면에 "−0%p"가 나오지 않게).
-  return Math.round((together.wins / together.games - average) * 100) || 0;
+  return roundRatio(num, den) || 0;
 }
 
 // ---------------------------------------------------------------------------

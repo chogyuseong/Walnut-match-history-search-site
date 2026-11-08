@@ -3,7 +3,7 @@ import type { Draft } from "../shared/draft";
 import { dayRecords } from "../shared/insights";
 import { awardTitle, awardWinnersText, type SeasonSummary } from "../shared/seasonAwards";
 import type { SessionSummary } from "../shared/sessionSummary";
-import { isCounted, safeTimeZone } from "../shared/stats";
+import { isCounted, ratePercent, safeTimeZone } from "../shared/stats";
 import { sideOfTeam, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
 import { formatDate, formatTime, nameMap, POSITION_LABEL, teamName, teamRoster, winnerText } from "./format";
 import { Dialog } from "./ui";
@@ -564,7 +564,7 @@ export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary
   ctx.fillText(`${summary.games}경기 · 참가 ${summary.participants}명 · 내전 ${summary.days}일`, PAD + 24, y + 36);
   setFont(ctx, p, 600, 24);
   ctx.fillStyle = p.muted;
-  const blue = summary.sides.known > 0 ? Math.round((summary.sides.blueWins / summary.sides.known) * 100) : null;
+  const blue = summary.sides.known > 0 ? ratePercent(summary.sides.blueWins, summary.sides.known) : null;
   const busiest = summary.busiestDays[0];
   ctx.fillText(
     fit(

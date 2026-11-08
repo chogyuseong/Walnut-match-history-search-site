@@ -8,7 +8,17 @@
  *   "헌신상"은 그 범위의 확정 경기에서 서포터 포지션으로 뛴 판 수다(서포터 순환 기록이 아니다).
  */
 import { byPlayOrder } from "./series";
-import { isCounted, localDate, localYear, matchesInScope, scopeLabel, sideTotals, type Scope } from "./stats";
+import {
+  isCounted,
+  localDate,
+  localYear,
+  matchesInScope,
+  ratePercent,
+  roundRatio,
+  scopeLabel,
+  sideTotals,
+  type Scope,
+} from "./stats";
 import { POSITIONS, type MatchView, type Position, type Snapshot } from "./types";
 
 /** 최고 승률: 그 범위에서 이만큼 이상 뛴 사람만(랭킹의 "누적 50경기 이상" 묶음과 같게, 2026-11-08). */
@@ -79,8 +89,22 @@ interface Tally {
   wins: number;
 }
 
-const pct = (t: Tally) => Math.round((t.wins / t.games) * 100);
+/** 보이는 정수 승률(공용 ratePercent: 0.5%는 올림, 소수 오차 없음). */
+const pct = (t: Tally) => ratePercent(t.wins, t.games);
 const record = (t: Tally) => `${pct(t)}% · ${t.wins}승 ${t.games - t.wins}패`;
+/**
+ * 가장 많이 성장의 상승 폭 글("+3%p", after가 더 높을 때만 부른다).
+ * 보이는 두 정수 승률의 차가 0 이상이면 그 차(화살표 양쪽 숫자와 맞게). 반올림 때문에 두 숫자가 같아
+ * "+0%p"가 되면 실제 차를 소수 한 자리로("+0.5%p"), 그래도 0.0이면 "0.1 미만"으로 쓴다.
+ */
+function gainText(before: Tally, after: Tally): string {
+  const shown = pct(after) - pct(before);
+  if (shown > 0) return `+${shown}%p`;
+  // 실제 차(%p) × 10 = 1000 × (aw·bg − bw·ag) / (ag·bg)
+  const tenths = roundRatio(after.wins * before.games - before.wins * after.games, after.games * before.games, 1000);
+  return tenths > 0 ? `+${(tenths / 10).toFixed(1)}%p` : "+0.1%p 미만";
+}
+
 /** 승률 a가 b보다 높으면 양수(분수끼리 정확히 비교). */
 const compareRate = (a: Tally, b: Tally) => a.wins * b.games - b.wins * a.games;
 
@@ -336,7 +360,7 @@ export function seasonSummary(
       rule: `${prevLabel} 대비 승률이 가장 많이 오른 사람(두 범위 모두 ${AWARD_MIN_GAMES}경기 이상)`,
       winners: winners.map((r) => ({
         participantIds: r.ids,
-        value: `${pct(r.before)}% → ${pct(r.t)}% (+${pct(r.t) - pct(r.before)}%p)`,
+        value: `${pct(r.before)}% → ${pct(r.t)}% (${gainText(r.before, r.t)})`,
       })),
       none:
         eligible.length === 0
@@ -390,7 +414,7 @@ export function seasonSummaryText(summary: SeasonSummary, groupName: string, nam
   if (summary.startsOn) lines.push(`${summary.startsOn} ~ ${summary.endsOn}`);
   lines.push(`경기 ${summary.games} · 참가 ${summary.participants}명 · 내전 ${summary.days}일`);
   if (summary.sides.known > 0) {
-    const blue = Math.round((summary.sides.blueWins / summary.sides.known) * 100);
+    const blue = ratePercent(summary.sides.blueWins, summary.sides.known);
     lines.push(`블루 : 레드 승률 ${blue}% : ${100 - blue}% (진영 아는 ${summary.sides.known}경기)`);
   }
   if (summary.busiestDays.length > 0) {

@@ -186,6 +186,36 @@ export function matchesInScope(snapshot: Snapshot, scope: Scope): MatchView[] {
 /** 적은 표본 기준. 이보다 적으면 승률 옆에 "자료 적음"을 붙인다. */
 export const SMALL_SAMPLE = 5;
 
+/**
+ * 정수 num/den의 scale배를 반올림한 정수(0.5는 0에서 먼 쪽으로). den은 양의 정수.
+ * 소수로 나눈 뒤 반올림하면 23/40(57.5%)이 57.49999…로 계산돼 57이 되는 것 같은 오차가 생겨 정수로만 센다.
+ * 부호가 대칭이다: -12.5 → -13, 12.5 → 13.
+ */
+export function roundRatio(num: number, den: number, scale = 100): number {
+  if (den <= 0) return 0;
+  const n = BigInt(Math.abs(num)) * BigInt(scale) * 2n + BigInt(den);
+  const value = Number(n / (2n * BigInt(den)));
+  return num < 0 ? -value : value;
+}
+
+/**
+ * 화면에 보이는 정수 승률(%). 0.5%는 올린다(57.5% → 58%). 경기가 없으면 0.
+ * 보이는 숫자·색 단계(rateHeat)·칭호 경계(titleFor)가 모두 이 값 하나로 비교해, 보이는 숫자와 색·칭호가 어긋나지 않는다.
+ * 식: Math.floor((200 × 승 + 경기) / (2 × 경기)).
+ */
+export function ratePercent(wins: number, games: number): number {
+  if (games <= 0) return 0;
+  return Math.floor((200 * wins + games) / (2 * games));
+}
+
+/**
+ * 비율(0~1 소수)을 정수 %로. 승·경기 수 없이 비율만 있을 때(그래프의 점) 쓴다.
+ * 소수 오차(0.575 × 100 = 57.49999…)를 지우려고 유효 숫자 12자리로 다듬은 뒤 반올림한다.
+ */
+export function fractionPercent(rate: number): number {
+  return Math.round(Number((rate * 100).toPrecision(12)));
+}
+
 export interface Tally {
   games: number;
   wins: number;

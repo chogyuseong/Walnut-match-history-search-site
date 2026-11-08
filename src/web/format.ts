@@ -1,5 +1,5 @@
 import type { Draft } from "../shared/draft";
-import { safeTimeZone, SMALL_SAMPLE } from "../shared/stats";
+import { ratePercent, safeTimeZone, SMALL_SAMPLE } from "../shared/stats";
 import { standings, titleBandsOf, titleGradeFor, type Standing, type TitleGrade } from "../shared/titles";
 import {
   POSITIONS,
@@ -159,22 +159,28 @@ export type RateHeat = -4 | -3 | -2 | -1 | 0 | 1 | 2 | 3 | 4;
 
 /**
  * 승률 → 색 단계. 막대·고리·표 칸·숫자 글자가 모두 이 함수 하나를 쓴다.
- * 소수 오차를 피하려고 승률을 나누지 않고 곱해서 비교한다.
+ * 화면에 보이는 정수 승률(ratePercent)로 비교한다: 69.6%는 "70%"로 보이므로 4단계, 44.9%는 "45%"로 보이므로 기준 구간.
+ * (예전에는 정확한 분수로 비교해 "70%"인데 3단계 색, "55%"인데 1단계 색처럼 숫자와 색이 어긋났다.)
  */
 export function rateHeat(wins: number, games: number): RateHeat | null {
   if (games < RATE_HEAT_MIN_GAMES) return null;
-  const pct = wins * 100;
+  const pct = ratePercent(wins, games);
   const [h1, h2, h3, h4] = RATE_HEAT_HOT;
   const [c1, c2, c3, c4] = RATE_HEAT_COLD;
-  if (pct >= h4 * games) return 4;
-  if (pct >= h3 * games) return 3;
-  if (pct >= h2 * games) return 2;
-  if (pct > h1 * games) return 1;
-  if (pct <= c4 * games) return -4;
-  if (pct <= c3 * games) return -3;
-  if (pct <= c2 * games) return -2;
-  if (pct < c1 * games) return -1;
+  if (pct >= h4) return 4;
+  if (pct >= h3) return 3;
+  if (pct >= h2) return 2;
+  if (pct > h1) return 1;
+  if (pct <= c4) return -4;
+  if (pct <= c3) return -3;
+  if (pct <= c2) return -2;
+  if (pct < c1) return -1;
   return 0;
+}
+
+/** 화면에 쓰는 승률 글("57%"). 경기가 없으면 "기록 없음". */
+export function rateText(wins: number, games: number): string {
+  return games === 0 ? "기록 없음" : `${ratePercent(wins, games)}%`;
 }
 
 /** 색 단계의 클래스 이름: heat-h1~h4(높음), heat-0(기준), heat-l1~l4(낮음). 경기가 적으면 빈 문자열. */
@@ -192,7 +198,8 @@ export function heatClass(wins: number, games: number): string {
 export function heatBarClass(wins: number, games: number): string {
   const base = heatClass(wins, games);
   if (base !== "heat-0") return base;
-  return wins * 2 >= games ? "heat-0 mid-hi" : "heat-0 mid-lo";
+  // 보이는 정수 승률로 가른다("50%"로 보이면 49.6%여도 mid-hi).
+  return ratePercent(wins, games) >= 50 ? "heat-0 mid-hi" : "heat-0 mid-lo";
 }
 
 /**

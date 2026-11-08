@@ -112,9 +112,14 @@ describe("칭호 구간 (P2-11)", () => {
     expect(titleFor(7, 20, bands)?.minRate).toBe(35);
     expect(titleFor(6, 20, bands)?.minRate).toBe(0); // 30%
     expect(titleFor(0, 20, bands)?.minRate).toBe(0);
-    // 소수 오차가 나기 쉬운 값: 64.99…%는 65% 구간이 아니다.
-    expect(titleFor(649, 1000, bands)?.minRate).toBe(55);
+    // 2026-11-08: 경계를 화면에 보이는 정수 승률(ratePercent, 0.5 올림)로 비교한다.
+    // 64.9%는 "65%"로 보이므로 이제 65% 구간이다(예전에는 55% 구간이라 "65%"인데 아래 칭호가 붙었다).
+    expect(titleFor(649, 1000, bands)?.minRate).toBe(65);
+    expect(titleFor(645, 1000, bands)?.minRate).toBe(65); // 64.5% → "65%"
+    expect(titleFor(644, 1000, bands)?.minRate).toBe(55); // 64.4% → "64%"
     expect(titleFor(650, 1000, bands)?.minRate).toBe(65);
+    // 23/40 = 57.5%: 소수로 나누면 57.4999…라 57이 되지만 정수로 세면 58이다(경계 50·55와는 무관, 계산 확인용).
+    expect(titleFor(23, 40, [{ minRate: 58, name: "x" }])?.name).toBe("x");
     // 35%는 11/31처럼 나눠 떨어지지 않아도 곱셈으로 비교한다.
     expect(titleFor(7, 20, bands)?.name).toBe("끈질긴 전사");
   });

@@ -3,7 +3,7 @@ import { pairRecord } from "./headToHead";
 import { normalizePriority, priorityCounts, type PriorityCount, type PriorityMap } from "./priority";
 import { priorityWeightOf, type RecommendPerson } from "./recommend";
 import { sameComposition } from "./series";
-import { isCounted } from "./stats";
+import { isCounted, ratePercent } from "./stats";
 import { POSITIONS, type GroupWeights, type MatchView, type Position, type RosterEntry } from "./types";
 
 /**
@@ -108,7 +108,7 @@ export function laneMatchups(draft: Draft, matches: readonly MatchView[]): LaneM
 /** 맞대결 한 줄의 전적: 다른 화면과 같은 꼴 "67% · 2승 1패 (3경기)" 또는 "첫 맞대결". */
 export function matchupText(m: Pick<LaneMatchup, "games" | "wins" | "losses">): string {
   if (m.games === 0) return "첫 맞대결";
-  return `${Math.round((m.wins / m.games) * 100)}% · ${m.wins}승 ${m.losses}패 (${m.games}경기)`;
+  return `${ratePercent(m.wins, m.games)}% · ${m.wins}승 ${m.losses}패 (${m.games}경기)`;
 }
 
 /* ------------------------------------------------------------------ */

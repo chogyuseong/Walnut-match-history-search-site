@@ -6,6 +6,7 @@
  *   완성형 글자와 섞어도 된다("김ㅅ" → "김선우"): 완성형은 그 글자와 같아야 하고, 자음은 초성만 같으면 된다.
  * - 입력 중(IME) 배려: 질의의 마지막 글자가 받침 없는 음절이면 초성·중성만 같아도 맞는다
  *   ("김서" → "김선우"). 한 글자를 다 치기 전에 결과가 깜빡 사라지지 않게 하려는 것이다. 이 일치는 초성 일치와 같은 등급이다.
+ *   마지막 음절의 받침이 다음 글자의 초성으로 넘어갈 자음이어도 맞는다("김선" → "김서나", codaMoves).
  * - 등급: 0 완전 일치 → 1 앞부분 일치 → 2 포함 → 3 초성 일치(앞부분) → 4 초성 포함 → 5 불일치.
  *   같은 등급은 이름의 한국어 순서(localeCompare "ko").
  */
@@ -75,15 +76,44 @@ function charMatches(q: string, n: string, last: boolean): boolean {
   return qi % 28 === 0 && Math.floor(qi / 28) === Math.floor(ni / 28);
 }
 
+/** 받침 번호(1~27) → 다음 글자 초성으로 넘어갈 수 있는 [남는 받침 번호, 넘어가는 초성]. 겹받침은 뒷자음만 넘어간다. */
+const CODA_MOVES: Record<number, [number, string]> = {
+  1: [0, "ㄱ"], 2: [0, "ㄲ"], 4: [0, "ㄴ"], 7: [0, "ㄷ"], 8: [0, "ㄹ"], 16: [0, "ㅁ"], 17: [0, "ㅂ"],
+  19: [0, "ㅅ"], 20: [0, "ㅆ"], 21: [0, "ㅇ"], 22: [0, "ㅈ"], 23: [0, "ㅊ"], 24: [0, "ㅋ"], 25: [0, "ㅌ"],
+  26: [0, "ㅍ"], 27: [0, "ㅎ"],
+  3: [1, "ㅅ"], 5: [4, "ㅈ"], 6: [4, "ㅎ"], 9: [8, "ㄱ"], 10: [8, "ㅁ"], 11: [8, "ㅂ"], 12: [8, "ㅅ"],
+  13: [8, "ㅌ"], 14: [8, "ㅍ"], 15: [8, "ㅎ"], 18: [17, "ㅅ"],
+};
+
+/**
+ * 입력 중 받침 이동: 질의 마지막 음절의 받침이 다음 음절의 초성이 될 자음인 경우.
+ * "김서나"를 치는 중 "김선"(서 + ㄴ)에서 멈추면, 이름의 "서"(받침 없음)와 다음 글자 "나"(초성 ㄴ)로 맞는다.
+ * 겹받침도 같다("닭"을 치다 멈춘 "달기" → 달 + ㄱ).
+ */
+function codaMoves(q: string, n: string, next: string | undefined): boolean {
+  if (next === undefined) return false;
+  const qc = q.codePointAt(0)!;
+  const nc = n.codePointAt(0)!;
+  if (!isSyllable(qc) || !isSyllable(nc)) return false;
+  const qi = qc - SYLLABLE_FIRST;
+  const ni = nc - SYLLABLE_FIRST;
+  const move = CODA_MOVES[qi % 28];
+  if (!move) return false;
+  // 초성·중성이 같고, 이름 음절의 받침이 넘어가고 남는 받침과 같아야 한다.
+  if (Math.floor(qi / 28) !== Math.floor(ni / 28) || ni % 28 !== move[0]) return false;
+  return initialOf(next) === move[1];
+}
+
 /** 이름 글자열에서 질의 글자열이 처음 맞는 위치. 없으면 -1. */
 function fuzzyIndex(name: readonly string[], query: readonly string[]): number {
   for (let start = 0; start + query.length <= name.length; start++) {
     let ok = true;
     for (let j = 0; j < query.length; j++) {
-      if (!charMatches(query[j]!, name[start + j]!, j === query.length - 1)) {
-        ok = false;
-        break;
-      }
+      const last = j === query.length - 1;
+      if (charMatches(query[j]!, name[start + j]!, last)) continue;
+      if (last && codaMoves(query[j]!, name[start + j]!, name[start + j + 1])) continue;
+      ok = false;
+      break;
     }
     if (ok) return start;
   }
