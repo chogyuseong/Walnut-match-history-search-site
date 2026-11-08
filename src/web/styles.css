@@ -4183,3 +4183,27 @@ label:has(> select) {
   border-color: var(--primary);
 }
 
+/* 막대 그래프에서 기록 없는 줄: 값 자리에 "—", 막대는 빈 트랙(높이는 다른 줄과 같다). */
+.bar-empty {
+  color: var(--muted);
+}
+.line-first .bar-row {
+  min-height: 56px;
+}
+/* 라인별 승률(맨 위, PC 5칸): 칸이 좁아 라인 이름이 밀려나지 않게 이름을 위, 값을 아래에 쌓는다. */
+@media (min-width: 1024px) {
+  .line-first .bar-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .line-first .bar-head > .name {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .line-first .bar-value {
+    margin-left: 0;
+    font-size: 0.8125rem;
+  }
+}
+

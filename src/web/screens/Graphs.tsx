@@ -50,11 +50,17 @@ function RateBar(props: {
           {props.note && <span className="bar-note"> · {props.note}</span>}
         </span>
         <span className="bar-value">
-          <strong className={tone === "series" ? rateTier(wins, games) : undefined}>
-            {percentText(wins, games)}
-          </strong>{" "}
-          · {wins}승 {games - wins}패 ({games}경기)
-          {tone === "series" && games < SMALL_SAMPLE && (
+          {games === 0 ? (
+            <span className="bar-empty">—</span>
+          ) : (
+            <>
+              <strong className={tone === "series" ? rateTier(wins, games) : undefined}>
+                {percentText(wins, games)}
+              </strong>{" "}
+              · {wins}승 {games - wins}패 ({games}경기)
+            </>
+          )}
+          {tone === "series" && games > 0 && games < SMALL_SAMPLE && (
             <>
               {" "}
               <span className="tag" title={`${SMALL_SAMPLE}경기 미만은 승률에 색을 칠하지 않아요`}>
@@ -214,19 +220,10 @@ export function Graphs(props: {
                 return (
                   <li key={position}>
                     {tally ? (
-                      <RateBar
-                        label={POSITION_LABEL[position]}
-                        note={tally.games < SMALL_SAMPLE ? "자료 적음" : undefined}
-                        wins={tally.wins}
-                        games={tally.games}
-                      />
+                      <RateBar label={POSITION_LABEL[position]} wins={tally.wins} games={tally.games} />
                     ) : (
-                      <div className="bar-row">
-                        <span className="bar-head">
-                          <span className="name">{POSITION_LABEL[position]}</span>
-                          <span className="bar-value">기록 없음</span>
-                        </span>
-                      </div>
+                      // 기록이 없어도 같은 높이의 빈 막대를 둔다(PC 5칸 가로 배치에서 줄이 깨지지 않게).
+                      <RateBar label={POSITION_LABEL[position]} note="기록 없음" wins={0} games={0} />
                     )}
                   </li>
                 );
