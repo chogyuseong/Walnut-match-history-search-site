@@ -162,12 +162,21 @@ export async function listCoOperators(env: Env, groupId: string): Promise<{ coOp
   };
 }
 
-/** 공동 운영자를 내보낸다(대표) 또는 스스로 나간다(본인). 다음 요청부터 바로 권한이 없다. */
+/**
+ * 공동 운영자를 내보낸다(대표) 또는 스스로 나간다(본인). 다음 요청부터 바로 권한이 없다.
+ * 쓰지 않은 참가자 연결 링크(participant_claims)도 함께 지운다(2026-11-08 보안 점검): 누가 만들었는지 기록하지
+ * 않으므로, 권한을 잃은 사람이 미리 만들어 둔 링크로 나중에 남의 참가자에 연결하지 못하게 모임 전체를 지운다.
+ * 남은 운영자는 필요한 링크를 다시 만든다.
+ */
 export async function removeCoOperator(env: Env, groupId: string, accountId: string): Promise<void> {
-  const result = await env.DB.prepare("DELETE FROM group_co_operators WHERE group_id = ?1 AND account_id = ?2")
+  const exists = await env.DB.prepare("SELECT 1 AS ok FROM group_co_operators WHERE group_id = ?1 AND account_id = ?2")
     .bind(groupId, accountId)
-    .run();
-  if ((result.meta.changes ?? 0) === 0) {
+    .first<{ ok: number }>();
+  if (!exists) {
     throw new ApiError(404, "NOT_FOUND", "공동 운영자를 찾을 수 없어요. 이미 나갔을 수 있어요.");
   }
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM group_co_operators WHERE group_id = ?1 AND account_id = ?2").bind(groupId, accountId),
+    env.DB.prepare("DELETE FROM participant_claims WHERE group_id = ?1 AND used_at IS NULL").bind(groupId),
+  ]);
 }

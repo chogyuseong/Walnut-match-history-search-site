@@ -387,12 +387,26 @@ describe("가짜 로그인·테스트 훅은 허용 목록으로만 열린다(�
 
   it("운영 표시가 없거나(DEPLOY_ENV 없음) 다른 표시(spike)면 AUTH_MODE=fake여도 닫힌다", async () => {
     const cookie = await login();
+    // 2026-11-08: local이 아니면 설정 점검을 하므로 AUTH_MODE=fake 자체가 설정 오류(503)로 모든 API를 닫는다.
     for (const deployEnv of [undefined, "spike", "staging", ""]) {
       const overrides = { AUTH_MODE: "fake", DEPLOY_ENV: deployEnv } as Partial<Env>;
-      expect((await at("https://example.test", overrides, "POST", "/api/auth/fake-login", { subject: "x" })).status, String(deployEnv)).toBe(404);
-      expect((await at("https://example.test", overrides, "POST", "/api/test/sheet-fixture", fixture, cookie)).status).toBe(404);
-      const meBody = (await (await at("https://example.test", overrides, "GET", "/api/me")).json()) as any;
-      expect(meBody.authMode).toBe("oauth");
+      const fake = await at("https://example.test", overrides, "POST", "/api/auth/fake-login", { subject: "x" });
+      expect(fake.status, String(deployEnv)).toBe(503);
+      expect(((await fake.json()) as { error: { code: string } }).error.code).toBe("CONFIG_ERROR");
+      expect((await at("https://example.test", overrides, "POST", "/api/test/sheet-fixture", fixture, cookie)).status).toBe(503);
+      expect((await at("https://example.test", overrides, "GET", "/api/me")).status).toBe(503);
+    }
+  });
+
+  it("DEPLOY_ENV가 local이 아니면(없거나 오타여도) 운영과 같은 설정 점검을 한다: 올바른 설정이면 동작하고 가짜 로그인은 없다", async () => {
+    const good: Partial<Env> = { AUTH_MODE: "oauth", SESSION_SECRET: "y".repeat(40), PUBLIC_ORIGIN: "https://example.test" };
+    for (const deployEnv of [undefined, "prod", "staging", ""]) {
+      const overrides = { ...good, DEPLOY_ENV: deployEnv } as Partial<Env>;
+      expect((await at("https://example.test", overrides, "GET", "/api/health")).status, String(deployEnv)).toBe(200);
+      expect((await at("https://example.test", overrides, "POST", "/api/auth/fake-login", { subject: "x" })).status).toBe(404);
+      // 비밀값이 짧으면(테스트 기본값 24자) 거절한다.
+      const short = { ...overrides, SESSION_SECRET: "test-only-session-secret" } as Partial<Env>;
+      expect((await at("https://example.test", short, "GET", "/api/health")).status).toBe(503);
     }
   });
 

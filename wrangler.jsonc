@@ -52,6 +52,9 @@
     "RATE_LOGIN_PER_IP": "5000",
     "RATE_RECOVER_PER_IP": "5000",
     "RATE_CLIENT_ERROR_PER_IP": "5000",
+    // 대량 쓰기 하루 예산(경기 수, UTC 하루). 로컬 합성 데이터·브라우저 테스트가 걸리지 않게 넉넉히.
+    "RATE_BULK_ROWS_PER_ACCOUNT": "1000000",
+    "RATE_BULK_ROWS_PER_IP": "1000000",
     // 사이트 운영자(현황 화면 #/admin). 로컬 전용 꼴 "fake:로그인이름": 가짜 로그인 "e2e-site-admin"이 사이트 운영자다
     // (브라우저 테스트 e2e/error-admin.spec.ts가 쓴다). 가짜 로그인이 닫힌 곳에서는 이 꼴을 무시한다(src/server/siteAdmin.ts).
     "SITE_ADMIN_ACCOUNT_IDS": "fake:e2e-site-admin"
@@ -96,6 +99,9 @@
         "PASSWORD_PBKDF2_ITERATIONS": "20000",
         // 화면 오류 보고(로그인 없음)의 IP별 한도.
         "RATE_CLIENT_ERROR_PER_IP": "10",
+        // 대량 쓰기 하루 예산: 가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수(UTC 하루, src/server/ratelimit.ts).
+        "RATE_BULK_ROWS_PER_ACCOUNT": "3000",
+        "RATE_BULK_ROWS_PER_IP": "6000",
         // 자동 백업: 예정 작업 한 번에 백업할 모임 수, 보관 날수(src/server/backupCron.ts).
         "BACKUP_GROUPS_PER_RUN": "5",
         "BACKUP_KEEP_DAYS": "30",
@@ -151,6 +157,9 @@
         "RATE_RECOVER_PER_IP": "5",
         "PASSWORD_PBKDF2_ITERATIONS": "20000",
         "RATE_CLIENT_ERROR_PER_IP": "10",
+        // 대량 쓰기 하루 예산: 가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수(UTC 하루, src/server/ratelimit.ts).
+        "RATE_BULK_ROWS_PER_ACCOUNT": "3000",
+        "RATE_BULK_ROWS_PER_IP": "6000",
         "BACKUP_GROUPS_PER_RUN": "5",
         "BACKUP_KEEP_DAYS": "30",
         "SITE_ADMIN_ACCOUNT_IDS": ""

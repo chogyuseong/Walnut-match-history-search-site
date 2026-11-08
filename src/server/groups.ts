@@ -907,7 +907,7 @@ export async function transferInfo(
  * 인수 링크를 수락한다. 수락한 계정이 이 모임의 대표 운영자가 되고
  * 이전 운영자는 더 이상 수정할 수 없다. 경기·참가자·조회 링크는 바뀌지 않는다.
  * 받는 계정이 이 모임의 공동 운영자였으면 공동 운영자 행을 지운다(대표와 공동을 겸하지 않는다).
- * 이전 대표가 만든 쓰지 않은 공동 운영자 초대 링크도 지운다(권한을 잃은 사람의 초대가 남지 않게).
+ * 이전 대표가 만든 쓰지 않은 공동 운영자 초대 링크와 참가자 연결 링크도 지운다(권한을 잃은 사람의 링크가 남지 않게).
  * 다른 공동 운영자는 그대로 남는다.
  */
 export async function acceptTransfer(
@@ -960,6 +960,8 @@ export async function acceptTransfer(
       env.DB.prepare("DELETE FROM co_operator_invites WHERE group_id = ?1 AND used_at IS NULL").bind(
         row.group_id,
       ),
+      // 이전 대표가 미리 만든 쓰지 않은 참가자 연결 링크도 지운다(만든 사람을 기록하지 않아 모임 전체, 2026-11-08 보안 점검).
+      env.DB.prepare("DELETE FROM participant_claims WHERE group_id = ?1 AND used_at IS NULL").bind(row.group_id),
     ]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

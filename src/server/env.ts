@@ -8,8 +8,8 @@ export interface Env {
   /** 세션 쿠키 서명 키. 저장소에 넣지 않는다(.dev.vars 또는 wrangler secret). */
   SESSION_SECRET: string;
   /**
-   * "production"이면 운영 환경이다. 운영에서 AUTH_MODE가 fake이거나 필수 값이 비어 있으면
-   * 모든 API가 설정 오류로 거절된다(실수로 가짜 로그인이 열린 채 배포되는 것을 막는다).
+   * "production"이면 운영 환경, "local"이면 로컬 개발·테스트다. "local"이 아니면(값이 없어도) AUTH_MODE가 fake이거나
+   * 필수 값이 비어 있을 때 모든 API가 설정 오류로 거절된다(실수로 가짜 로그인이 열린 채 배포되는 것을 막는다).
    */
   DEPLOY_ENV?: string;
   /** 서비스 주소(예: https://naejeon.example.com). OAuth 리디렉션 URI를 이 값으로 고정한다. */
@@ -42,6 +42,12 @@ export interface Env {
   RATE_RECOVER_PER_IP?: string;
   /** 화면 오류 보고(POST /api/client-errors, 로그인 없음)의 IP별 한도(창당). 기본 10. */
   RATE_CLIENT_ERROR_PER_IP?: string;
+  /**
+   * 대량 쓰기 하루 예산(UTC 하루에 가져오기·지난 경기 입력·백업 복원으로 넣을 수 있는 경기 수).
+   * 기본 계정당 3000, IP당 6000(src/server/ratelimit.ts spendBulkRows).
+   */
+  RATE_BULK_ROWS_PER_ACCOUNT?: string;
+  RATE_BULK_ROWS_PER_IP?: string;
 
   /**
    * 사이트 운영자(이 서비스의 주인. 모임 운영자와 다르다). 쉼표로 구분한 계정 ID 목록.

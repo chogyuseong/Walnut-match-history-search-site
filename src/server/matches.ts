@@ -32,6 +32,7 @@ import {
   runMutation,
   type Plan,
 } from "./mutation";
+import { spendBulkRows, type BulkActor } from "./ratelimit";
 import { parseSeriesContinue, seriesContinuePlan, type SeriesContinue } from "./series";
 import { groupFingerprints } from "./sheets";
 import { loadGroup, loadMatch, loadOpenSession, loadSettings } from "./snapshot";
@@ -1181,7 +1182,7 @@ export async function correctMatch(
  * 초안·진행 중을 거치지 않고 결과 확정 경기를 직접 만든다.
  * 세션·현재 경기·순환·진행 상태 버전을 건드리지 않는다.
  */
-export async function backfillMatch(env: Env, groupId: string, body: Body): Promise<MatchView> {
+export async function backfillMatch(env: Env, groupId: string, body: Body, actor: BulkActor): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "playedAt", "roster", "winnerTeam", "winnerSide"]);
   const requestId = requestIdOf(body);
   const playedAt = requireIsoTime(body.playedAt, "playedAt");
@@ -1204,6 +1205,8 @@ export async function backfillMatch(env: Env, groupId: string, body: Body): Prom
         groupId,
         roster.map((r) => r.participantId),
       );
+      // 대량 쓰기 하루 예산(1경기). 검증이 끝난 뒤에만 쓰고, 같은 요청 ID의 재시도(재생)는 여기까지 오지 않는다.
+      await spendBulkRows(env, actor, 1);
       const now = nowIso();
       const matchId = newId();
       return {
@@ -1309,6 +1312,7 @@ export async function importMatches(
   env: Env,
   groupId: string,
   body: Body,
+  actor: BulkActor,
 ): Promise<{ matchIds: string[] }> {
   assertOnlyKeys(body, ["requestId", "batchId", "matches", "source"]);
   const requestId = requestIdOf(body);
@@ -1424,6 +1428,8 @@ export async function importMatches(
         }
       });
 
+      // 대량 쓰기 하루 예산(이 묶음의 경기 수). 검증이 모두 끝난 뒤, 쓰기 직전에 쓴다.
+      await spendBulkRows(env, actor, matches.length);
       const now = nowIso();
       const statements: D1PreparedStatement[] = [];
       if (scopeStamp !== null) {

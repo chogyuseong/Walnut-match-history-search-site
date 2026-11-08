@@ -25,7 +25,7 @@ import { BACKUP_PREFIX } from "./backupCron";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, nowIso } from "./http";
 import { DELETE_JOB, GROUP_DATA_TABLES, NOW_MS_SQL } from "./restore";
-import { failureKeysFor, LOCAL_PROVIDER } from "./local";
+import { FAILURE_KEY_MATCH, failureKeysFor, LOCAL_PROVIDER } from "./local";
 
 export const GROUP_DELETE_CONFIRM_TEXT = "삭제";
 export const ACCOUNT_DELETE_CONFIRM_TEXT = "탈퇴";
@@ -250,7 +250,9 @@ export async function deleteAccount(env: Env, accountId: string, body: Body): Pr
          SELECT 1 WHERE EXISTS (SELECT 1 FROM group_operators WHERE account_id = ?1)`,
       ).bind(accountId),
       env.DB.prepare("DELETE FROM rate_limits WHERE key = ?1").bind(`write-account:${accountId}`),
-      ...failureKeys.map((key) => env.DB.prepare("DELETE FROM auth_failures WHERE key = ?1").bind(key)),
+      env.DB.prepare("DELETE FROM rate_limits WHERE key = ?1").bind(`bulk-rows-account:${accountId}`),
+      // 아이디 전체 키와 (아이디, IP)별 키("키:IP")를 함께 지운다.
+      ...failureKeys.map((key) => env.DB.prepare(`DELETE FROM auth_failures WHERE ${FAILURE_KEY_MATCH}`).bind(key)),
       env.DB.prepare("DELETE FROM local_credentials WHERE account_id = ?1").bind(accountId),
       env.DB.prepare("DELETE FROM group_co_operators WHERE account_id = ?1").bind(accountId),
       // 참가자 본인 연결(migrations/0019): 연결을 지우고 본인 확인 신청 표시를 익명 신청으로 돌린다. 참가자·기록은 모임 것이라 그대로.

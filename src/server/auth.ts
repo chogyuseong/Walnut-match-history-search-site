@@ -295,11 +295,13 @@ export function newViewToken(): string {
 }
 
 /**
- * 운영 환경 설정 점검. 운영(DEPLOY_ENV=production)에서 위험한 설정이면 이유를 돌려준다.
- * 이유가 있으면 모든 API가 거절된다(index.ts).
+ * 운영 환경 설정 점검. 위험한 설정이면 이유를 돌려준다. 이유가 있으면 모든 API가 거절된다(index.ts).
+ * 로컬 개발·테스트(DEPLOY_ENV=local)만 검사를 건너뛴다. 그 밖의 값(production·staging·spike·빈 값·없음)은 모두 검사한다:
+ * 운영 표시를 빠뜨리거나 잘못 적어 배포해도 안전장치가 꺼지지 않게 하려는 것이다(2026-11-08 보안 점검, 이전에는
+ * DEPLOY_ENV=production일 때만 검사했다).
  */
 export function productionConfigProblem(env: Env): string | null {
-  if (env.DEPLOY_ENV !== "production") return null;
+  if (env.DEPLOY_ENV === "local") return null;
   if (env.AUTH_MODE === "fake") return "운영 환경에서 AUTH_MODE=fake";
   if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) return "SESSION_SECRET 없음 또는 32자 미만";
   if (

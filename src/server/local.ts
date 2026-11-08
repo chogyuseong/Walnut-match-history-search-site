@@ -13,8 +13,9 @@
  * - 복구 코드: 160비트 무작위 값. 서버에는 SHA-256만 둔다(추측할 수 없는 값이라 느린 해시가 필요 없다).
  *
  * 악용 방지:
- * - IP별 요청 수 제한(가입 5·로그인 10·복구 5 / 60초, src/server/ratelimit.ts)과, 아이디별 실패 횟수 제한
- *   (15분에 로그인 10번·복구 5번). 없는 아이디도 똑같이 세고, 해시도 한 번 계산해 응답 내용·시간이 같다.
+ * - IP별 요청 수 제한(가입 5·로그인 10·복구 5 / 60초, src/server/ratelimit.ts)과, 실패 횟수 제한
+ *   (15분에 (아이디, IP)별 로그인 10번·복구 5번, 아이디 전체 100번). 없는 아이디도 똑같이 세고, 해시도 한 번 계산해
+ *   응답 내용·시간이 같다. IP를 함께 세는 까닭: 아이디만 알면 남이 주인의 로그인을 막을 수 있었다(2026-11-08).
  * - 로그인 실패 문구는 하나다: "아이디 또는 비밀번호가 맞지 않아요."
  * - CSRF 방어(Origin 확인·JSON 본문)는 index.ts의 공통 앞단을 그대로 거친다. 본문은 2KB까지.
  */
@@ -29,7 +30,7 @@ import {
 import { fromBase64Url, revokeSessions, toBase64Url, type SessionAccount } from "./auth";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, nowIso } from "./http";
-import { rateClock } from "./ratelimit";
+import { ipKey, rateClock } from "./ratelimit";
 
 export const LOCAL_PROVIDER = "local";
 /** 자체 계정 요청 본문 상한(바이트). 아이디·비밀번호 몇 개뿐이다. */
@@ -44,6 +45,8 @@ const RECOVERY_BYTES = 20;
 /** 아이디·계정별 실패 횟수 제한(고정 창). */
 export const FAILURE_WINDOW_MS = 15 * 60_000;
 export const FAILURE_LIMITS = { login: 10, recover: 5, password: 10 } as const;
+/** 로그인·복구의 아이디 전체(모든 IP 합계) 실패 한도(15분 창). (아이디, IP)별 한도는 FAILURE_LIMITS. */
+export const FAILURE_TOTAL_LIMIT = 100;
 type FailureKind = keyof typeof FAILURE_LIMITS;
 
 export const INVALID_LOGIN_MESSAGE = "아이디 또는 비밀번호가 맞지 않아요.";
@@ -205,13 +208,36 @@ async function nameKey(env: Env, username: string): Promise<string> {
     .join("");
 }
 
+/**
+ * 계정 탈퇴 때 지울 실패 기록의 키 접두어. 각 키 자체와 "키:IP" 꼴(아래 failureKeys)을 함께 지운다(failureKeyRange).
+ */
 export async function failureKeysFor(env: Env, username: string, accountId: string): Promise<string[]> {
   const hashed = await nameKey(env, username);
   return [`login:${hashed}`, `recover:${hashed}`, `password:${accountId}`];
 }
 
-async function failureKey(env: Env, kind: FailureKind, subject: string): Promise<string> {
-  return kind === "password" ? `password:${subject}` : `${kind}:${await nameKey(env, subject)}`;
+/** 키 자체와 "키:…"를 고르는 SQL 조건(?1 = 키). 범위 비교라 LIKE 와일드카드 걱정이 없다(';'는 ':' 다음 글자). */
+export const FAILURE_KEY_MATCH = "(key = ?1 OR (key >= ?1 || ':' AND key < ?1 || ';'))";
+
+/**
+ * 이 시도에 걸리는 실패 기록 키와 한도.
+ * - password(로그인한 계정의 지금 비밀번호 확인): 계정 하나, FAILURE_LIMITS.password.
+ * - login·recover: (아이디, IP) 조합에 FAILURE_LIMITS[kind], 아이디 전체에 FAILURE_TOTAL_LIMIT.
+ *   아이디만으로 세면 남이 아이디를 알기만 해도 틀린 비밀번호 10번으로 주인의 로그인을 막을 수 있었다(2026-11-08 보안 점검).
+ *   IP를 바꿔 가며 추측하는 것은 아이디 전체 한도(15분 100번)와 IP별 요청 수 제한(login-ip)이 막는다.
+ */
+async function failureKeys(
+  env: Env,
+  kind: FailureKind,
+  subject: string,
+  ip: string,
+): Promise<{ key: string; limit: number }[]> {
+  if (kind === "password") return [{ key: `password:${subject}`, limit: FAILURE_LIMITS.password }];
+  const total = `${kind}:${await nameKey(env, subject)}`;
+  return [
+    { key: `${total}:${await ipKey(env, ip)}`, limit: FAILURE_LIMITS[kind] },
+    { key: total, limit: FAILURE_TOTAL_LIMIT },
+  ];
 }
 
 function failureWindow(): { start: number; retryAfter: number } {
@@ -230,32 +256,37 @@ function tooManyFailures(retryAfter: number): ApiError {
   );
 }
 
-/** 이 창에서 실패가 한도에 닿았으면 계산하기 전에 거절한다. */
-async function assertNotLocked(env: Env, kind: FailureKind, subject: string): Promise<void> {
-  const key = await failureKey(env, kind, subject);
+/** 이 창에서 실패가 한도에 닿았으면(키 하나라도) 계산하기 전에 거절한다. */
+async function assertNotLocked(env: Env, kind: FailureKind, subject: string, ip: string): Promise<void> {
+  const keys = await failureKeys(env, kind, subject, ip);
   const { start, retryAfter } = failureWindow();
-  const row = await env.DB.prepare("SELECT count FROM auth_failures WHERE key = ?1 AND window_start = ?2")
-    .bind(key, start)
-    .first<{ count: number }>();
-  if ((row?.count ?? 0) >= FAILURE_LIMITS[kind]) throw tooManyFailures(retryAfter);
+  const rows = await env.DB.prepare(
+    "SELECT key, count FROM auth_failures WHERE key IN (SELECT value FROM json_each(?1)) AND window_start = ?2",
+  )
+    .bind(JSON.stringify(keys.map((k) => k.key)), start)
+    .all<{ key: string; count: number }>();
+  const locked = keys.some(({ key, limit }) => (rows.results.find((r) => r.key === key)?.count ?? 0) >= limit);
+  if (locked) throw tooManyFailures(retryAfter);
 }
 
-async function recordFailure(env: Env, kind: FailureKind, subject: string): Promise<void> {
-  const key = await failureKey(env, kind, subject);
+async function recordFailure(env: Env, kind: FailureKind, subject: string, ip: string): Promise<void> {
+  const keys = await failureKeys(env, kind, subject, ip);
   const { start } = failureWindow();
   await env.DB.batch([
-    env.DB.prepare(
-      `INSERT INTO auth_failures (key, window_start, count) VALUES (?1, ?2, 1)
-       ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1`,
-    ).bind(key, start),
+    ...keys.map(({ key }) =>
+      env.DB.prepare(
+        `INSERT INTO auth_failures (key, window_start, count) VALUES (?1, ?2, 1)
+         ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1`,
+      ).bind(key, start),
+    ),
     env.DB.prepare("DELETE FROM auth_failures WHERE window_start < ?1").bind(start),
   ]);
 }
 
+/** 성공하면 그 아이디(또는 계정)의 실패 기록을 IP와 상관없이 모두 지운다. */
 async function clearFailures(env: Env, kind: FailureKind, subject: string): Promise<void> {
-  await env.DB.prepare("DELETE FROM auth_failures WHERE key = ?1")
-    .bind(await failureKey(env, kind, subject))
-    .run();
+  const prefix = kind === "password" ? `password:${subject}` : `${kind}:${await nameKey(env, subject)}`;
+  await env.DB.prepare(`DELETE FROM auth_failures WHERE ${FAILURE_KEY_MATCH}`).bind(prefix).run();
 }
 
 /* ------------------------------ 입력 ------------------------------ */
@@ -341,18 +372,18 @@ export async function signup(env: Env, body: Body): Promise<{ account: SessionAc
 }
 
 /** 로그인. 아이디가 없든 비밀번호가 틀리든 같은 오류·같은 계산량이다. */
-export async function login(env: Env, body: Body): Promise<SessionAccount> {
+export async function login(env: Env, body: Body, ip: string): Promise<SessionAccount> {
   assertOnlyKeys(body, ["username", "password"]);
   const username = normalizeUsername(stringField(body, "username", 64));
   const password = stringField(body, "password", 512);
-  await assertNotLocked(env, "login", username);
+  await assertNotLocked(env, "login", username, ip);
   const row = usernameProblem(username) === null ? await findLocal(env, username) : null;
   let ok = false;
   let outdated = false;
   if (row) ({ ok, outdated } = await verifyPassword(env, password, row.password_hash));
   else await dummyVerify(env, password);
   if (!row || !ok) {
-    await recordFailure(env, "login", username);
+    await recordFailure(env, "login", username, ip);
     throw new ApiError(400, "INVALID_LOGIN", INVALID_LOGIN_MESSAGE);
   }
   await clearFailures(env, "login", username);
@@ -371,6 +402,7 @@ export async function login(env: Env, body: Body): Promise<SessionAccount> {
 export async function recover(
   env: Env,
   body: Body,
+  ip: string,
 ): Promise<{ account: SessionAccount; recoveryCode: string }> {
   assertOnlyKeys(body, ["username", "recoveryCode", "newPassword"]);
   const username = normalizeUsername(stringField(body, "username", 64));
@@ -379,11 +411,11 @@ export async function recover(
   // 새 비밀번호의 조건은 아이디가 있는지와 상관없이 알려줘도 된다.
   const problem = passwordProblem(newPassword, username);
   if (problem) throw new ApiError(400, "INVALID_CREDENTIALS_FORMAT", problem);
-  await assertNotLocked(env, "recover", username);
+  await assertNotLocked(env, "recover", username, ip);
   const row = usernameProblem(username) === null ? await findLocal(env, username) : null;
   const ok = row ? await recoveryMatches(code, row.recovery_hash) : (await recoveryMatches(code, "sha256$"), false);
   if (!row || !ok) {
-    await recordFailure(env, "recover", username);
+    await recordFailure(env, "recover", username, ip);
     throw new ApiError(400, "INVALID_RECOVERY", INVALID_RECOVERY_MESSAGE);
   }
   const recovery = await newRecoveryCode();
@@ -421,10 +453,10 @@ export async function confirmCurrentPassword(
   if (typeof password !== "string" || password.length > 512) {
     throw new ApiError(400, "WRONG_PASSWORD", "지금 비밀번호를 입력해 주세요.");
   }
-  await assertNotLocked(env, "password", accountId);
+  await assertNotLocked(env, "password", accountId, "");
   const { ok } = await verifyPassword(env, password, row.password_hash);
   if (!ok) {
-    await recordFailure(env, "password", accountId);
+    await recordFailure(env, "password", accountId, "");
     throw new ApiError(400, "WRONG_PASSWORD", "지금 비밀번호가 맞지 않아요.");
   }
   await clearFailures(env, "password", accountId);

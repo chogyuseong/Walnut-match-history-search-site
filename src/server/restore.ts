@@ -34,6 +34,7 @@ import {
 import { ApiError, assertOnlyKeys, nowIso, readJsonBody, readJsonBodyWithText, requireInt, requireString } from "./http";
 import { runMutation, sha256Hex, type Plan } from "./mutation";
 import { newViewToken } from "./auth";
+import { spendBulkRows, type BulkActor } from "./ratelimit";
 
 export const RESTORE_CONFIRM_TEXT = "복원";
 
@@ -1329,6 +1330,7 @@ export async function applyRestore(
   env: Env,
   groupId: string,
   req: Request,
+  actor: BulkActor,
 ): Promise<Record<string, unknown>> {
   // 요청 해시는 원문으로 계산한다(runMutation payloadText: 수 MB 백업을 다시 직렬화하지 않는다).
   const { body, text } = await readJsonBodyWithText(req, MAX_RESTORE_BODY_BYTES);
@@ -1361,6 +1363,9 @@ export async function applyRestore(
     build: async () => {
       const clash = await foreignIdCollision(env, groupId, data);
       if (clash) throw invalid(["파일의 ID가 다른 모임의 기록과 겹칩니다."]);
+      // 대량 쓰기 하루 예산(파일의 경기 수). 중간에 멈춘 같은 요청을 이어서 끝낼 때(작업 행이 이 요청의 것)는 다시 쓰지 않는다.
+      const job = await readJob(env, groupId);
+      if (job?.request_id !== requestId) await spendBulkRows(env, actor, data.matches.length);
       return buildRestorePlan(env, groupId, data, { remap: false, baseGeneration, requestId });
     },
   });
@@ -1375,6 +1380,7 @@ export async function importAsNewGroup(
   env: Env,
   accountId: string,
   req: Request,
+  ip: string,
 ): Promise<Record<string, unknown>> {
   const { body, text } = await readJsonBodyWithText(req, MAX_RESTORE_BODY_BYTES);
   assertOnlyKeys(body, ["requestId", "confirm", "backup"]);
@@ -1416,6 +1422,8 @@ export async function importAsNewGroup(
   if (!existing) {
     // 계정당 모임 수(대표 + 공동 운영 합계) 한도. src/server/groups.ts
     if ((await accountGroupCount(env, accountId)) >= MAX_GROUPS_PER_ACCOUNT) throw tooManyGroupsError();
+    // 대량 쓰기 하루 예산(파일의 경기 수). 모임을 처음 만들 때 한 번만 쓴다(이어서 끝내기·재전송은 위 existing 경로).
+    await spendBulkRows(env, { accountId, ip }, data.matches.length);
     const now = nowIso();
     // 빈 모임을 점검 상태로 먼저 만든다. 가져오기가 끝나야 점검이 풀린다.
     // 첫 문장: 확인과 만들기 사이에 같은 계정의 다른 요청이 끼어 한도를 넘으면 막는다(migrations/0021).

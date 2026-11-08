@@ -170,8 +170,8 @@ app.use("/api/*", async (c, next) => {
 /** 조건부 요청(ETag) 경로의 캐시 헤더: 브라우저가 저장하되 매번 If-None-Match로 확인한다. 공용 캐시는 저장하지 않는다. */
 const REVALIDATE = "private, no-cache";
 
-// 운영 환경 안전장치: 운영(DEPLOY_ENV=production)에서 가짜 로그인이 켜져 있거나 필수 값이 없으면
-// 어떤 API도 처리하지 않는다. 이유는 응답에 싣지 않고 로그에만 남긴다.
+// 운영 환경 안전장치: 로컬(DEPLOY_ENV=local)이 아닌 곳에서 가짜 로그인이 켜져 있거나 필수 값이 없으면
+// 어떤 API도 처리하지 않는다(auth.ts productionConfigProblem). 이유는 응답에 싣지 않고 로그에만 남긴다.
 app.use("/api/*", async (c, next) => {
   const problem = productionConfigProblem(c.env);
   if (problem) {
@@ -190,7 +190,8 @@ app.use("/api/*", async (c, next) => {
 
 // 요청 수 제한(계정·IP별). 로그인 경로, 조회 토큰·인수 링크 경로, 모든 쓰기 경로에 건다.
 app.use("/api/*", async (c, next) => {
-  const method = c.req.method;
+  // HEAD는 GET과 같은 처리를 거쳐(Hono가 GET 경로로 보낸다) 본문만 빠진다. 같은 한도로 센다(2026-11-08 보안 점검).
+  const method = c.req.method === "HEAD" ? "GET" : c.req.method;
   const path = c.req.path;
   const ip = clientIp(c.req.raw);
   if (path.startsWith("/api/auth/")) {
@@ -223,7 +224,7 @@ app.use("/api/*", async (c, next) => {
   } else if (method === "POST" && path === CLIENT_ERRORS_PATH) {
     // 화면 오류 보고(로그인 없음): 자기 한도만 센다. 쓰기 한도를 쓰면 오류가 잦은 화면에서 저장까지 막힌다.
     await hit(c.env, "client-error-ip", ip);
-  } else if (method !== "HEAD" && method !== "OPTIONS") {
+  } else if (method !== "OPTIONS") {
     // 참가 신청(로그인 없음, 토큰이 권한)은 조회 토큰 한도도 함께 센다.
     if (path.startsWith("/api/join/")) await hit(c.env, "view-ip", ip);
     await hit(c.env, "write-ip", ip);
@@ -335,7 +336,7 @@ app.post("/api/auth/signup", async (c) => {
 app.post("/api/auth/login", async (c) => {
   requireLocalAccounts(c.env);
   await hit(c.env, "login-ip", clientIp(c.req.raw));
-  const account = await localLogin(c.env, await readJsonBody(c.req.raw, MAX_LOCAL_BODY_BYTES));
+  const account = await localLogin(c.env, await readJsonBody(c.req.raw, MAX_LOCAL_BODY_BYTES), clientIp(c.req.raw));
   c.header("Set-Cookie", sessionCookie(c.env, await createSessionValue(c.env, account)));
   return c.json({ ok: true });
 });
@@ -343,7 +344,11 @@ app.post("/api/auth/login", async (c) => {
 app.post("/api/auth/recover", async (c) => {
   requireLocalAccounts(c.env);
   await hit(c.env, "recover-ip", clientIp(c.req.raw));
-  const { account, recoveryCode } = await localRecover(c.env, await readJsonBody(c.req.raw, MAX_LOCAL_BODY_BYTES));
+  const { account, recoveryCode } = await localRecover(
+    c.env,
+    await readJsonBody(c.req.raw, MAX_LOCAL_BODY_BYTES),
+    clientIp(c.req.raw),
+  );
   c.header("Set-Cookie", sessionCookie(c.env, await createSessionValue(c.env, account)));
   return c.json({ ok: true, recoveryCode });
 });
@@ -512,14 +517,14 @@ app.post("/api/groups/:gid/restore/preview", async (c) => {
 // 같은 모임 복구. 운영자·공동 운영자·조회 토큰은 바뀌지 않는다. 대표 운영자만.
 app.post("/api/groups/:gid/restore", async (c) => {
   const gid = c.req.param("gid");
-  await requireOwner(c.env, c.req.raw, gid);
-  return c.json(await applyRestore(c.env, gid, c.req.raw));
+  const accountId = await requireOwner(c.env, c.req.raw, gid);
+  return c.json(await applyRestore(c.env, gid, c.req.raw, { accountId, ip: clientIp(c.req.raw) }));
 });
 
 // 다른 모임(또는 빈 환경)의 백업을 새 모임으로 가져온다.
 app.post("/api/restore/new-group", async (c) => {
   const accountId = await requireAccountId(c.env, c.req.raw);
-  return c.json(await importAsNewGroup(c.env, accountId, c.req.raw));
+  return c.json(await importAsNewGroup(c.env, accountId, c.req.raw, clientIp(c.req.raw)));
 });
 
 /* ---------------------------- 모임·계정 삭제 ---------------------------- */
@@ -586,15 +591,17 @@ app.post("/api/groups/:gid/matches/start", async (c) => {
 
 app.post("/api/groups/:gid/matches/backfill", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
-  return c.json({ match: await backfillMatch(c.env, gid, await readJsonBody(c.req.raw)) });
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
+  const actor = { accountId, ip: clientIp(c.req.raw) };
+  return c.json({ match: await backfillMatch(c.env, gid, await readJsonBody(c.req.raw), actor) });
 });
 
 app.post("/api/groups/:gid/matches/import", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
+  const actor = { accountId, ip: clientIp(c.req.raw) };
   return c.json(
-    await importMatches(c.env, gid, await readJsonBody(c.req.raw, MAX_IMPORT_BODY_BYTES)),
+    await importMatches(c.env, gid, await readJsonBody(c.req.raw, MAX_IMPORT_BODY_BYTES), actor),
   );
 });
 

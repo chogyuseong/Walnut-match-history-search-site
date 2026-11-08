@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
 import { normalizePassword } from "../src/shared/account";
 import { toBase64Url } from "../src/server/auth";
-import { FAILURE_LIMITS, hashPassword, INVALID_LOGIN_MESSAGE } from "../src/server/local";
+import { FAILURE_LIMITS, FAILURE_TOTAL_LIMIT, hashPassword, INVALID_LOGIN_MESSAGE } from "../src/server/local";
 import { rateClock } from "../src/server/ratelimit";
 import { cookieFrom, direct } from "./direct";
 import { unique } from "./helpers";
@@ -162,21 +162,54 @@ describe("로그인", () => {
     expect(wrong.body.error.message).toBe(INVALID_LOGIN_MESSAGE);
   });
 
-  it("아이디별로 15분에 10번 틀리면 맞는 비밀번호도 잠시 거절하고, 창이 지나면 다시 된다. 없는 아이디도 같다", async () => {
+  it("(아이디, IP)별로 15분에 10번 틀리면 그 IP에서는 맞는 비밀번호도 잠시 거절하고, 창이 지나면 다시 된다. 없는 아이디도 같다", async () => {
     let now = Math.floor(Date.now() / 900_000) * 900_000 + 30 * 900_000 + 1000;
     rateClock.now = () => now;
     const s = await signup();
     const ghost = newName();
+    const ip = unique("ip");
     for (const username of [s.username, ghost]) {
       for (let i = 0; i < FAILURE_LIMITS.login; i++) {
-        expect((await call("POST", "/api/auth/login", { username, password: "nope nope" })).status).toBe(400);
+        expect((await call("POST", "/api/auth/login", { username, password: "nope nope" }, { ip })).status).toBe(400);
       }
-      const locked = await call("POST", "/api/auth/login", { username, password: PASSWORD });
+      const locked = await call("POST", "/api/auth/login", { username, password: PASSWORD }, { ip });
       expect(locked.status).toBe(429);
       expect(locked.body.error.message).toContain("틀린 시도가 너무 많아요");
     }
     now += 900_000;
-    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(200);
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD }, { ip })).status).toBe(200);
+  });
+
+  it("다른 IP에서 아무리 틀려도(아이디 전체 한도 전까지) 본인 IP의 로그인은 막히지 않는다", async () => {
+    const now = Math.floor(Date.now() / 900_000) * 900_000 + 31 * 900_000 + 1000;
+    rateClock.now = () => now;
+    const s = await signup();
+    const attacker = unique("ip");
+    for (let i = 0; i < FAILURE_LIMITS.login + 5; i++) {
+      const r = await call("POST", "/api/auth/login", { username: s.username, password: "nope nope" }, { ip: attacker });
+      expect(r.status).toBe(i < FAILURE_LIMITS.login ? 400 : 429);
+    }
+    // IPv6 같은 /64 안에서 주소를 바꿔도 같은 IP로 센다.
+    const v6 = `2001:db8:${Math.floor(Math.random() * 0xffff).toString(16)}:7`;
+    for (let i = 0; i < FAILURE_LIMITS.login; i++) {
+      await call("POST", "/api/auth/login", { username: s.username, password: "nope nope" }, { ip: `${v6}::${i + 1}` });
+    }
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD }, { ip: `${v6}::99` })).status).toBe(429);
+    const mine = await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD }, { ip: unique("ip") });
+    expect(mine.status).toBe(200);
+    // 성공하면 그 아이디의 실패 기록(모든 IP)이 지워져 공격자 IP도 다시 시도할 수 있다(아이디 전체 한도도 초기화).
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: "nope nope" }, { ip: attacker })).status).toBe(400);
+  });
+
+  it("아이디 전체 한도: IP를 바꿔 가며 15분에 100번 틀리면 모든 IP에서 잠시 거절한다", async () => {
+    const now = Math.floor(Date.now() / 900_000) * 900_000 + 32 * 900_000 + 1000;
+    rateClock.now = () => now;
+    const s = await signup();
+    for (let i = 0; i < FAILURE_TOTAL_LIMIT; i++) {
+      expect((await call("POST", "/api/auth/login", { username: s.username, password: "nope nope" })).status).toBe(400);
+    }
+    const locked = await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD });
+    expect(locked.status).toBe(429);
   });
 
   it("다른 사이트(Origin)에서 보낸 가입·로그인은 거절한다. JSON이 아니거나 너무 큰 본문도", async () => {
