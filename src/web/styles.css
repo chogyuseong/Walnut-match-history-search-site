@@ -1030,6 +1030,11 @@ button.bar-row:hover {
 .matrix th:first-child {
   width: 29%;
 }
+@media (min-width: 1024px) {
+  .matrix th:first-child {
+    width: 18%;
+  }
+}
 .matrix th[scope="row"] {
   text-align: left;
   font-weight: 400;
