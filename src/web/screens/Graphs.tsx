@@ -65,6 +65,14 @@ function RateBar(props: {
             {percentText(wins, games)}
           </strong>{" "}
           · {wins}승 {games - wins}패 ({games}경기)
+          {tone === "series" && games < SMALL_SAMPLE && (
+            <>
+              {" "}
+              <span className="tag" title={`${SMALL_SAMPLE}경기 미만은 승률에 색을 칠하지 않아요`}>
+                자료 적음
+              </span>
+            </>
+          )}
         </span>
       </span>
       <span className="bar-track" aria-hidden="true">

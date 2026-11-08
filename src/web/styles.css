@@ -4029,7 +4029,10 @@ label:has(> select) {
 
 /* 그래프 막대 5경기 미만(tone-muted): 작은 막대(meter)와 같이 회색. 예전에는 기본 파랑이라 45~55% 구간과 헷갈렸다(2026-11-08). */
 .bar-fill.tone-muted {
-  background: var(--viz-axis);
+  /* 5경기 미만: 승률 색을 칠하지 않는다. 검게 보이지 않게 밝은 회색 + 빗금으로 "자료 적음"을 나타낸다. */
+  background-color: var(--viz-axis);
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255, 255, 255, 0.22) 4px 7px);
+  opacity: 0.8;
 }
 [data-theme="light"] .bar-fill.tone-muted {
   background: var(--ih-text-muted);
