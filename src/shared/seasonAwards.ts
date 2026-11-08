@@ -15,8 +15,8 @@ import { POSITIONS, type MatchView, type Position, type Snapshot } from "./types
 export const AWARD_MIN_RATE_GAMES = 50;
 /** 가장 많이 성장: 두 범위 모두 이만큼 이상 뛴 사람만(배치 판수와 같게). */
 export const AWARD_MIN_GAMES = 10;
-/** 라인별 최고 승률: 그 라인으로 이만큼 이상(최고 승률과 같게, 2026-11-08에 5에서 올림). */
-export const AWARD_MIN_LINE_GAMES = 50;
+/** 라인별 최고 승률: 그 범위 총 경기가 AWARD_MIN_RATE_GAMES 이상인 사람 중, 그 라인으로 이만큼 이상 뛴 사람만. */
+export const AWARD_MIN_LINE_GAMES = 5;
 /** 최고의 듀오(같은 팀)·천적 관계(상대 팀): 함께·맞붙은 판이 이만큼 이상인 쌍만. */
 export const AWARD_MIN_PAIR_GAMES = 5;
 /** 최장 연승: 이 이상 이어져야 시상한다(1연승은 연승이 아니다). */
@@ -248,17 +248,21 @@ export function seasonSummary(
     for (const m of counted) {
       for (const r of m.roster) if (r.position === position) bump(line, r.participantId, r.team === m.winnerTeam);
     }
+    // 총 경기 기준은 최고 승률과 같다(2026-11-08). 라인 경기 기준은 표본이 너무 적은 라인을 거르는 용도.
     const eligible = [...line.entries()]
-      .filter(([, t]) => t.games >= AWARD_MIN_LINE_GAMES)
+      .filter(([id, t]) => (tallies.get(id)?.games ?? 0) >= AWARD_MIN_RATE_GAMES && t.games >= AWARD_MIN_LINE_GAMES)
       .map(([id, t]) => ({ ids: [id], t }));
     const winners = top(eligible, (a, b) => compareRate(a.t, b.t), idsOrder);
     awards.push({
       key: "lineBest",
       position,
       title: "라인별 최고 승률",
-      rule: `그 라인으로 ${AWARD_MIN_LINE_GAMES}경기 이상 뛴 사람 중 승률 1위`,
+      rule: `총 ${AWARD_MIN_RATE_GAMES}경기 이상 뛴 사람 중 그 라인 ${AWARD_MIN_LINE_GAMES}경기 이상인 사람의 승률 1위`,
       winners: winners.map((r) => ({ participantIds: r.ids, value: `${record(r.t)} (${r.t.games}경기)` })),
-      none: eligible.length === 0 ? `이 라인으로 ${AWARD_MIN_LINE_GAMES}경기 이상 뛴 사람이 없어요.` : undefined,
+      none:
+        eligible.length === 0
+          ? `총 ${AWARD_MIN_RATE_GAMES}경기 이상이면서 이 라인으로 ${AWARD_MIN_LINE_GAMES}경기 이상 뛴 사람이 없어요.`
+          : undefined,
     });
   }
   // 최고의 듀오(같은 팀)와 천적 관계(상대 팀)

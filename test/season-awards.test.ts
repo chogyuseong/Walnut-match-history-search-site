@@ -159,21 +159,30 @@ describe("시상: 기준 경계와 공동 수상", () => {
     expect(streak.winners[0]!.value).toBe("10연승");
   });
 
-  it(`라인별 최고 승률은 그 라인 ${AWARD_MIN_LINE_GAMES}경기 이상만`, () => {
-    // p0은 탑 49경기 전승(기준 미달), p5는 탑 52경기 49승.
+  it(`라인별 최고 승률은 총 ${AWARD_MIN_RATE_GAMES}경기 이상인 사람 중 그 라인 ${AWARD_MIN_LINE_GAMES}경기 이상만`, () => {
+    // 49경기 A 전승(p0은 탑), 그 뒤 3경기는 p0 대신 p10이 탑으로 들어가 B가 이긴다.
     const matches = [
-      ...Array.from({ length: AWARD_MIN_LINE_GAMES - 1 }, () => game(A, B, "A")),
+      ...Array.from({ length: AWARD_MIN_RATE_GAMES - 1 }, () => game(A, B, "A")),
       game([10, 1, 2, 3, 4], B, "B"),
       game([10, 1, 2, 3, 4], B, "B"),
       game([10, 1, 2, 3, 4], B, "B"),
     ];
-    // p5(B 탑): 52경기 3승 = 6%. p10(A 탑): 3경기. p0: 49경기 100%(기준 미달).
+    // 탑: p0은 49경기 100%지만 총 49경기라 미달. p10은 총 3경기. p5(B 탑)는 총 52경기 3승 = 6%로 유일한 대상.
     const s = seasonSummary(snap(matches), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
     const top = award(s.awards, "lineBest", "top");
     expect(ids(top)).toEqual(["p5"]);
     expect(top.winners[0]!.value).toBe("6% · 3승 49패 (52경기)");
     // 서폿 라인: p4(A 서폿) 52경기 49승 94%, p9(B 서폿) 52경기 3승.
     expect(ids(award(s.awards, "lineBest", "support"))).toEqual(["p4"]);
+
+    // 총 50경기를 넘겨도 그 라인 경기가 5 미만이면 대상이 아니다: p1이 마지막 4경기만 탑으로 뛴 경우.
+    const swapped = [
+      ...Array.from({ length: 50 }, () => game(A, B, "A")),
+      ...Array.from({ length: 4 }, () => game([1, 0, 2, 3, 4], B, "A")),
+    ];
+    const s2 = seasonSummary(snap(swapped), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
+    // 탑 대상: p0(탑 50경기 100%)과 p5(탑 54경기 0%). p1은 탑 4경기라 빠진다.
+    expect(ids(award(s2.awards, "lineBest", "top"))).toEqual(["p0"]);
     // 포지션 기록이 없는 경기는 라인별에서 빠진다.
     const none = seasonSummary(
       snap(Array.from({ length: 6 }, () => game(A, B, "A", { noPositions: true }))),
