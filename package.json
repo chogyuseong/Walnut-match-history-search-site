@@ -13,7 +13,12 @@
     "lint": "eslint .",
     "check:bundle": "node scripts/check-bundle.mjs",
     "e2e": "playwright test",
-    "seed": "node scripts/seed.mjs"
+    "seed": "node scripts/seed.mjs",
+    "deploy:staging": "node scripts/predeploy-check.mjs staging --skip-build && vite build && wrangler deploy --env staging",
+    "deploy:production": "node scripts/predeploy-check.mjs production --skip-build && vite build && wrangler deploy --env production"
+  },
+  "engines": {
+    "node": "^22.12.0 || ^24 || >=26"
   },
   "dependencies": {
     "hono": "4.13.16",

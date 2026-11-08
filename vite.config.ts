@@ -10,6 +10,9 @@ export default defineConfig({
   build: {
     outDir: "../../dist/web",
     emptyOutDir: true,
+    // 소스맵(.map)은 만들되 JS에 //# sourceMappingURL 주석을 넣지 않는다(브라우저가 찾지 않음). 오류 기록의 스택을
+    // 원래 코드 위치로 되돌릴 때 dist/web/assets/*.map을 손으로 쓴다. 배포에는 올라가지 않는다(public/.assetsignore).
+    sourcemap: "hidden",
     rolldownOptions: {
       output: {
         // 화면은 src/web/lazyScreens.ts에서 화면 단위로 나눈다. 여기서는 React를 따로 떼어

@@ -20,6 +20,10 @@ export default defineConfig({
     timezoneId: "Asia/Seoul",
     // 자리 바뀜 애니메이션(TeamBoards FLIP) 등을 끈다. 위치·넘침을 재는 테스트가 움직이는 중간 상태를 보지 않게.
     reducedMotion: "reduce",
+    // 실패한 테스트만 추적(trace.zip: 단계별 화면·네트워크·콘솔)과 스크린숏을 test-results/에 남긴다(CI는 실패 때 올린다).
+    // `npx playwright show-trace test-results/<테스트>/trace.zip`으로 연다.
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: {
     // 화면 빌드 → 로컬 D1 마이그레이션 → wrangler dev. 이미 떠 있으면 그 서버를 그대로 쓴다.

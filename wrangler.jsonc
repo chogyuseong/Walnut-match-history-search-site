@@ -11,7 +11,8 @@
   },
   // ---------------------------------------------------------------------------
   // 여기(맨 위)는 로컬 개발·테스트용이다. 운영은 아래 env.production을 쓴다:
-  //   npx wrangler deploy --env production
+  //   npm run deploy:production   (배포 전 점검 scripts/predeploy-check.mjs → 빌드 → wrangler deploy --env production)
+  // --env 없이 wrangler deploy를 하면 이 로컬 설정(AUTH_MODE=fake, D1 ID 0000…)이 올라가려 한다.
   // 배포 순서와 비밀값 목록은 docs/배포안내.md에 있다.
   // ---------------------------------------------------------------------------
   "d1_databases": [
@@ -118,7 +119,7 @@
     // -------------------------------------------------------------------------
     // 시험 환경(staging). 운영과 같은 설정·같은 안전장치(DEPLOY_ENV=production)로 따로 띄운다.
     // 순서: staging 배포 → 마이그레이션 → 스파이크·손 확인 → production(docs/배포안내.md 8-1절).
-    //   npx wrangler deploy --env staging
+    //   npm run deploy:staging
     // 비밀값도 따로 넣는다(wrangler secret put ... --env staging). 운영과 다른 SESSION_SECRET을 쓴다.
     // -------------------------------------------------------------------------
     "staging": {

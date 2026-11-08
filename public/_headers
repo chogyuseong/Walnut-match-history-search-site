@@ -9,3 +9,9 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   X-Frame-Options: DENY
   Strict-Transport-Security: max-age=31536000
+
+# 빌드 결과의 /assets/ 아래 파일은 이름에 내용 해시가 붙는다(vite 기본 assets/[name]-[hash].*). 내용이 바뀌면 이름도 바뀌므로
+# 브라우저가 1년 동안 다시 묻지 않고 쓴다. index.html(해시 없음)에는 걸지 않는다(기본 max-age=0, must-revalidate로
+# 배포 직후 새 조각 이름을 받게). public/에 해시 없는 파일을 assets/ 아래로 두지 않는다.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

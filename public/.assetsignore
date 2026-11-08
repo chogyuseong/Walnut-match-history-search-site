@@ -1,0 +1,4 @@
+# wrangler deploy가 정적 자산(dist/web)으로 올리지 않을 파일(.gitignore와 같은 형식, Workers Static Assets).
+# vite가 public/을 dist/web으로 복사해 이 파일이 자산 폴더 맨 위에 놓인다. 이 파일 자체와 _headers는 wrangler가 따로 뺀다.
+# 소스맵(vite.config.ts build.sourcemap: "hidden")은 로컬 dist/web에만 두고 공개하지 않는다.
+*.map

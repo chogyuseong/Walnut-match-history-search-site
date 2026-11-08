@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { ERROR_MESSAGE_MAX, ERROR_STACK_MAX, isNoise, scrubPath, scrubText } from "../shared/errorScrub";
 import { APP_VERSION } from "../shared/version";
+import { isModuleLoadError } from "./chunkReload";
 
 /**
  * 화면 오류 보고(POST /api/client-errors, src/server/errorLog.ts).
@@ -33,6 +34,15 @@ export function shouldReport(signature: string, now: number): boolean {
   return true;
 }
 
+/**
+ * 보내지 않을 잡음인지. 공용 거르기(src/shared/errorScrub.ts isNoise: "Script error."·ResizeObserver)에 더해
+ * 화면 조각을 받지 못한 오류(배포 뒤 옛 탭·네트워크 끊김, src/web/chunkReload.ts)도 거른다. 이 오류는 한 번 새로 고쳐
+ * 복구하고, 그래도 안 되면 오류 경계 화면이 새로 고침을 안내한다. 코드로 고칠 것이 없어 기록 한도만 차지한다.
+ */
+function isClientNoise(message: string, stack: string | null): boolean {
+  return isNoise(message, stack) || isModuleLoadError(message);
+}
+
 function describe(value: unknown): { message: string; stack: string | null } {
   if (value instanceof Error) return { message: `${value.name}: ${value.message}`, stack: value.stack ?? null };
   if (typeof value === "string") return { message: value, stack: null };
@@ -46,7 +56,7 @@ function describe(value: unknown): { message: string; stack: string | null } {
 export function reportClientError(kind: Kind, value: unknown): void {
   try {
     const { message, stack } = describe(value);
-    if (isNoise(message, stack)) return;
+    if (isClientNoise(message, stack)) return;
     const safeMessage = scrubText(message, ERROR_MESSAGE_MAX);
     if (!shouldReport(`${kind}|${safeMessage}`, Date.now())) return;
     const body = JSON.stringify({

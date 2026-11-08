@@ -37,7 +37,7 @@
 
 ### 요구 사항
 
-- Node 22 이상(26에서 확인), npm 11 이상
+- Node 22.12 이상의 22, 24, 또는 26 이상(`package.json` `engines`, vitest 5와 같음. 26에서 확인), npm 11 이상
 - Cloudflare 계정은 **배포할 때만** 필요합니다. 로컬 개발은 계정 없이 됩니다(wrangler가 D1·R2를 로컬에서 흉내 냄).
 - 브라우저 테스트는 `npx playwright install chromium`(사파리 엔진 비교는 `webkit`)이 한 번 필요합니다.
 
@@ -59,15 +59,16 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 | 명령 | 하는 일 |
 |---|---|
 | `npm run dev` | 화면 빌드 → 로컬 D1 마이그레이션 → 로컬 서버 `http://127.0.0.1:8787` |
-| `npm run dev:web` | Vite 개발 서버(화면만, API는 8787로 프록시하지 않음) |
+| `npm run dev:web` | Vite 개발 서버(화면만 즉시 반영, `/api`는 8787로 프록시하므로 `npm run dev`를 함께 띄움) |
 | `npm run typecheck` | 서버·화면 타입 검사 |
 | `npm run lint` | ESLint(권장 규칙 + React 훅 규칙. 서식은 보지 않음) |
 | `npm test` / `npx vitest run` | 단위·통합 테스트(기본 제한 30초) |
-| `npm run build` → `npm run check:bundle` | 화면 빌드 → 화면별 JS 크기 출력·상한 검사(가장 큰 JS 250KB, 첫 화면 330KB) |
+| `npm run build` → `npm run check:bundle` | 화면 빌드 → 화면별 JS 크기 출력·상한 검사(가장 큰 JS 250KB, 첫 화면 330KB, 화면 조각을 못 찾으면 실패), CSS 합계 출력 |
 | `npm run e2e` | 브라우저 흐름 테스트. 떠 있는 8787 서버를 그대로 씀. 다른 포트는 `E2E_PORT` |
 | `npm run seed` | 떠 있는 로컬 서버에 합성 데이터 넣기(로컬 주소만 허용) |
 | `npm run db:migrate:local` | 로컬 D1 마이그레이션만 |
 | `npx vitest run --config vitest.measure.config.ts --silent=false` | 스냅숏 크기·통계 계산 시간 측정(경기 500·2000·5000개) |
+| `npm run deploy:staging` / `npm run deploy:production` | 배포 전 점검(`scripts/predeploy-check.mjs`: 자리 표시값, production은 `legal.ts`의 `[채워야 함]`) → 화면 빌드 → `wrangler deploy --env …`. 순서·준비는 `docs/배포안내.md` 8절 |
 
 ### 폴더 구조
 
@@ -75,7 +76,7 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 src/server/   Workers API(Hono). index.ts 라우팅, mutation.ts(모임 안 쓰기 공통 경로), snapshot.ts, auth.ts, matches.ts, groups.ts …
 src/shared/   서버·화면 공용 순수 로직. stats(통계) · draft/prepTools/rotation/priority/avoid(편성) · titles(칭호) · rating(MMR) · search · seasonAwards …
 src/web/      React 화면. App.tsx 라우팅, useApp.ts 상태, lazyScreens.ts 지연 로딩, screens/*(화면), screens/prep/*(준비 화면 조각), styles.css(토큰·스타일)
-migrations/   D1 마이그레이션 0001~0023(0004는 비어 있음)
+migrations/   D1 마이그레이션 0001~0023(0004는 없음, 번호 건너뜀)
 test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서 · scripts/  seed, check-bundle
 ```
 
@@ -97,7 +98,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 
 ### 배포(요약)
 
-`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → staging 배포·마이그레이션 0001~0023·확인 → production. wrangler 명령에는 **항상 `--env production`**(빠뜨리면 가짜 로그인 설정이 올라가지만 공개 주소에서는 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
+`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → `npm run deploy:staging`·마이그레이션 0001~0023·확인 → `npm run deploy:production`. 배포 명령은 먼저 `scripts/predeploy-check.mjs`로 자리 표시값(`REPLACE-WITH-…`)과 production의 `[채워야 함]`을 검사해 남아 있으면 멈춥니다. wrangler 명령을 손으로 칠 때는 **항상 `--env staging|production`**(빠뜨리면 로컬 설정 `AUTH_MODE=fake`·D1 ID `0000…`이 올라가려 함. 공개 주소에서 가짜 로그인은 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
 
 ---
 

@@ -1,7 +1,8 @@
 // 빌드한 화면 JS의 크기 검사(npm run check:bundle). `npm run build` 뒤에 돌린다. CI에서도 쓴다.
 // - 가장 큰 JS 파일 하나가 MAX_CHUNK_KB를 넘으면 실패한다(화면 분할이 풀려 한 파일로 다시 뭉치는 것을 막는다).
 // - 첫 화면에서 받는 JS(index.html이 부르는 진입 파일 + 그 파일이 정적으로 import하는 파일)가 MAX_INITIAL_KB를 넘으면 실패한다.
-// 화면별로 받는 양(진입 + 그 화면 조각 + 그 조각이 정적으로 import하는 조각)도 함께 출력한다.
+// 화면별로 받는 양(진입 + 그 화면 조각 + 그 조각이 정적으로 import하는 조각)도 함께 출력한다. 화면 조각을 못 찾으면 실패한다.
+// CSS 합계는 출력만 한다(상한 없음).
 // 크기는 압축 전 바이트(1KB = 1000바이트, vite 출력과 같은 단위)다.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -55,6 +56,8 @@ if (entries.length === 0) {
 }
 const initial = closure(entries);
 
+let failed = false;
+
 console.log("화면별로 받는 JS(압축 전):");
 console.log(`  첫 화면 껍데기(진입 + React)        ${kb(total(initial))}`);
 const routes = [
@@ -69,7 +72,10 @@ const routes = [
 for (const [label, prefixes] of routes) {
   const starts = prefixes.map(chunk);
   if (starts.some((s) => s === undefined)) {
-    console.log(`  ${label.padEnd(34)} (조각을 찾지 못함: ${prefixes.join(", ")})`);
+    // 화면 조각 이름이 바뀌었거나(lazyScreens.ts) 분할이 풀렸다. 크기 검사를 조용히 건너뛰지 않게 실패로 본다.
+    const missing = prefixes.filter((p) => chunk(p) === undefined);
+    console.error(`  ${label.padEnd(34)} 실패: 조각을 찾지 못함(${missing.join(", ")}-*.js)`);
+    failed = true;
     continue;
   }
   console.log(`  ${label.padEnd(34)} ${kb(total(new Set([...initial, ...closure(starts)])))}`);
@@ -79,7 +85,11 @@ const largest = files.map((f) => [f, size(f)]).sort((a, b) => b[1] - a[1]);
 console.log("가장 큰 JS 5개:");
 for (const [f, n] of largest.slice(0, 5)) console.log(`  ${f.padEnd(40)} ${kb(n)}`);
 
-let failed = false;
+// CSS는 상한 없이 크기만 본다(첫 화면에 한 번에 받는 styles.css가 대부분).
+const cssFiles = readdirSync(ASSETS).filter((f) => f.endsWith(".css"));
+const cssTotal = cssFiles.reduce((n, f) => n + statSync(join(ASSETS, f)).size, 0);
+console.log(`CSS 합계(압축 전, 상한 없음): ${kb(cssTotal)} (${cssFiles.length}개 파일)`);
+
 if (largest[0][1] > MAX_CHUNK_KB * 1000) {
   console.error(`실패: 가장 큰 JS ${largest[0][0]}이(가) ${kb(largest[0][1])}로 상한 ${MAX_CHUNK_KB}KB를 넘었어요.`);
   failed = true;
