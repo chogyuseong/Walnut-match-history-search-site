@@ -5,7 +5,7 @@ import { awardTitle, awardWinnersText, type SeasonSummary } from "../shared/seas
 import type { SessionSummary } from "../shared/sessionSummary";
 import { isCounted, ratePercent, safeTimeZone } from "../shared/stats";
 import { sideOfTeam, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
-import { formatDate, formatTime, nameMap, POSITION_LABEL, teamName, teamRoster, winnerText } from "./format";
+import { formatDate, formatRange, formatTime, nameMap, POSITION_LABEL, teamName, teamRoster, winnerText } from "./format";
 import { Dialog } from "./ui";
 
 /**
@@ -405,18 +405,38 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
       ctx.fillStyle = p.elevated;
       ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
     }
-    ctx.fillStyle = p.text;
-    const name = fitSized(ctx, p, 700, row.name, colW - 150, 26, 20);
-    ctx.fillText(name, x + 16, rowY);
-    ctx.textAlign = "right";
-    setFont(ctx, p, 800, 26);
-    ctx.fillText(`${row.wins}승 ${row.losses}패`, x + colW - 16, rowY);
-    ctx.textAlign = "left";
+    drawRecordRow(ctx, p, x, rowY, colW, row.name, row.wins, row.losses);
   });
 
   const day = confirmed[0] ?? matches[0];
   drawFooter(ctx, p, height, snapshot.group.name, day ? formatDate(day.playedAt, tz) : "");
   return toBlob(canvas);
+}
+
+/**
+ * 개인 승패 한 칸: 왼쪽 이름, 오른쪽 "승률% · N승 M패 (G경기)"(전적 표기 규칙). 전적 글 폭을 재고 남은 폭에 이름을 맞춘다.
+ */
+function drawRecordRow(
+  ctx: CanvasRenderingContext2D,
+  p: Palette,
+  x: number,
+  rowY: number,
+  colW: number,
+  name: string,
+  wins: number,
+  losses: number,
+): void {
+  const games = wins + losses;
+  const record = `${ratePercent(wins, games)}% · ${wins}승 ${losses}패 (${games}경기)`;
+  setFont(ctx, p, 800, 22);
+  const recordW = ctx.measureText(record).width;
+  ctx.fillStyle = p.text;
+  const shown = fitSized(ctx, p, 700, name, Math.max(80, colW - recordW - 48), 26, 18);
+  ctx.fillText(shown, x + 16, rowY);
+  ctx.textAlign = "right";
+  setFont(ctx, p, 800, 22);
+  ctx.fillText(record, x + colW - 16, rowY);
+  ctx.textAlign = "left";
 }
 
 /**
@@ -480,13 +500,7 @@ export async function drawSessionSummaryImage(
       ctx.fillStyle = p.elevated;
       ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
     }
-    ctx.fillStyle = p.text;
-    const name = fitSized(ctx, p, 700, row.name, colW - 150, 26, 20);
-    ctx.fillText(name, x + 16, rowY);
-    ctx.textAlign = "right";
-    setFont(ctx, p, 800, 26);
-    ctx.fillText(`${row.wins}승 ${row.losses}패`, x + colW - 16, rowY);
-    ctx.textAlign = "left";
+    drawRecordRow(ctx, p, x, rowY, colW, row.name, row.wins, row.losses);
   });
   y += personRows * personRowH + 40;
 
@@ -547,7 +561,7 @@ export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary
   setFont(ctx, p, 600, 30);
   ctx.fillStyle = p.muted;
   ctx.fillText(
-    `${summary.startsOn} ~ ${summary.endsOn}${summary.ongoing ? " · 진행 중" : ""}`,
+    `${formatRange(summary.startsOn, summary.endsOn, snapshot.group.timezone)}${summary.ongoing ? " · 진행 중" : ""}`,
     PAD,
     PAD + 98,
   );

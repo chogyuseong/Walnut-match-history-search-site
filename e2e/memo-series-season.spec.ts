@@ -236,11 +236,14 @@ test("시즌 요약과 시상이 근거 숫자와 함께 열리고, 조회 링�
   await expect(summary).toContainText("10경기");
   await expect(summary).toContainText("10명");
   const awards = page.getByRole("region", { name: "시상" });
-  // 최고 승률은 50경기 이상만: 10경기라 해당 없음. 공동 수상은 최다 승(선수01~05 7승)으로 확인한다.
+  // 최고 승률은 누적 50경기 이상만: 10경기라 해당 없음. 해당 없는 상은 맨 아래 한 줄로 모이고 까닭은 접힌 도움말에 있다.
+  // 공동 수상은 최다 승(선수01~05 7승)으로 확인한다.
+  await expect(awards.getByText(/^기준 미달: 최고 승률/)).toBeVisible();
+  await awards.getByText("기준 미달 까닭").click();
   const best = awards.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "최고 승률", exact: true }) });
-  await expect(best).toContainText("해당 없음 · 50경기 이상 뛴 사람이 없어요.");
+  await expect(best).toContainText("해당 없음 · 이 범위에 뛴 사람 중 누적 50경기 이상인 사람이 없어요.");
   const wins = awards.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "최다 승", exact: true }) });
-  await expect(wins).toContainText("7승 (10경기)");
+  await expect(wins).toContainText("70% · 7승 3패 (10경기)");
   await expect(wins).toContainText("(공동)");
   await expect(awards.getByRole("listitem").filter({ hasText: "최장 연승" })).toContainText("7연승");
   await expect(awards.getByRole("listitem").filter({ hasText: "헌신상" })).toContainText("서포터 10경기");
@@ -266,7 +269,7 @@ test("시즌 요약과 시상이 근거 숫자와 함께 열리고, 조회 링�
       .getByRole("region", { name: "시상" })
       .getByRole("listitem")
       .filter({ has: page.getByRole("heading", { name: "최다 승", exact: true }) }),
-  ).toContainText("7승 (10경기)");
+  ).toContainText("70% · 7승 3패 (10경기)");
   await noHorizontalOverflow(page, "조회 링크 시즌 요약");
 
   // 연도 범위도 열린다.

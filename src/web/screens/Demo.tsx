@@ -64,7 +64,8 @@ function DemoBanner() {
       <p>
         <strong>예시 데이터예요.</strong> 가짜 이름으로 만든 기록이라 실제 모임과 관계없어요.
       </p>
-      <button type="button" className="primary" onClick={() => go("/group")}>
+      {/* 예시 화면의 주 버튼은 화면 본문 쪽에 둔다(primary 하나 규칙). 안내 줄의 행동은 secondary. */}
+      <button type="button" className="secondary" onClick={() => go("/group")}>
         내 모임 만들기
       </button>
     </div>

@@ -206,7 +206,8 @@ test("경기 시각만 고치면 승패는 그대로이고 이력이 남는다",
   await expect(dialog).toContainText("승패와 명단은 그대로");
   await dialog.getByLabel("경기 시각").fill("2025-01-15T20:30");
   await dialog.getByRole("button", { name: "변경" }).click();
-  await expect(page.getByText(/경기 시각: 1월 15일 오후 8:30/)).toBeVisible();
+  // 올해가 아닌 날짜는 연도를 붙인다(2026-11-08 날짜 표기 통일).
+  await expect(page.getByText(/경기 시각: 2025년 1월 15일 오후 8:30/)).toBeVisible();
   await expect(page.getByText("승리 팀: 레드팀")).toBeVisible();
   await expect(page.getByText("승리 팀의 진영: 레드")).toBeVisible();
   await expect(page.getByText(/정정 · 경기 시각/)).toBeVisible();

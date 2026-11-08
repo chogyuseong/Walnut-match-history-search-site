@@ -18,6 +18,7 @@ import {
   matchesInScope,
   personDetail,
   personRecords,
+  ratePercent,
   scopeLabel as scopeLabelOf,
   SMALL_SAMPLE,
   type Scope,
@@ -39,7 +40,7 @@ import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, FormDots, PosLabel, ScopePicker, StandingNote } from "../ui";
 
 function rateText(t: Tally): string {
-  return t.games === 0 ? "기록 없음" : `${Math.round((t.wins / t.games) * 100)}%`;
+  return t.games === 0 ? "기록 없음" : `${ratePercent(t.wins, t.games)}%`;
 }
 
 function wl(t: Tally): string {

@@ -422,7 +422,8 @@ details.help {
   box-shadow: none;
 }
 details.help > summary {
-  min-height: 32px;
+  /* 누르기 쉬운 높이(44px, 2026-11-08 화면 점검: 32px였다). 글자는 작게 그대로. */
+  min-height: 44px;
   padding: 0;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -444,6 +445,10 @@ details.help > .help-body p {
 }
 .center {
   text-align: center;
+}
+/* 줄바꿈 없이 한 덩어리로(예: 랭킹 줄의 "MMR 1105"). */
+.nowrap {
+  white-space: nowrap;
 }
 .warn-text {
   color: var(--warn-line);
@@ -1079,9 +1084,18 @@ button.bar-row:hover {
   color: var(--muted);
 }
 /* 이름은 개인 통계로 가는 버튼 */
+.matrix-row {
+  cursor: pointer;
+}
+.matrix-row:hover .matrix-name {
+  color: var(--ih-link);
+  text-decoration: underline;
+}
 .matrix-name {
+  display: block;
   width: 100%;
-  min-height: 0;
+  /* 누르기 쉬운 높이(44px). 행 전체도 눌린다(Graphs.tsx MatrixTable). */
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: none;
@@ -1210,6 +1224,26 @@ button.bar-row:hover {
   flex: none;
   justify-content: flex-end;
 }
+/* 준비 화면 라인 맞대결: 좁은 화면에서는 전적(승률)을 다음 줄로 내려 이름 칸이 한 줄을 다 쓴다(2026-11-08 화면 점검:
+   짧은 이름까지 말줄임으로 잘렸다). 넓은 화면은 한 줄 그대로. */
+@media (max-width: 719px) {
+  .list-row.matchup-row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .matchup-row > .name {
+    flex: 1 1 calc(100% - 64px);
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .matchup-row > .stat {
+    flex: 1 1 100%;
+    padding-left: 32px;
+    text-align: left;
+  }
+}
 /* 티어 배정: 좁은 화면에서는 1·2·3·4·5·미정 버튼 줄(6칸 × 44px + 간격 = 294px)이 이름 아래로 내려간다.
    버튼은 44px 이상. 390px 화면의 줄 안쪽 폭(약 330px)에 한 줄로 들어간다. */
 .list-row.priority-row {
@@ -1271,6 +1305,16 @@ button.bar-row:hover {
     right: 20px;
     bottom: 20px;
     max-width: 480px;
+  }
+}
+
+/* 고정 행동 버튼("이 팀으로 시작" 등)이 있는 화면: 토스트가 그 버튼을 덮지 않게 버튼 위로 올린다. */
+body:has(.action-sticky) .toast {
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 84px);
+}
+@media (min-width: 720px) {
+  body:has(.action-sticky) .toast {
+    bottom: 84px;
   }
 }
 
@@ -1445,6 +1489,13 @@ details,
   border-color: transparent;
   background: var(--ih-bg-subtle);
   color: var(--ih-text-secondary);
+}
+/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). */
+.badge.warn-badge {
+  margin-left: 6px;
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+  color: var(--text);
 }
 .tag {
   font-size: 0.6875rem;
@@ -1827,6 +1878,13 @@ select option:disabled {
 }
 .viewer-nav {
   border-bottom-color: var(--ih-border-subtle);
+}
+/* 조회·예시 메뉴 링크: 짧은 글자("요약"·"검색")도 누르기 쉬운 크기(44px). */
+.viewer-nav button.link {
+  min-width: 44px;
+  min-height: 44px;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 /* 조회 메뉴에서 지금 보고 있는 화면: 밑줄 대신 글자색과 아래 선으로 표시한다. */
 .viewer-nav .link[aria-current="page"] {
@@ -4000,6 +4058,20 @@ select option:disabled {
 .join-panel .section-head h2 {
   margin: 0;
 }
+/* 신청자 0명: 한 줄(제목 · 상태 · 0명 · 링크 버튼)로 접는다. */
+.join-compact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.join-compact-row h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.join-compact .help {
+  margin-top: 4px;
+}
 .join-list .name .tag,
 .join-screen .list .name .tag {
   margin-left: 6px;
@@ -4372,6 +4444,30 @@ select option:disabled {
   display: block;
   font-size: 0.8125rem;
   color: var(--ih-text-muted);
+}
+/* 해당 없는 상 한 줄 + 까닭 목록(접힌 도움말 안, 2026-11-08). */
+.award-none {
+  margin-top: 12px;
+}
+.award-none-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.award-none-list h3 {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.award-none-list p {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--ih-text-muted);
+}
+.award-none-list .award-rule {
+  display: block;
 }
 /* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). */
 .intro h2 {
@@ -4753,6 +4849,10 @@ button.row.swap-target:hover {
 .support-panel h2 {
   margin-top: 0;
 }
+/* .prep-tools의 display:flex가 hidden 속성을 이겨 접어도 펼쳐 보이던 문제(2026-11-08 화면 점검에서 발견). */
+.support-panel[hidden] {
+  display: none;
+}
 
 @media (min-width: 720px) {
   h1 {
@@ -4773,7 +4873,8 @@ button.row.swap-target:hover {
 }
 .block-nav .chip {
   flex: none;
-  min-height: 36px;
+  /* 누르기 쉬운 크기(44px, 2026-11-08 화면 점검). 겉모양은 그대로 작게 보이게 위아래 여백만 늘린다. */
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-pill);
@@ -4898,6 +4999,10 @@ label:has(> select) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* 고르기 칸 바로 아래에 타일이 붙으면 칸이 묻혀 보인다. 한 칸 띄운다. */
+  margin-top: 12px;
+  /* 버튼을 옆에 둘지는 화면 폭이 아니라 이 구역의 폭으로 정한다(2단 배치에서는 구역이 350px 정도라 옆에 두면 타일이 찌그러진다). */
+  container-type: inline-size;
 }
 /* 전적 타일 두 칸: 폰에서도 나란히(2칸), 각 칸은 이름표 → 큰 값 → 막대. */
 .rival-tiles {
@@ -4963,13 +5068,13 @@ label:has(> select) {
   font-weight: 500;
   color: var(--ih-text-secondary);
 }
-@media (min-width: 720px) {
+@container (min-width: 600px) {
   .rival-pane {
     flex-direction: row;
     align-items: stretch;
   }
   .compare-cta {
-    flex: 0 0 200px;
+    flex: 0 0 220px;
     justify-content: center;
     padding: 12px 14px;
   }

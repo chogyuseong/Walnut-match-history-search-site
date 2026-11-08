@@ -13,7 +13,7 @@ import {
 } from "../../shared/insights";
 import { isCounted } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
-import { nameMap, rateTier, standingsOf } from "../format";
+import { nameMap, rateText, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { FormDots, StandingNote } from "../ui";
@@ -129,7 +129,7 @@ export function Dashboard(props: {
                   </span>
                   <span className="stat">
                     <span className={rateTier(r.wins, r.games)}>
-                      {Math.round((r.wins / r.games) * 100)}%
+                      {rateText(r.wins, r.games)}
                     </span>{" "}
                     · {r.wins}승 {r.games - r.wins}패 ({r.games}경기)
                     <br />
@@ -181,9 +181,9 @@ export function Dashboard(props: {
                     <span className="name">{nameOf(row.participantId)}</span>
                     <span className="stat">
                       <span className={rateTier(row.recent.wins, row.recent.games)}>
-                        {Math.round((row.recent.wins / row.recent.games) * 100)}%
+                        {rateText(row.recent.wins, row.recent.games)}
                       </span>{" "}
-                      · {row.recent.wins}승 {row.recent.games - row.recent.wins}패
+                      · {row.recent.wins}승 {row.recent.games - row.recent.wins}패 ({row.recent.games}경기)
                     </span>
                   </button>
                 </li>

@@ -136,7 +136,33 @@ describe("시상: 기준 경계와 공동 수상", () => {
     s = seasonSummary(snap(matches.slice(0, 10)), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
     best = award(s.awards, "bestRate");
     expect(best.winners).toEqual([]);
-    expect(best.none).toBe(`${AWARD_MIN_RATE_GAMES}경기 이상 뛴 사람이 없어요.`);
+    expect(best.none).toBe(`이 범위에 뛴 사람 중 누적 ${AWARD_MIN_RATE_GAMES}경기 이상인 사람이 없어요.`);
+    expect(best.rule).toContain(`누적 ${AWARD_MIN_RATE_GAMES}경기 이상`);
+  });
+
+  it("최고 승률·라인별 최고 승률의 50경기 기준은 범위가 아니라 모임 전체 누적 경기다(2026-11-08)", () => {
+    // 1시즌 40경기(A 20승 20패) + 2시즌 40경기(A 30승 10패) → A·B 모두 누적 80경기, 2시즌만 보면 40경기.
+    const old = [
+      ...Array.from({ length: 20 }, () => game(A, B, "A", { date: "2026-09-01" })),
+      ...Array.from({ length: 20 }, () => game(A, B, "B", { date: "2026-09-02" })),
+    ];
+    const now = [
+      ...Array.from({ length: 30 }, () => game(A, B, "A", { date: "2026-10-03" })),
+      ...Array.from({ length: 10 }, () => game(A, B, "B", { date: "2026-10-04" })),
+    ];
+    const s = seasonSummary(snap([...old, ...now]), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
+    const best = award(s.awards, "bestRate");
+    // 범위 안 40경기지만 누적 80경기라 대상이다. 승률은 범위 안 성적(30승 10패).
+    expect(ids(best)).toEqual(["p0", "p1", "p2", "p3", "p4"]);
+    expect(best.winners[0]!.value).toBe("75% · 30승 10패 (40경기)");
+    // 라인별: 누적 50 이상이면서 범위 안 그 라인 5경기 이상. 탑은 p0(A 탑 75%).
+    expect(ids(award(s.awards, "lineBest", "top"))).toEqual(["p0"]);
+    expect(award(s.awards, "lineBest", "top").winners[0]!.value).toBe("75% · 30승 10패 (40경기)");
+
+    // 누적이 49경기면(1시즌 9경기 + 2시즌 40경기) 범위 성적과 상관없이 대상이 아니다.
+    const s2 = seasonSummary(snap([...old.slice(0, 9), ...now]), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
+    expect(award(s2.awards, "bestRate").winners).toEqual([]);
+    expect(award(s2.awards, "lineBest", "top").winners).toEqual([]);
   });
 
   it("최다 승·개근상·최장 연승", () => {
@@ -149,7 +175,7 @@ describe("시상: 기준 경계와 공동 수상", () => {
     // p0: 10경기 10승, p1~p4: 11경기 10승 → 최다 승 공동 5명.
     const wins = award(s.awards, "mostWins");
     expect(ids(wins)).toEqual(["p0", "p1", "p2", "p3", "p4"]);
-    expect(wins.winners[0]!.value).toBe("10승 (10경기)");
+    expect(wins.winners[0]!.value).toBe("100% · 10승 0패 (10경기)");
     // 개근상: p1~p9 11경기.
     expect(ids(award(s.awards, "mostGames"))).toEqual(["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]);
     // 연승: p0은 자기가 뛴 경기만 세므로 10연승(10경기째를 쉬었다), p1~p4는 9연승에서 끊김.
@@ -158,7 +184,7 @@ describe("시상: 기준 경계와 공동 수상", () => {
     expect(streak.winners[0]!.value).toBe("10연승");
   });
 
-  it(`라인별 최고 승률은 총 ${AWARD_MIN_RATE_GAMES}경기 이상인 사람 중 그 라인 ${AWARD_MIN_LINE_GAMES}경기 이상만`, () => {
+  it(`라인별 최고 승률은 누적 ${AWARD_MIN_RATE_GAMES}경기 이상인 사람 중 그 라인 ${AWARD_MIN_LINE_GAMES}경기 이상만`, () => {
     // 49경기 A 전승(p0은 탑), 그 뒤 3경기는 p0 대신 p10이 탑으로 들어가 B가 이긴다.
     const matches = [
       ...Array.from({ length: AWARD_MIN_RATE_GAMES - 1 }, () => game(A, B, "A")),

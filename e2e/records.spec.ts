@@ -258,9 +258,10 @@ test("그래프 분석", async ({ page }) => {
   await expect(people).toContainText("선수07");
   await page.getByLabel("라인", { exact: true }).selectOption({ label: "전체 라인" });
 
-  // 라인별 승률: 플레이어를 고르기 전에는 이유를 설명하고, 고르면 그 사람의 라인별을 보여준다.
+  // 라인별 승률: 플레이어를 고르기 전에는 빈 카드를 두지 않고(이유는 위 도움말에), 고르면 그 사람의 라인별을 보여준다.
   const lines = page.getByRole("region", { name: "라인별 승률" });
-  await expect(lines).toContainText("항상 50%이므로 보여주지 않습니다");
+  await expect(lines).toHaveCount(0);
+  await expect(page.locator(".viz-root details.help").first()).toContainText("항상 50%");
   await page.getByLabel("플레이어", { exact: true }).selectOption({ label: "선수02" });
   await expect(lines.getByRole("listitem").filter({ hasText: "정글" })).toContainText(
     "73% · 8승 3패 (11경기)",

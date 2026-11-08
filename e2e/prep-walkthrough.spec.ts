@@ -235,7 +235,8 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await reset.click();
   await page.getByRole("dialog", { name: "서포터 횟수 초기화" }).getByRole("button", { name: "초기화" }).click();
   await expect(page.locator(".teams").getByText(/서폿 \d+회/)).toHaveCount(0);
-  await page.getByText("서포터 횟수: 아직 없음").click();
+  // 판은 펼친 그대로다(버튼 글자만 바뀐다). 예전에는 판이 CSS 때문에 늘 보여 버튼을 눌러 닫아도 지나갔다.
+  await expect(page.getByText("서포터 횟수: 아직 없음")).toBeVisible();
   await expect(reset).toBeEnabled();
   await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
   await shots(page, "07-after-reset");
@@ -266,14 +267,17 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 편성 균형 · �
   await expect(balanceList.getByRole("listitem").last()).toContainText("블루 5 · 레드 5");
   await noHorizontalOverflow(page);
 
-  // 라인 맞대결: 다섯 줄, 지난 경기가 없으므로 모두 "첫 맞대결". 390px에서 한 줄에 들어간다.
+  // 라인 맞대결: 다섯 줄, 지난 경기가 없으므로 모두 "첫 맞대결". 390px에서는 전적을 다음 줄로 내려
+  // 이름이 잘리지 않는다(2026-11-08 화면 점검). 그래서 줄 높이는 두 줄(이름 한 줄 + 전적 한 줄)까지.
   const lanes = page.getByRole("list", { name: "라인 맞대결 목록" }).getByRole("listitem");
   await expect(lanes).toHaveCount(5);
   for (let i = 0; i < 5; i++) {
     await expect(lanes.nth(i)).toContainText("첫 맞대결");
     await expect(lanes.nth(i)).toContainText(" vs ");
     const box = (await lanes.nth(i).boundingBox())!;
-    expect(box.height, `맞대결 ${i + 1}번째 줄 한 줄`).toBeLessThan(60);
+    expect(box.height, `맞대결 ${i + 1}번째 줄 두 줄 이내`).toBeLessThan(84);
+    const name = lanes.nth(i).locator(".name");
+    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth), `맞대결 ${i + 1}번째 이름 잘림 없음`).toBe(true);
   }
   // 왼쪽은 블루팀 같은 라인 사람이다.
   const blueTop = (await readTeam(page, "A"))[0]!.name;

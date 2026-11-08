@@ -11,7 +11,7 @@ import {
   type SuggestResult,
   type SuggestRow,
 } from "../../shared/priorityReview";
-import { PLACEMENT_GAMES, SMALL_SAMPLE } from "../../shared/stats";
+import { PLACEMENT_GAMES, ratePercent, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
 import { patchParticipant } from "../api";
 import { POSITION_LABEL } from "../format";
@@ -148,7 +148,8 @@ function PrioritySide(props: {
           </li>
         ))}
       </ul>
-      <button type="button" className="primary wide" onClick={() => go(props.back.path)}>
+      {/* 돌아가기는 이동 링크다(주 버튼이 아니다, 2026-11-08 화면 점검). */}
+      <button type="button" className="link" onClick={() => go(props.back.path)}>
         {props.back.label}
       </button>
     </aside>
@@ -254,7 +255,7 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
   );
 }
 
-const percent = (wins: number, games: number) => `${Math.round((wins / games) * 100)}%`;
+const percent = (wins: number, games: number) => `${ratePercent(wins, games)}%`;
 
 function rowFacts(row: SuggestRow): string {
   // 다른 화면과 같은 꼴: "승률 · N승 M패 (G경기)"

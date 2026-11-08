@@ -64,16 +64,19 @@ export function Viewer(props: { token: string; rest: string[] }) {
     return (
       <div className="screen">
         {error ? (
-          <p className="note warn" role="alert">
-            {error.status === 404
-              ? "이 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요."
-              : "불러오지 못했어요."}{" "}
-            {error.status !== 404 && (
-              <button type="button" className="link" onClick={() => void load()}>
-                다시 불러오기
-              </button>
-            )}
-          </p>
+          <>
+            <h1>{error.status === 404 ? "링크를 열 수 없어요" : "불러오지 못했어요"}</h1>
+            <p className="note warn" role="alert">
+              {error.status === 404
+                ? "이 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요."
+                : "잠시 뒤 다시 시도해 주세요."}{" "}
+              {error.status !== 404 && (
+                <button type="button" className="link" onClick={() => void load()}>
+                  다시 불러오기
+                </button>
+              )}
+            </p>
+          </>
         ) : (
           <p>불러오는 중…</p>
         )}
@@ -118,6 +121,10 @@ export function Viewer(props: { token: string; rest: string[] }) {
       <div className="screen">
         {!match ? (
           <>
+            {/* 조회 홈: 화면 제목이 없던 자리(2026-11-08 화면 점검). 모임 이름을 화면 제목으로 둔다. */}
+            <header className="screen-head">
+              <h1>{snapshot.group.name}</h1>
+            </header>
             <p>아직 시작한 경기가 없어요.</p>
             <Dashboard
               snapshot={snapshot}

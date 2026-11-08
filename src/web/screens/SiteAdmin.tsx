@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { call } from "../api";
+import { formatDate, formatTime } from "../format";
 import { ErrorNote } from "../ui";
 
 /** GET /api/admin/overview 응답(src/server/siteAdmin.ts의 Overview). 모임 안의 자료(이름·경기 내용)는 없다. */
@@ -36,7 +37,8 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 function when(iso: string): string {
-  return new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" });
+  // 다른 화면과 같은 날짜·시각 표기("11월 7일 오후 6:00").
+  return `${formatDate(iso)} ${formatTime(iso)}`;
 }
 
 /**
@@ -150,7 +152,7 @@ export function SiteAdmin() {
                     </span>
                   </p>
                   <p className="hint">
-                    마지막 백업: {data.backup.lastBackupAt ? when(data.backup.lastBackupAt) : "아직 없어요"}. 매일 새벽(한국 03:00~05:55)에
+                    마지막 백업: {data.backup.lastBackupAt ? when(data.backup.lastBackupAt) : "아직 없어요"}. 매일 새벽(한국 시각 오전 3:00~5:55)에
                     모임마다 하나씩 백업해요. 오늘 남은 모임은 다음 실행이 이어서 해요.
                   </p>
                 </>

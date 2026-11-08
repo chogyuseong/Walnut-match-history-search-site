@@ -94,7 +94,7 @@ export function SeriesSummary(props: {
         </p>
       )}
       {score.mismatched > 0 && (
-        <p className="note warn">팀 구성이 첫 판과 다른 판 {score.mismatched}개는 점수에서 뺐어요.</p>
+        <p className="note warn">팀 구성이 기준 구성(가장 많은 판의 구성)과 다른 판 {score.mismatched}개는 점수에서 뺐어요.</p>
       )}
       {dropped > 0 && <p className="hint">전적 제외·미진행 취소된 판 {dropped}개는 점수에서 뺐어요.</p>}
     </div>

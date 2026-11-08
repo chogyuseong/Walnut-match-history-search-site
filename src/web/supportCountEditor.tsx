@@ -106,7 +106,13 @@ export function SupportCountEditor(props: {
         })}
       </ul>
       <div className="button-row">
-        <button type="button" className="primary" disabled={busy || changed.length === 0} onClick={() => void save()}>
+        {/* 화면의 주 버튼(이 팀으로 시작 등)과 겹치지 않게, 바뀐 값이 있을 때만 primary로 올린다. */}
+        <button
+          type="button"
+          className={changed.length > 0 ? "primary" : "secondary"}
+          disabled={busy || changed.length === 0}
+          onClick={() => void save()}
+        >
           {busy ? "저장 중" : changed.length > 0 ? `서포터 횟수 저장 (${changed.length}명)` : "서포터 횟수 저장"}
         </button>
         {changed.length > 0 && (

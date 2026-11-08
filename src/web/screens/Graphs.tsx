@@ -1,9 +1,9 @@
 import { RANKING_VETERAN_GAMES, sortRankingBy } from "../../shared/insights";
 import { useState, type ReactNode } from "react";
-import { matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
+import { matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
-import { BackLink, PosLabel, scopeFromValue, scopeValue, TitleBadge } from "../ui";
+import { BackLink, Help, PosLabel, scopeFromValue, scopeValue, TitleBadge } from "../ui";
 
 /** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
 function standingText(standing: ShownStanding | undefined): ReactNode {
@@ -22,7 +22,7 @@ function percent(wins: number, games: number): number {
 
 /** 다른 화면과 같은 정수 승률(예전에는 소수 한 자리였다. 2026-11-08 통일). */
 function percentText(wins: number, games: number): string {
-  return `${Math.round(percent(wins, games))}%`;
+  return `${ratePercent(wins, games)}%`;
 }
 
 /**
@@ -194,10 +194,20 @@ export function Graphs(props: {
           </select>
         </label>
       </div>
+      {/* 정렬 규칙은 개인별 승률 카드에 한 번만 적고, 위에는 범위·경기 수만 둔다(2026-11-08 화면 점검: 중복 제거). */}
       <p className="hint">
-        {scopeLabel} · 확정 {counted}경기. 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({PLACEMENT_GAMES}경기 이상) →
-        배치 진행 중이고, 그 안에서 승률순입니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
+        {scopeLabel} · 확정 {counted}경기
       </p>
+      <Help>
+        <p>
+          순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({PLACEMENT_GAMES}경기 이상) → 배치 진행 중이고, 그
+          안에서 승률순입니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
+        </p>
+        <p>
+          플레이어를 고르면 그 사람의 라인별 승률을 맨 위에 보여줍니다. 전체 플레이어를 합치면 각 경기마다 라인별로
+          1승·1패가 생겨 항상 50%이므로 보여주지 않습니다.
+        </p>
+      </Help>
 
       {/* 플레이어를 고르면 그 사람의 라인별 승률을 맨 위(개인별 승률 위)에 보인다(2026-11-08). 좁은 화면에서 고른 뒤
           아래로 한참 내려가지 않아도 되고, 넓은 화면에서는 두 단을 가로질러 위에 놓인다. */}
@@ -260,16 +270,7 @@ export function Graphs(props: {
       </section>
 
       <div className="stack">
-      {playerLines === null && (
-        <section className="chart-card" aria-label="라인별 승률">
-          <h2>라인별 승률</h2>
-          <p className="hint">
-            위에서 플레이어를 고르면 그 사람의 라인별 승률을 맨 위에 보여줍니다. 전체 플레이어를 합치면 각 경기마다
-            라인별로 1승·1패가 생겨 항상 50%이므로 보여주지 않습니다.
-          </p>
-        </section>
-      )}
-
+      {/* 플레이어를 고르기 전에는 "라인별 승률" 빈 카드를 두지 않는다(까닭은 위 도움말, 2026-11-08). */}
       <section className="chart-card" aria-label="진영별 누적 승률">
         <h2>진영별 누적 승률</h2>
         <p className="hint">
@@ -393,9 +394,21 @@ function MatrixTable(props: {
         {rows.map((r) => {
           const row = matrix.get(r.participantId) ?? {};
           return (
-            <tr key={r.participantId} className={r.participantId === playerId ? "picked" : undefined}>
+            // 행 전체를 눌러 개인 통계로 간다(이름 글자만 누르기에는 작다, 2026-11-08). 키보드는 이름 버튼으로.
+            <tr
+              key={r.participantId}
+              className={r.participantId === playerId ? "matrix-row picked" : "matrix-row"}
+              onClick={() => props.openPerson(r.participantId)}
+            >
               <th scope="row" title={nameOf(r.participantId)}>
-                <button type="button" className="matrix-name" onClick={() => props.openPerson(r.participantId)}>
+                <button
+                  type="button"
+                  className="matrix-name"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.openPerson(r.participantId);
+                  }}
+                >
                   {nameOf(r.participantId)}
                 </button>
               </th>
@@ -407,7 +420,7 @@ function MatrixTable(props: {
                     className={cellBand(tally)}
                     title={`${nameOf(r.participantId)} ${POSITION_LABEL[position]}: ${tally.wins}승 ${tally.games - tally.wins}패`}
                   >
-                    <strong className="cell-rate">{Math.round(percent(tally.wins, tally.games))}%</strong>
+                    <strong className="cell-rate">{ratePercent(tally.wins, tally.games)}%</strong>
                     <span className="cell-games">{tally.games}경기</span>
                   </td>
                 ) : (

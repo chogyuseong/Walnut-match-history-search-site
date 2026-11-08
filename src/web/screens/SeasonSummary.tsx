@@ -6,19 +6,33 @@ import {
   type Award,
   type AwardKey,
 } from "../../shared/seasonAwards";
-import { matchYears, type Scope } from "../../shared/stats";
+import { matchYears, ratePercent, type Scope } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
-import { nameMap } from "../format";
+import { formatDate, formatRange, nameMap } from "../format";
 import { drawSeasonImage, ShareImageDialog } from "../shareImage";
-import { BackLink, CopyButton, RoleIcon } from "../ui";
+import { BackLink, CopyButton, Help, RoleIcon } from "../ui";
 
 // 주소 읽고 쓰기는 ../seasonRoute.ts에 있다(첫 화면 묶음이 이 화면 코드 없이 쓰도록). 기존 import를 위해 다시 내보낸다.
 import { seasonRoutePart, seasonScopeFromRoute } from "../seasonRoute";
 
 export { seasonRoutePart, seasonScopeFromRoute };
 
-/** 가장 경기가 많았던 날이 동률로 많을 때(예: 하루 1경기씩) 날짜를 다 늘어놓지 않고 앞 5개만 보여 준다. */
-const BUSIEST_SHOWN = 5;
+/**
+ * 가장 경기가 많았던 날이 동률로 이보다 많으면(예: 하루 1경기씩) 그 줄을 숨긴다
+ * (2026-11-08 화면 점검: 날짜를 늘어놓아도 뜻이 없다).
+ */
+const BUSIEST_MAX = 3;
+
+/**
+ * 주소에 범위가 없을 때(#/season, #/demo/season) 보여 줄 기본 범위: 가장 최근 시즌(시작일 기준),
+ * 시즌이 없으면 경기가 있는 가장 최근 연도. 둘 다 없으면 null.
+ */
+export function defaultSeasonScope(snapshot: Snapshot): Scope | null {
+  const latest = [...snapshot.seasons].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0];
+  if (latest) return { kind: "season", seasonId: latest.id };
+  const years = matchYears(snapshot);
+  return years.length > 0 ? { kind: "year", year: Math.max(...years) } : null;
+}
 
 /** 맨 위 큼직한 카드로 보여 줄 주요 상(seasonAwards.ts의 awards 배열 앞쪽). */
 const MAIN_KEYS: readonly AwardKey[] = ["bestRate", "mostWins", "mostGames"];
@@ -73,7 +87,9 @@ export function SeasonSummaryScreen(props: {
   back: () => void;
   choose: (scope: Scope) => void;
 }) {
-  const { snapshot, scope } = props;
+  const { snapshot } = props;
+  // 범위 없이 열면 가장 최근 시즌(없으면 최근 연도)을 보여 준다. 잘못된 시즌 ID는 그대로 "찾을 수 없어요".
+  const scope = props.scope ?? defaultSeasonScope(snapshot);
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const [imageOpen, setImageOpen] = useState(false);
   const valid =
@@ -122,11 +138,16 @@ export function SeasonSummaryScreen(props: {
     );
   }
 
-  const blue = summary.sides.known > 0 ? Math.round((summary.sides.blueWins / summary.sides.known) * 100) : null;
+  const tz = snapshot.group.timezone;
+  const blue = summary.sides.known > 0 ? ratePercent(summary.sides.blueWins, summary.sides.known) : null;
   const awardKey = (a: Award) => `${a.key}-${a.position ?? ""}`;
-  const mainAwards = summary.awards.filter((a) => MAIN_KEYS.includes(a.key));
-  const lineAwards = summary.awards.filter((a) => a.position !== undefined);
-  const otherAwards = summary.awards.filter((a) => !MAIN_KEYS.includes(a.key) && a.position === undefined);
+  // 수상자가 있는 상만 카드로 그리고, 해당 없는 상은 맨 아래 한 줄로 모은다(2026-11-08 화면 점검).
+  const given = summary.awards.filter((a) => a.winners.length > 0);
+  const notGiven = summary.awards.filter((a) => a.winners.length === 0);
+  const mainAwards = given.filter((a) => MAIN_KEYS.includes(a.key));
+  const lineAwards = given.filter((a) => a.position !== undefined);
+  const otherAwards = given.filter((a) => !MAIN_KEYS.includes(a.key) && a.position === undefined);
+  const showBusiest = summary.busiestDays.length > 0 && summary.busiestDays.length <= BUSIEST_MAX;
   return (
     <div className="screen season-summary">
       <header className="screen-head">
@@ -136,7 +157,7 @@ export function SeasonSummaryScreen(props: {
       </header>
       <p className="hint season-period">
         <span className="season-dates">
-          {summary.startsOn} ~ {summary.endsOn}
+          {formatRange(summary.startsOn, summary.endsOn, tz)}
         </span>
         {summary.ongoing ? " · 진행 중이라 숫자가 바뀔 수 있어요." : ""}
       </p>
@@ -200,10 +221,9 @@ export function SeasonSummaryScreen(props: {
             </div>
           </dl>
         )}
-        {summary.busiestDays.length > 0 && (
+        {showBusiest && (
           <p className="hint">
-            가장 경기가 많았던 날: {summary.busiestDays.slice(0, BUSIEST_SHOWN).map((d) => d.date).join(", ")}
-            {summary.busiestDays.length > BUSIEST_SHOWN ? ` 외 ${summary.busiestDays.length - BUSIEST_SHOWN}일` : ""} (
+            가장 경기가 많았던 날: {summary.busiestDays.map((d) => formatDate(d.date, tz)).join(", ")} (
             {summary.busiestDays[0]!.games}경기)
           </p>
         )}
@@ -241,8 +261,9 @@ export function SeasonSummaryScreen(props: {
             </ul>
           </>
         )}
+        {notGiven.length > 0 && <NotGiven awards={notGiven} />}
         <p className="hint">
-          결과가 확정되고 전적 제외가 아닌 경기만 셉니다. 동률이면 공동 수상이고, 기준에 못 미치면 "해당 없음"이에요.
+          결과가 확정되고 전적 제외가 아닌 경기만 셉니다. 동률이면 공동 수상이에요.
           {summary.previous ? "" : " 직전 시즌이 없어 '가장 많이 성장'은 넣지 않았어요."}
         </p>
       </section>
@@ -280,6 +301,38 @@ function Winners(props: { award: Award; nameOf: (id: string) => string }) {
       ))}
       {award.winners.length > 1 && <span className="award-tie"> (공동)</span>}
     </p>
+  );
+}
+
+const LINE_SHORT: Record<string, string> = { top: "탑", jungle: "정글", mid: "미드", adc: "원딜", support: "서폿" };
+
+/**
+ * 해당 없는 상을 한 줄로 모은다: "기준 미달: 최고 승률, 탑·정글 최고 승률". 상마다의 까닭은 접힌 도움말 안 목록에 둔다.
+ * 목록 항목은 "시상" 구역 안 listitem이고 상 이름을 제목(h3)으로 가져 보조 기기·테스트가 상 이름으로 찾을 수 있다.
+ */
+function NotGiven(props: { awards: Award[] }) {
+  const lines = props.awards.filter((a) => a.position !== undefined);
+  const others = props.awards.filter((a) => a.position === undefined);
+  const names = [
+    ...others.map((a) => awardTitle(a)),
+    ...(lines.length > 0 ? [`${lines.map((a) => LINE_SHORT[a.position!]).join("·")} 최고 승률`] : []),
+  ];
+  return (
+    <div className="award-none">
+      <p className="hint">기준 미달: {names.join(", ")}</p>
+      <Help label="기준 미달 까닭">
+        <ul className="award-none-list" aria-label="기준 미달 상">
+          {props.awards.map((a) => (
+            <li key={`${a.key}-${a.position ?? ""}`}>
+              <h3>{awardTitle(a)}</h3>
+              <p>
+                해당 없음 · {a.none ?? ""} <span className="award-rule">기준: {a.rule}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      </Help>
+    </div>
   );
 }
 

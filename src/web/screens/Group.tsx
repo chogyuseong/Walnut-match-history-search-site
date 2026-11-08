@@ -3,7 +3,7 @@ import type { ParticipantView, Settings } from "../../shared/types";
 import { ApiFailure, call, mutate, newRequestId, patchParticipant } from "../api";
 import { resolveMerged } from "../../shared/merge";
 import { nameKey } from "../../shared/names";
-import { formatDate, formatTime, nameMap, viewLink } from "../format";
+import { formatDate, formatRange, formatTime, nameMap, viewLink } from "../format";
 import { rotationContext, supportCounts } from "../../shared/rotation";
 import { SupportCountEditor } from "../supportCountEditor";
 import { CopyButton, Dialog, ErrorNote, Help } from "../ui";
@@ -163,7 +163,7 @@ export function Group() {
             이 링크를 받은 사람은 로그인 없이 명단과 기록을 볼 수 있습니다. 수정은 할 수 없습니다.
           </p>
           <div className="button-row">
-            <CopyButton label="현재 경기 링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
+            <CopyButton label="조회 링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
             <button type="button" className="link" onClick={() => setConfirmToken(true)}>
               링크 다시 만들기
             </button>
@@ -578,7 +578,7 @@ export function Group() {
                     {s.name}
                     <br />
                     <span className="hint">
-                      {s.startsOn} ~ {s.endsOn}
+                      {formatRange(s.startsOn, s.endsOn, snapshot.group.timezone)}
                     </span>
                   </span>
                   <button

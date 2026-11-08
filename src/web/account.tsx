@@ -77,7 +77,8 @@ export function AccountControl() {
   if (!loggedIn) {
     return (
       <>
-        <button type="button" className="primary topbar-login" onClick={() => setLoginOpen(true)}>
+        {/* 상단 바 버튼은 secondary: 화면마다 주 버튼(primary)은 본문의 하나뿐이다(2026-11-08 화면 점검). */}
+        <button type="button" className="secondary topbar-login" onClick={() => setLoginOpen(true)}>
           로그인
         </button>
         {loginOpen && (

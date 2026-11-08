@@ -3,7 +3,7 @@ import { newestFirst } from "../../shared/insights";
 import { parseDateQuery, textContains } from "../../shared/search";
 import { localDate, matchesInScope, personRecords, searchByName } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
-import { nameMap, rateTier, standingsOf } from "../format";
+import { nameMap, rateText, rateTier, standingsOf } from "../format";
 import { MatchCard } from "../matchCard";
 import { addRecentSearch, loadRecentSearches, saveRecentSearches } from "../recentSearch";
 import {
@@ -253,7 +253,7 @@ export function Search(props: {
                     ) : (
                       <>
                         <span className={rateTier(r.wins, r.games)}>
-                          {Math.round((r.wins / r.games) * 100)}%
+                          {rateText(r.wins, r.games)}
                         </span>{" "}
                         · {r.wins}승 {r.losses}패 ({r.games}경기)
                       </>

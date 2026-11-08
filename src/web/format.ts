@@ -79,13 +79,53 @@ export function formatTime(iso: string | null | undefined, timeZone = "Asia/Seou
   }).format(new Date(iso));
 }
 
+/**
+ * 날짜 조각(연·월·일). 날짜만 있는 값("2026-07-01", 시즌 기간·입력칸)은 시간대 변환 없이 그대로 읽고,
+ * 시각이 있는 값은 모임 시간대로 바꿔 읽는다.
+ */
+function dateParts(iso: string, timeZone: string): { y: number; m: number; d: number } {
+  const plain = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (plain) return { y: Number(plain[1]), m: Number(plain[2]), d: Number(plain[3]) };
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: safeTimeZone(timeZone),
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date(iso));
+  const pick = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { y: pick("year"), m: pick("month"), d: pick("day") };
+}
+
+function thisYear(timeZone: string): number {
+  return dateParts(new Date().toISOString(), timeZone).y;
+}
+
+/**
+ * 날짜 표기(모든 화면 공통, 2026-11-08 통일): 올해는 "11월 7일", 올해가 아니면 "2025년 11월 7일".
+ * 입력칸 값·파일 이름·CSV는 ISO("2026-07-01")를 그대로 쓴다.
+ */
 export function formatDate(iso: string | null | undefined, timeZone = "Asia/Seoul"): string {
   if (!iso) return "";
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: safeTimeZone(timeZone),
-    month: "long",
-    day: "numeric",
-  }).format(new Date(iso));
+  const { y, m, d } = dateParts(iso, timeZone);
+  return y === thisYear(timeZone) ? `${m}월 ${d}일` : `${y}년 ${m}월 ${d}일`;
+}
+
+/**
+ * 기간 표기: "7월 1일 ~ 8월 31일". 두 날짜의 연도가 다르면 양쪽에 연도를 쓰고,
+ * 같은 해지만 올해가 아니면 앞에만 연도를 쓴다("2025년 7월 1일 ~ 8월 31일"). 끝이 없으면 "7월 1일 ~".
+ */
+export function formatRange(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined,
+  timeZone = "Asia/Seoul",
+): string {
+  if (!startIso) return endIso ? `~ ${formatDate(endIso, timeZone)}` : "";
+  if (!endIso) return `${formatDate(startIso, timeZone)} ~`;
+  const a = dateParts(startIso, timeZone);
+  const b = dateParts(endIso, timeZone);
+  if (a.y !== b.y) return `${a.y}년 ${a.m}월 ${a.d}일 ~ ${b.y}년 ${b.m}월 ${b.d}일`;
+  const head = a.y === thisYear(timeZone) ? "" : `${a.y}년 `;
+  return `${head}${a.m}월 ${a.d}일 ~ ${b.m}월 ${b.d}일`;
 }
 
 /**

@@ -177,9 +177,39 @@ describe("지난 내전 참가자 그대로(lastSessionPeople)", () => {
     expect(lastMatchPeople(ms, participants)!.people).toHaveLength(9);
   });
 
-  it("경기가 없거나 실시간 경기가 없으면 null, 세션이 없는 예전 경기면 그 경기만 본다", () => {
+  it("가져온 기록만 있으면 마지막 확정 경기(경기 시각 순, 출처 무관) 한 경기의 명단을 쓴다(2026-11-08)", () => {
+    const imported = [
+      match(ids(0), ids(5), "A", { source: "import", sessionId: null, playedAt: "2025-05-02T10:00:00.000Z" }),
+      // 번호는 크지만 시각이 앞선 경기는 마지막이 아니다.
+      match(["id10", "id1", "id2", "id3", "id4"], ids(5), "B", {
+        source: "backfill",
+        sessionId: null,
+        playedAt: "2025-05-01T10:00:00.000Z",
+      }),
+      match(["id11", "id1", "id2", "id3", "id4"], ids(5), "A", {
+        source: "import",
+        state: "excluded",
+        sessionId: null,
+        playedAt: "2025-05-03T10:00:00.000Z",
+      }),
+    ];
+    const found = lastSessionPeople(imported, participants)!;
+    expect(found.match.id).toBe(imported[0]!.id);
+    expect(found.games).toBe(1);
+    expect(found.people.map((p) => p.participantId).sort()).toEqual([...ids(0), ...ids(5)].sort());
+    const one = lastMatchPeople(imported, participants)!;
+    expect(one.match.id).toBe(imported[0]!.id);
+    expect(one.people).toHaveLength(10);
+    // 실시간 경기가 하나라도 있으면 그 경기가 우선이다(가져온 경기가 더 늦어도).
+    const live = match(ids(0), ids(5), "A", { playedAt: "2025-04-01T10:00:00.000Z" });
+    expect(lastMatchPeople([...imported, live], participants)!.match.id).toBe(live.id);
+  });
+
+  it("경기가 없거나 확정 경기가 없으면 null, 세션이 없는 예전 경기면 그 경기만 본다", () => {
     expect(lastSessionPeople([], participants)).toBeNull();
-    expect(lastSessionPeople([match(ids(0), ids(5), "A", { source: "import" })], participants)).toBeNull();
+    expect(
+      lastSessionPeople([match(ids(0), ids(5), null, { source: "import", state: "excluded" })], participants),
+    ).toBeNull();
     const legacy = [
       match(ids(0), ids(5), "A", { sessionId: null }),
       match(["id10", "id1", "id2", "id3", "id4"], ids(5), "A", { sessionId: null }),

@@ -337,7 +337,8 @@ test("21: 팀 B가 모두 서포터를 배정받았으면 팀 A만 바로 바꾸
   await dialog.getByRole("button", { name: "초기화" }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator(".teams").getByRole("button").filter({ hasText: /서폿 \d회/ })).toHaveCount(0);
-  await page.getByText("서포터 횟수: 아직 없음").click();
+  // 판은 펼친 그대로다(버튼 글자만 바뀐다). 눌러 닫으면 판이 숨는다(2026-11-08: hidden이 CSS에 지던 문제 고침).
+  await expect(page.getByText("서포터 횟수: 아직 없음")).toBeVisible();
   await expect(reset).toBeEnabled();
   await expect(page.locator("#reset-counts-why")).toContainText("아직 서포터를 안 간 사람이 있어요");
 });

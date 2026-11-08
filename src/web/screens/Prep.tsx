@@ -4,7 +4,7 @@ import { draftBalance, laneMatchups } from "../../shared/prepTools";
 import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
 import { DEFAULT_SETTINGS } from "../../shared/types";
 import { draftRosterText } from "../format";
-import { CopyButton, ErrorNote, StickyAction } from "../ui";
+import { BackLink, CopyButton, ErrorNote, StickyAction } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 import { BalanceSection } from "./prep/BalanceSection";
@@ -31,7 +31,10 @@ export function Prep() {
   if (!app.draft) {
     return (
       <div className="screen">
-        <h1>다음 경기 준비</h1>
+        <header className="screen-head">
+          <BackLink label="← 오늘" fallback={() => go("/")} />
+          <h1>다음 경기 준비</h1>
+        </header>
         <p>작성 중인 편성이 없어요.</p>
         <button type="button" className="primary" onClick={() => go("/pick")}>
           참가자 고르기
@@ -48,8 +51,9 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [imageOpen, setImageOpen] = useState(false);
-  // 서포터 횟수 판: 버튼(섞기 기준 줄)으로 여닫는다. 아직 안 눌렀으면 한 팀이 모두 배정받았을 때만 펼쳐 둔다(초기화 버튼이 보이게).
-  const [supportOpen, setSupportOpen] = useState<boolean | null>(null);
+  // 서포터 횟수 판: 버튼(섞기 기준 줄)으로 여닫는다. 기본은 접어 둔다(펼치면 폰에서 섞기 버튼이 편성 판에서 멀어진다).
+  // 한 팀이 모두 배정받아 초기화가 필요하면 접힌 버튼에 "초기화 필요" 배지로 알린다(2026-11-08 화면 점검).
+  const [supportOpen, setSupportOpen] = useState(false);
   const status: PrepStatus = { busy, setBusy, error, setError };
 
   const ctx = useMemo(
@@ -102,7 +106,7 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
   const matchups = app.snapshot ? laneMatchups(draft, app.snapshot.matches) : null;
   const undoSteps = historyOf(draft).length;
   const complete = isCompleteDraft(draft);
-  const supportOpenNow = supportOpen ?? resetCountsReady(draft, ctx);
+  const needsReset = resetCountsReady(draft, ctx);
 
   return (
     <div className="screen prep-screen">
@@ -171,8 +175,9 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
               ctx.enabled
                 ? {
                     label: supportCountLabel(app, ctx),
-                    open: supportOpenNow,
-                    onToggle: () => setSupportOpen(!supportOpenNow),
+                    open: supportOpen,
+                    needsReset,
+                    onToggle: () => setSupportOpen(!supportOpen),
                     panel: (
                       <SupportCountSection
                         app={app}
@@ -180,7 +185,7 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
                         ctx={ctx}
                         status={status}
                         clearDrawNote={() => edit.setDrawNote(null)}
-                        open={supportOpenNow}
+                        open={supportOpen}
                       />
                     ),
                   }

@@ -14,6 +14,7 @@ import {
   matchesInScope,
   personDetail,
   PLACEMENT_GAMES,
+  ratePercent,
   scopeLabel as scopeLabelOf,
   SMALL_SAMPLE,
   type PairTally,
@@ -30,14 +31,14 @@ import {
 } from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
-import { nameMap, rateTier, standingsOf } from "../format";
+import { nameMap, rateText, rateTier, standingsOf } from "../format";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
 import { MatchCard } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, FormDots, Help, Meter, PosLabel, RateBar, RateRing, RatingTrendLine, ScopePicker, TitleBadge, TrendLine, WinLossBar } from "../ui";
 
 function rate(tally: Tally): string {
-  return tally.games === 0 ? "기록 없음" : `${Math.round((tally.wins / tally.games) * 100)}%`;
+  return rateText(tally.wins, tally.games);
 }
 
 function line(tally: Tally): string {
@@ -69,9 +70,9 @@ const PAGE = 20;
 /** 같은 팀·상대 팀 목록에서 처음에 보여주는 사람 수. 나머지는 "더 보기"로 편다. */
 const PAIR_PREVIEW = 6;
 
-/** 0~1 비율을 정수 %로. */
-function pct(value: number): string {
-  return `${Math.round(value * 100)}%`;
+/** 부분/전체를 정수 %로(승률과 같은 반올림, ratePercent). */
+function pct(part: number, whole: number): string {
+  return `${ratePercent(part, whole)}%`;
 }
 
 /**
@@ -391,7 +392,10 @@ export function Person(props: {
         {trend.length >= 2 ? (
           <TrendLine points={trend} />
         ) : detail.summary.games > 0 ? (
-          <p className="hint">승률 추이는 {SMALL_SAMPLE + 1}경기부터 보여줍니다.</p>
+          // 바로 아래 MMR 그래프를 승률 추이로 오해하지 않게 함께 적는다(2026-11-08 화면 점검).
+          <p className="hint">
+            승률 추이는 {SMALL_SAMPLE + 1}경기부터 그려요{rating && rating.games >= 2 ? "(아래는 MMR 추이)" : ""}.
+          </p>
         ) : null}
         {/* MMR 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
         {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} />}
@@ -451,7 +455,7 @@ export function Person(props: {
                 <span className="meters">
                   <span className="meter-label">비중</span>
                   <Meter value={share} tone="share" />
-                  <span className="meter-value">{tally ? pct(share) : ""}</span>
+                  <span className="meter-value">{tally ? pct(tally.games, positioned) : ""}</span>
                   <span className="meter-label">승률</span>
                   <RateBar wins={tally?.wins ?? 0} games={tally?.games ?? 0} />
                   <span className="meter-value">{tally ? <RateText tally={tally} /> : ""}</span>

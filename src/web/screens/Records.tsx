@@ -37,10 +37,12 @@ import {
 import { ApiFailure, mutate, newRequestId } from "../api";
 import {
   formatDate,
+  formatRange,
   formatTime,
   nameMap,
   POSITION_LABEL,
   objectParticle,
+  rateText,
   rateTier,
   resultLine,
   SIDE_LABEL,
@@ -329,7 +331,7 @@ export function Records(props: {
       />
       {season && (
         <p className="hint">
-          {season.name}: {season.startsOn} ~ {season.endsOn}
+          {season.name}: {formatRange(season.startsOn, season.endsOn, snapshot.group.timezone)}
         </p>
       )}
       {props.openSeason && (scope.kind === "season" || scope.kind === "year") && (
@@ -359,7 +361,7 @@ export function Records(props: {
             <span>
               <strong>{filterText(filter, nameOf)}</strong> · {filtered.length}경기
               {anchor && anchorTally && anchorTally.games > 0
-                ? ` · ${nameOf(anchor)} ${Math.round((anchorTally.wins / anchorTally.games) * 100)}% · ${anchorTally.wins}승 ${anchorTally.games - anchorTally.wins}패`
+                ? ` · ${nameOf(anchor)} ${rateText(anchorTally.wins, anchorTally.games)} · ${anchorTally.wins}승 ${anchorTally.games - anchorTally.wins}패 (${anchorTally.games}경기)`
                 : ""}
             </span>
             <button type="button" className="link" onClick={() => setFilter(EMPTY_FILTER)}>
@@ -486,7 +488,7 @@ export function Records(props: {
             {records.map((r, i) => {
               const form = forms.get(r.participantId);
               const streak = form?.currentStreak ?? 0;
-              const rate = Math.round((r.wins / r.games) * 100);
+              const rate = rateText(r.wins, r.games);
               // 검색하지 않을 때만 묶음이 바뀌는 자리에 얇은 소제목을 둔다(검색 결과는 일치도 순이라 섞인다).
               const group = rankingGroup(placement, r.participantId);
               const prev = i > 0 ? rankingGroup(placement, records[i - 1]!.participantId) : null;
@@ -520,7 +522,7 @@ export function Records(props: {
                         </span>
                       </span>
                       <span className="stat">
-                        <span className={rateTier(r.wins, r.games)}>{rate}%</span> · {r.wins}승 {r.losses}패 (
+                        <span className={rateTier(r.wins, r.games)}>{rate}</span> · {r.wins}승 {r.losses}패 (
                         {r.games}경기)
                         <br />
                         <span className="hint">
@@ -533,7 +535,7 @@ export function Records(props: {
                               placement.get(r.participantId)?.done ? "rating-num" : "rating-num hint"
                             }
                           >
-                            {" · "}MMR {shownRating(ratings.get(r.participantId)!)}
+                            {" · "}<span className="nowrap">MMR {shownRating(ratings.get(r.participantId)!)}</span>
                           </span>
                         )}
                       </span>

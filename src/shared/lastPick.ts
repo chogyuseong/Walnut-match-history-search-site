@@ -4,7 +4,8 @@ import type { MatchView, ParticipantView } from "./types";
 /**
  * "지난 참가자 불러오기"(docs/P4 시나리오 15)의 계산. 화면(Pick.tsx)의 같은 동작을 떼어 낸 것이다.
  * - 지난 경기 = 실시간으로 시작한 경기(source "live") 중 미진행 취소가 아닌, 경기 번호가 가장 큰 경기.
- *   지난 경기 입력·일괄 입력 경기는 "오늘 모인 사람"이 아니므로 쓰지 않는다.
+ *   실시간 경기가 하나도 없으면(가져온 기록만 있는 모임, 2026-11-08) 마지막 확정 경기(출처 무관, 경기 시각 → 번호 순)로 대신한다.
+ *   실시간 경기가 있으면 지난 경기 입력·일괄 입력 경기는 "오늘 모인 사람"이 아니므로 쓰지 않는다.
  * - 불러오는 사람 = 그 경기 명단 중 지금 활성인 참가자(보관·합쳐진 사람은 빠진다). 합치기로 옮겨진 명단은
  *   남은 사람의 ID를 갖고 있으므로 남은 사람으로 불러온다.
  * - 요청을 보내지 않는다. 결과는 기기 초안(참가자 고르기)에만 들어간다.
@@ -18,8 +19,24 @@ export function lastLiveMatch(matches: readonly MatchView[]): MatchView | null {
   return best;
 }
 
+/** 불러오기에 쓸 지난 경기: 실시간 경기(lastLiveMatch)가 있으면 그것, 없으면 마지막 확정 경기(가져온 기록 포함). */
+export function lastPickMatch(matches: readonly MatchView[]): MatchView | null {
+  let best = lastLiveMatch(matches);
+  if (best) return best;
+  for (const m of matches) {
+    if (m.state !== "confirmed") continue;
+    if (!best) {
+      best = m;
+      continue;
+    }
+    const order = m.playedAt.localeCompare(best.playedAt) || m.matchNo - best.matchNo;
+    if (order > 0) best = m;
+  }
+  return best;
+}
+
 /**
- * "지난 내전 참가자 그대로"(2026-11-07): 지난 경기(lastLiveMatch)가 속한 내전(세션, 같은 날 묶음)의 모든 경기 명단을 합친 사람들.
+ * "지난 내전 참가자 그대로"(2026-11-07): 지난 경기(lastPickMatch)가 속한 내전(세션, 같은 날 묶음)의 모든 경기 명단을 합친 사람들.
  * - 세션은 서버가 정한다(시작 때 마지막 활동에서 12시간이 지났으면 새 내전을 묻는다, prep/usePrepStart.ts SESSION_GAP_MS).
  *   세션이 없는 경기(예전 기록)면 그 경기 하나만 본다.
  * - 그 세션에서 미진행 취소가 아닌 실시간 경기만 센다. 지금 활성인 참가자만(보관·합쳐진 사람은 빠지고 missing에 센다).
@@ -31,10 +48,11 @@ export function lastSessionPeople(
   participants: readonly ParticipantView[],
   max = 20,
 ): { match: MatchView; people: DraftPerson[]; missing: number; games: number } | null {
-  const last = lastLiveMatch(matches);
+  const last = lastPickMatch(matches);
   if (!last) return null;
+  // 실시간 경기가 없어 가져온 경기로 대신했으면 그 경기 하나만 본다.
   const session = matches.filter((m) =>
-    last.sessionId === null
+    last.sessionId === null || last.source !== "live"
       ? m.id === last.id
       : m.sessionId === last.sessionId && m.source === "live" && m.state !== "canceled",
   );
@@ -58,7 +76,7 @@ export function lastMatchPeople(
   matches: readonly MatchView[],
   participants: readonly ParticipantView[],
 ): { match: MatchView; people: DraftPerson[]; missing: number } | null {
-  const match = lastLiveMatch(matches);
+  const match = lastPickMatch(matches);
   if (!match) return null;
   const ids = new Set(match.roster.map((r) => r.participantId));
   const people = participants

@@ -5,7 +5,7 @@ import { matchesName } from "../../shared/search";
 import type { MatchView } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
 import { formatTime, matchRosterText, nameMap, POSITION_LABEL, teamName, viewLink } from "../format";
-import { CopyButton, Dialog, ErrorNote, MatchTeams, StickyAction } from "../ui";
+import { BackLink, CopyButton, Dialog, ErrorNote, MatchTeams, StickyAction } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
@@ -100,7 +100,10 @@ export function Match() {
   if (!snapshot || !match) {
     return (
       <div className="screen">
-        <h1>현재 경기</h1>
+        <header className="screen-head">
+          <BackLink label="← 오늘" fallback={() => go("/")} />
+          <h1>현재 경기</h1>
+        </header>
         {!sheetMatch && (
           <>
             <p>진행 중인 경기가 없어요.</p>

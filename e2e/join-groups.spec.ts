@@ -36,8 +36,10 @@ test("참가 신청: 링크 → 로그인 없는 사람이 신청 → 운영자�
   await owner.goto("/#/pick");
   const panel = owner.getByRole("region", { name: "참가 신청" });
   await expect(panel).toContainText("본인 확인이 없어");
-  await expect(panel.getByText("아직 신청한 사람이 없어요.")).toBeVisible();
+  // 신청자가 없으면 한 줄로 접혀 있다(2026-11-08 화면 점검).
+  await expect(panel.getByText("링크 없음 · 0명")).toBeVisible();
   await panel.getByRole("button", { name: "신청 링크 만들기" }).click();
+  await expect(panel.getByText("받는 중 · 0명")).toBeVisible();
   await panel.getByRole("button", { name: "신청 링크 복사" }).click();
   const link = await owner.evaluate(() => navigator.clipboard.readText());
   expect(link).toMatch(/#\/join\/[\w-]+$/);
@@ -73,6 +75,8 @@ test("참가 신청: 링크 → 로그인 없는 사람이 신청 → 운영자�
   await noOverflow(guest, "공개 신청 화면");
 
   // 운영자: 새로 고쳐 신청 순 목록을 보고 "불러오기" → 앞 10명 선택, 11번째는 대기.
+  // 신청자 0명일 때는 한 줄로 접혀 있어 새로 고침이 접힌 도움말 안에 있다.
+  await panel.getByText("새로 고침·링크 관리").click();
   await panel.getByRole("button", { name: "새로 고침" }).click();
   const list = panel.getByRole("list", { name: "신청자 목록" });
   await expect(list.getByRole("listitem")).toHaveCount(11);
@@ -106,7 +110,7 @@ test("참가 신청: 링크 → 로그인 없는 사람이 신청 → 운영자�
   // 비우기.
   await panel.getByRole("button", { name: "신청 비우기" }).click();
   await owner.getByRole("dialog", { name: "신청 비우기" }).getByRole("button", { name: "신청 비우기" }).click();
-  await expect(panel.getByText("아직 신청한 사람이 없어요.")).toBeVisible();
+  await expect(panel.getByText("닫힘 · 0명")).toBeVisible();
 
   await ownerContext.close();
   await guestContext.close();

@@ -10,66 +10,13 @@ export function ShuffleSection(props: {
   ctx: RotationContext;
   edit: PrepEditing;
   /** 서포터 횟수 버튼과 그 아래 펼쳐지는 판(서포터 돌아가며가 꺼져 있으면 없음). */
-  support?: { label: string; open: boolean; onToggle: () => void; panel: ReactNode };
+  support?: { label: string; open: boolean; needsReset: boolean; onToggle: () => void; panel: ReactNode };
 }) {
   const { ctx, edit, support } = props;
   const hasAvoid = Object.keys(edit.avoidMap).length > 0;
   return (
     <section className="prep-tools" aria-label="섞기">
       <h2>섞기</h2>
-      {/* 안내문은 줄마다 짧은 꼬리표(.row-label)만 남기고 설명은 맨 아래 도움말 하나에 모았다(2026-11-08 위계 정리).
-          "섞기 기준" 버튼은 다른 섞기 버튼과 같은 크기다. 이름은 그대로라 브라우저 테스트의 선택자가 바뀌지 않는다. */}
-      <p className="row-label">섞기 기준</p>
-      <div className="button-row">
-        <button
-          type="button"
-          className="secondary"
-          title="사람마다 1~5티어를 정해요. 팀·라인 모두 섞기와 균형 팀 추천이 티어를 봐요."
-          onClick={() => go("/priority")}
-        >
-          티어 배정
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          title="사람마다 못 가는 라인을 정해요. 라인을 섞을 때 그 라인을 되도록 피해요."
-          onClick={() => go("/priority/avoid")}
-        >
-          기피 라인
-        </button>
-        {support && (
-          <button
-            type="button"
-            className="secondary"
-            aria-expanded={support.open}
-            aria-controls="support-count-panel"
-            title="이번 주기에 서포터로 간 횟수. 서폿 돌아가며·서포터만 바꾸기가 이 횟수를 봐요. 누르면 바로 아래에 펼쳐져요."
-            onClick={support.onToggle}
-          >
-            {support.label}
-          </button>
-        )}
-      </div>
-      {support?.panel}
-      {hasAvoid && (
-        <p className="hint">
-          기피 라인을 정한 사람은 라인을 섞을 때 그 라인을 되도록 피해요. 서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이
-          먼저예요.
-        </p>
-      )}
-      {edit.avoidNote && (
-        <p className="note" role="status">
-          {edit.avoidNote}
-        </p>
-      )}
-      {edit.noPriorityNote && (
-        <p className="note" role="status">
-          티어를 정한 사람이 없어 무작위로 나눴어요.{" "}
-          <button type="button" className="link" onClick={() => go("/priority")}>
-            티어 배정하기
-          </button>
-        </p>
-      )}
       <p className="row-label">팀을 새로 짜기</p>
       <div className="button-row">
         <button
@@ -128,6 +75,65 @@ export function ShuffleSection(props: {
           진영 바꾸기
         </button>
       </div>
+      {edit.avoidNote && (
+        <p className="note" role="status">
+          {edit.avoidNote}
+        </p>
+      )}
+      {edit.noPriorityNote && (
+        <p className="note" role="status">
+          티어를 정한 사람이 없어 무작위로 나눴어요.{" "}
+          <button type="button" className="link" onClick={() => go("/priority")}>
+            티어 배정하기
+          </button>
+        </p>
+      )}
+      {/* 안내문은 줄마다 짧은 꼬리표(.row-label)만 남기고 설명은 맨 아래 도움말 하나에 모았다(2026-11-08 위계 정리).
+          순서(2026-11-08 화면 점검): 자주 누르는 섞기 줄을 위에, 가끔 바꾸는 "섞기 기준" 줄을 그 아래에 둔다.
+          "섞기 기준" 버튼은 다른 섞기 버튼과 같은 크기다. 이름은 그대로라 브라우저 테스트의 선택자가 바뀌지 않는다. */}
+      <p className="row-label">섞기 기준</p>
+      <div className="button-row">
+        <button
+          type="button"
+          className="secondary"
+          title="사람마다 1~5티어를 정해요. 팀·라인 모두 섞기와 균형 팀 추천이 티어를 봐요."
+          onClick={() => go("/priority")}
+        >
+          티어 배정
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          title="사람마다 못 가는 라인을 정해요. 라인을 섞을 때 그 라인을 되도록 피해요."
+          onClick={() => go("/priority/avoid")}
+        >
+          기피 라인
+        </button>
+        {support && (
+          <button
+            type="button"
+            className="secondary"
+            aria-expanded={support.open}
+            aria-controls="support-count-panel"
+            title="이번 주기에 서포터로 간 횟수. 서폿 돌아가며·서포터만 바꾸기가 이 횟수를 봐요. 누르면 바로 아래에 펼쳐져요."
+            onClick={support.onToggle}
+          >
+            {support.label}
+            {support.needsReset && (
+              <span className="badge warn-badge" title="한 팀이 모두 서포터를 배정받았어요. 펼쳐서 초기화할 수 있어요.">
+                초기화 필요
+              </span>
+            )}
+          </button>
+        )}
+      </div>
+      {support?.panel}
+      {hasAvoid && (
+        <p className="hint">
+          기피 라인을 정한 사람은 라인을 섞을 때 그 라인을 되도록 피해요. 서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이
+          먼저예요.
+        </p>
+      )}
       <Help>
         <p>고정한 포지션은 어떤 섞기에서도 지켜요. 잘못 눌렀으면 "직전 편성으로"로 최근 5단계까지 되돌릴 수 있어요.</p>
         <p>섞기 기준: 티어·기피 라인·서포터 횟수를 정해 두면 섞기가 그에 맞춰요.</p>
