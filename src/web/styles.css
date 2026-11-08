@@ -4899,9 +4899,45 @@ label:has(> select) {
   flex-direction: column;
   gap: 10px;
 }
-.rival-pane > .list {
+/* 전적 타일 두 칸: 폰에서도 나란히(2칸), 각 칸은 이름표 → 큰 값 → 막대. */
+.rival-tiles {
   flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   min-width: 0;
+}
+.rival-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-surface);
+}
+.rival-tile .tile-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.rival-tile .stat {
+  max-width: none;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+/* 첫 span이 승률 숫자(RateText, 승률 색 단계 클래스). */
+.rival-tile .stat > span:first-child {
+  font-size: 1.375rem;
+  font-weight: 800;
 }
 .compare-cta {
   display: flex;
@@ -4933,8 +4969,9 @@ label:has(> select) {
     align-items: stretch;
   }
   .compare-cta {
-    flex: 0 0 260px;
+    flex: 0 0 200px;
     justify-content: center;
+    padding: 12px 14px;
   }
 }
 

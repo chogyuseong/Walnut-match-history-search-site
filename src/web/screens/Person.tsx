@@ -524,9 +524,10 @@ export function Person(props: {
         {rival && pair && (
           // PC에서는 전적 두 줄 옆에 두 사람 비교로 가는 큰 버튼을 나란히 둔다(링크 글자 하나로는 눈에 안 띈다는 요청, 2026-11-08).
           <div className="rival-pane">
-            <ul className="list" aria-label={`${nameOf(rival)} 님과의 전적`}>
-              <li className="list-row static has-bar">
-                <span>상대 팀으로</span>
+            {/* 전적 두 칸은 타일(이름표 위, 값 아래, 막대)로 나란히 두어 빈 공간을 줄인다. list/listitem 구조는 e2e·보조기기용으로 유지. */}
+            <ul className="rival-tiles" aria-label={`${nameOf(rival)} 님과의 전적`}>
+              <li className="rival-tile">
+                <span className="tile-label">상대 팀으로</span>
                 <span className="stat">
                   {pair.against.games === 0 ? (
                     "만난 적 없음"
@@ -536,8 +537,8 @@ export function Person(props: {
                 </span>
                 <RateBar wins={pair.against.wins} games={pair.against.games} small />
               </li>
-              <li className="list-row static has-bar">
-                <span>같은 팀으로</span>
+              <li className="rival-tile">
+                <span className="tile-label">같은 팀으로</span>
                 <span className="stat">
                   {pair.together.games === 0 ? (
                     "같은 팀으로 뛴 적 없음"
