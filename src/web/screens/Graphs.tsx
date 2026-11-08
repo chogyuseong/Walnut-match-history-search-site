@@ -1,3 +1,4 @@
+import { RANKING_VETERAN_GAMES, sortRankingBy } from "../../shared/insights";
 import { useState, type ReactNode } from "react";
 import {
   matchesInScope,
@@ -8,7 +9,6 @@ import {
   playerLineMatrix,
   sideTotals,
   SMALL_SAMPLE,
-  sortRanking,
   type Scope,
   type Tally,
 } from "../../shared/stats";
@@ -115,13 +115,16 @@ export function Graphs(props: {
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const placement = standingsOf(snapshot);
 
-  const people = sortRanking(
+  // 랭킹 화면과 같은 묶음 순서(2026-11-08): 누적 50경기 이상 → 배치 완료(50경기 미만) → 배치 진행 중, 그 안에서 승률순.
+  // 배치를 마쳤어도 50경기 미만이면 50경기 이상인 사람보다 항상 아래에 선다.
+  const people = sortRankingBy(
     [...personRecordsByLine(scoped, line === "" ? null : line).values()],
     placement,
     nameOf,
+    "rate",
   );
   const matrix = playerLineMatrix(scoped);
-  const matrixRows = sortRanking([...personRecordsByLine(scoped, null).values()], placement, nameOf);
+  const matrixRows = sortRankingBy([...personRecordsByLine(scoped, null).values()], placement, nameOf, "rate");
   const sides = sideTotals(scoped);
   const playerLines = playerId === "" ? null : (matrix.get(playerId) ?? {});
   const selectable = [...snapshot.participants]
@@ -181,15 +184,15 @@ export function Graphs(props: {
         </label>
       </div>
       <p className="hint">
-        {scopeLabel} · 확정 {counted}경기. 누적 {PLACEMENT_GAMES}경기 미만은 배치 진행 중이며
-        배치 완료자 아래에 표시됩니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
+        {scopeLabel} · 확정 {counted}경기. 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({PLACEMENT_GAMES}경기 이상) →
+        배치 진행 중이고, 그 안에서 승률순입니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
       </p>
 
       <section className="chart-card" aria-label="개인별 승률">
         <h2>개인별 승률</h2>
         <p className="hint">
-          범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 배치 완료
-          먼저, 그 안에서 승률순
+          범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 누적{" "}
+          {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료 → 배치 진행 중, 그 안에서 승률순
         </p>
         {people.length === 0 ? (
           <p className="hint">이 조건에는 기록이 없어요.</p>
