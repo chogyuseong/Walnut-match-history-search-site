@@ -510,7 +510,7 @@ export function Person(props: {
       {/* 영역 이름은 위 "상대 전적"(상대 팀일 때 목록)과 겹치지 않게 따로 둔다. */}
       <section aria-label="한 사람과 맞대결">
         <h2>한 사람과 맞대결 ({scopeLabel})</h2>
-        <label>
+        <label className="inline-label">
           상대 고르기
           <select value={rival ?? ""} onChange={(e) => setRival(e.target.value || null)}>
             <option value="">고르기</option>

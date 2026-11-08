@@ -3971,3 +3971,15 @@ button.row.swap-target:hover {
   }
 }
 
+/* 글자 + 고르기 칸을 한 줄에 둘 때(개인 통계 "상대 고르기"). 글자와 칸이 붙어 보이지 않게 띄우고 칸 폭을 넉넉히 둔다. */
+.inline-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+.inline-label > select {
+  min-width: 12rem;
+}
+
