@@ -41,18 +41,19 @@
      l1~l4는 낮을수록 연보라 → 보라 → 자주 → 회색(2026-11-08: 예전에는 낮은 구간이 모두 파란 계열이라
      막대끼리 구별이 어려웠다). 막대(bar)는 막대 바탕(--viz-track #262b36) 대비 3:1 이상, 글자(text)는 바탕 대비
      4.5:1 이상. 다크·바이올렛이 같은 값을 쓴다. 바꿀 때는 light 토큰도 함께. */
-  --heat-bar-h4: #ff5a5a;
-  --heat-bar-h3: #ff7a3a;
-  --heat-bar-h2: #f5973d;
-  --heat-bar-h1: #e9b84a;
+  /* 열 단계가 모두 서로 다른 색이 되게 재지정(2026-11-08):
+     70%↑ 빨강 · 65~70 주황 · 60~65 노랑 · 55~60 연두 · 50~55 청록 · 45~50 파랑 · 40~45 보라 · 35~40 자주 · 30~35 갈색 · 30%↓ 회색 */
+  --heat-bar-h4: #ff4d4d;
+  --heat-bar-h3: #ff8a2a;
+  --heat-bar-h2: #f2c200;
+  --heat-bar-h1: #a8d63a;
   --heat-bar-0: #3f8ef0;
-  /* 기준 구간을 둘로: 50~55% 파랑(기본), 45~50% 청록(heatBarClass의 mid-hi / mid-lo). */
-  --heat-bar-0h: #3f8ef0;
-  --heat-bar-0l: #35b0b8;
-  --heat-bar-l1: #6e8be8;
-  --heat-bar-l2: #8f7ce0;
-  --heat-bar-l3: #ad6fd2;
-  --heat-bar-l4: #7c8795;
+  --heat-bar-0h: #2fc4b2;
+  --heat-bar-0l: #3f8ef0;
+  --heat-bar-l1: #7b6cf6;
+  --heat-bar-l2: #c45bd3;
+  --heat-bar-l3: #b07a4a;
+  --heat-bar-l4: #8b93a5;
   --heat-text-h4: #ff7a3a;
   --heat-text-h3: #fb8a45;
   --heat-text-h2: #f9a660;
@@ -151,16 +152,16 @@
      낮은 쪽은 짙은 남회색으로 어두워진다. 글자는 밝은 바탕 대비 4.5:1 이상이고
      낮은 쪽 글자는 검정에서 회색으로 가라앉는다. */
   /* 승률 막대(라이트): 같은 순서(노랑 → 주황 → 다홍 → 빨강 / 파랑 / 연보라 → 보라 → 자주 → 회색)를 흰 바탕에서 진하게. */
-  --heat-bar-h4: #d1302f;
-  --heat-bar-h3: #d9502a;
-  --heat-bar-h2: #c96a16;
-  --heat-bar-h1: #ad7d10;
+  --heat-bar-h4: #d12f2f;
+  --heat-bar-h3: #d96a12;
+  --heat-bar-h2: #b89a00;
+  --heat-bar-h1: #6f9a1a;
   --heat-bar-0: #2a78d6;
-  --heat-bar-0h: #2a78d6;
-  --heat-bar-0l: #0f8f9a;
-  --heat-bar-l1: #4b63c9;
-  --heat-bar-l2: #6a4fc0;
-  --heat-bar-l3: #8a3fb5;
+  --heat-bar-0h: #0f9488;
+  --heat-bar-0l: #2a78d6;
+  --heat-bar-l1: #5b47d6;
+  --heat-bar-l2: #9b3fb0;
+  --heat-bar-l3: #7a5533;
   --heat-bar-l4: #5a6473;
   --heat-text-h4: #b0440a;
   --heat-text-h3: #ab4b0a;

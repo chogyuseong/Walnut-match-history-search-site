@@ -286,7 +286,7 @@ export function Graphs(props: {
           <li>
             <span className="swatch heat-l3" />
             <span className="swatch heat-l2" />
-            <span className="swatch heat-l1" /> {RATE_HEAT_COLD[3]}~{RATE_HEAT_COLD[0]}%(낮을수록 보랏빛)
+            <span className="swatch heat-l1" /> {RATE_HEAT_COLD[3]}~{RATE_HEAT_COLD[0]}%(보라 → 자주 → 갈색)
           </li>
           <li>
             <span className="swatch heat-0 mid-lo" /> {RATE_HEAT_COLD[0]}~50%{" "}
@@ -295,7 +295,7 @@ export function Graphs(props: {
           <li>
             <span className="swatch heat-h1" />
             <span className="swatch heat-h2" />
-            <span className="swatch heat-h3" /> {RATE_HEAT_HOT[0]}~{RATE_HEAT_HOT[3]}%(높을수록 붉게, 55대는 노랑)
+            <span className="swatch heat-h3" /> {RATE_HEAT_HOT[0]}~{RATE_HEAT_HOT[3]}%(연두 → 노랑 → 주황)
           </li>
           <li>
             <span className="swatch heat-h4" /> {RATE_HEAT_HOT[3]}% 이상
