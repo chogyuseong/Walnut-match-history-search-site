@@ -4205,5 +4205,18 @@ label:has(> select) {
     margin-left: 0;
     font-size: 0.8125rem;
   }
+  /* 값 줄이 두 줄로 접히는 칸이 있어도 막대는 모두 같은 높이(아래)에 놓인다. */
+  .line-first .bars > li {
+    display: flex;
+  }
+  .line-first .bar-row {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .line-first .bar-track {
+    margin-top: auto;
+  }
 }
 
