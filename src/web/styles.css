@@ -1924,7 +1924,7 @@ select option:disabled {
 }
 .backfill-slot select {
   flex: none;
-  width: 7.5em;
+  width: 8.5em; /* 가장 긴 선택지 "포지션 없음"이 잘리지 않는 폭 */
   max-width: 45%;
 }
 
@@ -3981,5 +3981,50 @@ button.row.swap-target:hover {
 }
 .inline-label > select {
   min-width: 12rem;
+}
+
+/* ---------- 고르기 칸(select) 폭 규칙(2026-11-08) ----------
+   고르기 칸은 가장 긴 선택지에 맞춘 폭(width: auto)이 기본이고, 짧은 목록이 너무 작아 보이지 않게 최소 폭을 둔다.
+   좁은 화면(720px 미만)에서는 칸이 한 줄을 차지해도 되지만, 넓은 화면에서 한 줄 가득(100%) 늘어난 칸은 내용에 비해
+   과하게 커 보이므로 내용 폭으로 줄인다. 선택지 표(시트 가져오기)처럼 칸이 표의 열인 곳은 그대로 둔다. */
+select {
+  max-width: 100%;
+}
+.rank-line select,
+.list-row .button-row > select {
+  min-width: 6.5em;
+}
+.rank-line select {
+  min-width: 8em;
+}
+@media (min-width: 720px) {
+  .filter-row label {
+    flex: 0 1 auto;
+  }
+  .filter-row select,
+  .merge-select {
+    width: auto;
+    min-width: 12em;
+  }
+  /* 두 사람 비교·그래프 분석: 사람 고르기는 이름이 길 수 있어 조금 더 넉넉히 */
+  .compare-pick select,
+  .filter-row select[aria-label="플레이어"] {
+    min-width: 14em;
+  }
+}
+/* 글자 + 고르기 칸을 품은 label: 글자와 칸 사이를 띄운다(넓은 화면에서 한 줄, 좁은 화면에서는 칸이 다음 줄로 내려감). */
+label:has(> select) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  max-width: 100%;
+}
+/* 중복 참가자 합치기: 두 고르기 칸이 한 줄에 놓일 때 사이를 띄운다(좁은 화면에서는 세로로). */
+.merge-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
 }
 

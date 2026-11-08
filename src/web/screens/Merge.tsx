@@ -152,7 +152,7 @@ export function Merge() {
         기록이 남길 이름으로 옮겨지고, 없앨 이름은 보관됩니다. 잘못 합쳤으면 아래 기록에서 되돌릴 수 있어요.
       </p>
 
-      <section aria-label="합칠 두 이름 고르기">
+      <section aria-label="합칠 두 이름 고르기" className="merge-pick">
         <label>
           없앨 이름
           <select
