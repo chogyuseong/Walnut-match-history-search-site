@@ -8,7 +8,7 @@ import { ApiFailure } from "./api";
 import {
   copyText,
   formatTime,
-  heatClass,
+  heatBarClass,
   type ShownStanding,
   POSITION_LABEL,
   rateTier,
@@ -619,7 +619,7 @@ export type MeterTone = "rate" | "blue" | "red" | "share";
 /**
  * 가로 막대 하나. value는 0~1.
  * tone: rate(승률) · blue/red(진영 색) · share(비중, 중립색). muted면 색 없이 회색으로 그린다.
- * heat: 승률 색 단계 클래스(heatClass). 승률 막대만 준다.
+ * heat: 승률 색 단계 클래스(heatBarClass). 승률 막대만 준다.
  * mid: 50% 기준선.
  */
 export function Meter(props: {
@@ -643,7 +643,7 @@ export function Meter(props: {
 
 /**
  * 승률 막대(50% 기준선 포함). 기록이 없으면 빈 막대다.
- * 승률 막대는 승률 색 단계(heatClass: 45~55% 기본 색, 높을수록 붉게, 낮을수록 가라앉게)를 따르고,
+ * 승률 막대는 승률 색 단계(heatBarClass: 45~55% 기본 색, 높을수록 붉게, 낮을수록 가라앉게)를 따르고,
  * SMALL_SAMPLE경기 미만이면 색으로 강조하지 않는다(rateTier·"자료 적음"과 같은 규칙).
  * 진영 막대(blue·red)는 진영을 가리키는 색이라 표본·승률과 관계없이 진영 색을 쓴다.
  */
@@ -654,7 +654,7 @@ export function RateBar(props: { wins: number; games: number; tone?: MeterTone; 
     <Meter
       value={games === 0 ? 0 : wins / games}
       tone={tone}
-      heat={tone === "rate" ? heatClass(wins, games) : undefined}
+      heat={tone === "rate" ? heatBarClass(wins, games) : undefined}
       mid
       muted={tone === "rate" && games < SMALL_SAMPLE}
       small={props.small}
@@ -691,7 +691,7 @@ export function RateRing(props: { wins: number; games: number }) {
       <svg viewBox="0 0 68 68">
         <circle className="ring-track" cx="34" cy="34" r={R} />
         <circle
-          className={muted ? "ring-fill tone-muted" : `ring-fill ${heatClass(wins, games)}`}
+          className={muted ? "ring-fill tone-muted" : `ring-fill ${heatBarClass(wins, games)}`}
           cx="34"
           cy="34"
           r={R}

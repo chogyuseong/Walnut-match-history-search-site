@@ -13,7 +13,7 @@ import {
   type Tally,
 } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { heatClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
+import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
 import { BackLink, scopeFromValue, scopeValue, TitleBadge } from "../ui";
 
 /** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
@@ -51,7 +51,7 @@ function RateBar(props: {
 }) {
   const { wins, games } = props;
   const tone = props.tone ?? "series";
-  const fill = tone !== "series" ? `tone-${tone}` : games < SMALL_SAMPLE ? "tone-muted" : `tone-series ${heatClass(wins, games)}`;
+  const fill = tone !== "series" ? `tone-${tone}` : games < SMALL_SAMPLE ? "tone-muted" : `tone-series ${heatBarClass(wins, games)}`;
   const detail = `${props.label}: ${percentText(wins, games)} · ${wins}승 ${games - wins}패 (${games}경기)`;
   const body = (
     <>
@@ -87,9 +87,9 @@ function RateBar(props: {
   );
 }
 
-/** 표 칸의 색: 막대와 같은 승률 색 단계(heatClass). 5경기 미만은 색을 칠하지 않는다. */
+/** 표 칸의 색: 막대와 같은 승률 색 단계(heatBarClass). 5경기 미만은 색을 칠하지 않는다. */
 function cellBand(tally: Tally): string {
-  return heatClass(tally.wins, tally.games) || "band-none";
+  return heatBarClass(tally.wins, tally.games) || "band-none";
 }
 
 /**
@@ -289,7 +289,8 @@ export function Graphs(props: {
             <span className="swatch heat-l1" /> {RATE_HEAT_COLD[3]}~{RATE_HEAT_COLD[0]}%(낮을수록 보랏빛)
           </li>
           <li>
-            <span className="swatch heat-0" /> {RATE_HEAT_COLD[0]}~{RATE_HEAT_HOT[0]}%
+            <span className="swatch heat-0 mid-lo" /> {RATE_HEAT_COLD[0]}~50%{" "}
+            <span className="swatch heat-0 mid-hi" /> 50~{RATE_HEAT_HOT[0]}%
           </li>
           <li>
             <span className="swatch heat-h1" />

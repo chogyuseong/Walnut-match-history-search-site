@@ -46,6 +46,9 @@
   --heat-bar-h2: #f5973d;
   --heat-bar-h1: #e9b84a;
   --heat-bar-0: #3f8ef0;
+  /* 기준 구간을 둘로: 50~55% 파랑(기본), 45~50% 청록(heatBarClass의 mid-hi / mid-lo). */
+  --heat-bar-0h: #3f8ef0;
+  --heat-bar-0l: #35b0b8;
   --heat-bar-l1: #6e8be8;
   --heat-bar-l2: #8f7ce0;
   --heat-bar-l3: #ad6fd2;
@@ -153,6 +156,8 @@
   --heat-bar-h2: #c96a16;
   --heat-bar-h1: #ad7d10;
   --heat-bar-0: #2a78d6;
+  --heat-bar-0h: #2a78d6;
+  --heat-bar-0l: #0f8f9a;
   --heat-bar-l1: #4b63c9;
   --heat-bar-l2: #6a4fc0;
   --heat-bar-l3: #8a3fb5;
@@ -1556,6 +1561,12 @@ select option:disabled {
 .heat-h1 {
   --heat-bar: var(--heat-bar-h1);
   --heat-text: var(--heat-text-h1);
+}
+.heat-0.mid-hi {
+  --heat-bar: var(--heat-bar-0h);
+}
+.heat-0.mid-lo {
+  --heat-bar: var(--heat-bar-0l);
 }
 .heat-0 {
   --heat-bar: var(--heat-bar-0);

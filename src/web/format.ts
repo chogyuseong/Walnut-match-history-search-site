@@ -185,6 +185,17 @@ export function heatClass(wins: number, games: number): string {
 }
 
 /**
+ * 막대·표 칸처럼 색을 채우는 곳의 클래스. heatClass에 더해 기준 구간(45~55%)을 둘로 가른다:
+ * 50% 이상은 mid-hi, 50% 미만은 mid-lo(2026-11-08: 사람이 가장 많이 몰리는 구간이라 5% 단위로 색을 나눠 달라는 요청).
+ * 글자(rateTier)는 가르지 않는다(기준 구간은 기본 글자 색). 단계 경계·테스트는 heatClass 그대로다.
+ */
+export function heatBarClass(wins: number, games: number): string {
+  const base = heatClass(wins, games);
+  if (base !== "heat-0") return base;
+  return wins * 2 >= games ? "heat-0 mid-hi" : "heat-0 mid-lo";
+}
+
+/**
  * 승률 숫자 글자의 클래스 이름. 막대와 같은 색 단계(heatClass)를 쓴다.
  * 기준 구간은 기본 글자 색, 경기가 적으면 색 없이 굵기만.
  */
