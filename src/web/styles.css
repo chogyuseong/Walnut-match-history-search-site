@@ -4893,6 +4893,51 @@ label:has(> select) {
   width: 7em;
 }
 
+/* 개인 통계 > 한 사람과 맞대결: 전적 두 줄 + 두 사람 비교로 가는 큰 버튼(2026-11-08). 폰은 위아래, PC는 옆으로. */
+.rival-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rival-pane > .list {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.compare-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 64px;
+  padding: 12px 16px;
+  text-align: left;
+  border-color: color-mix(in oklab, var(--ih-accent-primary, var(--primary)) 45%, var(--ih-border-strong));
+  background: color-mix(in oklab, var(--ih-accent-primary, var(--primary)) 8%, var(--ih-bg-surface));
+}
+.compare-cta strong {
+  font-size: 1rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.compare-cta strong::after {
+  content: " →";
+}
+.compare-cta span {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+@media (min-width: 720px) {
+  .rival-pane {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .compare-cta {
+    flex: 0 0 260px;
+    justify-content: center;
+  }
+}
+
 /* 그래프 분석: 고른 플레이어의 라인별 승률은 맨 위에서 두 단을 가로지른다(2026-11-08). 고른 사람 이름을 강조. */
 @media (min-width: 1024px) {
   .screen.cols > section.line-first {

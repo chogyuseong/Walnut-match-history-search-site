@@ -270,7 +270,7 @@ test("5) 상대 전적 보기(한 사람과 맞대결): 개인 통계에서 상�
   await expect(section.getByLabel("상대 고르기").locator("option", { hasText: "선수01" })).toHaveCount(0);
   await noHorizontalOverflow(page, "개인 통계 상대 전적");
 
-  await section.getByRole("button", { name: "두 사람 비교에서 자세히 보기" }).click();
+  await section.getByRole("button", { name: /선수01 vs 선수06 비교 보기/ }).click();
   await expect(page).toHaveURL(new RegExp(`#/compare/${a.id}/${b.id}$`));
   await expect(page.getByRole("heading", { name: "선수01 vs 선수06" })).toBeVisible();
   await expect(page.getByRole("region", { name: "상대일 때" })).toContainText("선수01 1승 : 1승 선수06");

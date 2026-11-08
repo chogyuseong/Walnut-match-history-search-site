@@ -522,35 +522,45 @@ export function Person(props: {
           </select>
         </label>
         {rival && pair && (
-          <ul className="list" aria-label={`${nameOf(rival)} 님과의 전적`}>
-            <li className="list-row static has-bar">
-              <span>상대 팀으로</span>
-              <span className="stat">
-                {pair.against.games === 0 ? (
-                  "만난 적 없음"
-                ) : (
-                  <RateLine tally={{ wins: pair.against.wins, games: pair.against.games }} />
-                )}
-              </span>
-              <RateBar wins={pair.against.wins} games={pair.against.games} small />
-            </li>
-            <li className="list-row static has-bar">
-              <span>같은 팀으로</span>
-              <span className="stat">
-                {pair.together.games === 0 ? (
-                  "같은 팀으로 뛴 적 없음"
-                ) : (
-                  <RateLine tally={pair.together} />
-                )}
-              </span>
-              <RateBar wins={pair.together.wins} games={pair.together.games} small />
-            </li>
-          </ul>
-        )}
-        {rival && props.openCompare && (
-          <button type="button" className="link" onClick={() => props.openCompare!(participantId, rival)}>
-            두 사람 비교에서 자세히 보기
-          </button>
+          // PC에서는 전적 두 줄 옆에 두 사람 비교로 가는 큰 버튼을 나란히 둔다(링크 글자 하나로는 눈에 안 띈다는 요청, 2026-11-08).
+          <div className="rival-pane">
+            <ul className="list" aria-label={`${nameOf(rival)} 님과의 전적`}>
+              <li className="list-row static has-bar">
+                <span>상대 팀으로</span>
+                <span className="stat">
+                  {pair.against.games === 0 ? (
+                    "만난 적 없음"
+                  ) : (
+                    <RateLine tally={{ wins: pair.against.wins, games: pair.against.games }} />
+                  )}
+                </span>
+                <RateBar wins={pair.against.wins} games={pair.against.games} small />
+              </li>
+              <li className="list-row static has-bar">
+                <span>같은 팀으로</span>
+                <span className="stat">
+                  {pair.together.games === 0 ? (
+                    "같은 팀으로 뛴 적 없음"
+                  ) : (
+                    <RateLine tally={pair.together} />
+                  )}
+                </span>
+                <RateBar wins={pair.together.wins} games={pair.together.games} small />
+              </li>
+            </ul>
+            {props.openCompare && (
+              <button
+                type="button"
+                className="secondary compare-cta"
+                onClick={() => props.openCompare!(participantId, rival)}
+              >
+                <strong>
+                  {person.name} vs {nameOf(rival)} 비교 보기
+                </strong>
+                <span>라인별 승률 · 같은 팀 시너지 · 맞대결 경기를 나란히</span>
+              </button>
+            )}
+          </div>
         )}
         <p className="hint">
           {person.name} 기준입니다. 결과가 확정된 경기만 셉니다(라인 맞대결·두 사람 비교와 같은 기준).
