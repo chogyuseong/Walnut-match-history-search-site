@@ -2927,9 +2927,296 @@ select option:disabled {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.compare-pick label {
-  flex: 1 1 40%;
+/* 두 사람 비교(src/web/screens/Compare.tsx, 2026-11-08 재설계).
+   머리 카드 두 장(요약) + 가운데 VS → 도구 줄 → 나란히 보기(자세한 수치)·라인별·같은 팀·상대 → 경기 목록.
+   두 사람 구분 색은 진영(블루·레드)과 겹치지 않게 칭호 등급 색을 빌린다: 첫 번째 사람 보라(--grade-4),
+   두 번째 사람 청록(--grade-6). 두 번째 사람 쪽은 빗금 무늬를 더해 색만으로 구분하지 않는다. */
+.compare-screen {
+  --cmp-a: var(--grade-4);
+  --cmp-b: var(--grade-6);
+  --cmp-b-fill: repeating-linear-gradient(
+    135deg,
+    var(--cmp-b) 0 3px,
+    color-mix(in oklab, var(--cmp-b) 55%, var(--ih-bg-surface)) 3px 5px
+  );
 }
+/* 표 머리·이름 옆의 작은 색 표식(첫 번째 = 꽉 찬 네모, 두 번째 = 빗금 네모). */
+.cmp-col-a::before,
+.cmp-face-name.cmp-a::before,
+.cmp-col-b::before,
+.cmp-face-name.cmp-b::after {
+  content: "";
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  vertical-align: 0.05em;
+}
+.cmp-col-a::before,
+.cmp-face-name.cmp-a::before {
+  margin-right: 6px;
+  background: var(--cmp-a);
+}
+.cmp-col-b::before {
+  margin-right: 6px;
+  background: var(--cmp-b-fill);
+}
+.cmp-face-name.cmp-b::after {
+  margin-left: 6px;
+  background: var(--cmp-b-fill);
+}
+
+/* 머리 카드: 두 사람이 마주 본다. 좁은 화면에서도 두 장을 나란히 두고 내용은 줄을 바꿔 쌓는다. */
+.cmp-duel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+}
+.cmp-card {
+  --cmp-tone: var(--cmp-a);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+  background: var(--ih-bg-surface);
+  box-shadow: inset 0 3px 0 var(--cmp-tone);
+}
+.cmp-card.cmp-b {
+  --cmp-tone: var(--cmp-b);
+  align-items: flex-end;
+  text-align: right;
+}
+.cmp-card > * {
+  max-width: 100%;
+  margin: 0;
+}
+.cmp-name,
+.cmp-name:not(:disabled):hover {
+  display: block;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--text);
+  text-decoration-color: var(--cmp-tone);
+  text-underline-offset: 4px;
+}
+.cmp-card-rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-b .cmp-card-rate,
+.cmp-b .cmp-card-form,
+.cmp-b .form-dots {
+  justify-content: flex-end;
+}
+.cmp-card-rate .rate {
+  font-size: 1.875rem;
+  line-height: 1.1;
+}
+.cmp-card-cap {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.cmp-card-wl {
+  word-break: keep-all;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.cmp-card-wl .tag {
+  margin-left: 4px;
+}
+.cmp-card-form {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 4px;
+}
+.cmp-card .form-dot {
+  width: 1.125rem;
+  height: 1.125rem;
+  font-size: 0.625rem;
+}
+.cmp-card-facts {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 6px;
+  align-self: stretch;
+  /* .cmp-card > *의 margin: 0보다 뒤에 있어 이긴다. 카드 높이가 달라도 아래 줄을 맞춘다. */
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--ih-border-subtle);
+}
+.cmp-card-facts > div {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 2px;
+  min-width: 0;
+}
+.cmp-card-facts dt {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--ih-text-muted);
+}
+.cmp-card-facts dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.8125rem;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.cmp-card-facts .standing {
+  font-size: 0.75rem;
+  color: var(--ih-text-secondary);
+}
+.cmp-card-facts .rating-num {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-card-facts .pos {
+  width: auto;
+  color: var(--text);
+}
+.cmp-vs-mark {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ih-border-strong);
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-bg-elevated);
+  color: var(--ih-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+/* 아직 고르지 않음: 카드 자리에 고르기 칸. 점선 테두리로 "빈 자리"임을 보인다. */
+.cmp-slot {
+  justify-content: center;
+  align-items: stretch;
+  min-height: 120px;
+  text-align: left;
+  background: transparent;
+  border: 1px dashed var(--ih-border-strong);
+}
+.cmp-card.cmp-b.cmp-slot {
+  align-items: stretch;
+  text-align: left;
+}
+/* 공통 label:has(> select)(한 줄 배치)보다 구체적으로: 글자 위, 칸 아래. */
+.compare-screen .cmp-slot-pick,
+.compare-screen .cmp-pick label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: left;
+  color: var(--ih-text-secondary);
+}
+.cmp-slot-pick select,
+.cmp-pick select {
+  width: 100%;
+  min-width: 0;
+  color: var(--text);
+}
+
+/* 도구 줄: 사람 고르기 · 서로 바꾸기 · 범위. */
+.cmp-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.cmp-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+.cmp-swap {
+  padding-inline: 10px;
+}
+.cmp-tools .scope-picker {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+/* 좁은 화면: 바꾸기 버튼은 기호만 보이고 이름(서로 바꾸기)은 읽기용으로 남긴다. */
+@media (max-width: 479px) {
+  .cmp-swap-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .cmp-swap {
+    min-width: 44px;
+  }
+}
+@media (min-width: 720px) {
+  .cmp-duel {
+    gap: 12px;
+  }
+  .cmp-card {
+    gap: 8px;
+    padding: 16px 18px;
+  }
+  .cmp-name,
+  .cmp-name:not(:disabled):hover {
+    font-size: 1.25rem;
+  }
+  .cmp-card-rate .rate {
+    font-size: 2.5rem;
+  }
+  .cmp-card-facts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+  }
+  .cmp-b .cmp-card-facts {
+    justify-content: flex-end;
+  }
+  .cmp-vs-mark {
+    width: 40px;
+    height: 40px;
+    font-size: 0.8125rem;
+  }
+  .cmp-pick {
+    grid-template-columns: minmax(8rem, 14rem) auto minmax(8rem, 14rem);
+    flex: 0 1 auto;
+  }
+  .cmp-tools .scope-picker {
+    flex: 0 1 22rem;
+  }
+}
+
+/* 표(나란히 보기·라인별). 앞선 쪽 칸은 ▲ + 굵게 + 옅은 바탕(색만으로 구분하지 않음). */
 .cmp-table {
   width: 100%;
   table-layout: fixed;
@@ -2938,17 +3225,20 @@ select option:disabled {
 }
 .cmp-table th,
 .cmp-table td {
-  padding: 6px 4px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--ih-border-subtle);
   text-align: left;
   vertical-align: top;
   overflow-wrap: anywhere;
 }
+.cmp-table tbody tr:last-child > * {
+  border-bottom: none;
+}
 .cmp-table thead th {
   vertical-align: bottom;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--text);
 }
 .cmp-table th[scope="row"] {
   width: 28%;
@@ -2956,46 +3246,213 @@ select option:disabled {
   font-weight: 700;
   color: var(--muted);
 }
-.cmp-table th[scope="row"] .pos {
+.cmp-lines th[scope="row"] {
+  width: 22%;
+}
+.cmp-table .pos {
   width: auto;
+}
+.cmp-table td .pos {
+  color: var(--text);
+  font-size: inherit;
+}
+.cmp-table td.cmp-lead {
+  font-weight: 700;
+  background: color-mix(in oklab, var(--ih-text-primary) 6%, transparent);
+}
+.cmp-lead-mark {
+  margin-right: 4px;
+  font-size: 0.625rem;
+  color: var(--ih-ok-text);
+  vertical-align: 0.15em;
+}
+.cmp-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  max-width: 100%;
+}
+.cmp-value-num {
+  white-space: nowrap;
+}
+.cmp-meter {
+  flex: none;
+  width: 3rem;
+}
+.cmp-empty-row > * {
+  opacity: 0.5;
 }
 .cmp-sub {
   display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  /* "(62경기)"가 낱말 중간에서 줄이 바뀌지 않게. */
+  word-break: keep-all;
+}
+.cmp-sub-inline {
   font-size: 0.75rem;
   color: var(--muted);
 }
 .cmp-small {
   font-size: 0.8125rem;
 }
-.cmp-name,
-.cmp-name:not(:disabled):hover {
-  display: block;
-  max-width: 100%;
-  padding: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
+.cmp-delta {
+  font-weight: 800;
 }
-.cmp-big {
-  font-size: 1.125rem;
+
+/* 같은 팀일 때·상대일 때: 양끝에 이름, 가운데 큰 숫자, 그 아래 띠. */
+.cmp-face {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 8px;
+  margin: 0;
+}
+.cmp-face-name {
+  min-width: 0;
+  font-size: 0.875rem;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
-/* 두 사람 비교 "상대일 때": 승 수 아래 두 사람 각각의 승률 한 줄 */
-.cmp-h2h-rate {
-  margin: 0 0 8px;
+.cmp-face-name.cmp-b {
+  text-align: right;
+}
+.cmp-face-mid {
+  margin: 0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-face-big {
+  font-size: 1.875rem;
+  line-height: 1.1;
+}
+.cmp-face-sub {
+  font-size: 0.8125rem;
   font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.cmp-score {
+  grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+}
+.cmp-score .tag {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin: 0;
+}
+.cmp-score-n {
+  font-size: 1.875rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.cmp-score-n.is-lead {
+  color: var(--text);
+}
+.cmp-score-colon {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ih-text-muted);
 }
 .cmp-bar {
+  display: flex;
+  gap: 2px;
   height: 10px;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--ih-radius-pill);
   background: var(--ih-bg-subtle);
 }
-.cmp-bar span {
+.cmp-bar > span {
+  flex-basis: 0;
+  min-width: 0;
+}
+.cmp-bar-a {
+  background: var(--cmp-a);
+}
+.cmp-bar-b {
+  background: var(--cmp-b-fill);
+}
+.cmp-together-bar {
   display: block;
-  height: 100%;
-  background: var(--ih-brand-primary);
+}
+.cmp-together-bar .meter {
+  height: 10px;
+  border-radius: var(--ih-radius-pill);
+}
+.cmp-together-bar .meter-fill {
+  border-radius: var(--ih-radius-pill);
+}
+.cmp-synergy {
+  margin: 0;
+  font-weight: 600;
+}
+.cmp-synergy strong {
+  font-size: 1.0625rem;
+  font-weight: 800;
+}
+.cmp-up {
+  color: var(--ih-ok-text);
+}
+.cmp-down {
+  color: var(--ih-loss-text);
+}
+/* "상대일 때": 승 수 아래 첫 번째 사람 기준 승률 한 줄 */
+.cmp-h2h-rate {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
+}
+.cmp-h2h-more {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ih-border-subtle);
+}
+.cmp-h2h-more .row-label {
+  margin: 0 0 6px;
+}
+.cmp-h2h-more .hint {
+  margin: 0;
+}
+@media (min-width: 480px) {
+  .cmp-h2h-more {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 20px;
+  }
+}
+.cmp-duels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cmp-duels li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-bg-elevated);
+  font-size: 0.8125rem;
+}
+.cmp-duels .pos {
+  width: auto;
+  color: var(--text);
+}
+.cmp-duel-wl {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-duels .is-win .cmp-duel-wl {
+  color: var(--ih-win-text);
+}
+.cmp-duels .is-loss .cmp-duel-wl {
+  color: var(--ih-loss-text);
 }
 
 /* 참가자 고르기: 넓은 화면은 여러 열 */

@@ -448,6 +448,8 @@ export interface HeadToHead {
   togetherMatches: MatchView[];
   /** 상대 팀이었던 경기(최근 것부터). */
   againstMatches: MatchView[];
+  /** 상대 팀이었던 경기의 a 기준 승(true)·패(false). againstMatches와 같은 순서(최근 것부터). */
+  againstResults: boolean[];
 }
 
 export function headToHead(matches: readonly MatchView[], a: string, b: string): HeadToHead {
@@ -455,6 +457,7 @@ export function headToHead(matches: readonly MatchView[], a: string, b: string):
   const against = { games: 0, aWins: 0, bWins: 0 };
   const togetherMatches: MatchView[] = [];
   const againstMatches: MatchView[] = [];
+  const againstResults: boolean[] = [];
   // 경기 하나의 판정(같은 팀/상대, a가 이겼는지)은 src/shared/headToHead.ts를 쓴다(라인 맞대결과 같은 기준).
   for (const match of countedChronological(matches)) {
     const outcome = pairOutcome(match, a, b);
@@ -468,6 +471,7 @@ export function headToHead(matches: readonly MatchView[], a: string, b: string):
       if (outcome.aWon) against.aWins += 1;
       else against.bWins += 1;
       againstMatches.push(match);
+      againstResults.push(outcome.aWon);
     }
   }
   return {
@@ -475,7 +479,37 @@ export function headToHead(matches: readonly MatchView[], a: string, b: string):
     against,
     togetherMatches: togetherMatches.reverse(),
     againstMatches: againstMatches.reverse(),
+    againstResults: againstResults.reverse(),
   };
+}
+
+/** 두 사람 비교에서 한 항목을 앞선 쪽. 같으면 null. */
+export type CompareLead = "a" | "b" | null;
+
+/** 큰 값이 앞선다. 같으면 null. */
+export function leadOf(a: number, b: number): CompareLead {
+  return a > b ? "a" : b > a ? "b" : null;
+}
+
+/**
+ * 승률이 높은 쪽. 한쪽이라도 경기가 없으면 견줄 수 없어 null, 승률이 같으면 null.
+ * 승률 비교는 곱셈으로(소수 오차 없이). 표본이 적은지는 화면이 "자료 적음"으로 따로 알린다.
+ */
+export function rateLeadOf(a: Tally, b: Tally): CompareLead {
+  if (a.games === 0 || b.games === 0) return null;
+  return leadOf(a.wins * b.games, b.wins * a.games);
+}
+
+/**
+ * 함께 뛸 때의 시너지(%p, 정수): 같은 팀일 때 승률 − 두 사람 각자 승률의 평균.
+ * 세 값 모두 같은 범위의 경기로 센 것을 넘긴다. 하나라도 경기가 없으면 null.
+ * 각자 승률에는 함께 뛴 경기도 들어 있다(따로 빼지 않는다: 화면은 "평균보다 +N%p"로만 읽는다).
+ */
+export function synergyPoints(together: Tally, a: Tally, b: Tally): number | null {
+  if (together.games === 0 || a.games === 0 || b.games === 0) return null;
+  const average = (a.wins / a.games + b.wins / b.games) / 2;
+  // -0을 0으로(화면에 "−0%p"가 나오지 않게).
+  return Math.round((together.wins / together.games - average) * 100) || 0;
 }
 
 // ---------------------------------------------------------------------------
