@@ -160,19 +160,19 @@ describe("시상: 기준 경계와 공동 수상", () => {
   });
 
   it(`라인별 최고 승률은 그 라인 ${AWARD_MIN_LINE_GAMES}경기 이상만`, () => {
-    // p0은 탑 4경기 전승(기준 미달), p5는 탑 5경기 3승.
+    // p0은 탑 49경기 전승(기준 미달), p5는 탑 52경기 49승.
     const matches = [
-      ...Array.from({ length: 4 }, () => game(A, B, "A")),
+      ...Array.from({ length: AWARD_MIN_LINE_GAMES - 1 }, () => game(A, B, "A")),
       game([10, 1, 2, 3, 4], B, "B"),
       game([10, 1, 2, 3, 4], B, "B"),
       game([10, 1, 2, 3, 4], B, "B"),
     ];
-    // p5(B 탑): 7경기 3승 = 43%. p10(A 탑): 3경기. p0: 4경기 100%.
+    // p5(B 탑): 52경기 3승 = 6%. p10(A 탑): 3경기. p0: 49경기 100%(기준 미달).
     const s = seasonSummary(snap(matches), { kind: "season", seasonId: "s-now" }, nameOf, AFTER);
     const top = award(s.awards, "lineBest", "top");
     expect(ids(top)).toEqual(["p5"]);
-    expect(top.winners[0]!.value).toBe("43% · 3승 4패 (7경기)");
-    // 서폿 라인: p4(A 서폿) 7경기 4승 57%, p9(B 서폿) 7경기 3승.
+    expect(top.winners[0]!.value).toBe("6% · 3승 49패 (52경기)");
+    // 서폿 라인: p4(A 서폿) 52경기 49승 94%, p9(B 서폿) 52경기 3승.
     expect(ids(award(s.awards, "lineBest", "support"))).toEqual(["p4"]);
     // 포지션 기록이 없는 경기는 라인별에서 빠진다.
     const none = seasonSummary(

@@ -15,8 +15,8 @@ import { POSITIONS, type MatchView, type Position, type Snapshot } from "./types
 export const AWARD_MIN_RATE_GAMES = 50;
 /** 가장 많이 성장: 두 범위 모두 이만큼 이상 뛴 사람만(배치 판수와 같게). */
 export const AWARD_MIN_GAMES = 10;
-/** 라인별 최고 승률: 그 라인으로 이만큼 이상. */
-export const AWARD_MIN_LINE_GAMES = 5;
+/** 라인별 최고 승률: 그 라인으로 이만큼 이상(최고 승률과 같게, 2026-11-08에 5에서 올림). */
+export const AWARD_MIN_LINE_GAMES = 50;
 /** 최고의 듀오(같은 팀)·천적 관계(상대 팀): 함께·맞붙은 판이 이만큼 이상인 쌍만. */
 export const AWARD_MIN_PAIR_GAMES = 5;
 /** 최장 연승: 이 이상 이어져야 시상한다(1연승은 연승이 아니다). */
