@@ -73,7 +73,7 @@ export function Today() {
   }
 
   return (
-    <div className="screen">
+    <div className="screen home-screen">
       <header className="screen-head">
         <h1>{snapshot?.group.name ?? "내전 운영"}</h1>
         {snapshot && app.loadedAt && (

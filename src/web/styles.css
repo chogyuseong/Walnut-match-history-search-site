@@ -246,17 +246,21 @@ main {
   gap: 12px;
 }
 
+/* 글자 단계(2026-11-08 위계 정리): 화면 제목 > 구역 제목 > 소제목(작고 흐린 꼬리표) > 본문 > 안내문. */
 h1 {
-  font-size: 1.25rem;
+  font-size: 1.375rem;
+  line-height: 1.25;
   margin: 0;
 }
 h2 {
-  font-size: 1rem;
-  margin: 8px 0 4px;
+  font-size: 1.0625rem;
+  margin: 10px 0 4px;
 }
 h3 {
-  font-size: 1rem;
-  margin: 0 0 4px;
+  font-size: 0.8125rem;
+  margin: 6px 0 4px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
 }
 p {
   margin: 0;
@@ -391,7 +395,45 @@ legend {
 
 .hint {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  max-width: 68ch;
+}
+/* 버튼 줄 위의 짧은 꼬리표. 긴 설명은 .help(도움말)로. */
+.row-label {
+  margin: 6px 0 -2px;
+  color: var(--ih-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+/* 접힌 도움말(ui.tsx Help): 카드 모양 details와 달리 테두리 없이 작은 글자 링크처럼 보인다. */
+details.help {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+details.help > summary {
+  min-height: 32px;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ih-link);
+}
+details.help > .help-body {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 4px;
+  padding: 4px 0 4px 12px;
+  border-left: 2px solid var(--ih-border-subtle);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  max-width: 68ch;
+}
+details.help > .help-body p {
+  margin: 0;
 }
 .center {
   text-align: center;
@@ -1179,13 +1221,10 @@ h1 {
   letter-spacing: -0.01em;
 }
 h2 {
-  font-size: 0.9375rem;
   font-weight: 800;
 }
 h3 {
-  font-size: 0.8125rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-weight: 700;
 }
 
 ::-webkit-scrollbar {
@@ -1220,8 +1259,11 @@ button:not(:disabled):hover {
   background: var(--ih-brand-fill-hover);
   border-color: var(--ih-brand-fill-hover);
 }
+/* 버튼 단계: primary(화면당 하나, 채움+그림자) > secondary(조용한 바탕, 얇은 테두리) > link(글자). */
 .secondary {
   background: var(--ih-bg-elevated);
+  border-color: var(--ih-border-subtle);
+  font-weight: 600;
 }
 .danger {
   background: var(--ih-loss-bg);
@@ -1313,23 +1355,23 @@ button.list-row:not(:disabled):hover {
   font-weight: 500;
 }
 
-/* 경기 줄: 왼쪽 6px 색 막대와 옅은 색 바탕.
-   전체 목록에서는 이긴 팀의 진영(블루·레드), 개인 화면에서는 그 사람의 승·패를 나타낸다.
-   같은 내용이 글자로도 적혀 있어 색만으로 구분하지 않는다. */
+/* 경기 줄: 왼쪽 4px 색 띠만 색을 쓰고 바탕은 카드 바탕 그대로다(2026-11-08 색 예산 정리: 예전에는 카드 전체를
+   진영 색으로 물들여 화면이 알록달록했다). 전체 목록에서는 이긴 팀의 진영(블루·레드), 개인 화면에서는 그 사람의 승·패.
+   같은 내용이 글자로도 적혀 있어 색만으로 구분하지 않는다. 손을 올리면 옅은 틴트가 든다. */
 .match-row {
-  border-left-width: 6px;
+  border-left-width: 4px;
   border-left-color: var(--ih-border-strong);
 }
 .match-row.tone-blue,
 .match-row.tone-win {
-  background: var(--ih-win-bg);
-  border-color: var(--ih-win-border);
+  background: var(--ih-bg-surface);
+  border-color: var(--ih-border-subtle);
   border-left-color: var(--ih-win-accent);
 }
 .match-row.tone-red,
 .match-row.tone-loss {
-  background: var(--ih-loss-bg);
-  border-color: var(--ih-loss-border);
+  background: var(--ih-bg-surface);
+  border-color: var(--ih-border-subtle);
   border-left-color: var(--ih-loss-accent);
 }
 button.match-row.tone-blue:not(:disabled):hover,
@@ -3823,9 +3865,9 @@ button.row.swap-target:hover {
 }
 .grip {
   flex: none;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  line-height: 1;
+  width: 10px;
+  height: 16px;
+  fill: var(--muted);
   opacity: 0.55;
 }
 .swap-hint {
@@ -3856,5 +3898,76 @@ button.row.swap-target:hover {
 }
 .support-panel h2 {
   margin-top: 0;
+}
+
+@media (min-width: 720px) {
+  h1 {
+    font-size: 1.5rem;
+  }
+}
+
+/* 모임 탭 구역 바로 가기(2026-11-08): 작은 칩 한 줄, 좁은 화면에서는 가로로 넘긴다. */
+.block-nav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.block-nav::-webkit-scrollbar {
+  display: none;
+}
+.block-nav .chip {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-pill);
+  background: var(--ih-bg-surface);
+  color: var(--ih-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.block-nav .chip:hover {
+  color: var(--text);
+  border-color: var(--ih-border-strong);
+}
+.group-block {
+  scroll-margin-top: 72px;
+}
+
+/* ---------- PC 밀도(2026-11-08 디자인 정리 3단계) ----------
+   기록 목록의 경기 카드는 PC에서 줄 높이와 글자를 줄여 한 화면에 더 많은 경기가 보이게 한다. 구조는 같다. */
+@media (min-width: 1024px) {
+  .match-cards .match-card {
+    padding-bottom: 4px;
+  }
+  .match-cards .mc-name,
+  .match-cards .mc-name:not(:disabled):hover {
+    min-height: 34px;
+    font-size: 0.9375rem;
+  }
+  .match-cards .mc-roles {
+    font-size: 0.75rem;
+  }
+}
+
+/* 홈(오늘) PC 두 단(2026-11-08 디자인 정리 3단계): 왼쪽에 최근 경기, 오른쪽에 랭킹·요즘 흐름을 세로로 쌓아
+   화면을 내려도 따라온다. 760px 한 줄에 카드만 쌓이던 빈 여백을 쓴다. */
+@media (min-width: 1024px) {
+  .screen.home-screen {
+    max-width: 1040px;
+  }
+  .home-screen .dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 16px 24px;
+    align-items: start;
+  }
+  .home-screen .dashboard > .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+    position: sticky;
+    top: 72px;
+  }
 }
 

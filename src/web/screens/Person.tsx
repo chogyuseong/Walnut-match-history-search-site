@@ -34,19 +34,7 @@ import { nameMap, rateTier, standingsOf } from "../format";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
 import { MatchCard } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import {
-  BackLink,
-  FormDots,
-  Meter,
-  PosLabel,
-  RateBar,
-  RateRing,
-  RatingTrendLine,
-  ScopePicker,
-  TitleBadge,
-  TrendLine,
-  WinLossBar,
-} from "../ui";
+import { BackLink, FormDots, Help, Meter, PosLabel, RateBar, RateRing, RatingTrendLine, ScopePicker, TitleBadge, TrendLine, WinLossBar } from "../ui";
 
 function rate(tally: Tally): string {
   return tally.games === 0 ? "기록 없음" : `${Math.round((tally.wins / tally.games) * 100)}%`;
@@ -408,11 +396,11 @@ export function Person(props: {
         {/* MMR 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
         {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} />}
         {detail.summary.games > 0 && (
-          <p className="hint">
+          <Help>
             동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난
             사람에서 고릅니다. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 고릅니다. 승률은
             모두 {person.name} 기준입니다.
-          </p>
+          </Help>
         )}
       </section>
 

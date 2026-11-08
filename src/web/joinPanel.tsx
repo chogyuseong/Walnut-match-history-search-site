@@ -1,3 +1,4 @@
+import { Help } from "./ui";
 import { useCallback, useEffect, useState } from "react";
 import { call, mutate, newRequestId } from "./api";
 import { CopyButton, Dialog, ErrorNote } from "./ui";
@@ -89,11 +90,11 @@ export function JoinPanel(props: {
         <h2>참가 신청 {entries.length > 0 ? `${entries.length}명` : ""}</h2>
         <span className="tag">{loading ? "확인 중" : !link ? "링크 없음" : link.open ? "받는 중" : "닫힘"}</span>
       </div>
-      <p className="hint">
+      <Help>
         링크를 보내면 참가자가 로그인 없이 "오늘 참가"를 눌러요. 본인 확인이 없어 링크를 가진 사람은 누구의 신청이든
         넣고 뺄 수 있어요. 본인과 연결한 참가자가 로그인한 채 신청하면 '본인 확인됨'으로 들어가고, 그 신청은 본인과
         운영자만 뺄 수 있어요.
-      </p>
+      </Help>
       <ErrorNote error={error} />
       {(view || loading) && (
         <>

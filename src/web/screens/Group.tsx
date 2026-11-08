@@ -6,7 +6,7 @@ import { nameKey } from "../../shared/names";
 import { formatDate, formatTime, nameMap, viewLink } from "../format";
 import { rotationContext, supportCounts } from "../../shared/rotation";
 import { SupportCountEditor } from "../supportCountEditor";
-import { CopyButton, Dialog, ErrorNote } from "../ui";
+import { CopyButton, Dialog, ErrorNote, Help } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { TitleSettings } from "./TitleSettings";
 import { NewGroupFromBackup, RestoreSection } from "./Restore";
@@ -129,6 +129,33 @@ export function Group() {
       )}
       <ErrorNote error={error} />
 
+      {/* 구역 바로 가기(2026-11-08): 모임 탭이 길어 원하는 구역으로 바로 간다. 누르면 그 구역을 펼치고 그리로 내려간다. */}
+      <nav className="block-nav" aria-label="구역 바로 가기">
+        {(
+          [
+            ["often", "자주 쓰는 것"],
+            ["play", "경기 운영 설정"],
+            ["records", "기록 관리"],
+            ["group", "모임 관리"],
+            ["account", "계정 관리"],
+            ["danger", "위험한 작업"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className="chip"
+            onClick={() => {
+              const block = document.getElementById(`group-block-${id}`) as HTMLDetailsElement | null;
+              if (!block) return;
+              if (!block.open) block.open = true;
+              block.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
       <GroupBlock id="often" title="자주 쓰는 것" defaultOpen>
         <section aria-label="조회 링크">
           <h2>조회 링크</h2>
@@ -225,10 +252,10 @@ export function Group() {
             />{" "}
             보관한 참가자도 보기
           </label>
-          <p className="hint">
+          <Help>
             티어: 1티어가 가장 잘하는 사람이에요. 같은 티어끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은
             못하는 사람이 아니라 아직 안 정한 사람이에요.
-          </p>
+          </Help>
           <button type="button" className="secondary" onClick={() => go("/priority")}>
             티어 배정
           </button>
@@ -236,10 +263,10 @@ export function Group() {
           <button type="button" className="secondary" onClick={() => go("/merge")}>
             중복 참가자 합치기
           </button>
-          <p className="hint">
+          <Help label="본인 연결이란">
             본인 연결: 사람마다 '수정'에서 연결 링크를 만들어 본인에게 보내면, 본인이 로그인해 자기 이름과 계정을 묶어요. 연결한
             사람은 내 전적·내 기피 라인·본인 확인 참가 신청·정정 요청을 쓸 수 있고, 기록은 운영자만 고쳐요.
-          </p>
+          </Help>
         </section>
         <section aria-label="참가자 요청">
           <h2>
@@ -400,10 +427,10 @@ export function Group() {
         </section>
         <section aria-label="티어 공개">
           <h2>티어 공개</h2>
-          <p className="hint">
+          <Help>
             티어는 팀 추천·팀·라인 모두 섞기에 쓰는 운영 기준이며 공식 등급이 아닙니다. 공개 여부는 추천·섞기 결과를
             바꾸지 않습니다.
-          </p>
+          </Help>
           <p>
             지금: <strong>{settings.groupsPublic ? "조회자에게 공개" : "운영자만 봄"}</strong>{" "}
             <button type="button" className="link" onClick={() => setPreviewPublic(true)}>
@@ -530,10 +557,10 @@ export function Group() {
         </section>
         <section aria-label="시즌">
           <h2>시즌</h2>
-          <p className="hint">
+          <Help>
             시즌은 기록을 날짜로 나눠 보는 필터입니다. 배치와 누적 기록은 시즌으로 초기화되지
             않습니다. 시즌끼리는 날짜가 겹칠 수 없습니다.
-          </p>
+          </Help>
           {snapshot.seasons.length > 0 && (
             <ul className="list">
               {snapshot.seasons.map((s) => (
@@ -1164,6 +1191,7 @@ function GroupBlock(props: {
   });
   return (
     <details
+      id={`group-block-${props.id}`}
       className={props.danger ? "group-block danger-block" : "group-block"}
       open={open || props.forceOpen === true}
       onToggle={(event) => {

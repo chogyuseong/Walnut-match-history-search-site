@@ -1,11 +1,6 @@
 import { useMemo, useState } from "react";
 import { MAX_AVOID } from "../../shared/avoid";
-import {
-  normalizePriority,
-  priorityLabel,
-  PRIORITY_CLASSES,
-  type Priority,
-} from "../../shared/priority";
+import { normalizePriority, priorityLabel, PRIORITY_CLASSES, type Priority } from "../../shared/priority";
 import {
   balanceCheck,
   changedSuggestions,
@@ -17,15 +12,10 @@ import {
   type SuggestRow,
 } from "../../shared/priorityReview";
 import { PLACEMENT_GAMES, SMALL_SAMPLE } from "../../shared/stats";
-import {
-  POSITIONS,
-  type ParticipantView,
-  type Position,
-  type Snapshot,
-} from "../../shared/types";
+import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
 import { patchParticipant } from "../api";
 import { POSITION_LABEL } from "../format";
-import { Dialog, ErrorNote, PosLabel } from "../ui";
+import { Dialog, ErrorNote, Help, PosLabel } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 
 /**
@@ -57,11 +47,7 @@ export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
   );
 
   const tabs = (
-    <div
-      className="segmented priority-tabs"
-      role="tablist"
-      aria-label="티어 또는 기피 라인"
-    >
+    <div className="segmented priority-tabs" role="tablist" aria-label="티어 또는 기피 라인">
       {(
         [
           ["priority", "티어", "/priority"],
@@ -91,10 +77,7 @@ export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
           <h1>{title}</h1>
           {tabs}
         </header>
-        <p>
-          아직 참가자가 없어요. 경기를 한 번 시작하거나 참가자를 넣으면 여기서
-          정할 수 있어요.
-        </p>
+        <p>아직 참가자가 없어요. 경기를 한 번 시작하거나 참가자를 넣으면 여기서 정할 수 있어요.</p>
       </div>
     );
   }
@@ -102,11 +85,7 @@ export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
     .filter((p) => p.status === "active" && !p.mergedInto)
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
   // 이번 편성에 든 사람은 표시해 준다(준비 화면에서 들어온 경우 누구를 정해야 하는지 보이게).
-  const inDraft = new Set(
-    (app.draft?.people ?? [])
-      .map((p) => p.participantId)
-      .filter((id) => id !== null),
-  );
+  const inDraft = new Set((app.draft?.people ?? []).map((p) => p.participantId).filter((id) => id !== null));
 
   return (
     <div className="screen priority-screen">
@@ -117,21 +96,9 @@ export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
         {tabs}
       </header>
       {tab === "avoid" ? (
-        <AvoidPanel
-          app={app}
-          snapshot={snapshot}
-          people={people}
-          inDraft={inDraft}
-          back={backTo}
-        />
+        <AvoidPanel app={app} snapshot={snapshot} people={people} inDraft={inDraft} back={backTo} />
       ) : (
-        <PriorityPanel
-          app={app}
-          snapshot={snapshot}
-          people={people}
-          inDraft={inDraft}
-          back={backTo}
-        />
+        <PriorityPanel app={app} snapshot={snapshot} people={people} inDraft={inDraft} back={backTo} />
       )}
     </div>
   );
@@ -167,11 +134,7 @@ function PrioritySide(props: {
               <button
                 type="button"
                 className="priority-jump"
-                onClick={() =>
-                  document
-                    .getElementById(row.id!)
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                }
+                onClick={() => document.getElementById(row.id!)?.scrollIntoView({ behavior: "smooth", block: "start" })}
               >
                 <span>{row.label}</span>
                 <strong>{row.count}명</strong>
@@ -185,11 +148,7 @@ function PrioritySide(props: {
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        className="primary wide"
-        onClick={() => go(props.back.path)}
-      >
+      <button type="button" className="primary wide" onClick={() => go(props.back.path)}>
         {props.back.label}
       </button>
     </aside>
@@ -226,41 +185,23 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
   return (
     <div className="priority-layout">
       <div className="priority-main">
-        <p className="hint">
-          1티어가 가장 잘하는 사람이에요. 같은 티어끼리는 팀·라인 모두 섞기·팀
-          추천에서 양 팀에 나뉘어요. 미지정은 못하는 사람이 아니라 아직 안 정한
-          사람이에요.
-        </p>
-        <p className="hint">
-          사람 옆의 1·2·3·4·5·미정 중 하나를 누르면 바로 저장돼요. 공식 등급이
-          아니라 운영 기준이에요.
-          {snapshot.group.settings.groupsPublic
-            ? " 지금 조회자에게도 공개돼 있어요(모임 탭에서 바꿀 수 있어요)."
-            : " 운영자만 봐요."}
-        </p>
+        <p className="hint">1티어가 가장 잘하는 사람이에요. 사람 옆의 1·2·3·4·5·미정을 누르면 바로 저장돼요.</p>
+      <Help>
+        <p>1티어가 가장 잘하는 사람이에요. 같은 티어끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은 못하는 사람이 아니라 아직 안 정한 사람이에요.</p>
+        <p>사람 옆의 1·2·3·4·5·미정 중 하나를 누르면 바로 저장돼요. 공식 등급이 아니라 운영 기준이에요. {snapshot.group.settings.groupsPublic ? " 지금 조회자에게도 공개돼 있어요(모임 탭에서 바꿀 수 있어요)." : " 운영자만 봐요."}</p>
+      </Help>
         <div className="button-row">
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => setSuggesting(true)}
-          >
+          <button type="button" className="secondary" onClick={() => setSuggesting(true)}>
             기록으로 제안받기
           </button>
         </div>
         <ErrorNote error={error} />
         {people.length === 0 && <p>참가자가 없어요.</p>}
         {PRIORITY_CLASSES.map((cls) => {
-          const members = people.filter(
-            (p) => valueOf(p.id, p.skillGroup) === cls,
-          );
+          const members = people.filter((p) => valueOf(p.id, p.skillGroup) === cls);
           const label = priorityLabel(cls);
           return (
-            <section
-              key={label}
-              id={tierId(cls)}
-              className="prep-tools"
-              aria-label={label}
-            >
+            <section key={label} id={tierId(cls)} className="prep-tools" aria-label={label}>
               <h2>
                 {label} <span className="side">{members.length}명</span>
               </h2>
@@ -272,15 +213,9 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
                     <li key={p.id} className="list-row static priority-row">
                       <span className="name">
                         {p.name}
-                        {inDraft.has(p.id) && (
-                          <span className="tag">이번 편성</span>
-                        )}
+                        {inDraft.has(p.id) && <span className="tag">이번 편성</span>}
                       </span>
-                      <span
-                        className="segmented"
-                        role="group"
-                        aria-label={`${p.name}의 티어`}
-                      >
+                      <span className="segmented" role="group" aria-label={`${p.name}의 티어`}>
                         {PRIORITY_CLASSES.map((value) => (
                           <button
                             key={priorityLabel(value)}
@@ -289,8 +224,7 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
                             aria-pressed={valueOf(p.id, p.skillGroup) === value}
                             disabled={p.id in pending}
                             onClick={() => {
-                              if (valueOf(p.id, p.skillGroup) !== value)
-                                void choose(p.id, p.name, value);
+                              if (valueOf(p.id, p.skillGroup) !== value) void choose(p.id, p.name, value);
                             }}
                           >
                             {value === null ? "미정" : value}
@@ -311,24 +245,16 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
         rows={PRIORITY_CLASSES.map((cls) => ({
           id: tierId(cls),
           label: priorityLabel(cls),
-          count: people.filter((p) => valueOf(p.id, p.skillGroup) === cls)
-            .length,
+          count: people.filter((p) => valueOf(p.id, p.skillGroup) === cls).length,
         }))}
         back={back}
       />
-      {suggesting && (
-        <SuggestDialog
-          app={app}
-          snapshot={snapshot}
-          onClose={() => setSuggesting(false)}
-        />
-      )}
+      {suggesting && <SuggestDialog app={app} snapshot={snapshot} onClose={() => setSuggesting(false)} />}
     </div>
   );
 }
 
-const percent = (wins: number, games: number) =>
-  `${Math.round((wins / games) * 100)}%`;
+const percent = (wins: number, games: number) => `${Math.round((wins / games) * 100)}%`;
 
 function rowFacts(row: SuggestRow): string {
   // 다른 화면과 같은 꼴: "승률 · N승 M패 (G경기)"
@@ -338,16 +264,10 @@ function rowFacts(row: SuggestRow): string {
 }
 
 /** 기록으로 제안받기: 미리보기 → 고른 사람만 저장. 자동으로 덮어쓰지 않는다. */
-function SuggestDialog(props: {
-  app: AppValue;
-  snapshot: Snapshot;
-  onClose: () => void;
-}) {
+function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () => void }) {
   const { app, snapshot } = props;
   // 창을 연 때의 기록으로 계산해 둔다(적용 중 다시 읽어도 목록이 흔들리지 않게).
-  const [result] = useState<SuggestResult>(() =>
-    suggestPriorities(snapshot.participants, snapshot.matches),
-  );
+  const [result] = useState<SuggestResult>(() => suggestPriorities(snapshot.participants, snapshot.matches));
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(changedSuggestions(result).map((r) => r.participantId)),
   );
@@ -382,20 +302,17 @@ function SuggestDialog(props: {
   return (
     <Dialog title="기록으로 제안받기" onClose={props.onClose}>
       <p className="hint">
-        제안은 승률만 본 참고값이에요(라인·상대·최근 흐름은 보지 않아요). 누적{" "}
-        {PLACEMENT_GAMES}경기 이상인 사람만, 경기가 적을수록 승률을 50% 쪽으로
-        당겨({SUGGEST_PRIOR_GAMES}경기만큼) 줄 세운 뒤 5등분했어요.
+        제안은 승률만 본 참고값이에요(라인·상대·최근 흐름은 보지 않아요). 누적 {PLACEMENT_GAMES}경기 이상인 사람만,
+        경기가 적을수록 승률을 50% 쪽으로 당겨({SUGGEST_PRIOR_GAMES}경기만큼) 줄 세운 뒤 5등분했어요.
       </p>
       {!result.ready ? (
         <p className="note" role="status">
-          누적 {PLACEMENT_GAMES}경기 이상인 사람이 {SUGGEST_MIN_PEOPLE}명
-          이상이어야 제안할 수 있어요. 지금 {result.eligible}명이에요.
+          누적 {PLACEMENT_GAMES}경기 이상인 사람이 {SUGGEST_MIN_PEOPLE}명 이상이어야 제안할 수 있어요. 지금{" "}
+          {result.eligible}명이에요.
         </p>
       ) : (
         <>
-          <p className="hint">
-            달라지는 사람만 미리 골라 뒀어요. 적용을 눌러야 저장돼요.
-          </p>
+          <p className="hint">달라지는 사람만 미리 골라 뒀어요. 적용을 눌러야 저장돼요.</p>
           <ul className="list" aria-label="제안 목록">
             {suggested.map((row) => {
               const same = row.suggested === row.current;
@@ -416,8 +333,7 @@ function SuggestDialog(props: {
                       }
                     />
                     <span>
-                      <strong>{row.name}</strong> {priorityLabel(row.current)} →{" "}
-                      {priorityLabel(row.suggested)}
+                      <strong>{row.name}</strong> {priorityLabel(row.current)} → {priorityLabel(row.suggested)}
                       {same && <span className="tag">그대로</span>}
                       <br />
                       <span className="hint">{rowFacts(row)}</span>
@@ -468,19 +384,11 @@ function SuggestDialog(props: {
 function PriorityCheck(props: { snapshot: Snapshot }) {
   const { snapshot } = props;
   const balance = useMemo(
-    () =>
-      balanceCheck(
-        snapshot.participants,
-        snapshot.matches,
-        snapshot.group.settings.groupWeights,
-      ),
+    () => balanceCheck(snapshot.participants, snapshot.matches, snapshot.group.settings.groupWeights),
     [snapshot],
   );
   const mismatches = useMemo(
-    () =>
-      priorityMismatches(
-        suggestPriorities(snapshot.participants, snapshot.matches),
-      ),
+    () => priorityMismatches(suggestPriorities(snapshot.participants, snapshot.matches)),
     [snapshot],
   );
   const far = mismatches.filter((m) => m.kind === "far");
@@ -488,39 +396,32 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
   return (
     <section className="prep-tools" aria-label="티어 점검">
       <h2>티어 점검</h2>
-      <p className="hint">
-        경기 당시의 티어는 저장하지 않아요. 지금 티어를 지난 경기에 적용해
-        계산한 값이에요.
-      </p>
+      <p className="hint">경기 당시의 티어는 저장하지 않아요. 지금 티어를 지난 경기에 적용해 계산한 값이에요.</p>
       <h3>티어 점수 합이 높은 팀이 이긴 비율</h3>
       {balance.small ? (
         <p>
           자료 적음{" "}
           <span className="hint">
-            (두 팀 티어 점수 합이 달랐던 경기 {balance.uneven}경기,{" "}
-            {SMALL_SAMPLE}경기부터 보여 줘요)
+            (두 팀 티어 점수 합이 달랐던 경기 {balance.uneven}경기, {SMALL_SAMPLE}경기부터 보여 줘요)
           </span>
         </p>
       ) : (
         <p>
-          두 팀 티어 점수 합이 달랐던 {balance.uneven}경기 중 합이 높은 팀이{" "}
-          {balance.higherWon}승 ({percent(balance.higherWon, balance.uneven)})
+          두 팀 티어 점수 합이 달랐던 {balance.uneven}경기 중 합이 높은 팀이 {balance.higherWon}승 (
+          {percent(balance.higherWon, balance.uneven)})
         </p>
       )}
       <p className="hint">합이 같았던 경기 {balance.even}경기는 빼고 셌어요.</p>
       <h3>티어와 성적이 어긋나는 사람</h3>
       {far.length === 0 ? (
-        <p className="hint">
-          지금 티어와 기록 제안이 2단계 이상 다른 사람은 없어요.
-        </p>
+        <p className="hint">지금 티어와 기록 제안이 2단계 이상 다른 사람은 없어요.</p>
       ) : (
         <ul className="list" aria-label="티어와 성적이 어긋나는 사람">
           {far.map(({ row }) => (
             <li key={row.participantId} className="list-row static">
               <span className="name">{row.name}</span>
               <span className="stat">
-                지금 {priorityLabel(row.current)} · 제안{" "}
-                {priorityLabel(row.suggested)} · {rowFacts(row)}
+                지금 {priorityLabel(row.current)} · 제안 {priorityLabel(row.suggested)} · {rowFacts(row)}
               </span>
             </li>
           ))}
@@ -549,22 +450,15 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
 function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
   const [pending, setPending] = useState<Record<string, Position[]>>({});
   const [error, setError] = useState<unknown>(null);
-  const listOf = (p: ParticipantView): Position[] =>
-    pending[p.id] ?? p.avoidPositions ?? [];
+  const listOf = (p: ParticipantView): Position[] => pending[p.id] ?? p.avoidPositions ?? [];
   // 본인과 연결한 참가자가 직접 정한 기피 라인(migrations/0019). 운영자가 고치면 표시가 사라진다.
-  const selfSet = new Set(
-    (snapshot.memberLinks ?? [])
-      .filter((l) => l.avoidBySelf)
-      .map((l) => l.participantId),
-  );
+  const selfSet = new Set((snapshot.memberLinks ?? []).filter((l) => l.avoidBySelf).map((l) => l.participantId));
 
   async function toggle(p: ParticipantView, position: Position) {
     const current = listOf(p);
     const on = current.includes(position);
     if (!on && current.length >= MAX_AVOID) {
-      app.setNotice(
-        `기피 라인은 ${MAX_AVOID}개까지예요. 한 라인은 갈 수 있어야 해요.`,
-      );
+      app.setNotice(`기피 라인은 ${MAX_AVOID}개까지예요. 한 라인은 갈 수 있어야 해요.`);
       return;
     }
     const next = on
@@ -594,15 +488,14 @@ function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
   return (
     <div className="priority-layout">
       <div className="priority-main">
+        <Help>
+          고른 라인은 라인 섞기(라인만 섞기·팀·라인 모두 섞기·팀 추천 적용·처음 팀 짜기)에서 되도록 피해요. 모두 피할 수
+          없으면 가장 적게 어기는 배정을 고르고 알려 줘요. 포지션 고정이 먼저이고, 손으로 자리를 바꾸는 것은 막지
+          않아요.
+        </Help>
         <p className="hint">
-          고른 라인은 라인 섞기(라인만 섞기·팀·라인 모두 섞기·팀 추천 적용·처음
-          팀 짜기)에서 되도록 피해요. 모두 피할 수 없으면 가장 적게 어기는
-          배정을 고르고 알려 줘요. 포지션 고정이 먼저이고, 손으로 자리를 바꾸는
-          것은 막지 않아요.
-        </p>
-        <p className="hint">
-          서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요. 한 사람에{" "}
-          {MAX_AVOID}개까지, 누르면 바로 저장돼요. 운영자만 봐요.
+          서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요. 한 사람에 {MAX_AVOID}개까지, 누르면 바로
+          저장돼요. 운영자만 봐요.
         </p>
         <ErrorNote error={error} />
         {people.length === 0 && <p>참가자가 없어요.</p>}
@@ -616,15 +509,9 @@ function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
                   {p.name}
                   {inDraft.has(p.id) && <span className="tag">이번 편성</span>}
                   {full && <span className="tag">{MAX_AVOID}개 모두 고름</span>}
-                  {selfSet.has(p.id) && (
-                    <span className="tag">본인이 정함</span>
-                  )}
+                  {selfSet.has(p.id) && <span className="tag">본인이 정함</span>}
                 </span>
-                <span
-                  className="segmented"
-                  role="group"
-                  aria-label={`${p.name}의 기피 라인`}
-                >
+                <span className="segmented" role="group" aria-label={`${p.name}의 기피 라인`}>
                   {POSITIONS.map((position) => {
                     const on = list.includes(position);
                     const blocked = !on && full;
@@ -635,11 +522,7 @@ function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
                         aria-label={`${p.name} ${POSITION_LABEL[position]} 기피`}
                         aria-pressed={on}
                         aria-disabled={blocked || undefined}
-                        title={
-                          blocked
-                            ? `기피 라인은 ${MAX_AVOID}개까지예요.`
-                            : undefined
-                        }
+                        title={blocked ? `기피 라인은 ${MAX_AVOID}개까지예요.` : undefined}
                         disabled={p.id in pending}
                         onClick={() => void toggle(p, position)}
                       >

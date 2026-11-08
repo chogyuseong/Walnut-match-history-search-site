@@ -18,6 +18,8 @@ export default defineConfig({
     baseURL: BASE_URL,
     locale: "ko-KR",
     timezoneId: "Asia/Seoul",
+    // 자리 바뀜 애니메이션(TeamBoards FLIP) 등을 끈다. 위치·넘침을 재는 테스트가 움직이는 중간 상태를 보지 않게.
+    reducedMotion: "reduce",
   },
   webServer: {
     // 화면 빌드 → 로컬 D1 마이그레이션 → wrangler dev. 이미 떠 있으면 그 서버를 그대로 쓴다.

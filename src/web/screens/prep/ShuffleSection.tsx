@@ -1,3 +1,4 @@
+import { Help } from "../../ui";
 import type { ReactNode } from "react";
 import type { RotationContext } from "../../../shared/rotation";
 import { TEAMS } from "../../../shared/types";
@@ -16,14 +17,9 @@ export function ShuffleSection(props: {
   return (
     <section className="prep-tools" aria-label="섞기">
       <h2>섞기</h2>
-      <p className="hint">
-        고정한 포지션은 어떤 섞기에서도 지켜요. 잘못 눌렀으면 "직전 편성으로"로 최근 5단계까지 되돌릴 수 있어요.
-      </p>
-      {/* 섞기의 기준이 되는 설정으로 가는 길. 안내문 끝의 작은 글자 링크였는데 지나치기 쉬워
-          다른 섞기 버튼과 같은 크기의 버튼으로 둔다(2026-11-08). 이름은 그대로라 브라우저 테스트의 선택자가 바뀌지 않는다. */}
-      <p className="hint">
-        <strong>섞기 기준</strong> — 티어·기피 라인·서포터 횟수를 정해 두면 섞기가 그에 맞춰요.
-      </p>
+      {/* 안내문은 줄마다 짧은 꼬리표(.row-label)만 남기고 설명은 맨 아래 도움말 하나에 모았다(2026-11-08 위계 정리).
+          "섞기 기준" 버튼은 다른 섞기 버튼과 같은 크기다. 이름은 그대로라 브라우저 테스트의 선택자가 바뀌지 않는다. */}
+      <p className="row-label">섞기 기준</p>
       <div className="button-row">
         <button
           type="button"
@@ -74,9 +70,7 @@ export function ShuffleSection(props: {
           </button>
         </p>
       )}
-      <p className="hint">
-        <strong>팀을 새로 짜기</strong> — 같은 티어끼리는 양 팀에 나뉘어요.
-      </p>
+      <p className="row-label">팀을 새로 짜기</p>
       <div className="button-row">
         <button
           type="button"
@@ -95,10 +89,7 @@ export function ShuffleSection(props: {
           균형 팀 추천
         </button>
       </div>
-      <p className="hint">
-        <strong>팀은 그대로</strong> — 팀원은 바뀌지 않아요.
-        {ctx.enabled ? " '서폿 돌아가며'는 팀마다 서포터를 아직 안 간 사람으로 정해요." : ""}
-      </p>
+      <p className="row-label">팀은 그대로</p>
       <div className="button-row">
         <button
           type="button"
@@ -137,6 +128,12 @@ export function ShuffleSection(props: {
           진영 바꾸기
         </button>
       </div>
+      <Help>
+        <p>고정한 포지션은 어떤 섞기에서도 지켜요. 잘못 눌렀으면 "직전 편성으로"로 최근 5단계까지 되돌릴 수 있어요.</p>
+        <p>섞기 기준: 티어·기피 라인·서포터 횟수를 정해 두면 섞기가 그에 맞춰요.</p>
+        <p>팀을 새로 짜기: 같은 티어끼리는 양 팀에 나뉘어요. 팀은 그대로: 팀원은 바뀌지 않아요.</p>
+        {ctx.enabled && <p>'서폿 돌아가며'와 '서포터만 바꾸기'는 팀마다 서포터를 아직 안 간 사람으로 정해요.</p>}
+      </Help>
     </section>
   );
 }
@@ -146,10 +143,7 @@ export function SideSection(props: { edit: PrepEditing }) {
   return (
     <section className="prep-tools" aria-label="진영">
       <h2>진영</h2>
-      <p className="hint">
-        왼쪽이 블루팀, 오른쪽이 레드팀이에요. 결과를 입력할 때 이 진영으로 미리 골라 두고, 실제와 다르면 그때 바꿀 수
-        있어요.
-      </p>
+      
       <div className="button-row">
         <button
           type="button"
@@ -160,6 +154,10 @@ export function SideSection(props: { edit: PrepEditing }) {
           진영 랜덤
         </button>
       </div>
+      <Help>
+        왼쪽이 블루팀, 오른쪽이 레드팀이에요. 결과를 입력할 때 이 진영으로 미리 골라 두고, 실제와 다르면 그때 바꿀 수
+        있어요.
+      </Help>
     </section>
   );
 }

@@ -4,7 +4,7 @@ import { resetCountsReady, supportCounts, type RotationContext } from "../../../
 import { mutate, newRequestId } from "../../api";
 import { SupportCountEditor } from "../../supportCountEditor";
 import { formatTime } from "../../format";
-import { Dialog, ErrorNote } from "../../ui";
+import { Dialog, ErrorNote, Help } from "../../ui";
 import type { AppValue } from "../../useApp";
 import type { PrepStatus } from "./usePrepStart";
 
@@ -75,13 +75,14 @@ export function SupportCountSection(props: {
 
   return (
     <>
-      {ctx.enabled && props.open && (
-        <section id="support-count-panel" className="prep-tools support-panel" aria-label="서포터 횟수">
+      {ctx.enabled && (
+        // 닫혀 있어도 DOM에 두고 hidden으로 숨긴다(예전 접힘 구역과 같은 동작: 안의 버튼 상태를 테스트·검색이 볼 수 있다).
+        <section id="support-count-panel" className="prep-tools support-panel" aria-label="서포터 횟수" hidden={!props.open}>
           <h2>서포터 횟수</h2>
-          <p className="hint">
+          <Help>
             "이 팀으로 시작"으로 실제 시작한 경기만 셉니다. 섞기·서포터만 바꾸기는 횟수를 올리지 않아요. 새 내전을
             시작하거나 초기화하면 그 뒤에 시작한 경기부터 다시 셉니다. 그 전 경기는 기록만 남고 횟수에는 들어가지 않아요.
-          </p>
+          </Help>
           {cycleStartedAt ? (
             <p className="hint" data-testid="count-since">
               지금은 {formatTime(cycleStartedAt, app.snapshot?.group.timezone)}부터 세고 있어요 (그 뒤에 시작한 경기{" "}

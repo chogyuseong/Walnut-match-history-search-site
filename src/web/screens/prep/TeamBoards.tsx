@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import type { Draft } from "../../../shared/draft";
 import { avoids } from "../../../shared/avoid";
 import { drawStatus, supportCountOf, type RotationContext } from "../../../shared/rotation";
@@ -16,6 +17,7 @@ import type { PrepEditing } from "./usePrepEditing";
 export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: PrepEditing }) {
   const { draft, ctx, edit } = props;
   const { selectedKey, nameOf, dragKey, setDragKey, dropPerson } = edit;
+  useSlideOnReorder(draft.slots.map((s) => `${s.team}:${s.position}:${s.key}`).join("|"));
   const rowClass = (key: string) =>
     [
       "row",
@@ -48,7 +50,7 @@ export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: Pr
                 }
                 const supportCount = ctx.enabled ? supportCountOf(draft, slot.key, ctx) : 0;
                 return (
-                  <li key={slot.key}>
+                  <li key={slot.key} data-flip-key={slot.key}>
                     <button
                       type="button"
                       className={rowClass(slot.key)}
@@ -78,9 +80,14 @@ export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: Pr
                       }}
                       onClick={() => edit.onTapPerson(slot.key)}
                     >
-                      <span className="grip" aria-hidden="true">
-                        ⠿
-                      </span>
+                      <svg className="grip" viewBox="0 0 10 16" aria-hidden="true" focusable="false">
+                        <circle cx="3" cy="3" r="1.4" />
+                        <circle cx="7" cy="3" r="1.4" />
+                        <circle cx="3" cy="8" r="1.4" />
+                        <circle cx="7" cy="8" r="1.4" />
+                        <circle cx="3" cy="13" r="1.4" />
+                        <circle cx="7" cy="13" r="1.4" />
+                      </svg>
                       <PosLabel position={position} />
                       <span className="name" title={nameOf(slot.key)}>
                         {nameOf(slot.key)}
@@ -109,6 +116,46 @@ export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: Pr
       })}
     </div>
   );
+}
+
+/**
+ * 자리 바뀜 애니메이션(FLIP, 2026-11-08). 섞기·자리 바꾸기·끌어다 놓기 뒤 각 사람의 줄이 예전 자리에서 새 자리로
+ * 0.22초 미끄러져 "누가 어디로 갔는지" 보인다. data-flip-key로 줄을 찾고 Web Animations API만 쓴다(의존성 없음).
+ * 움직임 줄이기 설정이면 건너뛴다. 기능과 무관한 꾸밈이라 실패해도 조용히 넘어간다.
+ */
+function useSlideOnReorder(signature: string) {
+  const previous = useRef<Map<string, DOMRect>>(new Map());
+  const previousWidth = useRef<number>(0);
+  useLayoutEffect(() => {
+    const nodes = document.querySelectorAll<HTMLElement>(".teams [data-flip-key]");
+    const current = new Map<string, DOMRect>();
+    for (const node of nodes) current.set(node.dataset.flipKey!, node.getBoundingClientRect());
+    const width = document.querySelector<HTMLElement>(".teams")?.getBoundingClientRect().width ?? 0;
+    const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // 화면 폭이 바뀌었으면 이전 좌표가 낡은 것이라(다른 배치) 미끄러뜨리지 않는다.
+    const sameLayout = previousWidth.current === width;
+    previousWidth.current = width;
+    if (!reduce && sameLayout && previous.current.size > 0) {
+      for (const node of nodes) {
+        const before = previous.current.get(node.dataset.flipKey!);
+        const after = current.get(node.dataset.flipKey!);
+        if (!before || !after) continue;
+        const dx = before.left - after.left;
+        const dy = before.top - after.top;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+        if (Math.abs(dx) > 800 || Math.abs(dy) > 1200) continue;
+        try {
+          node.animate(
+            [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0, 0)" }],
+            { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+          );
+        } catch {
+          // 애니메이션을 지원하지 않는 환경이면 그냥 둔다.
+        }
+      }
+    }
+    previous.current = current;
+  }, [signature]);
 }
 
 /** 사람을 골랐을 때의 행동 줄(조건 걸기·고정·교체·취소). 고르지 않았으면 안내 한 줄. */

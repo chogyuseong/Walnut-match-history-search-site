@@ -54,7 +54,7 @@ import { MatchCard } from "../matchCard";
 import { MatchMemoSection } from "../memoField";
 import { MatchSeriesSection, SeriesListSection, useSeriesBadges } from "../seriesPanel";
 import { drawMatchImage, fileDate, ShareImageDialog } from "../shareImage";
-import { BackLink, Dialog, ErrorNote, FormDots, KpiStrip, MatchTeams, ScopePicker, StandingNote } from "../ui";
+import { BackLink, Dialog, ErrorNote, FormDots, Help, KpiStrip, MatchTeams, ScopePicker, StandingNote } from "../ui";
 import type { AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
@@ -558,7 +558,7 @@ export function Records(props: {
             <span>보이는 순위표 {records.length}명</span>
           </p>
         )}
-        <p className="hint">
+        <Help label="순서와 표시 규칙">
           순서: 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료(누적 {PLACEMENT_GAMES}경기 이상) → 배치 진행 중, 묶음 안에서는 {RANKING_SORT_LABEL[sort]}
           {sort === "rate" ? " → 경기 수 → 이름" : sort === "games" ? " → 승률 → 이름" : " → 승률 → 경기 수 → 이름"}.
           이름을 검색하면 일치하는 순으로 보여주고 순위 숫자는 바뀌지 않습니다. 승·패 칸은 최근 경기가
@@ -566,7 +566,7 @@ export function Records(props: {
           {line && noPosition > 0
             ? ` 포지션 기록이 없는 ${noPosition}경기는 라인별 순위에서 빠집니다.`
             : ""}
-        </p>
+        </Help>
       </section>
 
       <SeriesListSection

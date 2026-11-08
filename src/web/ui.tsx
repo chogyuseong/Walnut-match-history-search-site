@@ -490,6 +490,19 @@ export function useKeyboardFlag(): void {
  * 화면의 주요 행동 하나. 평소에는 하단에 고정하고(기기 하단 안전 영역만큼 띄움),
  * 키보드가 열리면 입력란을 가리지 않도록 본문 흐름 안에 둔다.
  */
+/**
+ * 접힌 도움말(2026-11-08 위계 정리). 긴 안내문은 여기에 넣고 화면에는 한 줄만 남긴다.
+ * 글은 DOM에 그대로 있어 검색·테스트가 찾을 수 있고, 펼치면 보통 안내문처럼 읽힌다.
+ */
+export function Help(props: { label?: string; children: ReactNode }) {
+  return (
+    <details className="help">
+      <summary>{props.label ?? "도움말"}</summary>
+      <div className="help-body">{props.children}</div>
+    </details>
+  );
+}
+
 export function StickyAction(props: { children: ReactNode }) {
   const keyboardOpen = useKeyboardOpen();
   return <div className={keyboardOpen ? "action-inline" : "action-sticky"}>{props.children}</div>;
