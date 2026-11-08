@@ -13,7 +13,7 @@ import {
 } from "../../shared/priorityReview";
 import { PLACEMENT_GAMES, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
-import { call } from "../api";
+import { patchParticipant } from "../api";
 import { POSITION_LABEL } from "../format";
 import { Dialog, ErrorNote, PosLabel } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
@@ -106,7 +106,6 @@ interface PanelProps {
 }
 
 function PriorityPanel({ app, snapshot, people, inDraft }: PanelProps) {
-  const gid = snapshot.group.id;
   // 누른 즉시 칸을 옮겨 보이고(저장 중), 저장이 끝나 다시 읽으면 지운다.
   const [pending, setPending] = useState<Record<string, Priority>>({});
   const [error, setError] = useState<unknown>(null);
@@ -119,7 +118,7 @@ function PriorityPanel({ app, snapshot, people, inDraft }: PanelProps) {
     setError(null);
     setPending((prev) => ({ ...prev, [id]: value }));
     try {
-      await call("PATCH", `/api/groups/${gid}/participants/${id}`, { skillGroup: value });
+      await patchParticipant(snapshot, id, { skillGroup: value });
       await app.refreshAfterOwnChange();
       app.setNotice(`${name}: ${priorityLabel(value)}`);
     } catch (e) {
@@ -225,9 +224,7 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
     let done = 0;
     try {
       for (const row of targets) {
-        await call("PATCH", `/api/groups/${snapshot.group.id}/participants/${row.participantId}`, {
-          skillGroup: row.suggested,
-        });
+        await patchParticipant(snapshot, row.participantId, { skillGroup: row.suggested });
         done += 1;
       }
       await app.refreshAfterOwnChange();
@@ -386,7 +383,6 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
 
 /** 기피 라인: 사람마다 다섯 라인 토글. 누르면 바로 저장. 다섯 개 모두는 고를 수 없다. */
 function AvoidPanel({ app, snapshot, people, inDraft }: PanelProps) {
-  const gid = snapshot.group.id;
   const [pending, setPending] = useState<Record<string, Position[]>>({});
   const [error, setError] = useState<unknown>(null);
   const listOf = (p: ParticipantView): Position[] => pending[p.id] ?? p.avoidPositions ?? [];
@@ -404,7 +400,7 @@ function AvoidPanel({ app, snapshot, people, inDraft }: PanelProps) {
     setError(null);
     setPending((prev) => ({ ...prev, [p.id]: next }));
     try {
-      await call("PATCH", `/api/groups/${gid}/participants/${p.id}`, { avoidPositions: next });
+      await patchParticipant(snapshot, p.id, { avoidPositions: next });
       await app.refreshAfterOwnChange();
       app.setNotice(
         next.length === 0

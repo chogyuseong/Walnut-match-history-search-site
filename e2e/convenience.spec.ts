@@ -35,9 +35,9 @@ async function setup(page: Page, name: string, rotation = false): Promise<Setup>
   await post(request, "/api/auth/fake-login", {
     subject: `e2e-conv-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`,
   });
-  const group = await post(request, "/api/groups", { name });
+  const group = await post(request, "/api/groups", { requestId: crypto.randomUUID(), name });
   const names = Array.from({ length: 12 }, (_, i) => `선수${String(i + 1).padStart(2, "0")}`);
-  const ensured = await post(request, `/api/groups/${group.id}/participants`, { names });
+  const ensured = await post(request, `/api/groups/${group.id}/participants`, { requestId: crypto.randomUUID(), names });
   if (!rotation) {
     const snapshot = await (await request.get(`/api/groups/${group.id}/snapshot`)).json();
     const res = await request.put(`/api/groups/${group.id}/settings`, {
@@ -195,7 +195,7 @@ test("3) 지난 내전 참가자 그대로: 같은 날 두 경기의 참가자 �
   await playApi(page.request, s, s.people.slice(2, 12), "B");
   // 선수12는 보관한다.
   const archived = await page.request.patch(`/api/groups/${s.groupId}/participants/${s.people[11]!.id}`, {
-    data: { status: "archived" },
+    data: { requestId: crypto.randomUUID(), status: "archived" },
   });
   expect(archived.ok()).toBe(true);
 

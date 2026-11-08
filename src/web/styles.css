@@ -3596,3 +3596,22 @@ select option:disabled {
   max-height: 40vh;
   overflow-y: auto;
 }
+/* 전적 검색: 최근 검색어 칩과 지우기 버튼(좁은 화면에서 줄바꿈) */
+.recent-searches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 8px 0;
+  min-width: 0;
+}
+.recent-searches .chips {
+  min-width: 0;
+}
+/* CSV 내려받기 줄: 버튼과 설명을 나란히, 좁으면 줄바꿈 */
+.csv-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}

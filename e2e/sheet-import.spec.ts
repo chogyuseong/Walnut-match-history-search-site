@@ -24,7 +24,7 @@ function playerSheet(count: number): string {
 async function setup(page: Page): Promise<string> {
   const user = `e2e-sheet-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
   await page.request.post("/api/auth/fake-login", { data: { subject: user } });
-  const group = await (await page.request.post("/api/groups", { data: { name: "시트 모임" } })).json();
+  const group = await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "시트 모임" } })).json();
   return group.id as string;
 }
 
@@ -115,7 +115,7 @@ test("시트 주소로 읽어 열을 맞추고 가져온 뒤, 다시 가져오�
 test("붙여 넣은 표의 열 순서가 다르면 열 맞추기로 넘어가 틀린 줄을 빼고, 비슷한 이름을 기존 참가자와 잇는다", async ({ page }) => {
   const groupId = await setup(page);
   // 기존 참가자: 띄어쓰기만 다른 '다 온'
-  await page.request.post(`/api/groups/${groupId}/participants`, { data: { names: ["다 온"] } });
+  await page.request.post(`/api/groups/${groupId}/participants`, { data: { requestId: crypto.randomUUID(), names: ["다 온"] } });
 
   const A = ["가람", "나래", "다온", "라온", "마루"];
   const B = ["바다", "사랑", "아라", "자람", "차오"];

@@ -5,7 +5,7 @@ import { ApiError, CONTENT_SECURITY_POLICY, PERMISSIONS_POLICY, pathForLog, read
 import app from "../src/server/index";
 import { rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
-import { api, setupGroup, unique } from "./helpers";
+import { api, requestId, setupGroup, unique } from "./helpers";
 
 // 검토 L5(CSRF: Origin·Content-Type), L6(본문 크기), L7(비싼 GET 요청 수), L8(로그의 토큰).
 
@@ -35,7 +35,7 @@ describe("다른 사이트의 쓰기 요청(검토 L5)", () => {
   it("Origin이 다르면 거절하고, 같거나 없으면 받는다", async () => {
     const g = await setupGroup(0);
     const json = { "Content-Type": "application/json", Cookie: g.cookie };
-    const body = JSON.stringify({ name: "바뀐 이름" });
+    const body = JSON.stringify({ name: "바뀐 이름", requestId: requestId() });
     for (const origin of ["https://evil.example", "http://example.test", "https://example.test.evil.net", "null"]) {
       const res = await raw("PATCH", `/api/groups/${g.gid}`, { headers: { ...json, Origin: origin }, body });
       expect(res.status, origin).toBe(403);
@@ -44,7 +44,7 @@ describe("다른 사이트의 쓰기 요청(검토 L5)", () => {
     expect((await api(g.cookie, "GET", `/api/groups/${g.gid}/snapshot`)).body.group.name).not.toBe("바뀐 이름");
     const same = await raw("PATCH", `/api/groups/${g.gid}`, { headers: { ...json, Origin: "https://example.test" }, body });
     expect(same.status).toBe(200);
-    const none = await raw("PATCH", `/api/groups/${g.gid}`, { headers: json, body: JSON.stringify({ name: "또 바꿈" }) });
+    const none = await raw("PATCH", `/api/groups/${g.gid}`, { headers: json, body: JSON.stringify({ name: "또 바꿈", requestId: requestId() }) });
     expect(none.status).toBe(200);
     // 읽기(GET)는 Origin을 보지 않는다.
     const read = await raw("GET", `/api/groups/${g.gid}/snapshot`, { headers: { Cookie: g.cookie, Origin: "https://evil.example" } });
@@ -72,7 +72,7 @@ describe("다른 사이트의 쓰기 요청(검토 L5)", () => {
     }
     const ok = await raw("PATCH", `/api/groups/${g.gid}`, {
       headers: { Cookie: g.cookie, "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ name: "바꿈" }),
+      body: JSON.stringify({ name: "바꿈", requestId: requestId() }),
     });
     expect(ok.status).toBe(200);
   });

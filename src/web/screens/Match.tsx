@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { avoidMapFor } from "../../shared/avoid";
 import { draftFromMatch } from "../../shared/draft";
-import { nameKey } from "../../shared/names";
+import { matchesName } from "../../shared/search";
 import type { MatchView } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
 import { formatTime, matchRosterText, nameMap, POSITION_LABEL, teamName, viewLink } from "../format";
@@ -313,10 +313,10 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
   const request = useRef<{ id: string; key: string } | null>(null);
   const seat = props.match.roster.find((r) => r.participantId === props.outId);
   const inRoster = new Set(props.match.roster.map((r) => r.participantId));
-  const q = nameKey(query);
+  // 공백·대소문자를 무시하고 초성("ㄱㅅ")으로도 찾는다(전적 검색과 같은 규칙).
   const candidates = snapshot.participants
     .filter((p) => p.status === "active" && !p.mergedInto && !inRoster.has(p.id))
-    .filter((p) => q === "" || nameKey(p.name).includes(q))
+    .filter((p) => matchesName(p.name, query))
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
   async function replace(inId: string, ackRepeat: boolean) {
@@ -387,7 +387,7 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
           </label>
           {candidates.length === 0 ? (
             <p className="hint">
-              {q === "" ? "바꿀 수 있는 다른 참가자가 없어요. 모임 탭에서 참가자를 먼저 넣어 주세요." : "일치하는 이름이 없어요."}
+              {query.trim() === "" ? "바꿀 수 있는 다른 참가자가 없어요. 모임 탭에서 참가자를 먼저 넣어 주세요." : "일치하는 이름이 없어요."}
             </p>
           ) : (
             <ul className="list" aria-label="들어갈 사람">

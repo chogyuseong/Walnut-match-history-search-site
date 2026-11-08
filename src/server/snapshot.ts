@@ -274,6 +274,18 @@ export async function buildSnapshot(
   groupId: string,
   role: "operator" | "viewer",
 ): Promise<Snapshot> {
+  return parseSnapshot(role, await env.DB.batch(snapshotStatements(env, groupId, role)));
+}
+
+/**
+ * 스냅숏을 만드는 읽기 문장들(이 순서대로 parseSnapshot이 읽는다). 백업 내려받기(groups.ts exportBackup)는
+ * 여기에 자기 읽기를 이어 붙여 batch 한 번(같은 시점)으로 읽는다.
+ */
+export function snapshotStatements(
+  env: Env,
+  groupId: string,
+  role: "operator" | "viewer",
+): D1PreparedStatement[] {
   const includePrivate = role === "operator";
   const db = env.DB;
   // 열린 내전의 활성 순환 주기(없으면 NULL). 열린 내전은 모임당 하나다(uq_sessions_open).
@@ -356,7 +368,14 @@ export async function buildSnapshot(
         ...memberRequestStatements(env, groupId),
       ]
     : [];
-  const results = await db.batch([...common, ...operatorOnly]);
+  return [...common, ...operatorOnly];
+}
+
+/**
+ * snapshotStatements의 batch 결과로 스냅숏을 만든다. results 뒤에 다른 결과가 더 붙어 있어도 된다(앞에서부터 읽는다).
+ */
+export function parseSnapshot(role: "operator" | "viewer", results: D1Result[]): Snapshot {
+  const includePrivate = role === "operator";
   let i = 0;
   const next = () => results[i++];
 

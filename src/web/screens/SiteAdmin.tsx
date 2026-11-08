@@ -24,6 +24,8 @@ interface Overview {
     }[];
   };
   rateLimited: { bucket: string; last7: number; last30: number }[];
+  /** 자동 백업(src/server/backupCron.ts). 예전 서버 응답에는 없을 수 있다. */
+  backup?: { enabled: boolean; lastBackupAt: string | null; backedUpToday: number; pendingToday: number };
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -133,6 +135,30 @@ export function SiteAdmin() {
               </table>
             </div>
           </section>
+
+          {data.backup && (
+            <section aria-label="자동 백업">
+              <h2>자동 백업</h2>
+              {data.backup.enabled ? (
+                <>
+                  <p className="kpi">
+                    <span>
+                      오늘 끝남<strong>{data.backup.backedUpToday}</strong>
+                    </span>
+                    <span>
+                      오늘 남음<strong>{data.backup.pendingToday}</strong>
+                    </span>
+                  </p>
+                  <p className="hint">
+                    마지막 백업: {data.backup.lastBackupAt ? when(data.backup.lastBackupAt) : "아직 없어요"}. 매일 새벽(한국 03:00~05:55)에
+                    모임마다 하나씩 백업해요. 오늘 남은 모임은 다음 실행이 이어서 해요.
+                  </p>
+                </>
+              ) : (
+                <p className="hint">자동 백업이 꺼져 있어요(백업 저장소가 연결되지 않음). 모임 백업은 운영자가 직접 내려받아야 해요.</p>
+              )}
+            </section>
+          )}
 
           <section aria-label="요청 수 제한">
             <h2>요청 수 제한에 걸린 횟수</h2>

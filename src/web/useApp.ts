@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { parseStoredDraft, type Draft, type DraftPerson } from "../shared/draft";
 import { remapDraft, remapPeople } from "../shared/merge";
 import type { Snapshot } from "../shared/types";
-import { ApiFailure, call } from "./api";
+import { ApiFailure, call, mutate, newRequestId } from "./api";
 
 const DRAFT_KEY = "naejeon.draft.v1";
 const GROUP_KEY = "naejeon.group";
@@ -336,7 +336,8 @@ export function useApp(enabled: boolean): AppValue {
 
   const ensureGroup = useCallback(async () => {
     if (groupRef.current) return groupRef.current;
-    const created = await call<{ id: string; name: string }>("POST", "/api/groups", {});
+    // 요청 ID: 응답을 못 받아 mutate가 다시 보내도 서버가 같은 모임을 돌려준다(모임이 두 개 생기지 않는다).
+    const created = await mutate<{ id: string; name: string }>("/api/groups", { requestId: newRequestId() });
     setMe((m) => (m ? { ...m, groups: [...m.groups, created] } : m));
     await selectGroup(created.id);
     return created.id;
@@ -359,11 +360,10 @@ export function useApp(enabled: boolean): AppValue {
 
   const createGroup = useCallback(
     async (name?: string) => {
-      const created = await call<{ id: string; name: string }>(
-        "POST",
-        "/api/groups",
-        name && name.trim() !== "" ? { name } : {},
-      );
+      const created = await mutate<{ id: string; name: string }>("/api/groups", {
+        requestId: newRequestId(),
+        ...(name && name.trim() !== "" ? { name } : {}),
+      });
       setMe((m) => (m ? { ...m, groups: [...m.groups, { ...created, role: "owner" as const }] } : m));
       await switchGroup(created.id);
       return created.id;

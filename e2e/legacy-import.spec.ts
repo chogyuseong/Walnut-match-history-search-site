@@ -65,7 +65,7 @@ function acrossCsv(count: number): string {
 async function setup(page: Page): Promise<void> {
   const user = `e2e-legacy-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
   await page.request.post("/api/auth/fake-login", { data: { subject: user } });
-  await page.request.post("/api/groups", { data: { name: "기존 사이트 모임" } });
+  await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "기존 사이트 모임" } });
   await page.request.post("/api/test/legacy-fixture", { data: { url: SCRIPT_URL, json: v1Response() } });
 }
 

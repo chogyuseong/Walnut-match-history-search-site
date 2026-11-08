@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { ParticipantView, Settings } from "../../shared/types";
-import { ApiFailure, call, mutate, newRequestId } from "../api";
+import { ApiFailure, call, mutate, newRequestId, patchParticipant } from "../api";
 import { resolveMerged } from "../../shared/merge";
 import { nameKey } from "../../shared/names";
 import { formatDate, formatTime, nameMap, viewLink } from "../format";
@@ -89,8 +89,13 @@ export function Group() {
       done,
     );
 
-  const patchParticipant = (id: string, body: Record<string, unknown>, done: string) =>
-    run(() => call("PATCH", `/api/groups/${gid}/participants/${id}`, body), done);
+  /**
+   * 참가자 수정. 요청 ID(재시도에 같은 값)와 화면이 본 버전(baseVersion)을 보낸다. 다른 기기에서 먼저 고쳤으면
+   * 서버가 409 VERSION_CONFLICT로 거절하고, run이 오류 안내("그 사이 내용이 바뀌었어요 … 입력은 그대로")를 띄우고
+   * 스냅숏을 새로 읽는다. 대화 상자는 성공했을 때만 닫으므로 입력한 이름은 그대로 남는다.
+   */
+  const patchOne = (id: string, body: Record<string, unknown>, done: string) =>
+    run(() => patchParticipant(snapshot, id, body), done);
 
   const people = snapshot.participants
     .filter((p) => (showArchived ? true : p.status === "active"))
@@ -176,7 +181,7 @@ export function Group() {
                     value={p.skillGroup ?? ""}
                     disabled={busy}
                     onChange={(e) =>
-                      void patchParticipant(
+                      void patchOne(
                         p.id,
                         { skillGroup: e.target.value === "" ? null : Number(e.target.value) },
                         `${p.name}의 티어를 바꿨어요.`,
@@ -546,7 +551,7 @@ export function Group() {
                     disabled={busy}
                     onClick={() =>
                       void run(
-                        () => call("DELETE", `/api/groups/${gid}/seasons/${s.id}`),
+                        () => mutate(`/api/groups/${gid}/seasons/${s.id}`, { requestId: newRequestId() }, "DELETE"),
                         `'${s.name}' 시즌을 지웠어요. 경기 기록은 그대로입니다.`,
                       )
                     }
@@ -561,10 +566,11 @@ export function Group() {
             className="season-form"
             onSubmit={(event) => {
               event.preventDefault();
+              // 요청 ID는 제출할 때 한 번 만들고 mutate의 재시도는 같은 값을 쓴다. 실패하면 입력을 남긴다.
               void run(
-                () => call("POST", `/api/groups/${gid}/seasons`, seasonForm),
+                () => mutate(`/api/groups/${gid}/seasons`, { requestId: newRequestId(), ...seasonForm }),
                 "시즌을 만들었어요.",
-              ).then(() => setSeasonForm({ name: "", startsOn: "", endsOn: "" }));
+              ).then((ok) => ok && setSeasonForm({ name: "", startsOn: "", endsOn: "" }));
             }}
           >
             <label>
@@ -618,9 +624,10 @@ export function Group() {
             onSubmit={(event) => {
               event.preventDefault();
               if (name === null || name.trim() === "") return;
-              void run(() => call("PATCH", `/api/groups/${gid}`, { name }), "모임 이름을 바꿨어요.").then(
-                () => setName(null),
-              );
+              void run(
+                () => mutate(`/api/groups/${gid}`, { requestId: newRequestId(), name }, "PATCH"),
+                "모임 이름을 바꿨어요.",
+              ).then((ok) => ok && setName(null));
             }}
           >
             <input
@@ -815,7 +822,7 @@ export function Group() {
               disabled={busy}
               onClick={() =>
                 void run(
-                  () => call("POST", `/api/groups/${gid}/view-token`),
+                  () => mutate(`/api/groups/${gid}/view-token`, { requestId: newRequestId() }),
                   "새 링크를 만들었어요.",
                 ).then(() => setConfirmToken(false))
               }
@@ -834,8 +841,9 @@ export function Group() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void patchParticipant(editing.id, { name: editName }, "이름을 바꿨어요.").then(() =>
-                setEditing(null),
+              // 실패(다른 기기에서 먼저 고침 등)하면 대화 상자와 입력한 이름을 그대로 둔다.
+              void patchOne(editing.id, { name: editName }, "이름을 바꿨어요.").then((ok) =>
+                ok && setEditing(null),
               );
             }}
           >
@@ -854,13 +862,13 @@ export function Group() {
                 className="secondary"
                 disabled={busy}
                 onClick={() =>
-                  void patchParticipant(
+                  void patchOne(
                     editing.id,
                     { status: editing.status === "active" ? "archived" : "active" },
                     editing.status === "active"
                       ? "보관했어요. 기록은 그대로 남습니다."
                       : "다시 활성으로 바꿨어요.",
-                  ).then(() => setEditing(null))
+                  ).then((ok) => ok && setEditing(null))
                 }
               >
                 {editing.status === "active" ? "보관 (선택 목록에서 숨김)" : "보관 해제"}
@@ -954,7 +962,8 @@ export function Group() {
               onClick={() => {
                 const person = unlinkFor;
                 void run(
-                  () => call("DELETE", `/api/groups/${gid}/participants/${person.id}/link`),
+                  () =>
+                    mutate(`/api/groups/${gid}/participants/${person.id}/link`, { requestId: newRequestId() }, "DELETE"),
                   "연결을 끊었어요.",
                 ).then((ok) => ok && setUnlinkFor(null));
               }}
@@ -1054,7 +1063,8 @@ export function Group() {
                 const target = resolving;
                 void run(
                   () =>
-                    call("POST", `/api/groups/${gid}/member-requests/${target.request.id}/resolve`, {
+                    mutate(`/api/groups/${gid}/member-requests/${target.request.id}/resolve`, {
+                      requestId: newRequestId(),
                       status: target.status,
                       ...(reply.trim() !== "" ? { reply } : {}),
                     }),

@@ -32,9 +32,9 @@ async function setup(page: Page, name: string): Promise<Setup> {
   await post(request, "/api/auth/fake-login", {
     subject: `e2e-msr-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`,
   });
-  const group = await post(request, "/api/groups", { name });
+  const group = await post(request, "/api/groups", { requestId: crypto.randomUUID(), name });
   const names = Array.from({ length: 12 }, (_, i) => `선수${String(i + 1).padStart(2, "0")}`);
-  const ensured = await post(request, `/api/groups/${group.id}/participants`, { names });
+  const ensured = await post(request, `/api/groups/${group.id}/participants`, { requestId: crypto.randomUUID(), names });
   const snapshot = await (await request.get(`/api/groups/${group.id}/snapshot`)).json();
   const res = await request.put(`/api/groups/${group.id}/settings`, {
     data: {
@@ -217,6 +217,7 @@ test("시즌 요약과 시상이 근거 숫자와 함께 열리고, 조회 링�
     return d.toISOString().slice(0, 10);
   };
   const season = await post(page.request, `/api/groups/${s.groupId}/seasons`, {
+    requestId: crypto.randomUUID(),
     name: "가을 시즌",
     startsOn: shift(-10),
     endsOn: shift(10),

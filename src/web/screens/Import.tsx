@@ -120,11 +120,10 @@ export function Import() {
         const idOf = new Map<string, string>();
         for (let i = 0; i < usedNames.length; i += NAME_CHUNK) {
           const names = usedNames.slice(i, i + NAME_CHUNK);
-          const ensured = await call<{ participants: { id: string }[] }>(
-            "POST",
-            `/api/groups/${gid}/participants`,
-            { names },
-          );
+          const ensured = await mutate<{ participants: { id: string }[] }>(`/api/groups/${gid}/participants`, {
+            requestId: newRequestId(),
+            names,
+          });
           names.forEach((name, k) => idOf.set(nameKey(name), ensured.participants[k]!.id));
         }
         const matches = toImportMatches(fresh, (name) => idOf.get(nameKey(name))!, sideMode, timeZone);

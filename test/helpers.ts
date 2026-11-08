@@ -17,7 +17,44 @@ export function requestId(): string {
   return unique("req");
 }
 
+/**
+ * 2026-11-08에 requestId가 필수가 된 운영자 쓰기 경로(docs/개선-서버-2026-11-08.md). 웹은 모두 보낸다.
+ * 테스트 대부분은 이 경로를 준비 단계로만 부르므로 api()가 빠진 requestId를 새로 채운다(본문이 없으면 { requestId }).
+ * 요청 ID 자체를 확인하는 테스트(재전송·없을 때 400)는 직접 넣거나 apiRaw를 쓴다.
+ */
+const REQUEST_ID_REQUIRED: [string, RegExp][] = [
+  ["POST", /^\/api\/groups$/],
+  ["PATCH", /^\/api\/groups\/[^/]+$/],
+  ["POST", /^\/api\/groups\/[^/]+\/participants$/],
+  ["PATCH", /^\/api\/groups\/[^/]+\/participants\/[^/]+$/],
+  ["DELETE", /^\/api\/groups\/[^/]+\/participants\/[^/]+\/link$/],
+  ["POST", /^\/api\/groups\/[^/]+\/seasons$/],
+  ["DELETE", /^\/api\/groups\/[^/]+\/seasons\/[^/]+$/],
+  ["POST", /^\/api\/groups\/[^/]+\/view-token$/],
+  ["POST", /^\/api\/groups\/[^/]+\/member-requests\/[^/]+\/resolve$/],
+];
+
+function withRequestId(method: string, path: string, body: unknown): unknown {
+  const bare = path.split("?")[0]!;
+  if (!REQUEST_ID_REQUIRED.some(([m, re]) => m === method && re.test(bare))) return body;
+  if (body === undefined) return { requestId: requestId() };
+  if (typeof body === "object" && body !== null && !Array.isArray(body) && !("requestId" in body)) {
+    return { ...body, requestId: requestId() };
+  }
+  return body;
+}
+
 export async function api<T = any>(
+  cookie: string | null,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<ApiResult<T>> {
+  return apiRaw<T>(cookie, method, path, withRequestId(method, path, body));
+}
+
+/** 본문을 그대로 보낸다(requestId를 채우지 않는다). */
+export async function apiRaw<T = any>(
   cookie: string | null,
   method: string,
   path: string,

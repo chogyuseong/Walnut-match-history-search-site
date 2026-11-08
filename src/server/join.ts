@@ -374,8 +374,16 @@ export async function joinInfoConditional(
   token: string,
   accountId: string | null,
   ifNoneMatch: string | null,
+  /** 요청 수 제한 세기(index.ts). 304로 답할 때는 부르지 않는다(D1 쓰기를 아낌). 없는 링크(404)·본문을 만드는 200만 센다. */
+  count: () => Promise<void> = async () => {},
 ): Promise<{ etag: string; notModified: true } | { etag: string; notModified: false; view: JoinPublicView }> {
-  const link = await findLink(env, token);
+  let link: LinkRow;
+  try {
+    link = await findLink(env, token);
+  } catch (error) {
+    await count();
+    throw error;
+  }
   const parts = [
     "j1",
     env.CF_VERSION_METADATA?.id ?? "",
@@ -389,6 +397,7 @@ export async function joinInfoConditional(
   ];
   const etag = `W/"${(await sha256Hex(JSON.stringify(parts))).slice(0, 24)}"`;
   if (etagMatches(ifNoneMatch, etag)) return { etag, notModified: true };
+  await count();
   return { etag, notModified: false, view: await publicView(env, link, accountId) };
 }
 

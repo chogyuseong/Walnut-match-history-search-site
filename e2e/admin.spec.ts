@@ -16,7 +16,7 @@ async function apiLogin(page: Page, prefix: string): Promise<void> {
 }
 
 async function createGroup(page: Page, name: string): Promise<string> {
-  const group = await (await page.request.post("/api/groups", { data: { name } })).json();
+  const group = await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name } })).json();
   return group.id as string;
 }
 
@@ -169,7 +169,7 @@ test("경기 시각만 고치면 승패는 그대로이고 이력이 남는다",
   const groupId = await createGroup(page, "시각 정정 모임");
   const ensured = await (
     await page.request.post(`/api/groups/${groupId}/participants`, {
-      data: { names: Array.from({ length: 10 }, (_, i) => `시각선수${i + 1}`) },
+      data: { requestId: crypto.randomUUID(), names: Array.from({ length: 10 }, (_, i) => `시각선수${i + 1}`) },
     })
   ).json();
   const started = await (

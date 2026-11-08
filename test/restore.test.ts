@@ -238,7 +238,7 @@ describe("복원 중·복원 뒤의 다른 탭(시나리오 38)", () => {
     // 화면은 마지막으로 받은 세대를 X-Group-Generation으로 보낸다.
     const withHeader = await direct({}, "PATCH", `/api/groups/${g.gid}`, {
       cookie: g.cookie,
-      body: { name: "오래된 탭" },
+      body: { name: "오래된 탭", requestId: requestId() },
       headers: { "X-Group-Generation": String(oldTab.group.generation) },
     });
     expect(withHeader.status).toBe(409);
@@ -258,7 +258,7 @@ describe("복원 중·복원 뒤의 다른 탭(시나리오 38)", () => {
     const fresh = await snapshot(g);
     const ok = await direct({}, "PATCH", `/api/groups/${g.gid}`, {
       cookie: g.cookie,
-      body: { name: "새 탭" },
+      body: { name: "새 탭", requestId: requestId() },
       headers: { "X-Group-Generation": String(fresh.group.generation) },
     });
     expect(ok.status).toBe(200);

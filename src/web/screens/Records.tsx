@@ -48,6 +48,7 @@ import {
   teamName,
   teamRoster,
 } from "../format";
+import { csvFileName, downloadText, matchesCsv, rankingCsv } from "../csvExport";
 import { MatchCard } from "../matchCard";
 import { MatchMemoSection } from "../memoField";
 import { MatchSeriesSection, SeriesListSection, useSeriesBadges } from "../seriesPanel";
@@ -398,6 +399,20 @@ export function Records(props: {
             더 보기
           </button>
         )}
+        {filtered.length > 0 && (
+          <p className="hint csv-row">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                downloadText(csvFileName("내전기록", snapshot), matchesCsv(snapshot, filtered))
+              }
+            >
+              CSV 내려받기
+            </button>
+            <span>지금 범위·조건의 {filtered.length}경기 (더 보기로 열지 않은 경기 포함)</span>
+          </p>
+        )}
       </section>
 
       <section aria-label="소환사 랭킹">
@@ -509,6 +524,20 @@ export function Records(props: {
               );
             })}
           </ul>
+        )}
+        {records.length > 0 && (
+          <p className="hint csv-row">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                downloadText(csvFileName("내전랭킹", snapshot), rankingCsv(records, placement))
+              }
+            >
+              CSV 내려받기
+            </button>
+            <span>보이는 순위표 {records.length}명</span>
+          </p>
         )}
         <p className="hint">
           순서: 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료(누적 {PLACEMENT_GAMES}경기 이상) → 배치 진행 중, 묶음 안에서는 {RANKING_SORT_LABEL[sort]}

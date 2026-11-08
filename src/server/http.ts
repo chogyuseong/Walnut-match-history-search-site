@@ -75,8 +75,9 @@ export async function readJsonBody(
 }
 
 /**
- * 본문이 없어도 되는 경로(예전 화면은 본문 없이, 새 화면은 { requestId }를 보낸다).
+ * 본문이 없을 수 있는 DELETE·POST 경로(시즌 지우기·조회 링크 다시 만들기·연결 끊기).
  * Content-Type이 없고 본문 길이가 0이거나 없으면 빈 객체, 그 밖에는 readJsonBody와 같다.
+ * 2026-11-08부터 이 경로들도 { requestId }가 필수라, 본문 없는 예전 요청은 415가 아니라 400(requestId)으로 답한다.
  */
 export async function readOptionalJsonBody(req: Request, maxBytes = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
   const type = req.headers.get("Content-Type");

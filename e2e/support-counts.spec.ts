@@ -15,8 +15,8 @@ async function openPrep(page: Page) {
     data: { subject: `e2e-counts-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
   });
   expect(login.ok()).toBe(true);
-  const group = (await (await page.request.post("/api/groups", { data: { name: "횟수 모임" } })).json()) as { id: string };
-  expect((await page.request.post(`/api/groups/${group.id}/participants`, { data: { names } })).ok()).toBe(true);
+  const group = (await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "횟수 모임" } })).json()) as { id: string };
+  expect((await page.request.post(`/api/groups/${group.id}/participants`, { data: { requestId: crypto.randomUUID(), names } })).ok()).toBe(true);
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });
   for (const name of names.slice(0, 10)) await all.getByRole("button", { name: new RegExp(name) }).click();

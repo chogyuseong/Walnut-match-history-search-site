@@ -104,7 +104,7 @@ test.describe("처음 온 방문자 (390px)", () => {
     await expect(intro(page)).toHaveCount(0);
 
     // 로그아웃해도 이 기기에 기억한 모임이 있으면 소개를 다시 보여주지 않는다.
-    await page.request.post("/api/groups", { data: {} });
+    await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID() } });
     await page.reload();
     await expect(page.getByRole("banner").getByRole("button", { name: "로그인됨" })).toBeVisible();
     await page.request.post("/api/auth/logout");

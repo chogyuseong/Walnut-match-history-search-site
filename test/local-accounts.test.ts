@@ -393,7 +393,7 @@ describe("탈퇴·백업·끄기", () => {
 
   it("백업 파일에는 아이디·비밀번호 해시·복구 코드가 들어가지 않는다", async () => {
     const s = await signup();
-    const group = await call("POST", "/api/groups", {}, { cookie: s.cookie });
+    const group = await call("POST", "/api/groups", { requestId: unique("req") }, { cookie: s.cookie });
     const backup = await direct({}, "GET", `/api/groups/${group.body.id}/export`, { cookie: s.cookie });
     expect(backup.status).toBe(200);
     const text = await backup.text();

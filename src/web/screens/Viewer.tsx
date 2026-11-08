@@ -16,7 +16,7 @@ import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./Se
 
 /**
  * 화면 7 — 조회 화면(링크). 로그인이 없고 읽기만 한다.
- * 주소: #/v/토큰/now(현재 경기) · #/v/토큰/m/경기번호 · #/v/토큰/records · #/v/토큰/search
+ * 주소: #/v/토큰/now(현재 경기) · #/v/토큰/m/경기번호 · #/v/토큰/records · #/v/토큰/search(?q=질의, App이 떼어 낸다)
  *       · #/v/토큰/home(모임 요약) · #/v/토큰/compare/A/B(두 사람 비교)
  * 첫 화면(now)은 경기 중 자기 자리를 확인하는 화면이라 그대로 두고, 요약은 메뉴의 "요약"으로 연다.
  * 시작한 경기가 하나도 없으면 첫 화면에 요약을 함께 보여준다.
@@ -256,6 +256,7 @@ export function viewerPage(
           snapshot={snapshot}
           openPerson={(id) => go(`${base}/p/${id}`)}
           openCompare={(a, b) => go(`${base}/compare/${a}/${b}`)}
+          openMatch={(id) => go(`${base}/d/${id}`)}
         />
       ),
     };

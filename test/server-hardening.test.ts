@@ -4,7 +4,7 @@ import { backupKey, kstDay, runBackups } from "../src/server/backupCron";
 import type { Env } from "../src/server/env";
 import { groupLimitGuard, MAX_GROUPS_PER_ACCOUNT } from "../src/server/groups";
 import worker from "../src/server/index";
-import { api, login, playConfirmed, requestId, rosterOf, setupGroup, snapshot, unique } from "./helpers";
+import { api, apiRaw, login, playConfirmed, requestId, rosterOf, setupGroup, snapshot, unique } from "./helpers";
 
 // 2026-11-07 서버 개선(docs/개선-서버-2026-11-07.md): 조건부 요청(ETag·304), 쓰기 경로 통일·동시 수정 보호,
 // 모임 수 한도 경쟁, 자동 백업(예정 작업 + R2).
@@ -205,13 +205,17 @@ describe("쓰기 경로 통일(runMutation)", () => {
     const t1 = await api(cookie, "POST", `/api/groups/${gid}/view-token`, { requestId: tokenId });
     const t2 = await api(cookie, "POST", `/api/groups/${gid}/view-token`, { requestId: tokenId });
     expect(t2.body.viewToken).toBe(t1.body.viewToken);
-    // 본문 없이 보내는 예전 화면도 그대로 된다(매번 새 토큰).
-    const t3 = await api(cookie, "POST", `/api/groups/${gid}/view-token`);
+    // 새 요청 ID면 새 토큰.
+    const t3 = await api(cookie, "POST", `/api/groups/${gid}/view-token`, { requestId: requestId() });
     expect(t3.status).toBe(200);
     expect(t3.body.viewToken).not.toBe(t1.body.viewToken);
-    // 시즌 지우기: 본문 없이도, 요청 ID와 함께도.
-    expect((await api(cookie, "DELETE", `/api/groups/${gid}/seasons/${s1.body.id}`)).status).toBe(200);
-    expect((await api(cookie, "DELETE", `/api/groups/${gid}/seasons/${s1.body.id}`, { requestId: requestId() })).status).toBe(200);
+    // 2026-11-08부터 요청 ID는 필수: 본문 없는 예전 요청은 400(test/server-followup.test.ts에서 경로마다 확인).
+    expect((await apiRaw(cookie, "POST", `/api/groups/${gid}/view-token`)).status).toBe(400);
+    // 시즌 지우기: 같은 요청 ID로 다시 보내도 같은 결과.
+    const delId = requestId();
+    expect((await api(cookie, "DELETE", `/api/groups/${gid}/seasons/${s1.body.id}`, { requestId: delId })).status).toBe(200);
+    expect((await api(cookie, "DELETE", `/api/groups/${gid}/seasons/${s1.body.id}`, { requestId: delId })).status).toBe(200);
+    expect((await apiRaw(cookie, "DELETE", `/api/groups/${gid}/seasons/${s1.body.id}`)).status).toBe(400);
   });
 
   it("모임 수 한도: 동시에 여러 개를 만들어도 한도를 넘지 않는다", async () => {

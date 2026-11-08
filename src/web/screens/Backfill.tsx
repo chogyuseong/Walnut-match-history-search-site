@@ -10,7 +10,7 @@ import {
 import { cleanName, MAX_NAME_LENGTH, nameKey } from "../../shared/names";
 import { localDate, safeTimeZone } from "../../shared/stats";
 import { POSITIONS, TEAMS, type MatchView, type Position, type Team } from "../../shared/types";
-import { call, mutate, newRequestId } from "../api";
+import { mutate, newRequestId } from "../api";
 import { formatDate, formatTime, POSITION_LABEL, TEAM_MARK, winnerText } from "../format";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
@@ -100,11 +100,10 @@ export function Backfill() {
     try {
       const names = backfillNames(form);
       // 목록에 있는 이름은 그 참가자, 없는 이름은 새 참가자가 된다(같은 이름이면 같은 참가자).
-      const ensured = await call<{ participants: { id: string }[] }>(
-        "POST",
-        `/api/groups/${gid}/participants`,
-        { names },
-      );
+      const ensured = await mutate<{ participants: { id: string }[] }>(`/api/groups/${gid}/participants`, {
+        requestId: newRequestId(),
+        names,
+      });
       const idOf = new Map(names.map((n, i) => [nameKey(n), ensured.participants[i]!.id]));
       const body = backfillRequest(form, tz, (n) => idOf.get(nameKey(n))!);
       const key = JSON.stringify(body);

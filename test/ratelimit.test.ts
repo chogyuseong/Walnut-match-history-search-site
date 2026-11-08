@@ -67,7 +67,7 @@ describe("요청 수 제한", () => {
     const rename = (name: string) =>
       direct(LIMITS, "PATCH", `/api/groups/${g.gid}`, {
         cookie: g.cookie,
-        body: { name },
+        body: { name, requestId: unique("req") },
         headers: { "CF-Connecting-IP": unique("ip") },
       });
     expect((await rename("이름1")).status).toBe(200);

@@ -24,6 +24,7 @@ import { pairRecord } from "../../shared/headToHead";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { nameMap, rateTier, standingsOf } from "../format";
+import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
 import { MatchCard } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import {
@@ -575,6 +576,26 @@ export function Person(props: {
             나머지 {detail.matches.length - listed.length}경기 중{" "}
             {Math.min(PAGE, detail.matches.length - listed.length)}경기 더 보기
           </button>
+        )}
+        {/* 경기 카드 버튼보다 뒤에 둔다(목록의 첫 버튼은 늘 경기 카드). */}
+        {detail.matches.length > 0 && (
+          <p className="hint csv-row">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                downloadText(
+                  csvFileName("내전기록", snapshot, [person.name]),
+                  personMatchesCsv(snapshot, participantId, detail.matches),
+                )
+              }
+            >
+              CSV 내려받기
+            </button>
+            <span>
+              {scopeLabel} 참여 경기 {detail.matches.length}경기
+            </span>
+          </p>
         )}
       </section>
     </div>

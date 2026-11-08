@@ -88,8 +88,8 @@ test.describe("상단 바 로그인 (390px)", () => {
   test("모임이 없는 계정: 백업 파일을 고르면 빈 모임을 만들지 않고 바로 새 모임으로 가져온다", async ({ page }) => {
     // 다른 계정의 모임 백업을 받아 둔다.
     await page.request.post("/api/auth/fake-login", { data: { subject: uniqueUser("e2e-entry-src") } });
-    const source = await (await page.request.post("/api/groups", { data: { name: "백업 원본 모임" } })).json();
-    await page.request.post(`/api/groups/${source.id}/participants`, { data: { names: ["가람", "나래", "다솜"] } });
+    const source = await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "백업 원본 모임" } })).json();
+    await page.request.post(`/api/groups/${source.id}/participants`, { data: { requestId: crypto.randomUUID(), names: ["가람", "나래", "다솜"] } });
     const backup = await (await page.request.get(`/api/groups/${source.id}/export`)).text();
     await page.request.post("/api/auth/logout");
 
@@ -113,7 +113,7 @@ test.describe("상단 바 로그인 (390px)", () => {
     // 모임이 있는 계정을 만들고 로그아웃해 둔다.
     const user = uniqueUser("e2e-entry-owner");
     await page.request.post("/api/auth/fake-login", { data: { subject: user } });
-    expect((await page.request.post("/api/groups", { data: { name: "입구 모임" } })).ok()).toBe(true);
+    expect((await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "입구 모임" } })).ok()).toBe(true);
     await page.request.post("/api/auth/logout");
 
     // 여섯 주소 모두 빈 화면·엉뚱한 화면이 아니라 로그인 안내가 나온다.
@@ -193,7 +193,7 @@ test.describe("상단 바 배치", () => {
 
   test("조회 링크 화면의 상단 바에는 로그인 버튼이 없다", async ({ page }) => {
     await page.request.post("/api/auth/fake-login", { data: { subject: uniqueUser() } });
-    const group = await (await page.request.post("/api/groups", { data: { name: "조회 모임" } })).json();
+    const group = await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "조회 모임" } })).json();
     const snapshot = await (await page.request.get(`/api/groups/${group.id}/snapshot`)).json();
     await page.goto(`/#/v/${snapshot.group.viewToken}/now`);
     await expect(banner(page).getByRole("combobox", { name: "화면 테마" })).toBeVisible();

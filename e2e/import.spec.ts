@@ -17,7 +17,7 @@ function table(count: number): string[] {
 async function openImport(page: Page): Promise<string> {
   const user = `e2e-imp-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
   await page.request.post("/api/auth/fake-login", { data: { subject: user } });
-  const group = await (await page.request.post("/api/groups", { data: { name: "이관 모임" } })).json();
+  const group = await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "이관 모임" } })).json();
   await page.goto("/#/group");
   await page.getByRole("button", { name: "지난 기록 한꺼번에 넣기" }).click();
   await expect(page.getByRole("heading", { name: "표 일괄 입력", level: 1 })).toBeVisible();

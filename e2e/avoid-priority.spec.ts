@@ -29,8 +29,8 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
     data: { subject: `e2e-avoid-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
   });
   expect(login.ok()).toBe(true);
-  const group = (await (await page.request.post("/api/groups", { data: { name: "기피 모임" } })).json()) as { id: string };
-  const ensured = await page.request.post(`/api/groups/${group.id}/participants`, { data: { names } });
+  const group = (await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "기피 모임" } })).json()) as { id: string };
+  const ensured = await page.request.post(`/api/groups/${group.id}/participants`, { data: { requestId: crypto.randomUUID(), names } });
   const ids = ((await ensured.json()) as { participants: { id: string; name: string }[] }).participants.map((p) => p.id);
 
   // 지난 경기 12판: 앞 다섯 명(팀 A)이 9승 3패. 모두 배치 완료(10경기 이상)가 된다.

@@ -256,22 +256,42 @@ function unlinkStatements(env: Env, groupId: string, accountId: string, particip
   ];
 }
 
-/** 운영자가 참가자의 연결을 끊는다. 쓰지 않은 연결 링크도 함께 지운다. 이미 없으면 404. */
-export async function unlinkByOperator(env: Env, groupId: string, participantId: string): Promise<void> {
-  await assertWritable(env, groupId);
-  const link = await env.DB.prepare(
-    "SELECT account_id FROM participant_links WHERE group_id = ?1 AND participant_id = ?2",
-  )
-    .bind(groupId, participantId)
-    .first<{ account_id: string }>();
-  const statements = [
-    env.DB.prepare(
-      "DELETE FROM participant_claims WHERE group_id = ?1 AND participant_id = ?2 AND used_at IS NULL",
-    ).bind(groupId, participantId),
-    ...(link ? unlinkStatements(env, groupId, link.account_id, participantId) : []),
-  ];
-  await env.DB.batch(statements);
-  if (!link) throw new ApiError(404, "NOT_FOUND", "연결된 계정이 없어요. 이미 끊겼을 수 있어요.");
+/**
+ * 운영자가 참가자의 연결을 끊는다. 쓰지 않은 연결 링크도 함께 지운다. 이미 없으면 404.
+ * 공통 경로(runMutation, 2026-11-08): 본문 { requestId }(필수). 같은 요청 ID로 다시 보내면 처음 결과를 그대로 준다
+ * (처음에 끊었으면 다시 보내도 200, 처음에 연결이 없었으면 다시 보내도 404).
+ */
+export async function unlinkByOperator(
+  env: Env,
+  groupId: string,
+  participantId: string,
+  body: Body,
+): Promise<void> {
+  assertOnlyKeys(body, ["requestId"]);
+  const { stored } = await runMutation(env, {
+    groupId,
+    requestId: requireString(body.requestId, "requestId", 8, 64),
+    op: "unlink-participant",
+    payload: { participantId },
+    build: async () => {
+      const link = await env.DB.prepare(
+        "SELECT account_id FROM participant_links WHERE group_id = ?1 AND participant_id = ?2",
+      )
+        .bind(groupId, participantId)
+        .first<{ account_id: string }>();
+      return {
+        // 연결이 없어도 쓰지 않은 연결 링크는 지운다(예전과 같다). 결과(404)는 요청 기록에 남겨 재전송에도 같게 답한다.
+        stored: { linked: link !== null },
+        statements: [
+          env.DB.prepare(
+            "DELETE FROM participant_claims WHERE group_id = ?1 AND participant_id = ?2 AND used_at IS NULL",
+          ).bind(groupId, participantId),
+          ...(link ? unlinkStatements(env, groupId, link.account_id, participantId) : []),
+        ],
+      };
+    },
+  });
+  if (stored.linked !== true) throw new ApiError(404, "NOT_FOUND", "연결된 계정이 없어요. 이미 끊겼을 수 있어요.");
 }
 
 /** 멤버 본인이 연결을 끊는다. */
@@ -455,24 +475,50 @@ function tooManyRequests(): ApiError {
   );
 }
 
-/** 운영자가 요청을 처리한다. 본문: { status: "done" | "declined", reply? }. 이미 처리한 요청은 409. */
+/**
+ * 운영자가 요청을 처리한다. 본문: { requestId, status: "done" | "declined", reply? }. 이미 처리한 요청은 409.
+ * 공통 경로(runMutation, 2026-11-08): 같은 요청 ID로 다시 보내면(응답을 못 받은 재시도) 409가 아니라 처음 결과(200)를 준다.
+ */
 export async function resolveMemberRequest(env: Env, groupId: string, id: string, body: Body): Promise<void> {
-  assertOnlyKeys(body, ["status", "reply"]);
+  assertOnlyKeys(body, ["requestId", "status", "reply"]);
+  const requestId = requireString(body.requestId, "requestId", 8, 64);
   const status = requireOneOf(body.status, ["done", "declined"] as const, "status");
   const reply = parseText(body.reply, "reply", false);
-  await assertWritable(env, groupId);
-  const result = await env.DB.prepare(
-    `UPDATE participant_requests SET status = ?1, reply = ?2, resolved_at = ?3
-     WHERE id = ?4 AND group_id = ?5 AND status = 'open'`,
-  )
-    .bind(status, reply === "" ? null : reply, nowIso(), id, groupId)
-    .run();
-  if ((result.meta.changes ?? 0) === 0) {
-    const exists = await env.DB.prepare("SELECT 1 AS ok FROM participant_requests WHERE id = ?1 AND group_id = ?2")
-      .bind(id, groupId)
-      .first<{ ok: number }>();
-    if (!exists) throw new ApiError(404, "NOT_FOUND", "요청을 찾을 수 없어요.");
-    throw new ApiError(409, "ALREADY_RESOLVED", "이미 처리한 요청이에요.");
+  const alreadyResolved = () => new ApiError(409, "ALREADY_RESOLVED", "이미 처리한 요청이에요.");
+  try {
+    await runMutation(env, {
+      groupId,
+      requestId,
+      op: "resolve-member-request",
+      payload: { id, status, reply },
+      build: async () => {
+        const row = await env.DB.prepare("SELECT status FROM participant_requests WHERE id = ?1 AND group_id = ?2")
+          .bind(id, groupId)
+          .first<{ status: string }>();
+        if (!row) throw new ApiError(404, "NOT_FOUND", "요청을 찾을 수 없어요.");
+        if (row.status !== "open") throw alreadyResolved();
+        return {
+          stored: {},
+          statements: [
+            // 읽은 뒤 그 사이 다른 운영자가 먼저 처리했으면(또는 익명 처리로 지워졌으면) batch 전체를 되돌린다.
+            stateGuard(
+              env,
+              "NOT EXISTS (SELECT 1 FROM participant_requests WHERE id = ?1 AND group_id = ?2 AND status = 'open')",
+              id,
+              groupId,
+            ),
+            env.DB.prepare(
+              `UPDATE participant_requests SET status = ?1, reply = ?2, resolved_at = ?3
+               WHERE id = ?4 AND group_id = ?5 AND status = 'open'`,
+            ).bind(status, reply === "" ? null : reply, nowIso(), id, groupId),
+          ],
+        };
+      },
+    });
+  } catch (error) {
+    // 보호 문장(guard_state_conflict)은 공통 경로가 VERSION_CONFLICT로 바꾼다. 여기서는 "먼저 처리됨"이라는 뜻이다.
+    if (error instanceof ApiError && error.code === "VERSION_CONFLICT") throw alreadyResolved();
+    throw error;
   }
 }
 

@@ -12,10 +12,10 @@ async function apiLogin(request: APIRequestContext, prefix: string): Promise<voi
 }
 
 async function makeGroup(request: APIRequestContext, name: string, names: string[]): Promise<string> {
-  const created = await request.post("/api/groups", { data: { name } });
+  const created = await request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name } });
   expect(created.ok()).toBe(true);
   const gid = ((await created.json()) as { id: string }).id;
-  expect((await request.post(`/api/groups/${gid}/participants`, { data: { names } })).ok()).toBe(true);
+  expect((await request.post(`/api/groups/${gid}/participants`, { data: { requestId: crypto.randomUUID(), names } })).ok()).toBe(true);
   return gid;
 }
 

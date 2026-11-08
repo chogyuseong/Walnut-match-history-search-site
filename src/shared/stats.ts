@@ -1,3 +1,4 @@
+import { searchPeople } from "./search";
 import type { MatchView, Snapshot } from "./types";
 
 /**
@@ -407,20 +408,12 @@ export function sortRanking(
   return sorted.sort((a, b) => done(a) - done(b));
 }
 
-/** 이름 검색: 완전 일치 → 앞부분 일치 → 포함 순. 배치 여부로 순서를 바꾸지 않는다. */
+/**
+ * 이름 검색: 완전 일치 → 앞부분 일치 → 포함 → 초성 일치(앞부분) → 초성 포함 순. 배치 여부로 순서를 바꾸지 않는다.
+ * 공백·대소문자·전각을 무시하고 초성("ㄱㅅ")으로도 찾는다. 규칙은 search.ts의 searchPeople에 있다.
+ */
 export function searchByName<T extends { name: string }>(items: readonly T[], query: string): T[] {
-  const q = query.trim().toLowerCase();
-  if (q === "") return [...items];
-  const rank = (name: string) => {
-    const n = name.toLowerCase();
-    if (n === q) return 0;
-    if (n.startsWith(q)) return 1;
-    if (n.includes(q)) return 2;
-    return 3;
-  };
-  return items
-    .filter((item) => rank(item.name) < 3)
-    .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name, "ko"));
+  return searchPeople(items, query);
 }
 
 /** 승률순 정렬. 동률은 경기 수 많은 순 → 이름 → 참가자 ID. */

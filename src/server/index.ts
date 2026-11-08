@@ -203,11 +203,12 @@ app.use("/api/*", async (c, next) => {
       throw error;
     }
   } else if (method === "GET") {
-    if (
-      path.startsWith("/api/view/") ||
+    if (path.startsWith("/api/view/") || path.startsWith("/api/join/")) {
+      // 조회 링크·참가 신청 공개 조회는 경로 안에서 센다(countViewUnlessNotModified): ETag가 맞아 304로 답하는
+      // 요청은 세지 않아 D1 쓰기(rate_limits 1행)를 쓰지 않는다. 2026-11-08, docs/개선-서버-2026-11-08.md 4절.
+    } else if (
       path.startsWith("/api/transfer/") ||
       path.startsWith("/api/co-invite/") ||
-      path.startsWith("/api/join/") ||
       path.startsWith("/api/claim/")
     ) {
       await hit(c.env, "view-ip", ip);
@@ -737,7 +738,14 @@ app.post("/api/groups/:gid/join/remove", async (c) => {
 // 조건부 요청: 링크 행 1행으로 ETag를 만들고, 같으면 304(명단·신청을 읽지 않는다).
 app.get("/api/join/:token", async (c) => {
   const accountId = (await readSession(c.env, c.req.raw))?.id ?? null;
-  const result = await joinInfoConditional(c.env, c.req.param("token"), accountId, c.req.header("If-None-Match") ?? null);
+  // 요청 수 제한(view-ip)은 304가 아닐 때만 센다(joinInfoConditional의 count, 조회 링크와 같은 방식).
+  const result = await joinInfoConditional(
+    c.env,
+    c.req.param("token"),
+    accountId,
+    c.req.header("If-None-Match") ?? null,
+    () => hit(c.env, "view-ip", clientIp(c.req.raw)),
+  );
   c.header("ETag", result.etag);
   c.header("Cache-Control", REVALIDATE);
   // 로그인 여부에 따라 본문이 다르다(ETag에 계정을 넣었다). 중간 캐시가 섞지 않게 알린다.
@@ -781,7 +789,7 @@ app.post("/api/groups/:gid/participants/:pid/claim-link", async (c) => {
 app.delete("/api/groups/:gid/participants/:pid/link", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);
-  await unlinkByOperator(c.env, gid, c.req.param("pid"));
+  await unlinkByOperator(c.env, gid, c.req.param("pid"), await readOptionalJsonBody(c.req.raw));
   return c.json({ ok: true });
 });
 
@@ -891,13 +899,22 @@ app.post("/api/groups/:gid/series/:sid/:action", async (c) => {
 // 조회 토큰은 읽기만 허용한다. 수정 경로는 모두 운영자 확인을 거친다.
 // 조건부 요청: 토큰으로 모임 행 1행을 읽어 ETag를 만들고, 같으면 304(경기·명단을 읽지 않는다).
 // 조회 토큰을 다시 만들면 예전 토큰은 행을 찾지 못해 404다(ETag가 같아도 304를 주지 않는다).
+// 요청 수 제한(view-ip)은 304가 아닐 때만 센다: 없는 토큰(404, 토큰 맞히기 방지)과 본문을 만드는 200.
 app.get("/api/view/:token", async (c) => {
+  const count = () => hit(c.env, "view-ip", clientIp(c.req.raw));
   const head = await loadEtagHeadByViewToken(c.env, c.req.param("token"));
-  if (!head) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  if (!head) {
+    await count();
+    throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  }
   const etag = await snapshotEtag(c.env, head, "viewer");
+  const notModified = etagMatches(c.req.header("If-None-Match"), etag);
+  // 세기(429일 수 있음)를 ETag 헤더보다 먼저 한다: 429 응답에 ETag·private가 붙어 브라우저가 저장하면
+  // 다음 304가 그 429 본문을 되살릴 수 있다.
+  if (!notModified) await count();
   c.header("ETag", etag);
   c.header("Cache-Control", REVALIDATE);
-  if (etagMatches(c.req.header("If-None-Match"), etag)) return c.body(null, 304);
+  if (notModified) return c.body(null, 304);
   // 칭호 구간·점검 여부는 buildSnapshot의 조회용 허용 목록에서 붙는다(snapshot.ts의 viewerSettings).
   return c.json(await buildSnapshot(c.env, head.id, "viewer"));
 });

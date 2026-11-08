@@ -3,6 +3,7 @@ import { avoidMapFor } from "../../shared/avoid";
 import { applyTeams, createDraft, withoutHistory, type DraftPerson } from "../../shared/draft";
 import { BENCH_MAX, splitBench, TEAM_SIZE_TOTAL, withBench } from "../../shared/prepTools";
 import { nameKey, parseNameList } from "../../shared/names";
+import { matchesName } from "../../shared/search";
 import { participation } from "../../shared/insights";
 import { lastMatchPeople, lastSessionPeople } from "../../shared/lastPick";
 import { remapPeople } from "../../shared/merge";
@@ -238,8 +239,8 @@ export function Pick() {
     go("/prep");
   }
 
-  const query = nameKey(text);
-  const visible = ordered.filter((p) => query === "" || nameKey(p.name).includes(query));
+  // 공백·대소문자를 무시하고 초성("ㄱㅅ")으로도 찾는다(전적 검색과 같은 규칙).
+  const visible = ordered.filter((p) => matchesName(p.name, text));
   const tz = app.snapshot?.group.timezone;
   const seenText = (id: string | null): string => {
     const s = id ? seen.get(id) : undefined;

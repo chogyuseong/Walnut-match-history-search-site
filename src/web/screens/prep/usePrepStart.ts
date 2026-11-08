@@ -4,7 +4,7 @@ import { draftRoster, sameTeamsAsLast } from "../../../shared/prepTools";
 import { fairRepeatSupporterIds, repeatSupporterIds, rotationContext } from "../../../shared/rotation";
 import { sameComposition } from "../../../shared/series";
 import type { MatchView, Snapshot } from "../../../shared/types";
-import { ApiFailure, call, mutate, newRequestId } from "../../api";
+import { ApiFailure, mutate, newRequestId } from "../../api";
 import { go, type AppValue } from "../../useApp";
 
 const SESSION_GAP_MS = 12 * 60 * 60 * 1000;
@@ -58,10 +58,9 @@ export function usePrepStart(app: AppValue, draft: Draft, status: PrepStatus) {
       let current = draft;
       const unnamed = current.people.filter((p) => p.participantId === null);
       if (unnamed.length > 0) {
-        const ensured = await call<{ participants: { id: string; name: string }[] }>(
-          "POST",
+        const ensured = await mutate<{ participants: { id: string; name: string }[] }>(
           `/api/groups/${gid}/participants`,
-          { names: unnamed.map((p) => p.name) },
+          { requestId: newRequestId(), names: unnamed.map((p) => p.name) },
         );
         const idOf = new Map(unnamed.map((p, i) => [p.key, ensured.participants[i]!.id]));
         current = {

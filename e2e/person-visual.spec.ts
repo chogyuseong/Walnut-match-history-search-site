@@ -30,9 +30,9 @@ async function setup(page: Page): Promise<Setup> {
   await post(request, "/api/auth/fake-login", {
     subject: `e2e-viz-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`,
   });
-  const group = await post(request, "/api/groups", { name: "그림 테스트 모임" });
+  const group = await post(request, "/api/groups", { requestId: crypto.randomUUID(), name: "그림 테스트 모임" });
   const names = Array.from({ length: 12 }, (_, i) => `선수${String(i + 1).padStart(2, "0")}`);
-  const ensured = await post(request, `/api/groups/${group.id}/participants`, { names });
+  const ensured = await post(request, `/api/groups/${group.id}/participants`, { requestId: crypto.randomUUID(), names });
   const snapshot = await (await request.get(`/api/groups/${group.id}/snapshot`)).json();
   await request.put(`/api/groups/${group.id}/settings`, {
     data: {

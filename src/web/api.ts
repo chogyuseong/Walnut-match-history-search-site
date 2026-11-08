@@ -94,6 +94,8 @@ export function newRequestId(): string {
 /**
  * 변경 요청. 응답을 받지 못하면 같은 요청 ID로 최대 2회 다시 보낸다.
  * 서버는 같은 요청 ID를 한 번만 처리하므로 다시 보내도 중복 저장되지 않는다.
+ * POST·PUT·PATCH·DELETE 모두 같은 재시도를 쓴다(DELETE도 본문 { requestId }를 JSON으로 보낸다).
+ * 2026-11-08부터 서버는 운영자 쓰기 전부에서 requestId를 필수로 받는다.
  */
 export async function mutate<T>(
   path: string,
@@ -110,4 +112,22 @@ export async function mutate<T>(
     }
   }
   throw lastError;
+}
+
+/**
+ * 참가자 수정(PATCH /api/groups/:gid/participants/:pid). 요청 ID와 화면이 본 버전(운영자 스냅숏의
+ * participants[].version → baseVersion)을 함께 보낸다. 다른 기기에서 먼저 고쳤으면 서버가 409 VERSION_CONFLICT로
+ * 거절한다(덮어쓰지 않음). 부르는 쪽은 그 오류를 보여 주고 스냅숏을 새로 읽은 뒤, 입력은 그대로 둔다.
+ */
+export function patchParticipant(
+  snapshot: { group: { id: string }; participants: { id: string; version?: number }[] },
+  participantId: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const baseVersion = snapshot.participants.find((p) => p.id === participantId)?.version;
+  return mutate(
+    `/api/groups/${snapshot.group.id}/participants/${participantId}`,
+    { requestId: newRequestId(), ...body, ...(baseVersion === undefined ? {} : { baseVersion }) },
+    "PATCH",
+  );
 }

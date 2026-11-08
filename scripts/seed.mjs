@@ -52,14 +52,15 @@ async function request(method, path, body) {
 
 const stamp = Date.now().toString(36);
 await request("POST", "/api/auth/fake-login", { subject: "seed" });
-const group = await request("POST", "/api/groups", { name: `합성 모임 ${stamp.slice(-4)}` });
+const group = await request("POST", "/api/groups", { requestId: crypto.randomUUID(), name: `합성 모임 ${stamp.slice(-4)}` });
 const names = Array.from({ length: PEOPLE }, (_, i) => `가상선수${String(i + 1).padStart(2, "0")}`);
-const { participants } = await request("POST", `/api/groups/${group.id}/participants`, { names });
+const { participants } = await request("POST", `/api/groups/${group.id}/participants`, { requestId: crypto.randomUUID(), names });
 
 // 실력 그룹: 앞에서부터 1~4를 고르게, 마지막 4명은 미지정.
 for (const [index, person] of participants.entries()) {
   if (index >= PEOPLE - 4) continue;
   await request("PATCH", `/api/groups/${group.id}/participants/${person.id}`, {
+    requestId: crypto.randomUUID(),
     skillGroup: (index % 4) + 1,
   });
 }
@@ -98,11 +99,13 @@ for (let i = 0; i < matches.length; i += 50) {
 }
 
 await request("POST", `/api/groups/${group.id}/seasons`, {
+  requestId: crypto.randomUUID(),
   name: "여름 시즌",
   startsOn: "2026-07-01",
   endsOn: "2026-08-31",
 });
 await request("POST", `/api/groups/${group.id}/seasons`, {
+  requestId: crypto.randomUUID(),
   name: "가을 시즌",
   startsOn: "2026-09-01",
   endsOn: "2026-11-30",

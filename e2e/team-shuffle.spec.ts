@@ -12,9 +12,9 @@ function uniqueUser(prefix: string): string {
 async function openPrep(page: Page, prefix: string): Promise<{ names: string[]; groupId: string }> {
   const login = await page.request.post("/api/auth/fake-login", { data: { subject: uniqueUser(prefix) } });
   expect(login.ok()).toBe(true);
-  const group = (await (await page.request.post("/api/groups", { data: { name: "섞기 모임" } })).json()) as { id: string };
+  const group = (await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "섞기 모임" } })).json()) as { id: string };
   const names = Array.from({ length: 12 }, (_, i) => `섞기${String(i + 1).padStart(2, "0")}`);
-  const ensured = await page.request.post(`/api/groups/${group.id}/participants`, { data: { names } });
+  const ensured = await page.request.post(`/api/groups/${group.id}/participants`, { data: { requestId: crypto.randomUUID(), names } });
   expect(ensured.ok()).toBe(true);
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });

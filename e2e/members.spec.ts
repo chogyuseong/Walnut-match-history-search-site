@@ -21,9 +21,9 @@ const names = Array.from({ length: 12 }, (_, i) => `멤버${String(i + 1).padSta
 /** 운영자 계정·모임·참가자 12명·지난 경기 2판(앞 10명)을 만든다. */
 async function seed(request: APIRequestContext, groupName: string): Promise<{ gid: string; ids: string[] }> {
   await apiLogin(request, "e2e-member-owner");
-  const created = await request.post("/api/groups", { data: { name: groupName } });
+  const created = await request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: groupName } });
   const gid = ((await created.json()) as { id: string }).id;
-  const ensured = await request.post(`/api/groups/${gid}/participants`, { data: { names } });
+  const ensured = await request.post(`/api/groups/${gid}/participants`, { data: { requestId: crypto.randomUUID(), names } });
   const ids = ((await ensured.json()) as { participants: { id: string }[] }).participants.map((p) => p.id);
   for (let i = 0; i < 2; i++) {
     const res = await request.post(`/api/groups/${gid}/matches/backfill`, {

@@ -305,11 +305,10 @@ export function SheetImport() {
         }
         for (let i = 0; i < create.length; i += NAME_CHUNK) {
           const names = create.slice(i, i + NAME_CHUNK);
-          const ensured = await call<{ participants: { id: string }[] }>(
-            "POST",
-            `/api/groups/${gid}/participants`,
-            { names },
-          );
+          const ensured = await mutate<{ participants: { id: string }[] }>(`/api/groups/${gid}/participants`, {
+            requestId: newRequestId(),
+            names,
+          });
           names.forEach((name, k) => idOf.set(nameKey(name), ensured.participants[k]!.id));
         }
         const matches = toSheetPayload(toSend, (name) => idOf.get(nameKey(name))!, sideMode, timeZone);

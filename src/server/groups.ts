@@ -20,7 +20,7 @@ import {
   requireString,
 } from "./http";
 import { bumpLiveVersion, liveVersionGuard, runMutation, sha256Hex, type Plan } from "./mutation";
-import { buildSnapshot, loadGroup, loadOpenSession } from "./snapshot";
+import { loadGroup, loadOpenSession, parseSnapshot, snapshotStatements } from "./snapshot";
 
 /** 한 계정이 맡을 수 있는 모임 수(대표 + 공동 운영 합계). 만들기·백업으로 새 모임·넘겨받기·공동 운영자 수락이 함께 지킨다. */
 export const MAX_GROUPS_PER_ACCOUNT = 5;
@@ -81,12 +81,11 @@ export function isGroupLimitError(error: unknown): boolean {
 }
 
 /**
- * 요청 ID(선택). 화면이 보내면 runMutation이 같은 요청을 한 번만 처리한다(재전송 안전).
- * 보내지 않으면 서버가 이 요청만의 ID를 만든다: 예전 화면도 그대로 동작하지만 재전송하면 두 번 처리될 수 있다.
- * (2026-11-07: 웹이 모두 보내게 되면 필수로 바꾼다. docs/개선-서버-2026-11-07.md)
+ * 요청 ID(필수). runMutation이 같은 요청 ID를 한 번만 처리한다(재전송 안전).
+ * 2026-11-07에는 선택이었고(없으면 서버가 만듦), 웹이 모든 운영자 쓰기에서 보내게 된 2026-11-08에 필수로 바꿨다
+ * (docs/개선-서버-2026-11-08.md). 없거나 모양이 틀리면 400 INVALID_FIELD.
  */
-export function optionalRequestId(body: Body): string {
-  if (body.requestId === undefined) return `srv-${newId()}`;
+export function requireRequestId(body: Body): string {
   return requireString(body.requestId, "requestId", 8, 64);
 }
 
@@ -99,9 +98,9 @@ async function groupIdFor(kind: string, accountId: string, requestId: string): P
 /**
  * 모임을 만들고 만든 계정을 운영자로 등록한다.
  * - 모임 수 한도는 미리 한 번 보고(빠른 거절), batch 안의 보호 문장으로 다시 확인한다(동시 요청 대비).
- * - requestId를 보내면 모임 ID를 (계정, 요청 ID)에서 정한다. 응답을 못 받아 다시 보내도 모임이 두 개 생기지 않고
- *   처음 만든 모임을 그대로 돌려준다. 모임이 아직 없으니 요청 기록 표(requests, 모임별)를 쓰는 runMutation 대신
- *   모임 ID의 기본 키가 중복을 막는다.
+ * - requestId(필수, 2026-11-08)로 모임 ID를 (계정, 요청 ID)에서 정한다. 응답을 못 받아 다시 보내도 모임이 두 개
+ *   생기지 않고 처음 만든 모임을 그대로 돌려준다. 모임이 아직 없으니 요청 기록 표(requests, 모임별)를 쓰는
+ *   runMutation 대신 모임 ID의 기본 키가 중복을 막는다.
  */
 export async function createGroup(
   env: Env,
@@ -110,10 +109,9 @@ export async function createGroup(
 ): Promise<{ id: string; name: string }> {
   assertOnlyKeys(body, ["name", "requestId"]);
   const name = body.name === undefined ? "내 내전 모임" : parseName(body.name);
-  const requestId = body.requestId === undefined ? null : requireString(body.requestId, "requestId", 8, 64);
-  const id = requestId ? await groupIdFor("create-group", accountId, requestId) : newId();
+  const requestId = requireRequestId(body);
+  const id = await groupIdFor("create-group", accountId, requestId);
   const replay = async (): Promise<{ id: string; name: string } | null> => {
-    if (!requestId) return null;
     const row = await env.DB.prepare(
       `SELECT g.id, g.name, o.account_id FROM groups g LEFT JOIN group_operators o ON o.group_id = g.id WHERE g.id = ?1`,
     )
@@ -183,7 +181,7 @@ export async function renameGroup(env: Env, groupId: string, body: Body): Promis
   const name = parseName(body.name);
   await runMutation(env, {
     groupId,
-    requestId: optionalRequestId(body),
+    requestId: requireRequestId(body),
     op: "rename-group",
     payload: { name },
     build: async () => ({
@@ -195,7 +193,7 @@ export async function renameGroup(env: Env, groupId: string, body: Body): Promis
 
 /**
  * 이름 목록에 해당하는 활성 참가자를 돌려준다. 없는 이름은 새로 만든다.
- * 같은 이름으로 여러 번 불러도 결과가 같다(요청 ID 없이 다시 보내도 같은 사람을 돌려준다).
+ * 같은 이름으로 여러 번 불러도 결과가 같다(새 요청 ID로 다시 보내도 같은 사람을 돌려준다).
  * 넣기는 공통 경로(runMutation)를 거치고, 돌려줄 목록은 넣은 뒤 이름으로 다시 읽는다.
  */
 export async function ensureParticipants(
@@ -214,7 +212,7 @@ export async function ensureParticipants(
   }
   await runMutation(env, {
     groupId,
-    requestId: optionalRequestId(body),
+    requestId: requireRequestId(body),
     op: "ensure-participants",
     payload: { names },
     build: async () => {
@@ -282,7 +280,7 @@ export async function updateParticipant(
   try {
     await runMutation(env, {
       groupId,
-      requestId: optionalRequestId(body),
+      requestId: requireRequestId(body),
       op: "update-participant",
       payload: { participantId, ...payload },
       conflictDetails: async () => ({ version: await currentVersion() }),
@@ -622,7 +620,7 @@ export async function createSeason(
   try {
     const { stored } = await runMutation(env, {
       groupId,
-      requestId: optionalRequestId(body),
+      requestId: requireRequestId(body),
       op: "create-season",
       payload: { name, startsOn, endsOn },
       build: async () => {
@@ -653,12 +651,12 @@ export async function createSeason(
   }
 }
 
-/** 시즌을 지운다. 시즌은 통계 필터일 뿐이라 경기·배치·칭호는 바뀌지 않는다. 본문(요청 ID)은 없어도 된다. */
+/** 시즌을 지운다. 시즌은 통계 필터일 뿐이라 경기·배치·칭호는 바뀌지 않는다. 본문 { requestId }(필수). */
 export async function deleteSeason(env: Env, groupId: string, seasonId: string, body: Body = {}): Promise<void> {
   assertOnlyKeys(body, ["requestId"]);
   await runMutation(env, {
     groupId,
-    requestId: optionalRequestId(body),
+    requestId: requireRequestId(body),
     op: "delete-season",
     payload: { seasonId },
     build: async () => ({
@@ -670,14 +668,14 @@ export async function deleteSeason(env: Env, groupId: string, seasonId: string, 
 
 /**
  * 조회 토큰을 새로 만든다. 이전 링크는 더 이상 열리지 않는다.
- * 요청 ID를 보내면 재전송에 같은 토큰을 돌려준다(요청 기록에 새 토큰이 14일 남는다. 토큰은 groups 표에도
+ * 같은 요청 ID로 다시 보내면 같은 토큰을 돌려준다(요청 기록에 새 토큰이 14일 남는다. 토큰은 groups 표에도
  * 원문으로 있으므로 노출 범위가 넓어지지는 않는다).
  */
 export async function regenerateViewToken(env: Env, groupId: string, body: Body = {}): Promise<string> {
   assertOnlyKeys(body, ["requestId"]);
   const { stored } = await runMutation(env, {
     groupId,
-    requestId: optionalRequestId(body),
+    requestId: requireRequestId(body),
     op: "view-token",
     payload: {},
     build: async () => {
@@ -706,82 +704,77 @@ export const BACKUP_FORMAT_VERSION = 4;
  * 계정, 운영자 권한, 조회 토큰, 세션, 요청 기록은 들어가지 않는다.
  */
 export async function exportBackup(env: Env, groupId: string): Promise<Record<string, unknown>> {
-  const snapshot = await buildSnapshot(env, groupId, "operator");
-  const settingsVersions = await env.DB.prepare(
-    "SELECT id, version_no, payload, created_at FROM settings_versions WHERE group_id = ?1 ORDER BY version_no",
-  )
-    .bind(groupId)
-    .all<{ id: string; version_no: number; payload: string; created_at: string }>();
-  const sessions = await env.DB.prepare(
-    "SELECT id, started_at, last_activity_at, closed_at FROM sessions WHERE group_id = ?1 ORDER BY started_at",
-  )
-    .bind(groupId)
-    .all();
-  const cycles = await env.DB.prepare(
-    "SELECT id, session_id, status, created_at, closed_at FROM rotation_cycles WHERE group_id = ?1 ORDER BY created_at",
-  )
-    .bind(groupId)
-    .all();
-  const events = await env.DB.prepare(
-    `SELECT id, cycle_id, match_id, participant_id, kind, voided, created_at
-     FROM rotation_events WHERE group_id = ?1 ORDER BY created_at, id`,
-  )
-    .bind(groupId)
-    .all();
-  const adjustments = await env.DB.prepare(
-    `SELECT cycle_id, participant_id, delta, updated_at FROM support_adjustments
-     WHERE group_id = ?1 ORDER BY updated_at, participant_id`,
-  )
-    .bind(groupId)
-    .all<{ cycle_id: string | null; participant_id: string; delta: number; updated_at: string }>();
-  const revisions = await env.DB.prepare(
-    "SELECT id, match_id, kind, changes, created_at FROM match_revisions WHERE group_id = ?1 ORDER BY id",
-  )
-    .bind(groupId)
-    .all<{ id: number; match_id: string; kind: string; changes: string; created_at: string }>();
-  // 형식 2: 복원에 필요한 값(제외 직전 상태, 적용 설정 버전, 일괄 입력 묶음, 참가자 생성 시각)을 더한다.
-  const matchExtras = await env.DB.prepare(
-    `SELECT id, prev_state, settings_version_id, import_batch_id, import_fingerprint, import_row_key
-     FROM matches WHERE group_id = ?1`,
-  )
-    .bind(groupId)
-    .all<{
-      id: string;
-      prev_state: string | null;
-      settings_version_id: string | null;
-      import_batch_id: string | null;
-      import_fingerprint: string | null;
-      import_row_key: string | null;
-    }>();
-  // 형식 4: 일괄 입력 출처.
-  const importBatches = await env.DB.prepare(
-    "SELECT id, kind, source_key, label, created_at, options FROM import_batches WHERE group_id = ?1 ORDER BY created_at, id",
-  )
-    .bind(groupId)
-    .all<{ id: string; kind: string; source_key: string | null; label: string | null; created_at: string; options: string | null }>();
+  // 스냅숏 읽기와 백업 전용 읽기를 D1 batch 한 번(한 트랜잭션, 왕복 1회)으로 한다(2026-11-08).
+  // 예전에는 스냅숏 batch 뒤에 10번을 따로 읽어, 사이에 저장이 끼면 경기와 이력·명단이 서로 다른 시점일 수 있었다.
+  // 문장과 정렬은 예전과 같아 백업 파일 내용(키 순서 포함)은 그대로다.
+  const base = snapshotStatements(env, groupId, "operator");
+  const q = (sql: string) => env.DB.prepare(sql).bind(groupId);
+  const results = await env.DB.batch([
+    ...base,
+    q("SELECT id, version_no, payload, created_at FROM settings_versions WHERE group_id = ?1 ORDER BY version_no"),
+    q("SELECT id, started_at, last_activity_at, closed_at FROM sessions WHERE group_id = ?1 ORDER BY started_at"),
+    q("SELECT id, session_id, status, created_at, closed_at FROM rotation_cycles WHERE group_id = ?1 ORDER BY created_at"),
+    q(
+      `SELECT id, cycle_id, match_id, participant_id, kind, voided, created_at
+       FROM rotation_events WHERE group_id = ?1 ORDER BY created_at, id`,
+    ),
+    q(
+      `SELECT cycle_id, participant_id, delta, updated_at FROM support_adjustments
+       WHERE group_id = ?1 ORDER BY updated_at, participant_id`,
+    ),
+    q("SELECT id, match_id, kind, changes, created_at FROM match_revisions WHERE group_id = ?1 ORDER BY id"),
+    // 형식 2: 복원에 필요한 값(제외 직전 상태, 적용 설정 버전, 일괄 입력 묶음, 참가자 생성 시각)을 더한다.
+    q(
+      `SELECT id, prev_state, settings_version_id, import_batch_id, import_fingerprint, import_row_key
+       FROM matches WHERE group_id = ?1`,
+    ),
+    // 형식 4: 일괄 입력 출처.
+    q("SELECT id, kind, source_key, label, created_at, options FROM import_batches WHERE group_id = ?1 ORDER BY created_at, id"),
+    q("SELECT id, created_at FROM participants WHERE group_id = ?1"),
+    // 형식 3: 합치기 기록. 되돌리기에 필요한 옮긴 행 목록을 그대로 넣는다.
+    q(
+      `SELECT id, source_id, target_id, source_prev_status, moved_matches, rotation_changes, created_at, undone_at
+       FROM participant_merges WHERE group_id = ?1 ORDER BY created_at, id`,
+    ),
+  ]);
+  const snapshot = parseSnapshot("operator", results);
+  let i = base.length;
+  const next = <T>(): { results: T[] } => ({ results: (results[i++]?.results ?? []) as unknown as T[] });
+  const settingsVersions = next<{ id: string; version_no: number; payload: string; created_at: string }>();
+  const sessions = next<Record<string, unknown>>();
+  const cycles = next<Record<string, unknown>>();
+  const events = next<Record<string, unknown>>();
+  const adjustments = next<{ cycle_id: string | null; participant_id: string; delta: number; updated_at: string }>();
+  const revisions = next<{ id: number; match_id: string; kind: string; changes: string; created_at: string }>();
+  const matchExtras = next<{
+    id: string;
+    prev_state: string | null;
+    settings_version_id: string | null;
+    import_batch_id: string | null;
+    import_fingerprint: string | null;
+    import_row_key: string | null;
+  }>();
+  const importBatches = next<{
+    id: string;
+    kind: string;
+    source_key: string | null;
+    label: string | null;
+    created_at: string;
+    options: string | null;
+  }>();
   const extraById = new Map(matchExtras.results.map((m) => [m.id, m]));
-  const participantTimes = await env.DB.prepare(
-    "SELECT id, created_at FROM participants WHERE group_id = ?1",
-  )
-    .bind(groupId)
-    .all<{ id: string; created_at: string }>();
+  const participantTimes = next<{ id: string; created_at: string }>();
   const createdById = new Map(participantTimes.results.map((p) => [p.id, p.created_at]));
-  // 형식 3: 합치기 기록. 되돌리기에 필요한 옮긴 행 목록을 그대로 넣는다.
-  const merges = await env.DB.prepare(
-    `SELECT id, source_id, target_id, source_prev_status, moved_matches, rotation_changes, created_at, undone_at
-     FROM participant_merges WHERE group_id = ?1 ORDER BY created_at, id`,
-  )
-    .bind(groupId)
-    .all<{
-      id: string;
-      source_id: string;
-      target_id: string;
-      source_prev_status: string;
-      moved_matches: string;
-      rotation_changes: string;
-      created_at: string;
-      undone_at: string | null;
-    }>();
+  const merges = next<{
+    id: string;
+    source_id: string;
+    target_id: string;
+    source_prev_status: string;
+    moved_matches: string;
+    rotation_changes: string;
+    created_at: string;
+    undone_at: string | null;
+  }>();
   return {
     formatVersion: BACKUP_FORMAT_VERSION,
     createdAt: nowIso(),

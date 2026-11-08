@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { MAX_NAME_LENGTH, nameKey } from "../../shared/names";
+import { matchesName } from "../../shared/search";
 import { ApiFailure, call } from "../api";
 import { ErrorNote } from "../ui";
 import { go } from "../useApp";
@@ -109,9 +110,9 @@ export function Join(props: { token: string; rest: string[] }) {
   const myPerson = view.me ? (view.people.find((p) => p.id === view.me!.participantId) ?? null) : null;
   const myEntry = myPerson ? (view.entries.find((e) => e.key === `p:${myPerson.id}`) ?? null) : null;
   const count = view.entries.length;
-  const q = nameKey(query);
+  // 공백·대소문자를 무시하고 초성("ㄱㅅ")으로도 찾는다(전적 검색과 같은 규칙).
   const listed = view.people
-    .filter((p) => q === "" || nameKey(p.name).includes(q))
+    .filter((p) => matchesName(p.name, query))
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
   const typed = newName.trim();
   const sameInList = typed !== "" ? view.people.find((p) => nameKey(p.name) === nameKey(typed)) : undefined;

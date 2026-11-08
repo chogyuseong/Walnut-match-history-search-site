@@ -37,9 +37,9 @@ async function getSnapshot(request: APIRequestContext, groupId: string) {
 async function setup(page: Page, opts: { rotation?: boolean; names?: string[] } = {}): Promise<Setup> {
   const user = `e2e-scn-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
   await post(page.request, "/api/auth/fake-login", { subject: user });
-  const group = await post(page.request, "/api/groups", { name: "시나리오 모임" });
+  const group = await post(page.request, "/api/groups", { requestId: crypto.randomUUID(), name: "시나리오 모임" });
   const names = opts.names ?? Array.from({ length: 12 }, (_, i) => `선수${String(i + 1).padStart(2, "0")}`);
-  const ensured = await post(page.request, `/api/groups/${group.id}/participants`, { names });
+  const ensured = await post(page.request, `/api/groups/${group.id}/participants`, { requestId: crypto.randomUUID(), names });
   if (opts.rotation === false) {
     const snap = await getSnapshot(page.request, group.id);
     const response = await page.request.put(`/api/groups/${group.id}/settings`, {
@@ -174,7 +174,7 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
   expect(inputTop).toBeGreaterThan(0);
 
   // 다른 기기에서 참가자가 늘고 경기가 하나 더 저장됐다. 앱의 갱신 계기(창으로 돌아옴)를 일으킨다.
-  await post(page.request, `/api/groups/${s.groupId}/participants`, { names: ["선수새로"] });
+  await post(page.request, `/api/groups/${s.groupId}/participants`, { requestId: crypto.randomUUID(), names: ["선수새로"] });
   await finish(page.request, s, await start(page.request, s, s.people.slice(2, 12)), "B", "red");
   const refreshed = page.waitForResponse((r) => r.url().includes("/snapshot") && r.ok());
   await fireVisible(page);

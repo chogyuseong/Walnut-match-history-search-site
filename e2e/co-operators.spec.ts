@@ -18,13 +18,13 @@ test("초대 링크로 공동 운영자가 되어 경기 결과를 저장하고,
   await ownerContext.grantPermissions(["clipboard-read", "clipboard-write"]);
   const owner = await ownerContext.newPage();
   await apiLogin(owner, "e2e-owner");
-  const gid = ((await (await owner.request.post("/api/groups", { data: { name: "공동 운영 모임" } })).json()) as {
+  const gid = ((await (await owner.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "공동 운영 모임" } })).json()) as {
     id: string;
   }).id;
 
   // 대표가 경기 하나를 시작해 둔다(결과는 공동 운영자가 넣는다).
   const names = Array.from({ length: 10 }, (_, i) => `공동선수${i + 1}`);
-  const people = ((await (await owner.request.post(`/api/groups/${gid}/participants`, { data: { names } })).json()) as {
+  const people = ((await (await owner.request.post(`/api/groups/${gid}/participants`, { data: { requestId: crypto.randomUUID(), names } })).json()) as {
     participants: { id: string }[];
   }).participants;
   const snap = (await (await owner.request.get(`/api/groups/${gid}/snapshot`)).json()) as { group: { liveVersion: number } };
@@ -98,7 +98,7 @@ test("초대 링크로 공동 운영자가 되어 경기 결과를 저장하고,
   // 내보낸 계정의 다음 요청은 바로 거절된다.
   expect((await co.request.get(`/api/groups/${gid}/snapshot`)).status()).toBe(404);
   expect(
-    (await co.request.post(`/api/groups/${gid}/participants`, { data: { names: ["늦은 사람"] } })).status(),
+    (await co.request.post(`/api/groups/${gid}/participants`, { data: { requestId: crypto.randomUUID(), names: ["늦은 사람"] } })).status(),
   ).toBe(404);
 
   // 같은 링크는 다시 쓸 수 없다.

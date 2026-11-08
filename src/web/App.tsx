@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AccountControl, LOGIN_ONLY, LoginRequired } from "./account";
 import {
   Backfill,
@@ -34,6 +34,7 @@ import {
   ViewerLive,
 } from "./lazyScreens";
 import { LoginFailed } from "./screens/Login";
+import { stripRouteQuery, useSearchShortcut } from "./searchRoute";
 import { seasonRoutePart, seasonScopeFromRoute } from "./seasonRoute";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
 import { useKeyboardFlag } from "./ui";
@@ -59,7 +60,10 @@ function usePrefetchOperator(app: AppValue, enabled: boolean): void {
 }
 
 export function App() {
-  const route = useRoute();
+  // 주소의 "?" 뒤(검색 질의 q=)는 화면 고르기에 쓰지 않는다. 검색 화면이 직접 읽는다(searchRoute.ts).
+  const rawRoute = useRoute();
+  const route = useMemo(() => stripRouteQuery(rawRoute), [rawRoute]);
+  useSearchShortcut(route);
   const isViewer = route[0] === "v" && typeof route[1] === "string";
   // 참가 신청(#/join/토큰)도 로그인 없이 여는 화면이라 운영자 상태를 읽지 않는다.
   const isJoin = route[0] === "join" && typeof route[1] === "string";
@@ -308,6 +312,7 @@ function OperatorScreen(props: { route: string[] }) {
         snapshot={app.snapshot}
         openPerson={(personId) => go(`/p/${personId}`)}
         openCompare={(a, b) => go(`/compare/${a}/${b}`)}
+        openMatch={(matchId) => go(`/m/${matchId}`)}
       />
     );
   }
