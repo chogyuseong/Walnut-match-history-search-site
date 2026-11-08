@@ -264,8 +264,8 @@ test("5) 상대 전적 보기(한 사람과 맞대결): 개인 통계에서 상�
   await section.scrollIntoViewIfNeeded();
   await section.getByLabel("상대 고르기").selectOption({ label: "선수06" });
   const list = section.getByRole("list", { name: "선수06 님과의 전적" });
-  await expect(list.getByRole("listitem").filter({ hasText: "상대 팀으로" })).toContainText("2경기 · 1승 1패");
-  await expect(list.getByRole("listitem").filter({ hasText: "같은 팀으로" })).toContainText("1경기 · 승률 100%");
+  await expect(list.getByRole("listitem").filter({ hasText: "상대 팀으로" })).toContainText("50% · 1승 1패 (2경기)");
+  await expect(list.getByRole("listitem").filter({ hasText: "같은 팀으로" })).toContainText("100% · 1승 0패 (1경기)");
   // 활성 참가자만 고를 수 있고 자기 자신은 없다.
   await expect(section.getByLabel("상대 고르기").locator("option", { hasText: "선수01" })).toHaveCount(0);
   await noHorizontalOverflow(page, "개인 통계 상대 전적");

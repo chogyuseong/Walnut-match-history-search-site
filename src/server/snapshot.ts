@@ -76,10 +76,10 @@ export async function loadActiveRotation(
   sessionId: string,
 ): Promise<RotationView | null> {
   const cycle = await env.DB.prepare(
-    "SELECT id FROM rotation_cycles WHERE session_id = ?1 AND status = 'active'",
+    "SELECT id, created_at FROM rotation_cycles WHERE session_id = ?1 AND status = 'active'",
   )
     .bind(sessionId)
-    .first<{ id: string }>();
+    .first<{ id: string; created_at: string }>();
   if (!cycle) return null;
   const events = await env.DB.prepare(
     `SELECT match_id, participant_id, kind FROM rotation_events
@@ -89,6 +89,7 @@ export async function loadActiveRotation(
     .all<{ match_id: string; participant_id: string; kind: "used" | "repeat" }>();
   return {
     cycleId: cycle.id,
+    cycleStartedAt: cycle.created_at,
     events: events.results.map((e) => ({
       matchId: e.match_id,
       participantId: e.participant_id,
@@ -315,7 +316,13 @@ export function snapshotStatements(
     db
       .prepare("SELECT id, started_at, last_activity_at FROM sessions WHERE group_id = ?1 AND closed_at IS NULL")
       .bind(groupId),
-    db.prepare(`SELECT ${activeCycle} AS id`).bind(groupId),
+    // 활성 주기의 id와 열린 시각(화면의 "언제부터 세는지").
+    db
+      .prepare(
+        `SELECT c.id, c.created_at FROM rotation_cycles c JOIN sessions s ON s.id = c.session_id
+         WHERE s.group_id = ?1 AND s.closed_at IS NULL AND c.status = 'active' LIMIT 1`,
+      )
+      .bind(groupId),
     db
       .prepare(
         `SELECT match_id, participant_id, kind FROM rotation_events
@@ -403,11 +410,13 @@ export function parseSnapshot(role: "operator" | "viewer", results: D1Result[]):
   const session: SessionView | null = sessionRow
     ? { id: sessionRow.id, startedAt: sessionRow.started_at, lastActivityAt: sessionRow.last_activity_at }
     : null;
-  const cycleId = rowsOf<{ id: string | null }>(next())[0]?.id ?? null;
+  const cycleRow = rowsOf<{ id: string; created_at: string }>(next())[0];
+  const cycleId = cycleRow?.id ?? null;
   const eventRows = rowsOf<{ match_id: string; participant_id: string; kind: "used" | "repeat" }>(next());
-  let rotation: RotationView | null = cycleId
+  let rotation: RotationView | null = cycleRow
     ? {
         cycleId,
+        cycleStartedAt: cycleRow.created_at,
         events: eventRows.map((e) => ({ matchId: e.match_id, participantId: e.participant_id, kind: e.kind })),
       }
     : null;

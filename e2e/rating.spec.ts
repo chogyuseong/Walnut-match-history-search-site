@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-// 결과 기반 레이팅(2026-11-08)을 휴대폰 폭(390px)에서 확인한다.
-// 랭킹 "레이팅 순" 정렬(레이팅 내림차순)·안내 문구, 개인 통계의 레이팅 한 줄과 "레이팅 추이",
-// 두 사람 비교의 레이팅·레이팅 차, 랭킹 CSV의 "레이팅" 열.
+// 결과 기반 MMR(2026-11-08)을 휴대폰 폭(390px)에서 확인한다.
+// 랭킹 "MMR 순" 정렬(MMR 내림차순)·안내 문구, 개인 통계의 MMR 한 줄과 "MMR 추이",
+// 두 사람 비교의 MMR·MMR 차, 랭킹 CSV의 "MMR" 열.
 // 모임·참가자·경기는 API로 빠르게 만들고(search-csv.spec.ts와 같은 방식), 확인할 흐름은 화면으로 한다.
 //
-// 경기 두 개로 레이팅이 정해진다(시작 1000, 배치 중 K=40):
+// 경기 두 개로 MMR이 정해진다(시작 1000, 배치 중 K=40):
 //  1경기 선수01~05(팀 A) 승 vs 선수06~10 → 01~05: 1020, 06~10: 980
 //  2경기 선수01·06·07·08·09(평균 988) 승 vs 선수02·03·04·05·10(평균 1012)
 //        → 이긴 쪽 +40×(1−E) = +21.38, 진 쪽 −21.38 (E = 1/(1+10^(24/400)) ≈ 0.4655)
@@ -15,7 +15,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 test.use({ viewport: { width: 390, height: 844 } });
 
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
-const GROUP_NAME = "레이팅모임";
+const GROUP_NAME = "MMR모임";
 const NAMES = Array.from({ length: 12 }, (_, i) => `선수${String(i + 1).padStart(2, "0")}`);
 const BOM = String.fromCharCode(0xfeff);
 
@@ -91,7 +91,7 @@ async function noHorizontalOverflow(page: Page, where: string) {
   expect(overflow, `${where} 가로 넘침`).toBeLessThanOrEqual(0);
 }
 
-test("랭킹 레이팅 순 · 개인 통계 레이팅 · 두 사람 비교 레이팅 차 · 랭킹 CSV 레이팅 열", async ({ page }) => {
+test("랭킹 MMR 순 · 개인 통계 MMR · 두 사람 비교 MMR 차 · 랭킹 CSV MMR 열", async ({ page }) => {
   const s = await setup(page);
   const idOf = (name: string) => s.people.find((p) => p.name === name)!.id;
 
@@ -100,22 +100,22 @@ test("랭킹 레이팅 순 · 개인 통계 레이팅 · 두 사람 비교 레�
   const ranking = page.getByRole("region", { name: "소환사 랭킹" });
   const rows = ranking.getByRole("listitem");
   await expect(rows).toHaveCount(10);
-  // 기본 정렬은 그대로 승률이고, 안내 문구는 레이팅 순일 때만 보인다.
+  // 기본 정렬은 그대로 승률이고, 안내 문구는 MMR 순일 때만 보인다.
   await expect(ranking.getByRole("button", { name: "승률", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(ranking.getByText("레이팅은 상대 팀의 평균 레이팅을 감안해", { exact: false })).toHaveCount(0);
-  // 줄마다 작은 레이팅 숫자(배치 진행 중이라 흐리게).
-  await expect(rows.filter({ hasText: "선수01" }).locator(".rating-num")).toContainText("레이팅 1041");
+  await expect(ranking.getByText("MMR은 상대 팀의 평균 MMR을 감안해", { exact: false })).toHaveCount(0);
+  // 줄마다 작은 MMR 숫자(배치 진행 중이라 흐리게).
+  await expect(rows.filter({ hasText: "선수01" }).locator(".rating-num")).toContainText("MMR 1041");
   await expect(rows.filter({ hasText: "선수01" }).locator(".rating-num")).toHaveClass(/hint/);
 
-  await ranking.getByRole("button", { name: "레이팅 순", exact: true }).click();
-  await expect(ranking.getByRole("button", { name: "레이팅 순", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await ranking.getByRole("button", { name: "MMR 순", exact: true }).click();
+  await expect(ranking.getByRole("button", { name: "MMR 순", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(
     ranking.getByText(
-      "레이팅은 상대 팀의 평균 레이팅을 감안해 승패마다 오르내리는 점수예요(시작 1000). 확정 경기만 세고 범위와 무관하게 누적입니다.",
+      "MMR은 상대 팀의 평균 MMR을 감안해 승패마다 오르내리는 점수예요(시작 1000). 확정 경기만 세고 범위와 무관하게 누적입니다.",
     ),
   ).toBeVisible();
   const texts = await rows.allInnerTexts();
-  const values = texts.map((t) => Number(t.match(/레이팅 (\d+)/)?.[1] ?? Number.NaN));
+  const values = texts.map((t) => Number(t.match(/MMR (\d+)/)?.[1] ?? Number.NaN));
   expect(values.every((v) => Number.isFinite(v))).toBe(true);
   expect(values).toEqual([...values].sort((a, b) => b - a));
   expect(texts[0]).toContain("선수01");
@@ -124,42 +124,42 @@ test("랭킹 레이팅 순 · 개인 통계 레이팅 · 두 사람 비교 레�
   expect(values[values.length - 1]).toBe(959);
   // 순위 숫자는 1부터 이어진다.
   expect(texts.map((t) => Number(t.trim().split(/\s+/)[0]))).toEqual(Array.from({ length: 10 }, (_, i) => i + 1));
-  await noHorizontalOverflow(page, "랭킹 레이팅 순");
+  await noHorizontalOverflow(page, "랭킹 MMR 순");
 
-  // 랭킹 CSV: 머리 줄 끝에 "레이팅", 첫 줄은 지금 순서(레이팅 순)의 1위.
+  // 랭킹 CSV: 머리 줄 끝에 "MMR", 첫 줄은 지금 순서(MMR 순)의 1위.
   const waiting = page.waitForEvent("download");
   await ranking.getByRole("button", { name: "CSV 내려받기" }).click();
   const download = await waiting;
   const text = await readFile((await download.path())!, "utf8");
   expect(text.startsWith(BOM)).toBe(true);
   const lines = text.slice(1).trim().split("\r\n");
-  expect(lines[0]).toBe("순위,이름,경기,승,패,승률(%),배치,칭호,레이팅");
+  expect(lines[0]).toBe("순위,이름,경기,승,패,승률(%),배치,칭호,MMR");
   expect(lines[1]).toBe("1,선수01,2,2,0,100,배치 중,,1041");
   expect(lines[lines.length - 1]).toMatch(/^10,선수10,2,0,2,0,배치 중,,959$/);
 
-  // 개인 통계: 요약에 레이팅 한 줄, 승률 추이와 따로 "레이팅 추이".
+  // 개인 통계: 요약에 MMR 한 줄, 승률 추이와 따로 "MMR 추이".
   await page.goto(`/#/p/${idOf("선수01")}`);
   await expect(page.getByRole("heading", { level: 1, name: "선수01" })).toBeVisible();
   const summary = page.getByRole("region", { name: "요약" });
-  await expect(summary).toContainText("레이팅 1041 · 최고 1041 · 최근 2경기 +41");
-  const ratingTrend = summary.getByRole("img", { name: /^레이팅 추이/ });
+  await expect(summary).toContainText("MMR 1041 · 최고 1041 · 최근 2경기 +41");
+  const ratingTrend = summary.getByRole("img", { name: /^MMR 추이/ });
   await expect(ratingTrend).toBeVisible();
-  await expect(ratingTrend).toHaveAttribute("aria-label", "레이팅 추이: 시작 1000에서 2경기째 1041");
+  await expect(ratingTrend).toHaveAttribute("aria-label", "MMR 추이: 시작 1000에서 2경기째 1041");
   await expect(summary.getByRole("img", { name: /승률 추이/ })).toHaveCount(0); // 승률 추이는 6경기부터
   await noHorizontalOverflow(page, "개인 통계");
 
-  // 범위를 바꿔도 레이팅은 누적 그대로다.
+  // 범위를 바꿔도 MMR은 누적 그대로다.
   await page.getByRole("group", { name: "범위" }).getByRole("button", { name: "오늘", exact: true }).click();
-  await expect(summary).toContainText("레이팅 1041");
+  await expect(summary).toContainText("MMR 1041");
 
-  // 두 사람 비교: 두 사람의 레이팅과 레이팅 차(첫 번째 사람 기준).
+  // 두 사람 비교: 두 사람의 MMR과 MMR 차(첫 번째 사람 기준).
   await page.goto(`/#/compare/${idOf("선수01")}/${idOf("선수10")}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("선수01 vs 선수10");
   const side = page.getByRole("region", { name: "나란히 보기" });
-  const ratingRow = side.getByRole("row").filter({ hasText: "레이팅 (누적)" });
+  const ratingRow = side.getByRole("row").filter({ hasText: "MMR (누적)" });
   await expect(ratingRow).toContainText("1041");
   await expect(ratingRow).toContainText("959");
-  await expect(side.getByRole("row").filter({ hasText: "레이팅 차" })).toContainText("+82");
+  await expect(side.getByRole("row").filter({ hasText: "MMR 차" })).toContainText("+82");
   // 기존 "승률" 줄은 하나 그대로다(새 줄이 겹치지 않는다).
   await expect(side.getByRole("row").filter({ hasText: "승률" })).toHaveCount(1);
   // 기대 승률 문구는 쓰지 않는다.

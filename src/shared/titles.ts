@@ -125,22 +125,33 @@ export function bandRangeText(bands: readonly TitleBand[], index: number): strin
 }
 
 /**
- * 칭호 등급(색·엠블럼). 1이 가장 높은 구간(최상), 5가 가장 낮은 구간(최하)이다.
+ * 칭호 등급(색·엠블럼). 1이 가장 높은 구간(최상), TITLE_GRADE_COUNT(8)가 가장 낮은 구간이다.
  * 이름이 아니라 구간의 순서로 정하므로 운영자가 이름·경계·구간 수를 바꿔도 동작한다.
+ *
+ * 구조(바꾸기 쉽게 세 층으로 나눈다):
+ *   자료(TitleBand: 이름·경계) → 등급(titleGrade: 순수 함수, 숫자 1~8) → 보이는 것(web: CSS 토큰 --grade-N, 엠블럼 표 TITLE_EMBLEMS)
+ * 화면은 등급 번호만 안다. 나중에 Riot API 티어 같은 바깥 자료로 칭호를 정하게 되더라도
+ * "바깥 티어 → TitleGrade" 함수 하나를 여기에 더하면 되고, 화면·CSS·엠블럼은 그대로 쓴다.
+ * 등급 수를 바꾸려면 TITLE_GRADE_COUNT·TitleGrade·CSS 토큰(--grade-1~N, 테마마다)·엠블럼 표를 함께 바꾼다
+ * (단위 테스트 rate-heat-titles.test.ts가 개수와 "구간마다 다른 등급"을 확인한다).
  */
-export type TitleGrade = 1 | 2 | 3 | 4 | 5;
+export const TITLE_GRADE_COUNT = 8;
+export type TitleGrade = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export const TITLE_GRADES: readonly TitleGrade[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 /**
- * 위에서 index번째(0부터) 구간의 등급. 구간 count개를 다섯 등급에 고르게 대응시킨다:
- * 1개면 가운데(3), 2개 이상이면 맨 위는 1·맨 아래는 5이고 그 사이는 비율대로 반올림한다.
- * 예: 2개 → 1·5, 3개 → 1·3·5, 4개 → 1·2·4·5, 5개 → 1~5, 6개 → 1·2·3·3·4·5, 7개 → 1·2·2·3·4·4·5.
+ * 위에서 index번째(0부터) 구간의 등급. 구간 count개를 여덟 등급에 고르게 벌려 놓는다:
+ * 1개면 가운데(4), 2개 이상이면 맨 위는 1·맨 아래는 8이고 그 사이는 비율대로 반올림한다.
+ * count ≤ MAX_TITLE_BANDS(8)이면 이웃 구간의 값 차가 1 이상이라 **구간마다 등급(색)이 모두 다르다**
+ * (예전 다섯 등급 때는 기본 6구간의 가운데 둘이 같은 색이었다. 2026-11-08).
+ * 예: 2개 → 1·8, 3개 → 1·5·8, 4개 → 1·3·6·8, 5개 → 1·3·5·6·8, 6개 → 1·2·4·5·7·8, 7개 → 1·2·3·5·6·7·8, 8개 → 1~8.
  */
 export function titleGrade(index: number, count: number): TitleGrade | null {
   if (!Number.isInteger(index) || !Number.isInteger(count) || count <= 0 || index < 0 || index >= count) {
     return null;
   }
-  if (count === 1) return 3;
-  return (1 + Math.round((index * 4) / (count - 1))) as TitleGrade;
+  if (count === 1) return 4;
+  return (1 + Math.round((index * (TITLE_GRADE_COUNT - 1)) / (count - 1))) as TitleGrade;
 }
 
 /** 누적 승·패로 칭호의 등급을 고른다. 칭호가 없으면 null. */

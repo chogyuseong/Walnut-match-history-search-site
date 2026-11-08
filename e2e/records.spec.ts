@@ -241,7 +241,7 @@ test("그래프 분석", async ({ page }) => {
   const people = page.getByRole("region", { name: "개인별 승률" });
   await expect(people.getByRole("listitem")).toHaveCount(12);
   await expect(people.getByRole("listitem").filter({ hasText: "선수02" })).toContainText(
-    "72.7% · 11경기",
+    "73% · 8승 3패 (11경기)",
   );
   const order = await people.getByRole("listitem").allInnerTexts();
   expect(order.findIndex((t) => t.includes("선수11"))).toBeGreaterThan(
@@ -263,14 +263,14 @@ test("그래프 분석", async ({ page }) => {
   await expect(lines).toContainText("항상 50%이므로 보여주지 않습니다");
   await page.getByLabel("플레이어", { exact: true }).selectOption({ label: "선수02" });
   await expect(lines.getByRole("listitem").filter({ hasText: "정글" })).toContainText(
-    "72.7% · 11경기",
+    "73% · 8승 3패 (11경기)",
   );
   await expect(lines.getByRole("listitem").filter({ hasText: "서폿" })).toContainText("기록 없음");
 
   // 진영별: 진영을 아는 8경기 중 블루 5승, 레드 3승. 미상 3경기는 제외하고 알려준다.
   const sides = page.getByRole("region", { name: "진영별 누적 승률" });
-  await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("62.5% · 8경기");
-  await expect(sides.getByRole("listitem").filter({ hasText: "레드" })).toContainText("37.5% · 8경기");
+  await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("63% · 5승 3패 (8경기)");
+  await expect(sides.getByRole("listitem").filter({ hasText: "레드" })).toContainText("38% · 3승 5패 (8경기)");
   await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
 
   // 플레이어 × 라인: 표로 읽을 수 있고 기록 없는 칸은 —, 5경기 미만은 색을 칠하지 않는다.

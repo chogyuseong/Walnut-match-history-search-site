@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { historyOf, isCompleteDraft, type Draft, type DraftPerson } from "../../shared/draft";
 import { draftBalance, laneMatchups } from "../../shared/prepTools";
-import { rotationContext, supportCountOf } from "../../shared/rotation";
+import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
 import { DEFAULT_SETTINGS } from "../../shared/types";
 import { draftRosterText } from "../format";
 import { CopyButton, ErrorNote, StickyAction } from "../ui";
@@ -17,7 +17,7 @@ import { MatchupSection } from "./prep/MatchupSection";
 import { SeriesSection } from "./prep/SeriesSection";
 import { ShuffleSection, SideSection } from "./prep/ShuffleSection";
 import { StartAskDialog } from "./prep/StartAskDialog";
-import { SupportCountSection } from "./prep/SupportCountSection";
+import { supportCountLabel, SupportCountSection } from "./prep/SupportCountSection";
 import { SelectionBar, TeamBoards } from "./prep/TeamBoards";
 import { usePrepEditing } from "./prep/usePrepEditing";
 import { usePrepStart, type PrepStatus } from "./prep/usePrepStart";
@@ -48,6 +48,8 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [imageOpen, setImageOpen] = useState(false);
+  // 서포터 횟수 판: 버튼(섞기 기준 줄)으로 여닫는다. 아직 안 눌렀으면 한 팀이 모두 배정받았을 때만 펼쳐 둔다(초기화 버튼이 보이게).
+  const [supportOpen, setSupportOpen] = useState<boolean | null>(null);
   const status: PrepStatus = { busy, setBusy, error, setError };
 
   const ctx = useMemo(
@@ -100,9 +102,10 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
   const matchups = app.snapshot ? laneMatchups(draft, app.snapshot.matches) : null;
   const undoSteps = historyOf(draft).length;
   const complete = isCompleteDraft(draft);
+  const supportOpenNow = supportOpen ?? resetCountsReady(draft, ctx);
 
   return (
-    <div className="screen">
+    <div className="screen prep-screen">
       <header className="screen-head">
         <button type="button" className="link" onClick={() => go("/")}>
           ← 오늘
@@ -143,28 +146,55 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
         </p>
       )}
 
-      <TeamBoards draft={draft} ctx={ctx} edit={edit} />
-      <SelectionBar draft={draft} edit={edit} canReplace={others.length > 0} />
-      <BenchSection edit={edit} />
-      {matchups && <MatchupSection matchups={matchups} nameOf={nameOf} />}
-      {balance && <BalanceSection balance={balance} />}
-      <ShuffleSection ctx={ctx} edit={edit} />
-      <SideSection edit={edit} />
-
-      {edit.drawNote && (
-        <DrawSummary
-          result={edit.drawNote}
-          nameOf={nameOf}
-          supporterIsNew={(team) => {
-            const key = draft.slots.find((s) => s.team === team && s.position === "support")?.key;
-            return key !== undefined && supportCountOf(draft, key, ctx) === 0;
-          }}
-        />
-      )}
-
-      <ConstraintsSection draft={draft} edit={edit} />
-      <SupportCountSection app={app} draft={draft} ctx={ctx} status={status} clearDrawNote={() => edit.setDrawNote(null)} />
-      <SeriesSection draft={draft} snapshot={app.snapshot} update={update} />
+      {/* 순서(2026-11-08): 편성 판 바로 아래에 섞기·진영을 두어 섞은 결과를 보면서 다시 누를 수 있다.
+          PC(1024px 이상)에서는 .prep-layout이 두 단이 되고 왼쪽 편성 판이 따라 내려온다(styles.css). */}
+      <div className="prep-layout">
+        <div className="prep-boards">
+          <TeamBoards draft={draft} ctx={ctx} edit={edit} />
+          <SelectionBar draft={draft} edit={edit} canReplace={others.length > 0} />
+          {edit.drawNote && (
+            <DrawSummary
+              result={edit.drawNote}
+              nameOf={nameOf}
+              supporterIsNew={(team) => {
+                const key = draft.slots.find((s) => s.team === team && s.position === "support")?.key;
+                return key !== undefined && supportCountOf(draft, key, ctx) === 0;
+              }}
+            />
+          )}
+        </div>
+        <div className="prep-tools-col">
+          <ShuffleSection
+            ctx={ctx}
+            edit={edit}
+            support={
+              ctx.enabled
+                ? {
+                    label: supportCountLabel(app, ctx),
+                    open: supportOpenNow,
+                    onToggle: () => setSupportOpen(!supportOpenNow),
+                    panel: (
+                      <SupportCountSection
+                        app={app}
+                        draft={draft}
+                        ctx={ctx}
+                        status={status}
+                        clearDrawNote={() => edit.setDrawNote(null)}
+                        open={supportOpenNow}
+                      />
+                    ),
+                  }
+                : undefined
+            }
+          />
+          <SideSection edit={edit} />
+          <BenchSection edit={edit} />
+          {matchups && <MatchupSection matchups={matchups} nameOf={nameOf} />}
+          {balance && <BalanceSection balance={balance} />}
+          <ConstraintsSection draft={draft} edit={edit} />
+          <SeriesSection draft={draft} snapshot={app.snapshot} update={update} />
+        </div>
+      </div>
 
       <div className="button-row">
         <CopyButton label="명단 텍스트 복사" text={() => draftRosterText(draft)} />

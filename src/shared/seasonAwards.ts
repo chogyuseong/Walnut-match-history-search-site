@@ -389,7 +389,10 @@ export function seasonSummaryText(summary: SeasonSummary, groupName: string, nam
   }
   if (summary.busiestDays.length > 0) {
     lines.push(
-      `가장 많이 한 날: ${summary.busiestDays.map((d) => d.date).join(", ")} (${summary.busiestDays[0]!.games}경기)`,
+      `가장 많이 한 날: ${summary.busiestDays
+        .slice(0, 5)
+        .map((d) => d.date)
+        .join(", ")}${summary.busiestDays.length > 5 ? ` 외 ${summary.busiestDays.length - 5}일` : ""} (${summary.busiestDays[0]!.games}경기)`,
     );
   }
   lines.push("");

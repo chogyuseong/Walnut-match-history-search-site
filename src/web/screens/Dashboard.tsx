@@ -131,7 +131,7 @@ export function Dashboard(props: {
                     <span className={rateTier(r.wins, r.games)}>
                       {Math.round((r.wins / r.games) * 100)}%
                     </span>{" "}
-                    · {r.games}경기
+                    · {r.wins}승 {r.games - r.wins}패 ({r.games}경기)
                     <br />
                     <span className="hint">
                       <StandingNote standing={placement.get(r.participantId)} />

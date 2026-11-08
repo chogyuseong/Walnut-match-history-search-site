@@ -16,7 +16,7 @@ import {
 import { personRecords, placements } from "../src/shared/stats";
 import type { MatchView, Team } from "../src/shared/types";
 
-// 결과 기반 레이팅(src/shared/rating.ts): Elo 방식, 시작 1000, 팀 평균, 배치 중 K=40·그 뒤 K=20.
+// 결과 기반 MMR(src/shared/rating.ts): Elo 방식, 시작 1000, 팀 평균, 배치 중 K=40·그 뒤 K=20.
 
 interface MatchOptions {
   winner?: Team;
@@ -63,7 +63,7 @@ const sumChange = (table: ReturnType<typeof computeRatings>, matchId: string) =>
   return sum;
 };
 
-describe("레이팅 계산", () => {
+describe("MMR 계산", () => {
   it("빈 입력이면 빈 표", () => {
     expect(computeRatings([]).size).toBe(0);
   });
@@ -167,7 +167,7 @@ describe("레이팅 계산", () => {
     );
   });
 
-  it("최고 레이팅(시작값 포함)과 최근 10경기 변화 합", () => {
+  it("최고 MMR(시작값 포함)과 최근 10경기 변화 합", () => {
     // 0~4: 승 승 패 … (12경기)
     const results: Team[] = ["A", "A", "B", "B", "B", "A", "B", "A", "B", "B", "A", "B"];
     const table = computeRatings(results.map((w, i) => match(i + 1, { winner: w })));
@@ -223,7 +223,7 @@ describe("레이팅 계산", () => {
   });
 });
 
-describe("레이팅 표시·추이", () => {
+describe("MMR 표시·추이", () => {
   it("정수 반올림, 부호 붙은 변화, 단계 글자", () => {
     expect(shownRating(1043.4)).toBe(1043);
     expect(shownRating(1043.5)).toBe(1044);
@@ -254,11 +254,11 @@ describe("레이팅 표시·추이", () => {
   });
 });
 
-describe("랭킹: 레이팅 순", () => {
+describe("랭킹: MMR 순", () => {
   const nameOf = (id: string) => `선수${id.slice(2).padStart(2, "0")}`;
   const ids = (rows: { participantId: string }[]) => rows.map((r) => r.participantId);
 
-  it("묶음(누적 50경기 이상 → 배치 완료 → 배치 진행 중) 안에서 레이팅 높은 순, 같으면 승률", () => {
+  it("묶음(누적 50경기 이상 → 배치 완료 → 배치 진행 중) 안에서 MMR 높은 순, 같으면 승률", () => {
     // 첫 경기에서 0~4 승, 둘째 경기에서 0·5·6·7·8이 1·2·3·4·9를 이긴다.
     const matches = [match(1), match(2, { teamA: [0, 5, 6, 7, 8], teamB: [1, 2, 3, 4, 9] })];
     const records = [...personRecords(matches).values()];
@@ -268,13 +268,13 @@ describe("랭킹: 레이팅 순", () => {
     expect([...values].sort((a, b) => b - a)).toEqual(values);
     expect(sorted[0]).toBe("id0");
     expect(sorted[sorted.length - 1]).toBe("id9");
-    // 묶음이 우선이다: 배치 완료한 사람이 레이팅이 낮아도 위.
+    // 묶음이 우선이다: 배치 완료한 사람이 MMR이 낮아도 위.
     const placement = new Map([
       ["id9", { games: 12, done: true }],
       ["id0", { games: 2, done: false }],
     ]);
     expect(ids(sortRankingBy(records, placement, nameOf, "rating", ratings))[0]).toBe("id9");
-    // 레이팅 표가 없으면 모두 1000으로 보고 승률 순.
+    // MMR 표가 없으면 모두 1000으로 보고 승률 순.
     const noTable = ids(sortRankingBy(records, placements(matches), nameOf, "rating"));
     expect(noTable[0]).toBe("id0");
     // 검색해도 순위 숫자는 그대로.

@@ -69,7 +69,7 @@ export function Compare(props: {
   const seriesBadge = useSeriesBadges(snapshot);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
-  // 결과 기반 레이팅: 범위와 무관하게 모임 전체 누적(rating.ts).
+  // 결과 기반 MMR: 범위와 무관하게 모임 전체 누적(rating.ts).
   const ratings = useMemo(() => computeRatings(snapshot.matches), [snapshot]);
   // 고를 수 있는 사람: 확정 경기가 한 번이라도 있는 사람(누적), 이름순.
   const people = useMemo(
@@ -165,7 +165,7 @@ export function Compare(props: {
       <span className={rateTier(t.wins, t.games)}>{rateText(t)}</span>
       {t.games > 0 && (
         <span className="cmp-sub">
-          {wl(t)} · {t.games}경기
+          {wl(t)} ({t.games}경기)
           {t.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
         </span>
       )}
@@ -232,12 +232,12 @@ export function Compare(props: {
               </td>
             </tr>
             <tr>
-              <th scope="row">레이팅 (누적)</th>
+              <th scope="row">MMR (누적)</th>
               <td>{ratingCell(ratings.get(a!))}</td>
               <td>{ratingCell(ratings.get(b!))}</td>
             </tr>
             <tr>
-              <th scope="row">레이팅 차</th>
+              <th scope="row">MMR 차</th>
               <td colSpan={2}>
                 {signedDelta(shownRating(ratingA) - shownRating(ratingB))}{" "}
                 <span className="cmp-sub">{nameA} 기준</span>
@@ -317,6 +317,14 @@ export function Compare(props: {
               {nameA} <strong>{h2h.against.aWins}승</strong> : <strong>{h2h.against.bWins}승</strong> {nameB}
               {h2h.against.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
             </p>
+            {/* 다른 화면과 같은 꼴 "승률 · N승 M패 (G경기)"(첫 번째 사람 기준). 승 수만으로는 승률이 한눈에 안 들어온다는 요청(2026-11-08). */}
+            <p className="cmp-h2h-rate">
+              {nameA} 기준{" "}
+              <span className={rateTier(h2h.against.aWins, h2h.against.games)}>
+                {rateText({ wins: h2h.against.aWins, games: h2h.against.games })}
+              </span>{" "}
+              · {wl({ wins: h2h.against.aWins, games: h2h.against.games })} ({h2h.against.games}경기)
+            </p>
             <div
               className="cmp-bar"
               role="img"
@@ -324,7 +332,7 @@ export function Compare(props: {
             >
               <span style={{ width: `${(h2h.against.aWins / h2h.against.games) * 100}%` }} />
             </div>
-            <p className="hint">{h2h.against.games}경기 기준. 경기 수가 적으면 우연일 수 있습니다.</p>
+            <p className="hint">경기 수가 적으면 우연일 수 있습니다.</p>
           </>
         )}
       </section>

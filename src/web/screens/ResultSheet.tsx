@@ -129,7 +129,7 @@ export function ResultSheet(props: {
             <button
               key={team}
               type="button"
-              className={`result-win ${teamBoxClass(team, match.teamASide)}`}
+              className={`result-pick-btn ${teamBoxClass(team, match.teamASide)}`}
               aria-pressed={winner === team}
               onClick={() => {
                 setWinner(team);
@@ -137,11 +137,11 @@ export function ResultSheet(props: {
                 setSide(presetWinnerSide(team, match.teamASide));
               }}
             >
-              <strong className="result-win-title">
+              <strong className="result-pick-title">
                 <span aria-hidden="true">{TEAM_MARK[team]}</span> {teamName(team, match.teamASide)} 승
                 {winner === team && <span className="tag">선택</span>}
               </strong>
-              <span className="hint result-win-names">
+              <span className="hint result-pick-names">
                 {teamRoster(match, team)
                   .map((r) => nameOf(r.participantId))
                   .join(" · ")}

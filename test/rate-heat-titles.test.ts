@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TITLE_BANDS, titleGrade, titleGradeFor } from "../src/shared/titles";
+import {
+  DEFAULT_TITLE_BANDS,
+  MAX_TITLE_BANDS,
+  TITLE_GRADE_COUNT,
+  TITLE_GRADES,
+  titleGrade,
+  titleGradeFor,
+} from "../src/shared/titles";
 import type { TitleBand } from "../src/shared/types";
 
 // 승률 색 단계(src/web/format.ts의 rateHeat·heatClass·rateTier)와 칭호 등급 대응(src/shared/titles.ts).
@@ -105,27 +112,33 @@ describe("승률 색 단계", () => {
   });
 });
 
-describe("칭호 등급(구간 순서 → 다섯 등급)", () => {
+describe("칭호 등급(구간 순서 → 여덟 등급, 구간마다 다른 등급)", () => {
   const grades = (count: number) => Array.from({ length: count }, (_, i) => titleGrade(i, count));
 
-  it("구간 1~8개", () => {
-    expect(grades(1)).toEqual([3]);
-    expect(grades(2)).toEqual([1, 5]);
-    expect(grades(3)).toEqual([1, 3, 5]);
-    expect(grades(4)).toEqual([1, 2, 4, 5]);
-    expect(grades(5)).toEqual([1, 2, 3, 4, 5]);
-    expect(grades(6)).toEqual([1, 2, 3, 3, 4, 5]);
-    expect(grades(7)).toEqual([1, 2, 2, 3, 4, 4, 5]);
-    expect(grades(8)).toEqual([1, 2, 2, 3, 3, 4, 4, 5]);
+  it("등급 수는 구간 최대 개수와 같다(그래야 구간마다 다른 색이 된다)", () => {
+    expect(TITLE_GRADE_COUNT).toBe(MAX_TITLE_BANDS);
+    expect(TITLE_GRADES).toHaveLength(TITLE_GRADE_COUNT);
   });
 
-  it("어느 개수든 맨 위는 가장 높은 등급, 아래로 갈수록 내려가지 않는다", () => {
-    for (let count = 1; count <= 8; count++) {
+  it("구간 1~8개", () => {
+    expect(grades(1)).toEqual([4]);
+    expect(grades(2)).toEqual([1, 8]);
+    expect(grades(3)).toEqual([1, 5, 8]);
+    expect(grades(4)).toEqual([1, 3, 6, 8]);
+    expect(grades(5)).toEqual([1, 3, 5, 6, 8]);
+    expect(grades(6)).toEqual([1, 2, 4, 5, 7, 8]);
+    expect(grades(7)).toEqual([1, 2, 3, 5, 6, 7, 8]);
+    expect(grades(8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it("어느 개수든 맨 위는 1, 맨 아래는 8, 아래로 갈수록 내려가고 같은 등급이 둘 이상 없다", () => {
+    for (let count = 1; count <= MAX_TITLE_BANDS; count++) {
       const g = grades(count) as number[];
-      for (let i = 1; i < g.length; i++) expect(g[i]).toBeGreaterThanOrEqual(g[i - 1]!);
+      for (let i = 1; i < g.length; i++) expect(g[i]).toBeGreaterThan(g[i - 1]!);
+      expect(new Set(g).size).toBe(count);
       if (count > 1) {
         expect(g[0]).toBe(1);
-        expect(g[g.length - 1]).toBe(5);
+        expect(g[g.length - 1]).toBe(TITLE_GRADE_COUNT);
       }
     }
   });
@@ -139,12 +152,13 @@ describe("칭호 등급(구간 순서 → 다섯 등급)", () => {
     expect(titleGradeFor(7, 10, [])).toBeNull();
   });
 
-  it("누적 승·패로 고른 칭호의 등급(기본 다섯 구간, 이름과 무관)", () => {
+  it("누적 승·패로 고른 칭호의 등급(기본 여섯 구간 → 1·2·4·5·7·8, 이름과 무관)", () => {
     expect(titleGradeFor(13, 20, DEFAULT_TITLE_BANDS)).toBe(1); // 65%
     expect(titleGradeFor(12, 20, DEFAULT_TITLE_BANDS)).toBe(2); // 60%
-    expect(titleGradeFor(10, 20, DEFAULT_TITLE_BANDS)).toBe(3); // 50%
-    expect(titleGradeFor(8, 20, DEFAULT_TITLE_BANDS)).toBe(4); // 40%
-    expect(titleGradeFor(2, 20, DEFAULT_TITLE_BANDS)).toBe(5); // 10%
+    expect(titleGradeFor(10, 20, DEFAULT_TITLE_BANDS)).toBe(4); // 50% 떠오르는 강자
+    expect(titleGradeFor(9, 20, DEFAULT_TITLE_BANDS)).toBe(5); // 45% 든든한 전우 — 바로 위 구간과 다른 색
+    expect(titleGradeFor(8, 20, DEFAULT_TITLE_BANDS)).toBe(7); // 40%
+    expect(titleGradeFor(2, 20, DEFAULT_TITLE_BANDS)).toBe(8); // 10%
     expect(titleGradeFor(0, 0, DEFAULT_TITLE_BANDS)).toBeNull();
     // 순서가 섞여 들어와도 높은 경계부터 센다. 이름을 바꿔도 같다.
     const shuffled: TitleBand[] = [
@@ -153,10 +167,10 @@ describe("칭호 등급(구간 순서 → 다섯 등급)", () => {
       { minRate: 40, name: "다" },
     ];
     expect(titleGradeFor(7, 10, shuffled)).toBe(1);
-    expect(titleGradeFor(5, 10, shuffled)).toBe(3);
-    expect(titleGradeFor(1, 10, shuffled)).toBe(5);
+    expect(titleGradeFor(5, 10, shuffled)).toBe(5);
+    expect(titleGradeFor(1, 10, shuffled)).toBe(8);
     // 가장 낮은 경계보다 낮으면 칭호도 등급도 없다.
     expect(titleGradeFor(1, 10, [{ minRate: 50, name: "하나" }])).toBeNull();
-    expect(titleGradeFor(5, 10, [{ minRate: 50, name: "하나" }])).toBe(3);
+    expect(titleGradeFor(5, 10, [{ minRate: 50, name: "하나" }])).toBe(4);
   });
 });

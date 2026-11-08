@@ -203,10 +203,10 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await expect(summary.locator(".summary-line")).toHaveClass(/heat-l4/);
   expect(await colorOf(page, ".ring-fill", "stroke")).not.toBe(hotRing);
   expect(await colorOf(page, ".summary-line", "color")).not.toBe(hotText);
-  await expect(summary.locator(".title-chip")).toHaveClass(/grade-5/);
+  await expect(summary.locator(".title-chip")).toHaveClass(/grade-8/);
   await expect(summary.locator(".title-chip")).toHaveText("불굴의 개척자");
 
-  // 랭킹: 승률 숫자 글자가 여러 단계로 나뉘고, 높은 줄과 낮은 줄의 글자 색이 다르다. 칭호 다섯 등급이 모두 보인다.
+  // 랭킹: 승률 숫자 글자가 여러 단계로 나뉘고, 높은 줄과 낮은 줄의 글자 색이 다르다. 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
   const ranking = page.getByRole("region", { name: "소환사 랭킹" });
@@ -222,7 +222,7 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   const grades = await ranking
     .locator(".title-chip")
     .evaluateAll((nodes) => nodes.map((n) => n.className.match(/grade-\d/)?.[0] ?? ""));
-  expect(new Set(grades)).toEqual(new Set(["grade-1", "grade-2", "grade-3", "grade-4", "grade-5"]));
+  expect(new Set(grades)).toEqual(new Set(["grade-1", "grade-2", "grade-4", "grade-5", "grade-7", "grade-8"]));
 
   // 검색: 작은 승률 막대도 같은 단계.
   await page.goto("/#/search");
@@ -247,13 +247,13 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await expect(matrix.locator(".swatch.heat-h4")).toHaveCount(1);
   await expect(matrix.locator(".swatch.heat-l4")).toHaveCount(1);
 
-  // 칭호 설정: 기본 6구간은 다섯 등급에 비율로 대응해 가운데 두 구간이 같은 등급(1·2·3·3·4·5).
-  // 구간 수를 8개로 늘려도, 2개로 줄여도 등급이 순서대로 붙는다.
+  // 칭호 설정: 기본 6구간은 여덟 등급에 고르게 벌려 구간마다 다른 등급(1·2·4·5·7·8).
+  // 구간 수를 8개로 늘리면 1~8, 2개로 줄이면 1·8로 순서대로 붙는다.
   await page.goto("/#/group");
   const section = page.getByRole("region", { name: "칭호" });
   const sectionGrades = () =>
     section.locator(".title-chip").evaluateAll((nodes) => nodes.map((n) => n.className.match(/grade-\d/)?.[0]));
-  expect(await sectionGrades()).toEqual(["grade-1", "grade-2", "grade-3", "grade-3", "grade-4", "grade-5"]);
+  expect(await sectionGrades()).toEqual(["grade-1", "grade-2", "grade-4", "grade-5", "grade-7", "grade-8"]);
   await section.getByRole("button", { name: "칭호 바꾸기" }).click();
   const dialog = page.getByRole("dialog", { name: "칭호 바꾸기" });
   await expect(dialog.locator(".title-preview")).toHaveCount(6);
@@ -270,17 +270,17 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   expect(await sectionGrades()).toEqual([
     "grade-1",
     "grade-2",
-    "grade-2",
     "grade-3",
-    "grade-3",
-    "grade-4",
     "grade-4",
     "grade-5",
+    "grade-6",
+    "grade-7",
+    "grade-8",
   ]);
-  // 8구간: 선수12(70% 이상 → 65% 구간, 위에서 3번째)는 2등급.
+  // 8구간: 선수12(70% 이상 → 65% 구간, 위에서 3번째)는 3등급.
   await page.goto(`/#/p/${top.id}`);
   await page.reload();
-  await expect(page.getByRole("region", { name: "요약" }).locator(".title-chip")).toHaveClass(/grade-2/);
+  await expect(page.getByRole("region", { name: "요약" }).locator(".title-chip")).toHaveClass(/grade-3/);
 
   await page.goto("/#/group");
   await section.getByRole("button", { name: "칭호 바꾸기" }).click();
@@ -289,10 +289,10 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await dialog.getByRole("button", { name: "저장" }).click();
   await expect(dialog).toBeHidden();
   await expect(section.locator(".title-chip")).toHaveCount(2);
-  expect(await sectionGrades()).toEqual(["grade-1", "grade-5"]);
+  expect(await sectionGrades()).toEqual(["grade-1", "grade-8"]);
   await page.goto(`/#/p/${low.id}`);
   await page.reload();
   const lowChip = page.getByRole("region", { name: "요약" }).locator(".title-chip");
-  await expect(lowChip).toHaveClass(/grade-5/);
+  await expect(lowChip).toHaveClass(/grade-8/);
   await expect(lowChip.locator("svg.title-emblem")).toHaveCount(1);
 });

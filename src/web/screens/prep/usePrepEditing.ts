@@ -43,6 +43,8 @@ export function usePrepEditing(app: AppValue, draft: Draft, ctx: RotationContext
   const [drawNote, setDrawNote] = useState<DrawResult | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [pairMode, setPairMode] = useState<PairMode>(null);
+  /** 끌고 있는 사람(편성 또는 대기자)의 키. 놓을 자리 표시에 쓴다(TeamBoards·BenchSection). */
+  const [dragKey, setDragKey] = useState<string | null>(null);
   // 팀·라인 모두 섞기을 눌렀는데 티어를 정한 사람이 없으면 섞기 구역에 배정 화면 링크를 남긴다(다음 조작 때 지운다).
   const [noPriorityNote, setNoPriorityNote] = useState(false);
   // 라인 섞기에서 기피 라인을 모두 피하지 못했으면 섞기 구역에 남긴다(다음 조작 때 지운다).
@@ -223,6 +225,32 @@ export function usePrepEditing(app: AppValue, draft: Draft, ctx: RotationContext
     if (closeCandidates) setCandidates(null);
   }
 
+  /**
+   * 끌어다 놓기(2026-11-08, 손으로 배치를 고치는 자유도): source를 target 자리에 놓는다.
+   * 둘 다 편성이면 자리(팀·포지션)를 맞바꾸고(swapPeople, 고정은 풀림), 한쪽이 대기자면 대기자와 바꾼다(swapWithBench).
+   * 누르기 방식(onTapPerson·onTapBench)과 같은 함수를 쓰므로 되돌리기·서포터 기록도 같게 동작한다.
+   */
+  function dropPerson(sourceKey: string, targetKey: string) {
+    setDragKey(null);
+    if (sourceKey === targetKey) return;
+    const inSlots = (key: string) => draft.slots.some((s) => s.key === key);
+    const inBench = (key: string) => bench.some((p) => p.key === key);
+    if (inSlots(sourceKey) && inSlots(targetKey)) {
+      update(swapPeople(draft, sourceKey, targetKey));
+    } else if (inSlots(sourceKey) && inBench(targetKey)) {
+      update(swapWithBench(draft, sourceKey, targetKey));
+      app.setNotice(`${nameOf(sourceKey)} 님 자리에 ${nameOf(targetKey)} 님을 넣었어요. ${nameOf(sourceKey)} 님은 대기자로 갔어요.`);
+    } else if (inBench(sourceKey) && inSlots(targetKey)) {
+      update(swapWithBench(draft, targetKey, sourceKey));
+      app.setNotice(`${nameOf(targetKey)} 님 자리에 ${nameOf(sourceKey)} 님을 넣었어요. ${nameOf(targetKey)} 님은 대기자로 갔어요.`);
+    } else {
+      return;
+    }
+    setSelectedKey(null);
+    setPairMode(null);
+    setDrawNote(null);
+  }
+
   /** 대기자를 누르면: 편성 안의 사람을 골라 둔 상태면 둘을 맞바꾼다. 빠진 사람은 대기자 맨 뒤로 간다. */
   function onTapBench(benchKey: string) {
     const incoming = bench.find((p) => p.key === benchKey);
@@ -259,6 +287,9 @@ export function usePrepEditing(app: AppValue, draft: Draft, ctx: RotationContext
     clearSelection,
     onTapPerson,
     onTapBench,
+    dragKey,
+    setDragKey,
+    dropPerson,
     showRecommendations,
     runDraw,
     runTeamShuffle,

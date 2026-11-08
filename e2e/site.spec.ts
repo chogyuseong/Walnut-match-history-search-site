@@ -234,7 +234,7 @@ test("기록 거르기: 사람(여러 명은 모두 함께)·승패·이긴 진�
   await list.getByLabel("거를 사람 추가").selectOption({ label: "선수01" });
   await expect(cards).toHaveCount(10);
   const summary = list.getByRole("status");
-  await expect(summary).toContainText("선수01 참가 · 10경기 · 선수01 7승 3패");
+  await expect(summary).toContainText("선수01 참가 · 10경기 · 선수01 70% · 7승 3패");
 
   // 두 번째 사람: 둘 다 뛴 경기만. 선수01과 선수11은 함께 뛴 적이 없다.
   await list.getByLabel("거를 사람 추가").selectOption({ label: "선수11" });
@@ -266,7 +266,7 @@ test("기록 거르기: 사람(여러 명은 모두 함께)·승패·이긴 진�
   await list.getByLabel("이긴 진영").selectOption({ label: "블루 승" });
   await list.getByLabel("거를 사람 추가").selectOption({ label: "선수02" });
   await expect(cards).toHaveCount(5);
-  await expect(summary).toContainText("선수02 참가 · 블루 승 · 5경기 · 선수02 5승 0패");
+  await expect(summary).toContainText("선수02 참가 · 블루 승 · 5경기 · 선수02 100% · 5승 0패");
   // 고른 사람이 한 명이면 카드는 그 사람 기준 승·패 색이다.
   await expect(cards.first()).toHaveClass(/tone-win/);
   await noHorizontalOverflow(page);
@@ -291,7 +291,7 @@ test("두 사람 비교: 개인 통계·검색에서 들어가고 조회 링크�
   await expect(against).toContainText("선수02 8승 : 3승 선수07");
   await expect(page.getByRole("region", { name: "같은 팀일 때" })).toContainText("같은 팀으로 뛴 경기가 없어요.");
   const lines = page.getByRole("region", { name: "라인별 승률 비교" });
-  await expect(lines.getByRole("row").filter({ hasText: "정글" })).toContainText("8승 3패 · 11경기");
+  await expect(lines.getByRole("row").filter({ hasText: "정글" })).toContainText("8승 3패 (11경기)");
   // 맞대결 경기 목록(경기 카드): 최근 10개를 먼저 그리고 "더 보기"로 11개. 첫 카드는 선수02 기준 승.
   const gameList = page.getByRole("region", { name: "맞대결 경기" });
   const games = gameList.getByRole("listitem");

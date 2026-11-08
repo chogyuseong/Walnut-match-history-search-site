@@ -66,7 +66,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
   await expect(dialog.getByText(/기피01/).first()).toBeVisible();
   await expect(dialog.getByRole("listitem").filter({ hasText: "기피01" })).toContainText("미지정 → 1티어");
   await expect(dialog.getByRole("listitem").filter({ hasText: "기피06" })).toContainText("미지정 → 3티어");
-  await expect(dialog.getByRole("listitem").filter({ hasText: "기피06" })).toContainText("12경기 · 승률 25%");
+  await expect(dialog.getByRole("listitem").filter({ hasText: "기피06" })).toContainText("25% · 3승 9패 (12경기)");
   await expect(dialog.getByText("기록이 적어 제안 없음 2명")).toBeVisible();
   await noHorizontalOverflow(page);
   // 한 명은 빼고 적용한다.

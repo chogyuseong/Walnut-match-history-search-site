@@ -329,3 +329,32 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 편성 균형 · �
   for (const name of playing) await expect(page.locator("#root")).toContainText(name);
   await expect(page.locator("#root")).not.toContainText(out);
 });
+
+test("끌어다 놓기(PC): 사람을 다른 자리에 놓으면 둘이 바뀌고, 대기자에 놓으면 대기자와 바뀐다", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openPrep(page, 11);
+  const a0 = (await readTeam(page, "A"))[0]!.name;
+  const b2 = (await readTeam(page, "B"))[2]!.name;
+  // 블루 탑 → 레드 미드 자리에 놓기: 두 사람의 팀·포지션이 맞바뀐다.
+  await team(page, "A")
+    .getByRole("button", { name: new RegExp(a0) })
+    .dragTo(team(page, "B").getByRole("button", { name: new RegExp(b2) }));
+  expect((await readTeam(page, "A"))[0]!.name).toBe(b2);
+  expect((await readTeam(page, "B"))[2]!.name).toBe(a0);
+  await noHorizontalOverflow(page);
+  // 되돌리기 한 번이면 처음 배치로, 다시 앞으로 하면 바뀐 배치로.
+  await page.getByRole("button", { name: /직전 편성으로/ }).click();
+  expect((await readTeam(page, "A"))[0]!.name).toBe(a0);
+  await page.getByRole("button", { name: "다시 앞으로" }).click();
+  expect((await readTeam(page, "B"))[2]!.name).toBe(a0);
+  // 레드 미드(이제 a0) → 대기자에 놓기: 대기자가 들어오고 a0은 대기자로 간다(교체와 같이 되돌리기 이력은 비워진다).
+  const benchList = page.getByRole("region", { name: "대기자" });
+  const benchName = (await benchList.getByRole("button").first().innerText()).match(/준비\d\d/)![0];
+  await team(page, "B")
+    .getByRole("button", { name: new RegExp(a0) })
+    .dragTo(benchList.getByRole("button").first());
+  expect((await readTeam(page, "B"))[2]!.name).toBe(benchName);
+  await expect(benchList.getByRole("button").filter({ hasText: a0 })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(0);
+});
+

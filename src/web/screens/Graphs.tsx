@@ -31,8 +31,9 @@ function percent(wins: number, games: number): number {
   return games === 0 ? 0 : (wins / games) * 100;
 }
 
+/** 다른 화면과 같은 정수 승률(예전에는 소수 한 자리였다. 2026-11-08 통일). */
 function percentText(wins: number, games: number): string {
-  return `${percent(wins, games).toFixed(1)}%`;
+  return `${Math.round(percent(wins, games))}%`;
 }
 
 /**
@@ -63,7 +64,7 @@ function RateBar(props: {
           <strong className={tone === "series" ? rateTier(wins, games) : undefined}>
             {percentText(wins, games)}
           </strong>{" "}
-          · {games}경기
+          · {wins}승 {games - wins}패 ({games}경기)
         </span>
       </span>
       <span className="bar-track" aria-hidden="true">

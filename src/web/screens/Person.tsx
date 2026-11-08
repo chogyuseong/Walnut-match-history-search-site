@@ -124,7 +124,7 @@ export function Person(props: {
   );
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
-  // 결과 기반 레이팅도 범위와 무관하게 모임 전체 누적 확정 경기로 계산한다(rating.ts).
+  // 결과 기반 MMR도 범위와 무관하게 모임 전체 누적 확정 경기로 계산한다(rating.ts).
   const rating = useMemo(
     () => computeRatings(snapshot.matches).get(participantId) ?? null,
     [snapshot, participantId],
@@ -276,7 +276,7 @@ export function Person(props: {
           {nameOf(pair.participantId)}
         </button>
         <span className="tile-sub">
-          {sub} <RateText tally={pair} /> · {pair.games}경기
+          {sub} <RateLine tally={pair} />
         </span>
         <RateBar wins={pair.wins} games={pair.games} small />
       </>
@@ -295,7 +295,7 @@ export function Person(props: {
           <PosLabel position={picked.position} />
         </strong>
         <span className="tile-sub">
-          <RateText tally={picked.tally} /> · {picked.tally.games}경기
+          <RateLine tally={picked.tally} />
           {picked.tally.games < SMALL_SAMPLE ? " · 자료 적음" : ""}
         </span>
         <RateBar wins={picked.tally.wins} games={picked.tally.games} small />
@@ -347,7 +347,7 @@ export function Person(props: {
               {rating && rating.games > 0 && (
                 <p className="ps-rating">
                   <span className="rating-num">
-                    레이팅 {shownRating(rating.rating)} · 최고 {shownRating(rating.peak)} · 최근{" "}
+                    MMR {shownRating(rating.rating)} · 최고 {shownRating(rating.peak)} · 최근{" "}
                     {Math.min(RATING_RECENT_GAMES, rating.games)}경기 {signedDelta(rating.delta10)}
                   </span>{" "}
                   <span className="hint">(누적 기준)</span>
@@ -405,7 +405,7 @@ export function Person(props: {
         ) : detail.summary.games > 0 ? (
           <p className="hint">승률 추이는 {SMALL_SAMPLE + 1}경기부터 보여줍니다.</p>
         ) : null}
-        {/* 레이팅 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
+        {/* MMR 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
         {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} />}
         {detail.summary.games > 0 && (
           <p className="hint">
@@ -541,9 +541,7 @@ export function Person(props: {
                 {pair.against.games === 0 ? (
                   "만난 적 없음"
                 ) : (
-                  <>
-                    {pair.against.games}경기 · {pair.against.wins}승 {pair.against.losses}패
-                  </>
+                  <RateLine tally={{ wins: pair.against.wins, games: pair.against.games }} />
                 )}
               </span>
               <RateBar wins={pair.against.wins} games={pair.against.games} small />
@@ -554,9 +552,7 @@ export function Person(props: {
                 {pair.together.games === 0 ? (
                   "같은 팀으로 뛴 적 없음"
                 ) : (
-                  <>
-                    {pair.together.games}경기 · 승률 <RateText tally={pair.together} />
-                  </>
+                  <RateLine tally={pair.together} />
                 )}
               </span>
               <RateBar wins={pair.together.wins} games={pair.together.games} small />

@@ -134,6 +134,10 @@ describe("서포터 순환 — 서버 재검사", () => {
     expect(res.status).toBe(200);
     const after = await snapshot(g);
     expect(after.rotation!.cycleId).not.toBe(before.rotation!.cycleId);
+    // 새 주기가 열린 시각이 함께 온다(화면의 "언제부터 세는지"). 이전 주기보다 뒤다.
+    expect(after.rotation!.cycleStartedAt).toBeTruthy();
+    expect(before.rotation!.cycleStartedAt).toBeTruthy();
+    expect(after.rotation!.cycleStartedAt! >= before.rotation!.cycleStartedAt!).toBe(true);
     expect(after.rotation!.events).toHaveLength(0);
     expect(after.matches).toEqual(before.matches);
     // 새 주기에서는 같은 사람이 확인 없이 서포터를 할 수 있다.

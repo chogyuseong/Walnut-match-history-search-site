@@ -159,6 +159,11 @@ export interface SupportAdjustmentView {
 export interface RotationView {
   /** 활성 주기. null이면 아직 주기가 없고(첫 경기 전) 미리 넣은 보정값만 있다. */
   cycleId: string | null;
+  /**
+   * 활성 주기가 열린 시각(ISO). 새 내전 시작 또는 "서포터 횟수 초기화" 시각이다. 이 뒤에 시작한 경기만 횟수에 든다.
+   * 화면이 "언제부터 세는지"를 보여 주는 데 쓴다(2026-11-08). 주기가 없으면 없다.
+   */
+  cycleStartedAt?: string;
   /** 무효가 아닌 사건만. */
   events: RotationEventView[];
   /** 서포터 횟수 직접 입력의 보정값. 운영자 응답에만, 있을 때만 들어 있다(합쳐진 이름은 남은 사람에게 더해 둠). */

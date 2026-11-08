@@ -161,19 +161,23 @@ export function scopeFromValue(value: string): Scope {
 
 /**
  * 칭호 엠블럼. 등급(구간 순서)마다 직접 그린 단순한 도형이다(게임의 랭크 엠블럼을 본뜨지 않았다).
- * 1 왕관 · 2 별 · 3 방패 · 4 검 · 5 새싹. 꾸밈이고 뜻은 옆의 이름 글자가 전한다.
+ * 1 왕관 · 2 보석 · 3 별 · 4 방패 · 5 검 · 6 깃발 · 7 새싹 · 8 고리. 꾸밈이고 뜻은 옆의 이름 글자가 전한다.
+ * 등급 수(titles.ts TITLE_GRADE_COUNT)와 개수가 같아야 한다(Record 타입이 빠진 등급을 잡는다).
  */
 const TITLE_EMBLEMS: Record<TitleGrade, ReactNode> = {
   1: <path d="M3 18.5H21M4 16L3 7L8.5 11L12 4.5L15.5 11L21 7L20 16H4Z" />,
-  2: <path d="M12 3.5L14.6 9L20.5 9.6L16 13.6L17.3 19.5L12 16.5L6.7 19.5L8 13.6L3.5 9.6L9.4 9L12 3.5Z" />,
-  3: (
+  2: <path d="M7.5 4H16.5L21 9L12 20L3 9L7.5 4ZM3 9H21M9.5 4L12 9L14.5 4M12 9V20" />,
+  3: <path d="M12 3.5L14.6 9L20.5 9.6L16 13.6L17.3 19.5L12 16.5L6.7 19.5L8 13.6L3.5 9.6L9.4 9L12 3.5Z" />,
+  4: (
     <>
       <path d="M12 3.5L19 6.5V12C19 16 16.2 19 12 20.5C7.8 19 5 16 5 12V6.5L12 3.5Z" />
       <path d="M12 8V16" />
     </>
   ),
-  4: <path d="M17.5 4H20V6.5L10.5 16L8 13.5L17.5 4ZM6 12L12 18M8.5 15.5L4.5 19.5" />,
-  5: <path d="M12 20.5V11M12 12.5C12 8.5 9.5 6.5 5 6.5C5 10.5 7.5 12.5 12 12.5ZM12 11C12 7.5 14.5 5 19 5C19 9 16.5 11 12 11Z" />,
+  5: <path d="M17.5 4H20V6.5L10.5 16L8 13.5L17.5 4ZM6 12L12 18M8.5 15.5L4.5 19.5" />,
+  6: <path d="M6 20.5V4M6 4.5H18L15.5 8.5L18 12.5H6" />,
+  7: <path d="M12 20.5V11M12 12.5C12 8.5 9.5 6.5 5 6.5C5 10.5 7.5 12.5 12 12.5ZM12 11C12 7.5 14.5 5 19 5C19 9 16.5 11 12 11Z" />,
+  8: <path d="M12 4.5A7.5 7.5 0 1 0 12 19.5A7.5 7.5 0 1 0 12 4.5ZM12 9A3 3 0 1 0 12 15A3 3 0 1 0 12 9Z" />,
 };
 
 /** 칭호 엠블럼 하나(꾸밈, 화면 읽기에서 숨김). 색은 둘러싼 요소의 grade-N 클래스를 따른다. */
@@ -551,7 +555,7 @@ export function TrendLine(props: { points: readonly { game: number; rate: number
 }
 
 /**
- * 레이팅 추이(작은 선 그래프). TrendLine과 같은 모양·클래스이고, 가운데 기준선이 시작값 1000이다.
+ * MMR 추이(작은 선 그래프). TrendLine과 같은 모양·클래스이고, 가운데 기준선이 시작값 1000이다.
  * 세로축은 1000을 가운데에 두고 위아래를 같은 폭으로 잡는다(최소 ±50). 처음·끝 값은 글자로 함께 적는다.
  * points: 0경기째(시작값)부터. rating.ts ratingTrend의 결과.
  */
@@ -575,7 +579,7 @@ export function RatingTrendLine(props: { points: readonly { game: number; rating
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label={`레이팅 추이: ${at(first.game)} ${n(first.rating)}에서 ${last.game}경기째 ${n(last.rating)}`}
+        aria-label={`MMR 추이: ${at(first.game)} ${n(first.rating)}에서 ${last.game}경기째 ${n(last.rating)}`}
       >
         <rect x="0" y="0" width={W} height={H} className="trend-bg" />
         <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="trend-mid" vectorEffect="non-scaling-stroke" />
@@ -583,7 +587,7 @@ export function RatingTrendLine(props: { points: readonly { game: number; rating
       </svg>
       <figcaption className="trend-caption">
         <span>
-          레이팅 추이 · 가운데 선 {MID} · 위아래 끝 {n(MID + spread)} / {n(MID - spread)}
+          MMR 추이 · 가운데 선 {MID} · 위아래 끝 {n(MID + spread)} / {n(MID - spread)}
         </span>
         <span>
           {at(first.game)} {n(first.rating)} → <strong>{last.game}경기째 {n(last.rating)}</strong>

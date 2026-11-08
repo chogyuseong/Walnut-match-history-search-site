@@ -160,7 +160,7 @@ describe("라인 맞대결", () => {
     const top = result[0]!;
     expect([top.leftKey, top.rightKey]).toEqual([`p:${topA}`, `p:${topB}`]);
     expect([top.games, top.wins, top.losses]).toEqual([3, 2, 1]);
-    expect(matchupText(top)).toBe("2승 1패");
+    expect(matchupText(top)).toBe("67% · 2승 1패 (3경기)");
   });
 
   it("만난 적이 없거나 참가자 ID가 없는 새 이름이면 '첫 맞대결'", () => {

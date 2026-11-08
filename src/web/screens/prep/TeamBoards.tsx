@@ -7,10 +7,25 @@ import { PosLabel } from "../../ui";
 import { prepTeamName } from "./common";
 import type { PrepEditing } from "./usePrepEditing";
 
-/** 두 팀 명단(왼쪽 블루팀·오른쪽 레드팀). 사람을 누르면 고르기·자리 바꾸기·조건 걸기(usePrepEditing.onTapPerson). */
+/**
+ * 두 팀 명단(왼쪽 블루팀·오른쪽 레드팀). 사람을 누르면 고르기·자리 바꾸기·조건 걸기(usePrepEditing.onTapPerson).
+ * 손으로 배치를 고치는 두 가지 길(2026-11-08):
+ * - 끌어다 놓기: 사람을 끌어 다른 사람 자리에 놓으면 둘이 바뀐다(대기자와도). PC 마우스용. 터치에서는 누르기 방식을 쓴다.
+ * - 두 사람 차례로 누르기: 첫 사람을 고르면 나머지 자리에 "바꾸기" 표시가 뜬다.
+ */
 export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: PrepEditing }) {
   const { draft, ctx, edit } = props;
-  const { selectedKey, nameOf } = edit;
+  const { selectedKey, nameOf, dragKey, setDragKey, dropPerson } = edit;
+  const rowClass = (key: string) =>
+    [
+      "row",
+      selectedKey === key ? "picked" : "",
+      dragKey === key ? "dragging" : "",
+      dragKey && dragKey !== key ? "drop-target" : "",
+      selectedKey && selectedKey !== key && !dragKey ? "swap-target" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   return (
     <div className="teams">
       {TEAMS.map((team) => {
@@ -36,10 +51,36 @@ export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: Pr
                   <li key={slot.key}>
                     <button
                       type="button"
-                      className={selectedKey === slot.key ? "row picked" : "row"}
+                      className={rowClass(slot.key)}
                       aria-pressed={selectedKey === slot.key}
+                      title={
+                        selectedKey && selectedKey !== slot.key
+                          ? `${nameOf(selectedKey)} 님과 자리 바꾸기`
+                          : "끌어서 다른 자리에 놓거나, 누른 뒤 바꿀 사람을 누르세요"
+                      }
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", slot.key);
+                        e.dataTransfer.effectAllowed = "move";
+                        setDragKey(slot.key);
+                      }}
+                      onDragEnd={() => setDragKey(null)}
+                      onDragOver={(e) => {
+                        if (dragKey && dragKey !== slot.key) {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const source = e.dataTransfer.getData("text/plain") || dragKey;
+                        if (source) dropPerson(source, slot.key);
+                      }}
                       onClick={() => edit.onTapPerson(slot.key)}
                     >
+                      <span className="grip" aria-hidden="true">
+                        ⠿
+                      </span>
                       <PosLabel position={position} />
                       <span className="name" title={nameOf(slot.key)}>
                         {nameOf(slot.key)}
@@ -51,6 +92,11 @@ export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: Pr
                         </span>
                       )}
                       {supportCount > 0 && <span className="tag">서폿 {supportCount}회</span>}
+                      {selectedKey && selectedKey !== slot.key && !dragKey && (
+                        <span className="tag swap-hint" aria-hidden="true">
+                          바꾸기
+                        </span>
+                      )}
                     </button>
                   </li>
                 );
@@ -69,7 +115,13 @@ export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: Pr
 export function SelectionBar(props: { draft: Draft; edit: PrepEditing; canReplace: boolean }) {
   const { draft, edit } = props;
   const { selectedKey, pairMode, setPairMode, nameOf } = edit;
-  if (!selectedKey) return <p className="hint">두 사람을 차례로 누르면 자리가 바뀝니다.</p>;
+  if (!selectedKey) {
+    return (
+      <p className="hint">
+        두 사람을 차례로 누르면 자리가 바뀝니다. PC에서는 사람을 끌어다 다른 자리나 대기자에 놓아도 돼요.
+      </p>
+    );
+  }
   return (
     <div className="button-row" role="group" aria-label={`${nameOf(selectedKey)} 선택됨`}>
       <span className="hint">

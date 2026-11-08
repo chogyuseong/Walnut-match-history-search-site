@@ -170,9 +170,9 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   const tile = (label: string) => summary.locator(".ps-tiles > div").filter({ hasText: label });
   await expect(summary.locator(".ps-tiles > div")).toHaveCount(4);
   await expect(tile("가장 많이 플레이한 라인")).toContainText("정글");
-  await expect(tile("가장 많이 플레이한 라인")).toContainText("33% · 60경기");
+  await expect(tile("가장 많이 플레이한 라인")).toContainText("33% · 20승 40패 (60경기)");
   await expect(tile("가장 승률 높은 라인")).toContainText("정글");
-  await expect(tile("가장 승률 높은 라인")).toContainText("33% · 60경기");
+  await expect(tile("가장 승률 높은 라인")).toContainText("33% · 20승 40패 (60경기)");
   await expect(summary).not.toContainText("주 라인");
   // 연속 기록은 요약 머리에 있다(예전 "지금" 타일).
   await expect(summary.locator(".ps-streak")).toContainText("10연승 중");
@@ -262,7 +262,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
     }
     // 라인 타일은 경기 수와 무관하게 보인다(선수11은 탑만 10경기).
     await expect(fewSummary.locator(".ps-tiles > div").filter({ hasText: "가장 승률 높은 라인" })).toContainText(
-      "100% · 10경기",
+      "100% · 10승 0패 (10경기)",
     );
     for (const name of ["시너지", "상대 전적"]) {
       const region = page.getByRole("region", { name });

@@ -8,7 +8,11 @@ import { BackLink, CopyButton } from "../ui";
 
 // 주소 읽고 쓰기는 ../seasonRoute.ts에 있다(첫 화면 묶음이 이 화면 코드 없이 쓰도록). 기존 import를 위해 다시 내보낸다.
 import { seasonRoutePart, seasonScopeFromRoute } from "../seasonRoute";
+
 export { seasonRoutePart, seasonScopeFromRoute };
+
+/** 가장 경기가 많았던 날이 동률로 많을 때(예: 하루 1경기씩) 날짜를 다 늘어놓지 않고 앞 5개만 보여 준다. */
+const BUSIEST_SHOWN = 5;
 
 /**
  * 시즌 종료 요약과 시상(src/shared/seasonAwards.ts). 운영자·조회 링크가 같은 화면을 본다.
@@ -109,7 +113,9 @@ export function SeasonSummaryScreen(props: {
         )}
         {summary.busiestDays.length > 0 && (
           <p className="hint">
-            가장 경기가 많았던 날: {summary.busiestDays.map((d) => d.date).join(", ")} ({summary.busiestDays[0]!.games}경기)
+            가장 경기가 많았던 날: {summary.busiestDays.slice(0, BUSIEST_SHOWN).map((d) => d.date).join(", ")}
+            {summary.busiestDays.length > BUSIEST_SHOWN ? ` 외 ${summary.busiestDays.length - BUSIEST_SHOWN}일` : ""} (
+            {summary.busiestDays[0]!.games}경기)
           </p>
         )}
         {summary.sides.unknown > 0 && (

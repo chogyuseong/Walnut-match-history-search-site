@@ -60,12 +60,18 @@
   --heat-text-l3: #9eabbd;
   --heat-text-l4: #8b99ad;
 
-  /* 칭호 등급 색(titles.ts의 titleGrade). 1(최상)이 가장 뜨겁고 5(최하)는 차분한 보라 — 회색으로 낮추지 않는다. */
-  --grade-1: #ff8f4f;
-  --grade-2: #f5c04a;
-  --grade-3: #5fd38d;
-  --grade-4: #6cb6ff;
-  --grade-5: #b4a7ff;
+  /* 칭호 등급 색(titles.ts의 titleGrade, 1~8). 1(최상)부터 금 → 주황 → 장미 → 보라 → 파랑 → 청록 → 초록 → 회청.
+     따뜻한 색일수록 높은 구간으로 읽히고(승률 색 단계와 같은 방향), 구간마다 색이 다르다
+     (2026-11-08: 다섯 등급 → 여덟 등급). 채도를 낮춰 눈이 편하게 두고, 카드 바탕 대비 글자 4.5:1 이상.
+     바꿀 때는 아래 light 테마 토큰도 함께 바꾼다(deeplol은 dark 토큰을 물려받는다). */
+  --grade-1: #f2c14e;
+  --grade-2: #ff9f66;
+  --grade-3: #f58ca0;
+  --grade-4: #c0a8ff;
+  --grade-5: #74b9ff;
+  --grade-6: #5fd3c8;
+  --grade-7: #7fd48b;
+  --grade-8: #a9b4c4;
 
   --ih-radius-sm: 6px;
   --ih-radius-md: 10px;
@@ -159,11 +165,15 @@
   --heat-text-l2: #475569;
   --heat-text-l3: #56637a;
   --heat-text-l4: #5f6b7f;
-  --grade-1: #b4460a;
-  --grade-2: #8a6100;
-  --grade-3: #157a43;
-  --grade-4: #1d68c2;
-  --grade-5: #5b4bc4;
+  /* 칭호 등급 색(라이트): 같은 순서(금 → 주황 → 장미 → 보라 → 파랑 → 청록 → 초록 → 회청)를 흰 바탕에서 4.5:1 이상으로 어둡게. */
+  --grade-1: #946a00;
+  --grade-2: #b4460a;
+  --grade-3: #b12f5a;
+  --grade-4: #5b4bc4;
+  --grade-5: #1d68c2;
+  --grade-6: #0e7c74;
+  --grade-7: #157a43;
+  --grade-8: #596273;
   --ih-shadow-card: 0 2px 10px rgba(15, 23, 42, 0.06);
   --ih-brand-fill: #2563eb;
   --ih-brand-fill-hover: #1d4ed8;
@@ -865,6 +875,23 @@ button.bar-row:hover {
   color: var(--muted);
   font-size: 0.8125rem;
 }
+/* 값이 "승률 · N승 M패 (G경기)"로 길어져(2026-11-08 통일) 좁은 화면에서는 값을 다음 줄 오른쪽으로 내린다.
+   이름·칭호를 "…"로 자르지 않는다. */
+@media (max-width: 719px) {
+  .bar-head {
+    flex-wrap: wrap;
+  }
+  .bar-head > .name {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .bar-value {
+    margin-left: auto;
+  }
+}
 /* 값은 본문 색으로 쓰고, 승률 숫자(.rate)만 막대와 같은 색 단계를 따른다. */
 .bar-value {
   flex: none;
@@ -1029,6 +1056,18 @@ button.bar-row:hover {
 .priority-row > .segmented button {
   min-width: 44px;
   padding: 8px 4px;
+}
+/* 360px 미만: 294px 줄이 카드 안쪽 폭(약 280px)보다 넓어 넘치므로 여섯 칸을 똑같이 나눈다(44px 미만이 되지만 한 줄 유지). */
+@media (max-width: 359px) {
+  .priority-row > .segmented {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .priority-row > .segmented button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 2px;
+  }
 }
 /* 기피 라인 토글: 라인 아이콘 + 이름. 다섯 칸이 390px 안에 들어가게 칸을 똑같이 나누고 글자를 줄이지 않는다. */
 .avoid-row > .segmented button {
@@ -1716,7 +1755,7 @@ select option:disabled {
 }
 
 /* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
-/* 칭호 표식: 엠블럼 + 이름. 등급(grade-1~5, 구간 순서로 정함)이 있으면 글자·테두리·엠블럼을 등급 색으로,
+/* 칭호 표식: 엠블럼 + 이름. 등급(grade-1~8, 구간 순서로 정함)이 있으면 글자·테두리·엠블럼을 등급 색으로,
    바탕은 카드 바탕으로 둔다(글자 대비 4.5:1, 테두리 3:1 이상). 등급이 없으면 예전처럼 본문 글자 + 옅은 바탕. */
 .title-chip {
   display: inline-flex;
@@ -1755,6 +1794,15 @@ select option:disabled {
 }
 .grade-5 {
   --grade: var(--grade-5);
+}
+.grade-6 {
+  --grade: var(--grade-6);
+}
+.grade-7 {
+  --grade: var(--grade-7);
+}
+.grade-8 {
+  --grade: var(--grade-8);
 }
 .title-chip[class*="grade-"] {
   padding-left: 5px;
@@ -2267,16 +2315,16 @@ select option:disabled {
 .rank-controls .segmented {
   flex: 1 1 14rem;
 }
-/* 정렬 버튼 네 개(승률·경기 수·승수·레이팅 순)가 390px 한 줄에 들어가게 옆 여백만 줄인다. */
+/* 정렬 버튼 네 개(승률·경기 수·승수·MMR 순)가 390px 한 줄에 들어가게 옆 여백만 줄인다. */
 .rank-controls .segmented button {
   padding-left: 6px;
   padding-right: 6px;
 }
-/* 결과 기반 레이팅 숫자(랭킹 줄·개인 요약). 색은 쓰지 않는다(승률 색 단계와 겹치지 않게). */
+/* 결과 기반 MMR 숫자(랭킹 줄·개인 요약). 색은 쓰지 않는다(승률 색 단계와 겹치지 않게). */
 .rating-num {
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
-  /* nowrap을 두지 않는다: 개인 요약의 "레이팅 · 최고 · 최근" 한 줄이 320px에서 줄바꿈되어야 한다. */
+  /* nowrap을 두지 않는다: 개인 요약의 "MMR · 최고 · 최근" 한 줄이 320px에서 줄바꿈되어야 한다. */
 }
 .rank-line {
   display: flex;
@@ -2761,6 +2809,11 @@ select option:disabled {
   font-size: 1.125rem;
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+/* 두 사람 비교 "상대일 때": 승 수 아래 두 사람 각각의 승률 한 줄 */
+.cmp-h2h-rate {
+  margin: 0 0 8px;
+  font-weight: 600;
 }
 .cmp-bar {
   height: 10px;
@@ -3555,7 +3608,9 @@ select option:disabled {
 }
 
 /* ---------- 사용자 편의 기능(2026-11-07) ---------- */
-/* 결과 입력 2버튼: 진영 색은 팀 상자(.team.side-blue/red)를 그대로 쓴다. 좁은 화면에서도 두 버튼을 나란히 둔다. */
+/* 결과 입력 2버튼: 진영 색은 팀 상자(.team.side-blue/red)를 그대로 쓴다. 좁은 화면에서도 두 버튼을 나란히 둔다.
+   클래스 이름은 result-pick-*로 둔다. 예전 .result-win은 경기 카드의 "승" 배지(.mc-result.result-win)와 겹쳐
+   개인 통계·두 사람 비교의 승 배지가 88px 버튼 모양으로 늘어났다(2026-11-08 수정). */
 .result-pick {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3567,7 +3622,7 @@ select option:disabled {
     grid-template-columns: 1fr;
   }
 }
-.result-win {
+.result-pick-btn {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -3577,13 +3632,13 @@ select option:disabled {
   padding: 12px;
   text-align: left;
 }
-.result-win-title {
+.result-pick-title {
   font-size: 1.125rem;
 }
-.result-win-names {
+.result-pick-names {
   overflow-wrap: anywhere;
 }
-.result-win[aria-pressed="true"] {
+.result-pick-btn[aria-pressed="true"] {
   border: 3px solid var(--primary);
   box-shadow: none;
 }
@@ -3626,3 +3681,180 @@ select option:disabled {
   align-items: center;
   gap: 4px 10px;
 }
+
+/* ---------- 준비 화면 두 단(2026-11-08) ----------
+   섞기 버튼이 편성 판에서 멀어 섞은 결과를 보려면 위로 올라가야 했다. 모든 폭에서 섞기를 편성 바로 아래로 옮기고,
+   PC(1024px 이상)에서는 왼쪽 편성 판이 화면을 내려도 따라오게(sticky) 두 단으로 놓는다. */
+.prep-layout {
+  display: grid;
+  gap: 16px;
+}
+.prep-boards,
+.prep-tools-col {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .screen.prep-screen {
+    max-width: 1040px;
+  }
+  .prep-layout {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+    gap: 16px 24px;
+    align-items: start;
+  }
+  .prep-boards {
+    position: sticky;
+    top: 72px; /* 상단 바(56px) + 여백 */
+  }
+}
+
+/* ---------- 티어 배정·기피 라인(2026-11-08) ----------
+   머리(뒤로·제목·탭)가 따라 내려오고, PC(1024px 이상)에서는 오른쪽 요약 판(티어별 인원·돌아가기)이 따라 내려온다.
+   배정을 마친 뒤 맨 위로 올라가지 않아도 된다. */
+.priority-head {
+  row-gap: 8px;
+  border-bottom: 1px solid var(--ih-border-subtle);
+}
+.priority-head .priority-tabs {
+  flex: 1 1 100%; /* 좁은 화면: 둘째 줄 */
+}
+@media (min-width: 720px) {
+  .priority-head .priority-tabs {
+    flex: 0 0 auto;
+    margin-left: auto; /* 넓은 화면: 제목 오른쪽 */
+  }
+}
+.priority-layout {
+  display: grid;
+  gap: 16px;
+}
+.priority-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+/* 따라오는 머리에 가리지 않게 앵커 이동 위치를 내린다(머리 두 줄 높이만큼). */
+.priority-main > section {
+  scroll-margin-top: 128px;
+}
+.priority-side {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .screen.priority-screen {
+    max-width: 1040px;
+  }
+  .priority-layout {
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 16px 24px;
+    align-items: start;
+  }
+  .priority-main > section {
+    scroll-margin-top: 124px;
+  }
+  .priority-side {
+    position: sticky;
+    top: 124px; /* 상단 바(56px) + 따라오는 머리(약 60px) + 여백 */
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: var(--ih-bg-surface);
+    border: 1px solid var(--ih-border-subtle);
+    border-radius: var(--ih-radius-md);
+  }
+}
+.priority-counts {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.priority-jump {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--ih-radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.priority-jump strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+button.priority-jump:hover {
+  background: var(--ih-bg-subtle);
+  border-color: var(--ih-border-subtle);
+}
+
+/* ---------- 편성 손으로 고치기: 끌어다 놓기(2026-11-08) ----------
+   편성 판·대기자의 사람을 끌어 다른 사람 자리에 놓으면 둘이 바뀐다. 누르기 방식(두 사람 차례로)은 그대로이고,
+   첫 사람을 고르면 나머지 자리에 "바꾸기" 표가 떠서 다음에 뭘 누를지 보인다. */
+button.row[draggable="true"],
+.list-row[draggable="true"] {
+  cursor: grab;
+}
+button.row.dragging,
+.list-row.dragging {
+  opacity: 0.45;
+}
+button.row.drop-target,
+.list-row.drop-target {
+  border-style: dashed;
+  border-color: var(--primary);
+}
+button.row.drop-target:hover,
+.list-row.drop-target:hover {
+  background: var(--picked);
+  border-style: solid;
+}
+button.row.swap-target:hover {
+  border-color: var(--primary);
+}
+.grip {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1;
+  opacity: 0.55;
+}
+.swap-hint {
+  margin-left: auto;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+/* 터치 기기(마우스 없음)에서는 끌기 손잡이를 숨긴다. 누르기 방식만 안내한다. */
+@media (hover: none) {
+  .grip {
+    display: none;
+  }
+}
+/* 좁은 화면(720px 미만): 손잡이와 "바꾸기" 표를 숨겨 이름이 잘리지 않게 한다. 고른 상태는 테두리와 안내 줄로 보인다. */
+@media (max-width: 719px) {
+  .grip,
+  .swap-hint {
+    display: none;
+  }
+}
+/* 서포터 횟수 판: 섞기 기준 버튼 줄 바로 아래에 펼쳐진다. 같은 구역 안이라 들여쓰기 없이 카드 바탕으로만 구분한다. */
+.support-panel {
+  margin-top: 4px;
+  padding: 12px;
+  background: var(--ih-bg-surface);
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+}
+.support-panel h2 {
+  margin-top: 0;
+}
+

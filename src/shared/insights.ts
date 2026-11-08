@@ -116,8 +116,8 @@ export const RANKING_SORT_LABEL: Record<RankingSort, string> = {
   rate: "승률",
   games: "경기 수",
   wins: "승수",
-  // 결과 기반 레이팅(rating.ts). 선택 정렬일 뿐 기본(승률)은 그대로다.
-  rating: "레이팅 순",
+  // 결과 기반 MMR(rating.ts). 선택 정렬일 뿐 기본(승률)은 그대로다.
+  rating: "MMR 순",
 };
 
 /** 랭킹에서 이 경기 수(모임 전체 누적) 이상인 사람은 그보다 적은 사람보다 항상 위에 둔다. 배치와는 별개다. */
@@ -142,7 +142,7 @@ export function rankingGroup(
   return p.done ? 1 : 2;
 }
 
-/** 레이팅 표가 없는 사람의 정렬값(rating.ts RATING_START와 같다. rating.ts가 이 파일을 쓰므로 순환 import를 피해 따로 둔다). */
+/** MMR 표가 없는 사람의 정렬값(rating.ts RATING_START와 같다. rating.ts가 이 파일을 쓰므로 순환 import를 피해 따로 둔다). */
 const RATING_START_FOR_SORT = 1000;
 
 /**
@@ -151,7 +151,7 @@ const RATING_START_FOR_SORT = 1000;
  * - 승률: 승률 → 경기 수 → 이름 → ID (묶음 안에서는 stats.sortRanking과 같다)
  * - 경기 수: 경기 수 → 승률 → 이름 → ID
  * - 승수: 승수 → 승률 → 경기 수 → 이름 → ID
- * - 레이팅 순: 레이팅(누적, ratings) → 승률 → 경기 수 → 이름 → ID. ratings에 없는 사람은 시작값 1000으로 본다.
+ * - MMR 순: MMR(누적, ratings) → 승률 → 경기 수 → 이름 → ID. ratings에 없는 사람은 시작값 1000으로 본다.
  */
 export function sortRankingBy(
   records: readonly PersonRecord[],

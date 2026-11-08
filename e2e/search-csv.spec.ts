@@ -239,8 +239,8 @@ test("CSV 내려받기: 기록·랭킹·개인 참여 경기", async ({ page }) 
   const ranking = page.getByRole("region", { name: "소환사 랭킹" });
   const rank = await downloadCsv(page, () => ranking.getByRole("button", { name: "CSV 내려받기" }).click());
   expect(rank.fileName).toMatch(new RegExp(`^내전랭킹-${GROUP_NAME}-\\d{8}\\.csv$`));
-  // 마지막 "레이팅" 열은 결과 기반 레이팅(2026-11-08, rating.spec.ts)에서 더했다.
-  expect(rank.header).toBe("순위,이름,경기,승,패,승률(%),배치,칭호,레이팅");
+  // 마지막 "MMR" 열은 결과 기반 MMR(2026-11-08, rating.spec.ts)에서 더했다.
+  expect(rank.header).toBe("순위,이름,경기,승,패,승률(%),배치,칭호,MMR");
 
   await ranking.getByRole("button", { name: /김선우/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "김선우" })).toBeVisible();

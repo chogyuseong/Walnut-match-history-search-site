@@ -118,12 +118,12 @@ export const RANKING_CSV_HEADER: readonly string[] = [
   "승률(%)",
   "배치",
   "칭호",
-  "레이팅",
+  "MMR",
 ];
 
 /**
- * 랭킹 CSV(지금 범위·라인·검색이 적용된 표). 배치·칭호·레이팅은 화면과 같이 누적 기준.
- * ratings: 사람별 레이팅(rating.ts, 소수). 반올림한 정수로 적고, 없는 사람은 빈 칸.
+ * 랭킹 CSV(지금 범위·라인·검색이 적용된 표). 배치·칭호·MMR은 화면과 같이 누적 기준.
+ * ratings: 사람별 MMR(rating.ts, 소수). 반올림한 정수로 적고, 없는 사람은 빈 칸.
  */
 export function rankingCsv(
   rows: readonly RankingCsvRow[],
