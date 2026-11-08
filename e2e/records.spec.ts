@@ -144,11 +144,11 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   await expect(tiles.locator("div").filter({ hasText: "어려운 상대" })).toContainText(locked);
   await expect(page.getByRole("group", { name: "시너지·상대 전적 순서" })).toHaveCount(0);
 
-  // 화면 순서: 요약 → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 한 사람과 맞대결(2026-11-07) → 참여 경기(맨 아래).
+  // 화면 순서: 요약 → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 다른 플레이어와 비교(2026-11-07, 2026-11-08 이름 바꿈) → 참여 경기(맨 아래).
   const order = await page
     .getByRole("region")
     .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
-  expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "한 사람과 맞대결", "참여 경기"]);
+  expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "다른 플레이어와 비교", "참여 경기"]);
   // 참여 경기는 최근 10경기만 먼저 그리고 "더 보기"로 나머지를 연다.
   const played = page.getByRole("region", { name: "참여 경기" });
   await expect(played.getByRole("listitem")).toHaveCount(10);
@@ -235,11 +235,27 @@ test("그래프 분석", async ({ page }) => {
   await page.goto("/#/records");
   await page.getByRole("button", { name: "그래프 분석" }).click();
   await expect(page.getByRole("heading", { name: "그래프 분석", level: 1 })).toBeVisible();
-  await expect(page.getByText(/전체 · 확정 11경기/)).toBeVisible();
+  await expect(page.getByText(/전체 · 확정 11경기 · 참가자 12명/)).toBeVisible();
+
+  // 요약 타일: 확정 경기·참가자·블루:레드·자료 적음(5경기 미만: 선수11·12).
+  const summary = page.getByRole("region", { name: "분석 요약" });
+  await expect(summary.locator(".ps-tiles > div")).toHaveCount(4);
+  await expect(summary.locator(".ps-tiles > div").nth(0)).toContainText("11경기");
+  await expect(summary.locator(".ps-tiles > div").nth(1)).toContainText("12명");
+  await expect(summary.locator(".ps-tiles > div").nth(3)).toContainText("2명");
+
+  // 보기 전환: 기본은 개인별 승률 하나만 그린다.
+  const views = page.getByRole("group", { name: "분석 보기" });
+  await expect(views.getByRole("button", { name: "개인별 승률" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("region", { name: "플레이어 × 라인" })).toHaveCount(0);
 
   // 개인별 승률: 배치 완료자가 먼저, 값은 글자로도 보인다.
   const people = page.getByRole("region", { name: "개인별 승률" });
   await expect(people.getByRole("listitem")).toHaveCount(12);
+  // 묶음 머리글이 보이고 자료 적음 묶음이 맨 아래다.
+  const groupHeads = await people.getByRole("heading", { level: 3 }).allInnerTexts();
+  expect(groupHeads[groupHeads.length - 1]).toContain("자료 적음(5경기 미만)");
+  await expect(people.locator(".bar-group").last().getByRole("listitem").filter({ hasText: "선수11" })).toHaveCount(1);
   await expect(people.getByRole("listitem").filter({ hasText: "선수02" })).toContainText(
     "73% · 8승 3패 (11경기)",
   );
@@ -258,23 +274,31 @@ test("그래프 분석", async ({ page }) => {
   await expect(people).toContainText("선수07");
   await page.getByLabel("라인", { exact: true }).selectOption({ label: "전체 라인" });
 
-  // 라인별 승률: 플레이어를 고르기 전에는 빈 카드를 두지 않고(이유는 위 도움말에), 고르면 그 사람의 라인별을 보여준다.
+  // 라인별 승률: 플레이어를 고르기 전에는 고르기 안내만 두고(전체 합은 항상 50%, 이유는 도움말에),
+  // 플레이어를 고르면 라인별 승률 보기로 바로 넘어가 그 사람의 라인별을 보여준다.
   const lines = page.getByRole("region", { name: "라인별 승률" });
   await expect(lines).toHaveCount(0);
   await expect(page.locator(".viz-root details.help").first()).toContainText("항상 50%");
+  await views.getByRole("button", { name: "라인별 승률" }).click();
+  await expect(lines).toContainText("한 사람을 고르면");
+  await expect(lines.getByRole("listitem")).toHaveCount(0);
+  await views.getByRole("button", { name: "개인별 승률" }).click();
   await page.getByLabel("플레이어", { exact: true }).selectOption({ label: "선수02" });
+  await expect(views.getByRole("button", { name: "라인별 승률" })).toHaveAttribute("aria-pressed", "true");
+  await expect(people).toHaveCount(0);
   await expect(lines.getByRole("listitem").filter({ hasText: "정글" })).toContainText(
     "73% · 8승 3패 (11경기)",
   );
   await expect(lines.getByRole("listitem").filter({ hasText: "서폿" })).toContainText("기록 없음");
 
-  // 진영별: 진영을 아는 8경기 중 블루 5승, 레드 3승. 미상 3경기는 제외하고 알려준다.
-  const sides = page.getByRole("region", { name: "진영별 누적 승률" });
-  await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("63% · 5승 3패 (8경기)");
-  await expect(sides.getByRole("listitem").filter({ hasText: "레드" })).toContainText("38% · 3승 5패 (8경기)");
-  await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
+  // 진영(요약 타일 아래 한 줄): 진영을 아는 8경기 중 블루 5승, 레드 3승. 미상 3경기는 제외하고 알려준다.
+  await expect(summary).toContainText("블루 63% · 5승 3패 (8경기)");
+  await expect(summary).toContainText("레드 38% · 3승 5패 (8경기)");
+  await expect(summary).toContainText("진영 미상 3경기는 제외했습니다.");
+  await expect(summary.locator(".ps-tiles > div").nth(2)).toContainText("63% : 37%");
 
   // 플레이어 × 라인: 표로 읽을 수 있고 기록 없는 칸은 —, 5경기 미만은 색을 칠하지 않는다.
+  await views.getByRole("button", { name: "플레이어 × 라인" }).click();
   const matrixRegion = page.getByRole("region", { name: "플레이어 × 라인" });
   const matrix = matrixRegion.getByRole("table").first();
   const row02 = matrix.getByRole("row").filter({ hasText: "선수02" });
@@ -293,7 +317,10 @@ test("그래프 분석", async ({ page }) => {
   await page.getByLabel("범위", { exact: true }).selectOption({ label: "오늘" });
   await expect(page.getByText(/오늘 · 확정 11경기/)).toBeVisible();
 
-  // 막대를 누르면 개인 통계로 간다.
+  // 막대를 누르면 개인 통계로 간다. 고른 플레이어(선수02)의 막대 줄은 강조한다.
+  await views.getByRole("button", { name: "개인별 승률" }).click();
+  await expect(people.locator(".bar-row.picked")).toHaveCount(1);
+  await expect(people.locator(".bar-row.picked")).toContainText("선수02");
   await people.getByRole("button").first().click();
   await expect(page.getByRole("region", { name: "요약" })).toBeVisible();
 

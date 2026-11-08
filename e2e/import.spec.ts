@@ -76,8 +76,8 @@ test("틀린 줄이 있으면 넣지 않고, 고친 뒤 진영을 골라야 넣�
   await page.getByRole("button", { name: "전체", exact: true }).click();
   await expect(page.getByRole("heading", { name: /전체 경기 · 120경기 확정/ })).toBeVisible();
   await page.getByRole("button", { name: "그래프 분석" }).click();
-  const sides = page.getByRole("region", { name: "진영별 누적 승률" });
-  await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("50% · 60승 60패 (120경기)");
+  const sides = page.getByRole("region", { name: "분석 요약" });
+  await expect(sides).toContainText("블루 50% · 60승 60패 (120경기)");
 });
 
 test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠진다", async ({ page }) => {
@@ -93,8 +93,9 @@ test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠�
 
   await page.getByRole("button", { name: "그래프 분석" }).click();
   await expect(page.getByText(/전체 · 확정 3경기/)).toBeVisible();
-  const sides = page.getByRole("region", { name: "진영별 누적 승률" });
+  const sides = page.getByRole("region", { name: "분석 요약" });
   await expect(sides).toContainText("진영을 아는 경기가 없어요.");
+  await expect(sides).toContainText("진영 기록 없음");
   await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
   // 개인별 승률에는 들어간다.
   await expect(page.getByRole("region", { name: "개인별 승률" }).getByRole("listitem")).toHaveCount(12);

@@ -4994,7 +4994,7 @@ label:has(> select) {
   width: 7em;
 }
 
-/* 개인 통계 > 한 사람과 맞대결: 전적 두 줄 + 두 사람 비교로 가는 큰 버튼(2026-11-08). 폰은 위아래, PC는 옆으로. */
+/* 개인 통계 > 다른 플레이어와 비교(예전 이름 "한 사람과 맞대결"): 전적 두 줄 + 두 사람 비교로 가는 큰 버튼(2026-11-08). 폰은 위아래, PC는 옆으로. */
 .rival-pane {
   display: flex;
   flex-direction: column;
@@ -5080,19 +5080,120 @@ label:has(> select) {
   }
 }
 
-/* 그래프 분석: 고른 플레이어의 라인별 승률은 맨 위에서 두 단을 가로지른다(2026-11-08). 고른 사람 이름을 강조. */
+/* 그래프 분석 재구성(2026-11-08): 도구 띠 → 요약 타일 → 보기 전환 → 고른 보기 하나(전체 폭).
+   두 단으로 나누지 않고 한 단으로 쌓는다(예전 2단은 왼쪽만 길고 오른쪽 아래가 비었다). */
 @media (min-width: 1024px) {
-  .screen.cols > section.line-first {
-    grid-column: 1 / -1;
+  .screen.cols.viz-root {
+    grid-template-columns: minmax(0, 1fr);
   }
+  /* 라인별 승률(플레이어 하나): PC에서 다섯 라인을 한 줄 5칸으로. */
   .line-first .bars {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
   }
 }
-.line-first {
-  border-color: var(--primary);
+/* 도구 띠: 카드 한 장. 왼쪽 고르기 칸, 오른쪽 요약 글·도움말. 좁으면 요약이 아래 줄로 내려간다. */
+.graph-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 10px 14px;
+  background: var(--ih-bg-surface);
+  border: 1px solid var(--ih-border-subtle);
+  border-radius: var(--ih-radius-md);
+}
+.graph-tools > .filter-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 8px 16px;
+  padding: 4px 0;
+}
+/* 요약 글과 "도움말"을 한 줄에. 도움말을 펼치면 본문은 띠 아래쪽 전체 폭으로 내려간다. */
+.graph-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 14px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 0;
+}
+.graph-meta > .hint {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.graph-tools:has(details.help[open]) > .graph-meta {
+  flex-basis: 100%;
+}
+.graph-meta details.help[open] {
+  flex-basis: 100%;
+}
+.graph-meta details.help[open] > summary {
+  margin-left: auto;
+  width: max-content;
+}
+@media (max-width: 719px) {
+  .graph-meta {
+    justify-content: space-between;
+    flex-basis: 100%;
+    padding: 0;
+  }
+  .graph-meta details.help[open] > summary {
+    margin-left: 0;
+  }
+}
+.graph-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.graph-summary > .hint {
+  margin: 0;
+  max-width: none;
+}
+/* 보기 전환: 세 칸이 같은 폭. 좁은 화면에서는 글자가 두 줄로 접혀도 된다. */
+.graph-views {
+  max-width: 560px;
+}
+.graph-views button {
+  min-height: 44px;
+  padding: 6px 8px;
+  white-space: normal;
+  line-height: 1.25;
+}
+/* 개인별 승률 묶음 머리글: 작은 꼬리표 줄 + 위 묶음과 가는 선으로 나눈다. */
+.bar-group + .bar-group {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ih-border-subtle);
+}
+.bar-group-label {
+  margin: 0 0 4px;
+  color: var(--ih-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.bar-group-count {
+  font-weight: 500;
+  color: var(--muted);
+}
+@media (min-width: 1024px) {
+  .people-bars {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 24px;
+  }
+}
+/* 위에서 고른 플레이어의 막대 줄. */
+.bar-row.picked {
+  background: var(--picked);
+  box-shadow: inset 3px 0 0 var(--ih-brand-primary);
 }
 
 /* 막대 그래프에서 기록 없는 줄: 값 자리에 "—", 막대는 빈 트랙(높이는 다른 줄과 같다). */

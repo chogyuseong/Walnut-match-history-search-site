@@ -111,7 +111,7 @@ async function shots(page: Page, s: Setup, dir: string) {
       await page.goto("/#/graphs");
       await setTheme(page, theme);
       await page.getByLabel("플레이어", { exact: true }).selectOption({ label: "선수12" });
-      await expect(page.getByRole("region", { name: "플레이어 × 라인" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "라인별 승률" })).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: join(dir, `graphs-${theme}-${width}.png`), fullPage: true });
 
@@ -238,10 +238,12 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await expect(bars.filter({ hasText: "선수12" }).locator(".bar-value strong")).toHaveClass(/heat-h4/);
   await expect(bars.filter({ hasText: "선수01" }).locator(".bar-fill")).toHaveClass(/heat-l4/);
   await expect(bars.filter({ hasText: "선수12" }).locator(".title-chip")).toHaveClass(/grade-1/);
-  const sideBars = page.getByRole("region", { name: "진영별 누적 승률" });
-  await expect(sideBars.locator(".bar-fill.tone-blue")).toHaveCount(1);
-  await expect(sideBars.locator(".bar-fill.tone-red")).toHaveCount(1);
-  await expect(sideBars.locator(".bar-fill[class*='heat-']")).toHaveCount(0);
+  // 진영은 요약 타일의 두 색 띠(진영 색 그대로, 승률 단계 클래스 없음).
+  const sideBars = page.getByRole("region", { name: "분석 요약" });
+  await expect(sideBars.locator(".side-bar .side-blue")).toHaveCount(1);
+  await expect(sideBars.locator(".side-bar .side-red")).toHaveCount(1);
+  await expect(sideBars.locator("[class*='heat-']")).toHaveCount(0);
+  await page.getByRole("group", { name: "분석 보기" }).getByRole("button", { name: "플레이어 × 라인" }).click();
   const matrix = page.getByRole("region", { name: "플레이어 × 라인" });
   expect(await matrix.locator("td[class*='heat-']").count()).toBeGreaterThan(20);
   await expect(matrix.locator(".swatch.heat-h4")).toHaveCount(1);

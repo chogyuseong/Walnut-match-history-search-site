@@ -1,4 +1,4 @@
-import { RANKING_VETERAN_GAMES, sortRankingBy } from "../../shared/insights";
+import { RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGroup, sortRankingBy } from "../../shared/insights";
 import { useState, type ReactNode } from "react";
 import { matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
@@ -36,6 +36,8 @@ function RateBar(props: {
   wins: number;
   games: number;
   tone?: "series" | "blue" | "red";
+  /** 위에서 고른 플레이어의 줄(강조). */
+  picked?: boolean;
   onOpen?: () => void;
 }) {
   const { wins, games } = props;
@@ -79,12 +81,13 @@ function RateBar(props: {
       </span>
     </>
   );
+  const rowClass = props.picked ? "bar-row picked" : "bar-row";
   return props.onOpen ? (
-    <button type="button" className="bar-row" title={detail} onClick={props.onOpen}>
+    <button type="button" className={rowClass} title={detail} onClick={props.onOpen}>
       {body}
     </button>
   ) : (
-    <div className="bar-row" title={detail}>
+    <div className={rowClass} title={detail}>
       {body}
     </div>
   );
@@ -95,10 +98,28 @@ function cellBand(tally: Tally): string {
   return heatBarClass(tally.wins, tally.games) || "band-none";
 }
 
+/** 보기 전환: 한 번에 하나만 전체 폭으로 그린다(2026-11-08 재구성). */
+type View = "people" | "matrix" | "lines";
+
+const VIEW_LABEL: Record<View, string> = {
+  people: "개인별 승률",
+  matrix: "플레이어 × 라인",
+  lines: "라인별 승률",
+};
+
+/** 개인별 승률 묶음. 0~2는 랭킹 묶음(누적 기준), 3은 이 범위·라인에서 5경기 미만(자료 적음). */
+type BarGroup = 0 | 1 | 2 | 3;
+
+const BAR_GROUP_LABEL: Record<BarGroup, string> = {
+  ...RANKING_GROUP_LABEL,
+  3: `자료 적음(${SMALL_SAMPLE}경기 미만)`,
+};
+
 /**
  * 그래프 분석. 기존 서비스의 네 가지를 옮겼다:
  * 개인별 승률, 라인별 승률, 진영별 누적 승률, 플레이어 × 라인.
- * 필터는 맨 위 한 줄에 모았고, 각 그래프 제목 아래에 어떤 필터가 적용되는지 적는다.
+ * 위에서 아래로: 도구 띠(범위·라인·플레이어 + 요약 글·도움말) → 요약 타일 4칸(진영 승률 포함) →
+ * 보기 전환(개인별 · 플레이어 × 라인 · 라인별) → 고른 보기 하나를 전체 폭으로(2026-11-08 재구성).
  */
 export function Graphs(props: {
   snapshot: Snapshot;
@@ -109,6 +130,7 @@ export function Graphs(props: {
   const [scope, setScope] = useState<Scope>({ kind: "all" });
   const [line, setLine] = useState<Position | "">("");
   const [playerId, setPlayerId] = useState("");
+  const [view, setView] = useState<View>("people");
   const nameOf = nameMap(snapshot);
 
   const scopeLabel = scopeLabelOf(snapshot, scope);
@@ -127,6 +149,16 @@ export function Graphs(props: {
   const people = withSample(
     sortRankingBy([...personRecordsByLine(scoped, line === "" ? null : line).values()], placement, nameOf, "rate"),
   );
+  // 정렬된 목록을 묶음별로 나눈다. 정렬이 묶음 순서를 따르므로 같은 묶음은 이어져 있다.
+  const groupOf = (r: PersonRecord): BarGroup =>
+    r.games < SMALL_SAMPLE ? 3 : rankingGroup(placement, r.participantId);
+  const peopleGroups: { group: BarGroup; rows: PersonRecord[] }[] = [];
+  for (const r of people) {
+    const g = groupOf(r);
+    const last = peopleGroups[peopleGroups.length - 1];
+    if (last && last.group === g) last.rows.push(r);
+    else peopleGroups.push({ group: g, rows: [r] });
+  }
   const matrix = playerLineMatrix(scoped);
   const matrixRows = withSample(
     sortRankingBy([...personRecordsByLine(scoped, null).values()], placement, nameOf, "rate"),
@@ -137,6 +169,10 @@ export function Graphs(props: {
     return POSITIONS.some((p) => (row[p]?.games ?? 0) >= SMALL_SAMPLE);
   };
   const sides = sideTotals(scoped);
+  const blueRate = sides.known > 0 ? ratePercent(sides.blueWins, sides.known) : null;
+  // 레드는 100 − 블루(시즌 요약과 같은 방식. 따로 반올림하면 합이 101%가 될 수 있다).
+  const redRate = blueRate !== null ? 100 - blueRate : null;
+  const fewCount = matrixRows.filter((r) => r.games < SMALL_SAMPLE).length;
   const playerLines = playerId === "" ? null : (matrix.get(playerId) ?? {});
   const selectable = [...snapshot.participants]
     .filter((p) => matrixRows.some((r) => r.participantId === p.id))
@@ -149,186 +185,257 @@ export function Graphs(props: {
         <h1>그래프 분석</h1>
       </header>
 
-      <div className="filter-row" role="group" aria-label="필터">
-        <label>
-          범위
-          <select
-            aria-label="범위"
-            value={scopeValue(scope)}
-            onChange={(e) => setScope(scopeFromValue(e.target.value))}
-          >
-            <option value="all">전체</option>
-            <option value="today">오늘</option>
-            {snapshot.seasons.map((s) => (
-              <option key={s.id} value={`season:${s.id}`}>
-                {s.name}
-              </option>
-            ))}
-            {years.map((y) => (
-              <option key={y} value={`year:${y}`}>
-                {y}년
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          라인
-          <select aria-label="라인" value={line} onChange={(e) => setLine(e.target.value as Position | "")}>
-            <option value="">전체 라인</option>
-            {POSITIONS.map((p) => (
-              <option key={p} value={p}>
-                {POSITION_LABEL[p]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          플레이어
-          <select aria-label="플레이어" value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
-            <option value="">선택 안 함</option>
-            {selectable.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      {/* 정렬 규칙은 개인별 승률 카드에 한 번만 적고, 위에는 범위·경기 수만 둔다(2026-11-08 화면 점검: 중복 제거). */}
-      <p className="hint">
-        {scopeLabel} · 확정 {counted}경기
-      </p>
-      <Help>
-        <p>
-          순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({PLACEMENT_GAMES}경기 이상) → 배치 진행 중이고, 그
-          안에서 승률순입니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
-        </p>
-        <p>
-          플레이어를 고르면 그 사람의 라인별 승률을 맨 위에 보여줍니다. 전체 플레이어를 합치면 각 경기마다 라인별로
-          1승·1패가 생겨 항상 50%이므로 보여주지 않습니다.
-        </p>
-      </Help>
-
-      {/* 플레이어를 고르면 그 사람의 라인별 승률을 맨 위(개인별 승률 위)에 보인다(2026-11-08). 좁은 화면에서 고른 뒤
-          아래로 한참 내려가지 않아도 되고, 넓은 화면에서는 두 단을 가로질러 위에 놓인다. */}
-      {playerLines !== null && (
-      <section className={playerLines === null ? "chart-card" : "chart-card line-first"} aria-label="라인별 승률">
-        <h2>라인별 승률</h2>
-        {playerLines === null ? (
+      {/* 도구 띠: 왼쪽 고르기, 오른쪽 요약 글과 도움말(2026-11-08 재구성. 예전에는 필터·요약·도움말이 따로 흩어져 있었다). */}
+      <div className="graph-tools">
+        <div className="filter-row" role="group" aria-label="필터">
+          <label>
+            범위
+            <select
+              aria-label="범위"
+              value={scopeValue(scope)}
+              onChange={(e) => setScope(scopeFromValue(e.target.value))}
+            >
+              <option value="all">전체</option>
+              <option value="today">오늘</option>
+              {snapshot.seasons.map((s) => (
+                <option key={s.id} value={`season:${s.id}`}>
+                  {s.name}
+                </option>
+              ))}
+              {years.map((y) => (
+                <option key={y} value={`year:${y}`}>
+                  {y}년
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            라인
+            <select aria-label="라인" value={line} onChange={(e) => setLine(e.target.value as Position | "")}>
+              <option value="">전체 라인</option>
+              {POSITIONS.map((p) => (
+                <option key={p} value={p}>
+                  {POSITION_LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            플레이어
+            <select
+              aria-label="플레이어"
+              value={playerId}
+              onChange={(e) => {
+                setPlayerId(e.target.value);
+                // 플레이어를 고르면 그 사람의 라인별 승률로 바로 넘어간다.
+                if (e.target.value !== "") setView("lines");
+              }}
+            >
+              <option value="">선택 안 함</option>
+              {selectable.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="graph-meta">
           <p className="hint">
-            위에서 플레이어를 고르면 그 사람의 라인별 승률을 보여줍니다. 전체 플레이어를 합치면 각
-            경기마다 라인별로 1승·1패가 생겨 항상 50%이므로 보여주지 않습니다.
+            {scopeLabel} · 확정 {counted}경기 · 참가자 {matrixRows.length}명
           </p>
-        ) : (
-          <>
-            <p className="hint">
-              범위: {scopeLabel} · 플레이어: {nameOf(playerId)}
+          <Help>
+            <p>
+              개인별 승률 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({PLACEMENT_GAMES}경기 이상) → 배치 진행
+              중이고, 그 안에서 승률순입니다. 보는 범위·라인에서 {SMALL_SAMPLE}경기 미만인 사람은 &lsquo;자료 적음&rsquo;으로
+              맨 아래에 둡니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
             </p>
-            <ul className="bars">
-              {POSITIONS.map((position) => {
-                const tally = playerLines[position];
-                return (
-                  <li key={position}>
-                    {tally ? (
-                      <RateBar label={POSITION_LABEL[position]} wins={tally.wins} games={tally.games} />
-                    ) : (
-                      // 기록이 없어도 같은 높이의 빈 막대를 둔다(PC 5칸 가로 배치에서 줄이 깨지지 않게).
-                      <RateBar label={POSITION_LABEL[position]} note="기록 없음" wins={0} games={0} />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
+            <p>
+              플레이어를 고르면 그 사람의 라인별 승률을 보여줍니다. 전체 플레이어를 합치면 각 경기마다 라인별로 1승·1패가
+              생겨 항상 50%이므로 보여주지 않습니다.
+            </p>
+            <p>진영 승률은 결과를 저장할 때 확인한 실제 진영 기준이고, 진영 미상 경기는 뺍니다.</p>
+          </Help>
+        </div>
+      </div>
+
+      <section className="graph-summary" aria-label="분석 요약">
+        <h2 className="sr-only">요약</h2>
+        <dl className="ps-tiles season-tiles">
+          <div>
+            <dt className="tile-label">확정 경기</dt>
+            <dd className="season-stat">
+              {counted}
+              <span className="season-unit">경기</span>
+            </dd>
+          </div>
+          <div>
+            <dt className="tile-label">참가자</dt>
+            <dd className="season-stat">
+              {matrixRows.length}
+              <span className="season-unit">명</span>
+            </dd>
+          </div>
+          <div>
+            <dt className="tile-label">블루 : 레드 승률</dt>
+            {blueRate !== null && redRate !== null ? (
+              <dd className="season-stat season-sides">
+                <span className="side-values">
+                  <span className="blue">{blueRate}%</span>
+                  <span className="side-colon"> : </span>
+                  <span className="red">{redRate}%</span>
+                </span>
+                <span className="side-bar" aria-hidden="true">
+                  <span className="side-blue" style={{ flexGrow: sides.blueWins }} />
+                  <span className="side-red" style={{ flexGrow: sides.redWins }} />
+                </span>
+              </dd>
+            ) : (
+              <dd className="season-stat season-sides">
+                <span className="side-values none">—</span>
+                <span className="tile-sub">진영 기록 없음</span>
+              </dd>
+            )}
+          </div>
+          <div>
+            <dt className="tile-label">자료 적음({SMALL_SAMPLE}경기 미만)</dt>
+            <dd className="season-stat">
+              {fewCount}
+              <span className="season-unit">명</span>
+            </dd>
+          </div>
+        </dl>
+        {/* 예전 "진영별 누적 승률" 카드의 내용: 진영마다 전적 글 한 줄과 미상 안내. */}
+        <p className="hint">
+          {sides.known === 0 ? (
+            "진영을 아는 경기가 없어요."
+          ) : (
+            <>
+              <span className="nowrap">블루 {percentText(sides.blueWins, sides.known)} · {sides.blueWins}승 {sides.known - sides.blueWins}패 ({sides.known}경기)</span>
+              {" · "}
+              <span className="nowrap">레드 {percentText(sides.redWins, sides.known)} · {sides.redWins}승 {sides.known - sides.redWins}패 ({sides.known}경기)</span>
+            </>
+          )}
+          {sides.unknown > 0 && (
+            <>
+              {" · "}
+              <span className="nowrap">진영 미상 {sides.unknown}경기는 제외했습니다.</span>
+            </>
+          )}
+        </p>
       </section>
+
+      <div className="segmented graph-views" role="group" aria-label="분석 보기">
+        {(Object.keys(VIEW_LABEL) as View[]).map((v) => (
+          <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
+            {VIEW_LABEL[v]}
+          </button>
+        ))}
+      </div>
+
+      {view === "people" && (
+        <section className="chart-card full" aria-label="개인별 승률">
+          <h2>개인별 승률</h2>
+          <p className="hint">
+            범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 묶음 안에서 승률순
+          </p>
+          {people.length === 0 ? (
+            <p className="hint">이 조건에는 기록이 없어요.</p>
+          ) : (
+            peopleGroups.map(({ group, rows }) => (
+              <div key={group} className="bar-group">
+                <h3 className="bar-group-label">
+                  {BAR_GROUP_LABEL[group]}
+                  <span className="bar-group-count"> · {rows.length}명</span>
+                </h3>
+                <ul className="bars people-bars">
+                  {rows.map((r) => (
+                    <li key={r.participantId}>
+                      <RateBar
+                        label={nameOf(r.participantId)}
+                        note={standingText(placement.get(r.participantId))}
+                        wins={r.wins}
+                        games={r.games}
+                        picked={r.participantId === playerId}
+                        onOpen={() => props.openPerson(r.participantId)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
+        </section>
       )}
 
-      <section className="chart-card" aria-label="개인별 승률">
-        <h2>개인별 승률</h2>
-        <p className="hint">
-          범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 누적{" "}
-          {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료 → 배치 진행 중, 그 안에서 승률순 · {SMALL_SAMPLE}경기 미만은 맨 아래
-        </p>
-        {people.length === 0 ? (
-          <p className="hint">이 조건에는 기록이 없어요.</p>
-        ) : (
-          <ul className="bars">
-            {people.map((r) => (
-              <li key={r.participantId}>
-                <RateBar
-                  label={nameOf(r.participantId)}
-                  note={standingText(placement.get(r.participantId))}
-                  wins={r.wins}
-                  games={r.games}
-                  onOpen={() => props.openPerson(r.participantId)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {view === "matrix" && (
+        <section className="chart-card full" aria-label="플레이어 × 라인">
+          <h2>플레이어 × 라인</h2>
+          <p className="hint">
+            범위: {scopeLabel} · 위 숫자는 승률, 아래 숫자는 경기 수 · — 는 기록 없음
+          </p>
+          <HeatLegend />
+          {matrixRows.length === 0 ? (
+            <p className="hint">이 범위에는 기록이 없어요.</p>
+          ) : (
+            <>
+              <MatrixTable
+                rows={matrixRows.filter((r) => hasColoredCell(r.participantId))}
+                matrix={matrix}
+                nameOf={nameOf}
+                playerId={playerId}
+                openPerson={props.openPerson}
+              />
+              {matrixRows.some((r) => !hasColoredCell(r.participantId)) && (
+                <details className="matrix-few">
+                  <summary>
+                    어느 라인도 {SMALL_SAMPLE}경기 미만 · {matrixRows.filter((r) => !hasColoredCell(r.participantId)).length}명(자료
+                    적음)
+                  </summary>
+                  <MatrixTable
+                    rows={matrixRows.filter((r) => !hasColoredCell(r.participantId))}
+                    matrix={matrix}
+                    nameOf={nameOf}
+                    playerId={playerId}
+                    openPerson={props.openPerson}
+                  />
+                </details>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
-      <div className="stack">
-      {/* 플레이어를 고르기 전에는 "라인별 승률" 빈 카드를 두지 않는다(까닭은 위 도움말, 2026-11-08). */}
-      <section className="chart-card" aria-label="진영별 누적 승률">
-        <h2>진영별 누적 승률</h2>
-        <p className="hint">
-          범위: {scopeLabel} · 결과를 저장할 때 확인한 실제 진영 기준입니다.
-        </p>
-        {sides.known === 0 ? (
-          <p className="hint">진영을 아는 경기가 없어요.</p>
-        ) : (
-          <ul className="bars">
-            <li>
-              <RateBar label="블루" wins={sides.blueWins} games={sides.known} tone="blue" />
-            </li>
-            <li>
-              <RateBar label="레드" wins={sides.redWins} games={sides.known} tone="red" />
-            </li>
-          </ul>
-        )}
-        {sides.unknown > 0 && (
-          <p className="hint">진영 미상 {sides.unknown}경기는 제외했습니다.</p>
-        )}
-      </section>
-      </div>
-
-      <section className="chart-card full" aria-label="플레이어 × 라인">
-        <h2>플레이어 × 라인</h2>
-        <p className="hint">
-          범위: {scopeLabel} · 위 숫자는 승률, 아래 숫자는 경기 수 · — 는 기록 없음
-        </p>
-        <HeatLegend />
-        {matrixRows.length === 0 ? (
-          <p className="hint">이 범위에는 기록이 없어요.</p>
-        ) : (
-          <>
-            <MatrixTable
-              rows={matrixRows.filter((r) => hasColoredCell(r.participantId))}
-              matrix={matrix}
-              nameOf={nameOf}
-              playerId={playerId}
-              openPerson={props.openPerson}
-            />
-            {matrixRows.some((r) => !hasColoredCell(r.participantId)) && (
-              <details className="matrix-few">
-                <summary>
-                  어느 라인도 {SMALL_SAMPLE}경기 미만 · {matrixRows.filter((r) => !hasColoredCell(r.participantId)).length}명(자료
-                  적음)
-                </summary>
-                <MatrixTable
-                  rows={matrixRows.filter((r) => !hasColoredCell(r.participantId))}
-                  matrix={matrix}
-                  nameOf={nameOf}
-                  playerId={playerId}
-                  openPerson={props.openPerson}
-                />
-              </details>
-            )}
-          </>
-        )}
-      </section>
+      {view === "lines" && (
+        <section className="chart-card full line-first" aria-label="라인별 승률">
+          <h2>라인별 승률</h2>
+          {playerLines === null ? (
+            // 전체 플레이어를 합친 라인별 승률은 항상 50%라 그리지 않는다(까닭은 도움말).
+            <p className="hint">위 &lsquo;플레이어&rsquo;에서 한 사람을 고르면 그 사람의 라인별 승률을 보여줍니다.</p>
+          ) : (
+            <>
+              <p className="hint">
+                범위: {scopeLabel} · 플레이어: {nameOf(playerId)}
+              </p>
+              <ul className="bars">
+                {POSITIONS.map((position) => {
+                  const tally = playerLines[position];
+                  return (
+                    <li key={position}>
+                      {tally ? (
+                        <RateBar label={POSITION_LABEL[position]} wins={tally.wins} games={tally.games} />
+                      ) : (
+                        // 기록이 없어도 같은 높이의 빈 막대를 둔다(PC 5칸 가로 배치에서 줄이 깨지지 않게).
+                        <RateBar label={POSITION_LABEL[position]} note="기록 없음" wins={0} games={0} />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

@@ -250,7 +250,7 @@ test("4) 오늘 요약 공유: 경기 수·승 많은 순 승패·연승을 글�
   await noHorizontalOverflow(page, "오늘 요약 이미지 창");
 });
 
-test("5) 상대 전적 보기(한 사람과 맞대결): 개인 통계에서 상대를 고르면 맞대결·같은 팀 전적, 두 사람 비교로 이어진다", async ({ page }) => {
+test("5) 상대 전적 보기(다른 플레이어와 비교): 개인 통계에서 상대를 고르면 맞대결·같은 팀 전적, 두 사람 비교로 이어진다", async ({ page }) => {
   const s = await setup(page, "상대 전적 모임");
   const [a, b] = [s.people[0]!, s.people[5]!];
   await playApi(page.request, s, s.people.slice(0, 10), "A"); // 선수01(A) vs 선수06(B): 선수01 승
@@ -260,7 +260,7 @@ test("5) 상대 전적 보기(한 사람과 맞대결): 개인 통계에서 상�
   await playApi(page.request, s, together, "A");
 
   await page.goto(`/#/p/${a.id}`);
-  const section = page.getByRole("region", { name: "한 사람과 맞대결" });
+  const section = page.getByRole("region", { name: "다른 플레이어와 비교" });
   await section.scrollIntoViewIfNeeded();
   await section.getByLabel("상대 고르기").selectOption({ label: "선수06" });
   const list = section.getByRole("list", { name: "선수06 님과의 전적" });
