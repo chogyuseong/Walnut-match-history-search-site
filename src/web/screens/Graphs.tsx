@@ -39,7 +39,7 @@ function standingText(standing: ShownStanding | undefined): ReactNode {
   if (!standing?.done) return "배치 진행 중";
   return standing.title ? (
     <>
-      <TitleBadge name={standing.title} grade={standing.grade} />
+      <TitleBadge name={standing.title} grade={standing.grade} compact />
       (누적)
     </>
   ) : undefined;

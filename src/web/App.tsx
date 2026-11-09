@@ -250,15 +250,16 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const mark = (
     <>
+      {/* 로고 마크: 상자·그라데이션 없이 포인트 색(currentColor) 단색 선. */}
       <span className="brand-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" focusable="false">
           <polygon
-            points="12 2 20 7 20 17 12 22 4 17 4 7"
+            points="12 2.5 20 7.25 20 16.75 12 21.5 4 16.75 4 7.25"
             stroke="currentColor"
-            strokeWidth="2"
-            fill="rgba(255,255,255,0.15)"
+            strokeWidth="1.75"
+            strokeLinejoin="round"
           />
-          <path d="M8 15L12 7L16 15H8Z" fill="currentColor" />
+          <path d="M8.5 15L12 8L15.5 15" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
         </svg>
       </span>
       <span>
@@ -289,7 +290,7 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
           >
             {THEMES.map((t) => (
               <option key={t.value} value={t.value}>
-                테마: {t.label}
+                {t.label}
               </option>
             ))}
           </select>

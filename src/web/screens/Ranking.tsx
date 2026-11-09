@@ -4,7 +4,6 @@ import {
   mmrBarShare,
   mmrRanking,
   podiumOf,
-  rankEmphasis,
   rankingGroupSizes,
   rankingHighlights,
   ratingTierCounts,
@@ -22,12 +21,13 @@ import {
   ratingOptionsOf,
 } from "../../shared/rating";
 import type { Snapshot } from "../../shared/types";
-import { nameMap, rateText, rateTier, standingsOf, type ShownStanding } from "../format";
+import { nameMap, rankClass, rateText, rateTier, standingsOf, type ShownStanding } from "../format";
 import { FormDots, Help, Meter, RatingTierBadge, RatingTrendLine, TitleBadge } from "../ui";
 
 /**
  * MMR 랭킹 화면(#/ranking, 조회 링크·예시 모임은 …/ranking). 결과 기반 MMR(rating.ts) 순위표를 묶음별로 그린다.
- * 위에서부터 시상대(50경기 이상 1~3위) · 요약 타일 · 순위표. 상위일수록 색 띠·순위 색·막대로 눈에 띄게 한다.
+ * 위에서부터 시상대(50경기 이상 1~3위) · 요약 타일 · 순위표. 순위표는 카드 하나에 줄 구분선만 두고, 상위는 순위 숫자
+ * 색으로만 띄운다(format.ts rankClass: 1위 포인트 색 · 2위 은 · 3위 동 · 4~10위 본문 · 11위~ 흐림).
  * 데이터는 스냅숏의 경기에서 기기가 매번 계산한다(computeRatings · standingsOf · personForms). 범위 없이 모임 전체 누적이다.
  * 순서·묶음은 기록 화면 "소환사 랭킹"의 MMR 순과 같다(shared/ranking.ts → insights.rankAndSearch).
  */
@@ -39,9 +39,6 @@ const PODIUM_ORDER = [2, 1, 3];
 
 /** 왕관 크기(px). 등수가 높을수록 크게 해 세로로 쌓인 폰 시상대에서도 차이가 보이게 한다. */
 const PODIUM_CROWN_PX: Record<number, number> = { 1: 36, 2: 28, 3: 24 };
-/** 목록 행 순위 칸의 왕관. 순위 칸 폭(2rem) 안에 들어가는 크기다. */
-const ROW_CROWN_PX: Record<number, number> = { 1: 20, 2: 18, 3: 16 };
-
 /** 금·은·동 왕관. 꾸밈이라 읽지 않고(순위 숫자가 뜻을 전한다) 색은 감싼 요소의 --medal을 currentColor로 받는다. */
 function Crown(props: { size: number }) {
   return (
@@ -98,8 +95,9 @@ export function Ranking(props: { snapshot: Snapshot; openPerson: (id: string) =>
       {tierCounts.length > 0 && (
         <p className="mmr-tier-counts">
           <span className="sr-only">티어별 인원: </span>
+          {/* 흐린 글자 한 줄("실버 7 · 브론즈 10"). 가운뎃점은 CSS가 칸 사이에 넣는다. */}
           {tierCounts.map(({ tier, count }) => (
-            <span key={tier.key} className={`mmr-tier mmr-tier-${tier.key}`}>
+            <span key={tier.key} className="mmr-tier-count">
               {tier.short} {count}
             </span>
           ))}
@@ -154,14 +152,13 @@ export function Ranking(props: { snapshot: Snapshot; openPerson: (id: string) =>
         {ranking.shown.length === 0 ? (
           <p className="hint">일치하는 이름이 없어요.</p>
         ) : (
-          <ul className="list mmr-list">
+          <ul className="list list-card mmr-list">
             {ranking.shown.map((row, i) => {
               const rating = table.get(row.participantId);
               const standing = placement.get(row.participantId);
               const group = rankingGroup(placement, row.participantId);
               const prev = i > 0 ? rankingGroup(placement, ranking.shown[i - 1]!.participantId) : null;
               const placing = !standing?.done;
-              const emphasis = rankEmphasis(row.rank, placing);
               const range = ranges.get(group);
               const open = openTrend === row.participantId;
               const trendId = `mmr-trend-${row.participantId}`;
@@ -174,16 +171,14 @@ export function Ranking(props: { snapshot: Snapshot; openPerson: (id: string) =>
                     </li>
                   )}
                   <li className="mmr-item mmr-enter" style={enterStyle(i)}>
-                    <div className={emphasis ? `list-row static mmr-row band ${emphasis}` : "list-row static mmr-row"}>
-                      <span className={emphasis ? `rank ${emphasis}` : "rank"}>
-                        {!placing && ROW_CROWN_PX[row.rank] && <Crown size={ROW_CROWN_PX[row.rank]!} />}
-                        {row.rank}
-                      </span>
+                    <div className="list-row static mmr-row">
+                      {/* 배치 진행 중은 순위가 높아 보여도 강조하지 않는다(점수가 아직 흔들린다). */}
+                      <span className={rankClass(row.rank, placing)}>{row.rank}</span>
                       <span className="mmr-who">
                         <button type="button" className="link mmr-name" onClick={() => props.openPerson(row.participantId)}>
                           {row.name}
                         </button>
-                        {standing?.title && <TitleBadge name={standing.title} grade={standing.grade} />}
+                        {standing?.title && <TitleBadge name={standing.title} grade={standing.grade} compact />}
                       </span>
                       <span className="mmr-score">
                         {placing ? (
@@ -202,7 +197,7 @@ export function Ranking(props: { snapshot: Snapshot; openPerson: (id: string) =>
                                 <DeltaChip delta={rating.delta10} />
                               </span>
                               {range && (
-                                <span className={emphasis ? `mmr-bar ${emphasis}` : "mmr-bar"}>
+                                <span className="mmr-bar">
                                   <Meter value={mmrBarShare(rating.rating, range)} small />
                                 </span>
                               )}
@@ -254,7 +249,7 @@ export function Ranking(props: { snapshot: Snapshot; openPerson: (id: string) =>
   );
 }
 
-/** 최근 10경기 변화 칩: 오르면 초록 "▲ 28", 내리면 빨강 "▼ 7", 그대로면 회색 "–". 화살표로도 구분한다(색만 쓰지 않게). */
+/** 최근 10경기 변화: 오르면 초록 글자 "▲ 28", 내리면 빨강 글자 "▼ 7", 그대로면 회색 "–"(바탕 없음). 화살표로도 구분한다. */
 function DeltaChip(props: { delta: number }) {
   const value = Math.round(props.delta);
   const shown = value > 0 ? `▲ ${value}` : value < 0 ? `▼ ${-value}` : "–";

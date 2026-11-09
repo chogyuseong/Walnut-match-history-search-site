@@ -13,7 +13,7 @@ import {
 } from "../../shared/insights";
 import { isCounted, placementGamesOf } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
-import { nameMap, rateText, rateTier, standingsOf } from "../format";
+import { nameMap, rankClass, rateText, rateTier, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { FormDots, StandingNote } from "../ui";
@@ -113,7 +113,7 @@ export function Dashboard(props: {
               랭킹 전체
             </button>
           </div>
-          <ul className="list">
+          <ul className="list list-card">
             {top.map((r) => (
               <li key={r.participantId}>
                 <button
@@ -123,7 +123,7 @@ export function Dashboard(props: {
                 >
                   <span className="rank-main">
                     <span className="rank-name">
-                      <span className={r.rank <= 3 ? "rank top" : "rank"}>{r.rank}</span>{" "}
+                      <span className={rankClass(r.rank)}>{r.rank}</span>{" "}
                       <span className="rank-person">{r.name}</span>
                     </span>
                     <span className="form-line">
@@ -137,7 +137,7 @@ export function Dashboard(props: {
                     · {r.wins}승 {r.games - r.wins}패 ({r.games}경기)
                     <br />
                     <span className="hint">
-                      <StandingNote standing={placement.get(r.participantId)} placementGames={placementGames} />
+                      <StandingNote standing={placement.get(r.participantId)} placementGames={placementGames} compact />
                     </span>
                   </span>
                 </button>
@@ -152,7 +152,7 @@ export function Dashboard(props: {
           {flow.hotStreaks.length === 0 ? (
             <p className="hint">지금 {HOT_STREAK_MIN}연승 이상인 사람이 없어요.</p>
           ) : (
-            <ul className="list">
+            <ul className="list list-card">
               {flow.hotStreaks.map((row) => (
                 <li key={row.participantId}>
                   <button
@@ -173,7 +173,7 @@ export function Dashboard(props: {
           {flow.recentBest.length === 0 ? (
             <p className="hint">최근 {RECENT_FORM_GAMES}경기를 채운 사람이 아직 없어요.</p>
           ) : (
-            <ul className="list">
+            <ul className="list list-card">
               {flow.recentBest.map((row) => (
                 <li key={row.participantId}>
                   <button

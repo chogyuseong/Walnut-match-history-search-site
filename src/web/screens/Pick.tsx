@@ -434,7 +434,7 @@ export function Pick() {
               </button>
             </div>
           </div>
-          <ul className="list pick-grid">
+          <ul className="list list-card pick-grid">
             {visible.map((p) => {
               const isSelected = selectedKeys.has(p.key);
               return (

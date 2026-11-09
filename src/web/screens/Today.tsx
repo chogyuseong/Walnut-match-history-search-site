@@ -184,7 +184,7 @@ export function Today() {
               (found.length === 0 ? (
                 <p className="hint">일치하는 이름이 없어요.</p>
               ) : (
-                <ul className="list">
+                <ul className="list list-card">
                   {found.slice(0, 8).map((r) => (
                     <li key={r.participantId}>
                       <button
@@ -201,7 +201,11 @@ export function Today() {
                           {r.games}경기)
                           <br />
                           <span className="hint">
-                            <StandingNote standing={standing?.get(r.participantId)} placementGames={placementGames} />
+                            <StandingNote
+                              standing={standing?.get(r.participantId)}
+                              placementGames={placementGames}
+                              compact
+                            />
                           </span>
                         </span>
                       </button>

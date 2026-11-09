@@ -73,7 +73,7 @@ export function ForecastSection(props: {
       </p>
 
       {/* ─ 라인별 표. 칸 배치는 판 폭에 따라 CSS 컨테이너 쿼리가 바꾼다(.fc-lane) ─ */}
-      <ul className="list forecast-lanes" aria-label="라인별 우위">
+      <ul className="list list-card forecast-lanes" aria-label="라인별 우위">
         {forecast.lanes.map((lane) => (
           <li key={lane.position} className="fc-lane" title={laneTitle(lane, nameOf)}>
             <span className="fc-pos">

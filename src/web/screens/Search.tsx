@@ -239,7 +239,7 @@ export function Search(props: {
       ) : (
         <section aria-label="검색 결과">
           <h2>검색 결과 {found.length}명</h2>
-          <ul className="list">
+          <ul className="list list-card">
             {found.map((r) => (
               <li key={r.id}>
                 <button
@@ -262,7 +262,7 @@ export function Search(props: {
                     )}
                     <br />
                     <span className="hint">
-                      <StandingNote standing={standing.get(r.id)} placementGames={placementGames} />
+                      <StandingNote standing={standing.get(r.id)} placementGames={placementGames} compact />
                     </span>
                   </span>
                   {r.games > 0 && <RateBar wins={r.wins} games={r.games} small />}

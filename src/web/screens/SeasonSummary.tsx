@@ -8,7 +8,7 @@ import {
 } from "../../shared/seasonAwards";
 import { matchYears, ratePercent, type Scope } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
-import { formatDate, formatRange, nameMap } from "../format";
+import { formatDate, formatRange, nameMap, POSITION_LABEL } from "../format";
 import { drawSeasonImage, ShareImageDialog } from "../shareImage";
 import { BackLink, CopyButton, Help, RoleIcon } from "../ui";
 
@@ -251,6 +251,8 @@ export function SeasonSummaryScreen(props: {
         {lineAwards.length > 0 && (
           <>
             <p className="row-label">라인별 최고 승률</p>
+            {/* 다섯 라인의 기준은 같으므로 카드마다 반복하지 않고 소제목 아래 한 줄로 둔다(2026-11-10). */}
+            <p className="hint award-line-rule">{lineAwards[0]!.rule}</p>
             <ul className="award-list award-list-lines">
               {lineAwards.map((award) => (
                 <AwardItem key={awardKey(award)} award={award} nameOf={nameOf} kind="line" />
@@ -372,14 +374,23 @@ function AwardItem(props: { award: Award; nameOf: (id: string) => string; kind: 
         <span className="award-mark" aria-hidden="true">
           {mark}
         </span>
-        <h3>{awardTitle(award)}</h3>
+        {award.position !== undefined ? (
+          // 라인 카드: 라인 이름을 앞에 한 줄로, "최고 승률"은 흐린 꼬리표로(좁은 칸에서 "승\n률"로 꺾이지 않게).
+          // 제목 글은 awardTitle과 같은 "정글 최고 승률"이다.
+          <h3>
+            <span className="award-line-name">{POSITION_LABEL[award.position]}</span>{" "}
+            <span className="award-line-tail">최고 승률</span>
+          </h3>
+        ) : (
+          <h3>{awardTitle(award)}</h3>
+        )}
       </div>
       {none ? (
         <p className="winner">해당 없음 · {award.none ?? ""}</p>
       ) : (
         <Winners award={award} nameOf={props.nameOf} />
       )}
-      <p className="award-rule">{award.rule}</p>
+      {props.kind !== "line" && <p className="award-rule">{award.rule}</p>}
     </li>
   );
 }

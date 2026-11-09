@@ -407,10 +407,10 @@ export function Compare(props: {
             <tr>
               <th scope="row">배치·칭호</th>
               <td className="cmp-small">
-                <StandingNote standing={standings.get(a!)} placementGames={placementGames} />
+                <StandingNote standing={standings.get(a!)} placementGames={placementGames} compact />
               </td>
               <td className="cmp-small">
-                <StandingNote standing={standings.get(b!)} placementGames={placementGames} />
+                <StandingNote standing={standings.get(b!)} placementGames={placementGames} compact />
               </td>
             </tr>
             <tr>

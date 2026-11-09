@@ -19,6 +19,19 @@ export const POSITION_LABEL: Record<Position, string> = {
   support: "서폿",
 };
 
+/** 순위 숫자를 색으로 강조하는 마지막 순위(그 아래는 흐린 글자). */
+const RANK_EMPHASIS_PLACES = 10;
+
+/**
+ * 순위 숫자 클래스(2026-11-09 2단계: 색 띠 대신 숫자 색으로만 강조). 1위 포인트 색 · 2위 은 · 3위 동 ·
+ * 4~10위 본문 · 11위부터 흐린 글자. quiet이면(배치 진행 중 등) 순위와 관계없이 흐린 글자다.
+ */
+export function rankClass(rank: number, quiet = false): string {
+  if (quiet || rank > RANK_EMPHASIS_PLACES) return "rank rank-rest";
+  if (rank <= 3) return `rank rank-${rank}`;
+  return "rank rank-mid";
+}
+
 export const SIDE_LABEL: Record<Side, string> = {
   blue: "블루",
   red: "레드",

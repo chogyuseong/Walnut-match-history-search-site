@@ -212,11 +212,14 @@ export function TitleEmblem(props: { grade: TitleGrade }) {
 /**
  * 칭호 표식: 엠블럼 + 이름, 등급 색. 칭호가 나오는 모든 화면이 이것 하나를 쓴다.
  * grade가 없으면(알 수 없는 이름 등) 예전처럼 색 없는 테두리 표식이다.
+ * compact: 목록 줄(홈 상위 5명·소환사 랭킹·MMR 순위표·그래프 개인별·검색 결과)에서 쓰는 꼴로, 테두리 없이
+ * 등급 색 글자 + 작은 엠블럼만 둔다. 테두리 배지는 개인 통계·두 사람 비교 요약·랭킹 시상대처럼 한 사람을 크게 보일 때.
  */
-export function TitleBadge(props: { name: string; grade: TitleGrade | null }) {
+export function TitleBadge(props: { name: string; grade: TitleGrade | null; compact?: boolean }) {
   const { grade } = props;
+  const base = props.compact ? "title-chip compact" : "title-chip";
   return (
-    <span className={grade ? `title-chip grade-${grade}` : "title-chip"}>
+    <span className={grade ? `${base} grade-${grade}` : base}>
       {grade && <TitleEmblem grade={grade} />}
       <span className="title-name">{props.name}</span>
     </span>
@@ -241,9 +244,9 @@ export function RatingTierBadge(props: { rating: number; placed: boolean }) {
 /**
  * 배치·칭호 표시. 누적 기준이며 범위 필터와 무관하다(docs/P2 P2-11).
  * 배치 중은 "배치 진행 중 7/10"(10은 모임 설정의 배치 경기 수)으로만 쓰고 낮은 실력처럼 보이게 하지 않는다.
- * 칭호는 구간 순서로 정한 등급 색·엠블럼으로 보여준다(TitleBadge).
+ * 칭호는 구간 순서로 정한 등급 색·엠블럼으로 보여준다(TitleBadge). compact는 목록 줄용(TitleBadge 참고).
  */
-export function StandingNote(props: { standing: ShownStanding | undefined; placementGames: number }) {
+export function StandingNote(props: { standing: ShownStanding | undefined; placementGames: number; compact?: boolean }) {
   const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null, grade: null };
   if (!s.done) {
     return (
@@ -255,7 +258,7 @@ export function StandingNote(props: { standing: ShownStanding | undefined; place
   if (!s.title) return <span className="standing">배치 완료 (누적 기준)</span>;
   return (
     <span className="standing">
-      <TitleBadge name={s.title} grade={s.grade} /> 누적 기준
+      <TitleBadge name={s.title} grade={s.grade} compact={props.compact} /> 누적 기준
     </span>
   );
 }

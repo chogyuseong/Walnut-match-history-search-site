@@ -227,7 +227,7 @@ export function Person(props: {
     return (
       <>
         {rule}
-        <ul className="list">
+        <ul className="list list-card">
           {listedPairs.map((pair) => (
             <li key={pair.participantId}>
               <button
@@ -449,7 +449,7 @@ export function Person(props: {
 
       <section aria-label="최근">
         <h2>최근 ({scopeLabel})</h2>
-        <ul className="list">
+        <ul className="list list-card">
           <li className="list-row static has-bar">
             <span>최근 {detail.recent10.games}경기</span>
             <span className="stat">{line(detail.recent10)}</span>
@@ -479,7 +479,7 @@ export function Person(props: {
 
       <section className="person-lines" aria-label="라인별">
         <h2>라인별 ({scopeLabel})</h2>
-        <ul className="list">
+        <ul className="list list-card">
           {POSITIONS.map((position) => {
             const tally = detail.byPosition[position];
             const share = tally && positioned > 0 ? tally.games / positioned : 0;
@@ -510,7 +510,7 @@ export function Person(props: {
 
       <section aria-label="진영별">
         <h2>진영별 ({scopeLabel})</h2>
-        <ul className="list">
+        <ul className="list list-card">
           <li className="list-row static has-bar">
             <span>블루</span>
             <span className="stat">{line(detail.bySide.blue)}</span>
@@ -618,7 +618,7 @@ export function Person(props: {
         ) : (
           <>
             <p className="hint">같은 라인에서 상대 팀으로 만난 경기만 세요({person.name} 기준).</p>
-            <ul className="list">
+            <ul className="list list-card">
               {lanePicks.map(({ position, hardest, easiest }) => (
                 <li key={position} className="list-row static lane-rival-row">
                   <PosLabel position={position} />

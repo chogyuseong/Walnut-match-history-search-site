@@ -172,20 +172,20 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await expect(summary.locator(".summary-line")).toHaveClass(/heat-h4/);
   const hotRing = await colorOf(page, ".ring-fill", "stroke");
   const hotText = await colorOf(page, ".summary-line", "color");
-  // 진영 막대는 진영 색 그대로(승률 단계 클래스가 붙지 않는다). 다크 테마의 블루 #3987e5 · 레드 #e66767.
+  // 진영 막대는 진영 색 그대로(승률 단계 클래스가 붙지 않는다). 다크 테마의 승리 색 #4f8ddd · 패배 색 #d9534f.
   const sides = page.getByRole("region", { name: "진영별" });
   await expect(sides.locator(".meter-fill.tone-blue")).toHaveCount(1);
   await expect(sides.locator(".meter-fill.tone-red")).toHaveCount(1);
   await expect(sides.locator(".meter-fill[class*='heat-']")).toHaveCount(0);
   const bg = (el: Element) => getComputedStyle(el).backgroundColor;
-  expect(await sides.locator(".meter-fill.tone-blue").evaluate(bg)).toBe("rgb(57, 135, 229)");
-  expect(await sides.locator(".meter-fill.tone-red").evaluate(bg)).toBe("rgb(230, 103, 103)");
-  // 승·패 막대도 그대로: 승은 승리 색 #3b82f6, 패는 패배 색 #ef4444 빗금.
+  expect(await sides.locator(".meter-fill.tone-blue").evaluate(bg)).toBe("rgb(79, 141, 221)");
+  expect(await sides.locator(".meter-fill.tone-red").evaluate(bg)).toBe("rgb(217, 83, 79)");
+  // 승·패 막대도 그대로: 승은 승리 색 #4f8ddd, 패는 패배 색 #d9534f 빗금.
   const recent = page.getByRole("region", { name: "최근" });
-  expect(await recent.locator(".wl-win").first().evaluate(bg)).toBe("rgb(59, 130, 246)");
+  expect(await recent.locator(".wl-win").first().evaluate(bg)).toBe("rgb(79, 141, 221)");
   expect(
     await recent.locator(".wl-loss").first().evaluate((el) => getComputedStyle(el).backgroundImage),
-  ).toContain("rgb(239, 68, 68)");
+  ).toContain("rgb(217, 83, 79)");
   // 비중 막대는 중립 색이고 승률 단계를 따르지 않는다.
   const lines = page.getByRole("region", { name: "라인별" });
   await expect(lines.locator(".meter-fill.tone-share")).toHaveCount(5);
@@ -205,6 +205,13 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   expect(await colorOf(page, ".summary-line", "color")).not.toBe(hotText);
   await expect(summary.locator(".title-chip")).toHaveClass(/grade-8/);
   await expect(summary.locator(".title-chip")).toHaveText("불굴의 개척자");
+  // 최근 승패 점(2026-11-10): 승은 승리 색 #4f8ddd로 채우고, 패는 바탕 없이 패배 테두리 + 패배 글자 #ea847f.
+  const dots = page.locator(".ps-form .form-dot");
+  expect(await dots.and(page.locator(".win")).first().evaluate(bg)).toBe("rgb(79, 141, 221)");
+  const lossDot = dots.and(page.locator(".loss")).first();
+  expect(await lossDot.evaluate(bg)).toBe("rgba(0, 0, 0, 0)");
+  expect(await lossDot.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(234, 132, 127)");
+  expect(await lossDot.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgba(217, 83, 79, 0.35)");
 
   // 랭킹: 승률 숫자 글자가 여러 단계로 나뉘고, 높은 줄과 낮은 줄의 글자 색이 다르다. 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
   await page.goto("/#/records");

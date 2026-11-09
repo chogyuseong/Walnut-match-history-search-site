@@ -199,7 +199,7 @@ export function Group() {
               onChange={(e) => setPeopleQuery(e.target.value)}
             />
           )}
-          <ul className="list">
+          <ul className="list list-card">
             {listedPeople.map((p) =>
               p.mergedInto ? (
                 // 합쳐진 이름: 기록은 모두 남은 사람에게 옮겨졌다. 되돌리기는 합치기 화면에서 한다.

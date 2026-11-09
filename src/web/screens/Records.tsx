@@ -45,6 +45,7 @@ import {
   nameMap,
   POSITION_LABEL,
   objectParticle,
+  rankClass,
   rateText,
   rateTier,
   resultLine,
@@ -499,7 +500,7 @@ export function Records(props: {
         ) : records.length === 0 ? (
           <p className="hint">일치하는 이름이 없어요.</p>
         ) : (
-          <ul className="list">
+          <ul className="list list-card">
             {records.map((r, i) => {
               const form = forms.get(r.participantId);
               const streak = form?.currentStreak ?? 0;
@@ -524,7 +525,7 @@ export function Records(props: {
                     >
                       <span className="rank-main">
                         <span className="rank-name">
-                          <span className={r.rank <= 3 ? "rank top" : "rank"}>{r.rank}</span>{" "}
+                          <span className={rankClass(r.rank)}>{r.rank}</span>{" "}
                           <span className="rank-person">{r.name}</span>
                         </span>
                         <span className="form-line">
@@ -541,7 +542,11 @@ export function Records(props: {
                         {r.games}경기)
                         <br />
                         <span className="hint">
-                          <StandingNote standing={placement.get(r.participantId)} placementGames={placementGames} />
+                          <StandingNote
+                            standing={placement.get(r.participantId)}
+                            placementGames={placementGames}
+                            compact
+                          />
                         </span>
                         {ratings.has(r.participantId) && (
                           // 누적 MMR(작은 글자). 배치 진행 중이면 흐리게 둔다(아직 많이 흔들리는 값).
