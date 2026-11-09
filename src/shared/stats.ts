@@ -114,14 +114,59 @@ export function safeTimeZone(value: unknown): string {
   return isValidTimeZone(value) ? value : DEFAULT_TIME_ZONE;
 }
 
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * 날짜 포매터를 언어·옵션(시간대 포함)별로 한 번만 만들어 다시 쓴다. Intl.DateTimeFormat은 만드는 비용이 커서
+ * 통계·목록처럼 경기마다 부르는 곳에서 호출마다 새로 만들면 느려진다. 시간대는 부르는 쪽이 safeTimeZone으로 거른다.
+ */
+export function dateTimeFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let format = formatters.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, options);
+    formatters.set(key, format);
+  }
+  return format;
+}
+
 /** 주어진 시각의 모임 표시 시간대 날짜(YYYY-MM-DD). */
 export function localDate(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateTimeFormat("en-CA", {
     timeZone: safeTimeZone(timeZone),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(iso));
+}
+
+/**
+ * 주어진 시각을 모임 표시 시간대의 날짜·시각 입력값("YYYY-MM-DDTHH:mm", datetime-local 칸의 형식)으로 바꾼다.
+ * 기기 시간대가 아니라 모임 시간대로 읽는다. zonedInputToUtc와 짝이다.
+ */
+export function zonedDateTimeInput(iso: string, timeZone: string): string {
+  const parts = dateTimeFormat("en-US", {
+    timeZone: safeTimeZone(timeZone),
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date(iso));
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+/**
+ * 날짜·시각 입력값("YYYY-MM-DDTHH:mm")을 모임 표시 시간대의 시각으로 보고 UTC ISO 시각으로 바꾼다.
+ * 형식이 맞지 않으면 null. zonedDateTimeInput과 짝이다.
+ */
+export function zonedInputToUtc(input: string, timeZone: string): string | null {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(input);
+  if (!match) return null;
+  const iso = zonedTimeToUtc(match[1]!, match[2]!, timeZone);
+  return Number.isNaN(Date.parse(iso)) ? null : iso;
 }
 
 /**
@@ -136,7 +181,7 @@ export function zonedTimeToUtc(date: string, time: string, timeZone: string): st
   // 그 시각을 UTC로 가정했을 때 모임 시간대에서 몇 시로 보이는지로 시차를 구한다. 두 번 맞춘다.
   let guess = wanted;
   for (let i = 0; i < 2; i++) {
-    const parts = new Intl.DateTimeFormat("en-US", {
+    const parts = dateTimeFormat("en-US", {
       timeZone: safeTimeZone(timeZone),
       hourCycle: "h23",
       year: "numeric",

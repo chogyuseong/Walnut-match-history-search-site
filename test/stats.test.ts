@@ -375,3 +375,21 @@ describe("잘못 저장된 모임 시간대에도 화면 함수가 깨지지 않
     expect(zonedTimeToUtc("2026-01-02", "00:30", "Mars/Olympus")).toBe("2026-01-01T15:30:00.000Z");
   });
 });
+describe("경기 시각 수정 입력은 기기가 아니라 모임 시간대로 읽고 쓴다", () => {
+  it("Asia/Seoul 모임에서 2026-11-08T20:00 입력은 UTC 11:00으로 저장되고 되돌리면 같은 입력값이다", async () => {
+    const { zonedDateTimeInput, zonedInputToUtc } = await import("../src/shared/stats");
+    const saved = zonedInputToUtc("2026-11-08T20:00", "Asia/Seoul");
+    expect(saved).toBe("2026-11-08T11:00:00.000Z");
+    expect(zonedDateTimeInput(saved!, "Asia/Seoul")).toBe("2026-11-08T20:00");
+  });
+
+  it("자정을 넘는 시각과 다른 시간대도 왕복이 맞고, 형식이 틀리면 null이다", async () => {
+    const { zonedDateTimeInput, zonedInputToUtc } = await import("../src/shared/stats");
+    expect(zonedDateTimeInput("2025-12-31T15:30:00.000Z", "Asia/Seoul")).toBe("2026-01-01T00:30");
+    const ny = zonedInputToUtc("2026-07-15T20:00", "America/New_York");
+    expect(ny).toBe("2026-07-16T00:00:00.000Z");
+    expect(zonedDateTimeInput(ny!, "America/New_York")).toBe("2026-07-15T20:00");
+    expect(zonedInputToUtc("", "Asia/Seoul")).toBeNull();
+    expect(zonedInputToUtc("2026-11-08", "Asia/Seoul")).toBeNull();
+  });
+});

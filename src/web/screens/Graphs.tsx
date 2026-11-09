@@ -152,6 +152,11 @@ const VIEW_LABEL: Record<View, string> = {
   activity: "활동",
 };
 
+/** 이 범위·라인에서 자료가 적은(SMALL_SAMPLE 미만) 사람을 맨 아래로 보낸다(제자리 정렬, 안정 정렬이라 순서 유지). */
+function withSample(rows: PersonRecord[]): PersonRecord[] {
+  return rows.sort((a, b) => Number(a.games < SMALL_SAMPLE) - Number(b.games < SMALL_SAMPLE));
+}
+
 /** 개인별 승률 묶음. 0~2는 랭킹 묶음(누적 기준), 3은 이 범위·라인에서 5경기 미만(자료 적음). */
 type BarGroup = 0 | 1 | 2 | 3;
 
@@ -192,7 +197,7 @@ export function Graphs(props: {
   const choosePlayer = (id: string) => (props.choosePlayer ? props.choosePlayer(id) : setLocalPlayer(id));
 
   const scopeLabel = scopeLabelOf(snapshot, scope);
-  const years = matchYears(snapshot);
+  const years = useMemo(() => matchYears(snapshot), [snapshot]);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   // 새 그림 계산(src/shared/graphs.ts). MMR은 범위와 무관한 누적, 참석·이야기는 이 범위.
   // 순위 변동·달력은 그 보기를 열었을 때만 계산한다(경기 수 × 사람 수라 다른 보기에서는 아깝다).
@@ -227,18 +232,20 @@ export function Graphs(props: {
     }
     return activityCalendar(dailyCounts(scoped, timeZone, playerId || null), range.start, range.end);
   }, [view, scope, snapshot, scoped, timeZone, playerId]);
-  const counted = scoped.filter((m) => m.state === "confirmed").length;
+  const counted = useMemo(() => scoped.filter((m) => m.state === "confirmed").length, [scoped]);
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
-  const placement = standingsOf(snapshot);
+  const placement = useMemo(() => standingsOf(snapshot), [snapshot]);
 
   // 랭킹 화면과 같은 묶음 순서(2026-11-08): 누적 50경기 이상 → 배치 완료(50경기 미만) → 배치 진행 중, 그 안에서 승률순.
   // 배치를 마쳤어도 50경기 미만이면 50경기 이상인 사람보다 항상 아래에 선다.
   // 이 범위·라인에서 5경기 미만(색을 칠하지 않는 "자료 적음")인 사람은 묶음과 무관하게 맨 아래로(2026-11-08).
   // 라인별로 보면 누적이 많은 사람도 그 라인은 한두 경기라 100%·0%가 섞여 들어가 위에 서는 것을 막는다.
-  const withSample = (rows: PersonRecord[]) =>
-    rows.sort((a, b) => Number(a.games < SMALL_SAMPLE) - Number(b.games < SMALL_SAMPLE));
-  const people = withSample(
-    sortRankingBy([...personRecordsByLine(scoped, line === "" ? null : line).values()], placement, nameOf, "rate"),
+  const people = useMemo(
+    () =>
+      withSample(
+        sortRankingBy([...personRecordsByLine(scoped, line === "" ? null : line).values()], placement, nameOf, "rate"),
+      ),
+    [scoped, line, placement, nameOf],
   );
   // 정렬된 목록을 묶음별로 나눈다. 정렬이 묶음 순서를 따르므로 같은 묶음은 이어져 있다.
   const groupOf = (r: PersonRecord): BarGroup =>
@@ -250,21 +257,22 @@ export function Graphs(props: {
     if (last && last.group === g) last.rows.push(r);
     else peopleGroups.push({ group: g, rows: [r] });
   }
-  const matrix = playerLineMatrix(scoped);
-  const matrixRows = withSample(
-    sortRankingBy([...personRecordsByLine(scoped, null).values()], placement, nameOf, "rate"),
+  const matrix = useMemo(() => playerLineMatrix(scoped), [scoped]);
+  const matrixRows = useMemo(
+    () => withSample(sortRankingBy([...personRecordsByLine(scoped, null).values()], placement, nameOf, "rate")),
+    [scoped, placement, nameOf],
   );
   // 표에서 색 칸(어느 라인이든 5경기 이상)이 하나도 없는 사람은 "자료 적음" 접힘으로 보낸다.
   const hasColoredCell = (id: string) => {
     const row = matrix.get(id) ?? {};
     return POSITIONS.some((p) => (row[p]?.games ?? 0) >= SMALL_SAMPLE);
   };
-  const sides = sideTotals(scoped);
+  const sides = useMemo(() => sideTotals(scoped), [scoped]);
   const blueRate = sides.known > 0 ? ratePercent(sides.blueWins, sides.known) : null;
   // 레드는 100 − 블루(시즌 요약과 같은 방식. 따로 반올림하면 합이 101%가 될 수 있다).
   const redRate = blueRate !== null ? 100 - blueRate : null;
   // 섞기 공정성(upset.ts): 예상은 누적 MMR, 세는 경기는 이 범위.
-  const fairness = fairnessReport(expectations, scoped);
+  const fairness = useMemo(() => fairnessReport(expectations, scoped), [expectations, scoped]);
   const balancedLow = fractionPercent(0.5 - BALANCED_MARGIN);
   const balancedHigh = fractionPercent(0.5 + BALANCED_MARGIN);
   const lopsidedHigh = fractionPercent(0.5 + LOPSIDED_MARGIN);

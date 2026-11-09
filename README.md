@@ -89,7 +89,7 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 src/server/   Workers API(Hono). index.ts 라우팅, mutation.ts(모임 안 쓰기 공통 경로), snapshot.ts, auth.ts, matches.ts, groups.ts …
 src/shared/   서버·화면 공용 순수 로직. stats(통계) · draft/prepTools/rotation/priority/avoid(편성) · titles(칭호) · rating(MMR) · search · seasonAwards …
 src/web/      React 화면. App.tsx 라우팅, useApp.ts 상태, lazyScreens.ts 지연 로딩, screens/*(화면), screens/prep/*(준비 화면 조각), styles.css(토큰·스타일)
-migrations/   D1 마이그레이션 0001~0023(0004는 없음, 번호 건너뜀)
+migrations/   D1 마이그레이션 0001~0024(0004는 없음, 번호 건너뜀)
 test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서 · scripts/  seed, check-bundle
 ```
 
@@ -111,7 +111,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 
 ### 배포(요약)
 
-`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → `npm run deploy:staging`·마이그레이션 0001~0023·확인 → `npm run deploy:production`. 배포 명령은 먼저 `scripts/predeploy-check.mjs`로 자리 표시값(`REPLACE-WITH-…`)과 production의 `[채워야 함]`을 검사해 남아 있으면 멈춥니다. wrangler 명령을 손으로 칠 때는 **항상 `--env staging|production`**(빠뜨리면 로컬 설정 `AUTH_MODE=fake`·D1 ID `0000…`이 올라가려 함. 공개 주소에서 가짜 로그인은 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
+`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → `npm run deploy:staging`·마이그레이션 0001~0024·확인 → `npm run deploy:production`. 배포 명령은 먼저 `scripts/predeploy-check.mjs`로 자리 표시값(`REPLACE-WITH-…`)과 production의 `[채워야 함]`을 검사해 남아 있으면 멈춥니다. wrangler 명령을 손으로 칠 때는 **항상 `--env staging|production`**(빠뜨리면 로컬 설정 `AUTH_MODE=fake`·D1 ID `0000…`이 올라가려 함. 공개 주소에서 가짜 로그인은 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
 
 ---
 
@@ -160,6 +160,7 @@ Riot API 없이도 쌓인 승패·MMR·세션만으로 더 보여 주려고 넣�
 
 ### 서버·운영
 - 쓰기 공통 경로(`runMutation`), 요청 ID 필수·재전송 동일 응답, 낙관적 잠금(`version`/409), 요청 수 제한(304는 세지 않음), Origin 확인, 보안 헤더·CSP, 비밀번호 PBKDF2 + 페퍼, 조회 ETag/304(운영자 ETag는 연결 링크 만료 때만 바뀜), 쓰기 batch 안 점검 재확인, 자동 백업 크론(R2, 30일, 모임 삭제 때 함께 지움), 스냅숏·백업 batch 1회
+- **2026-11-09 스냅숏 보호**(`docs/개선-서버-2026-11-09.md`): 운영자·멤버 스냅숏 GET에 요청 수 제한(200만 셈, 계정 60·IP 120/분, 304는 세지 않음), 멤버 스냅숏에도 ETag/304(조회 재료 + 계정·참가자), `requests (group_id, created_at)` 색인(마이그레이션 0024)
 - **2026-11-08 전체 점검 후속**(보안·정합성·계산·구성·화면 다섯 영역, 기록은 `docs/개선-서버-2026-11-08.md`·`docs/개선-합치기-2026-11-08.md`·`docs/구현현황.md`): 요청 수 제한을 HEAD·IPv6(/64)까지 적용, 가져오기·복원의 하루 쓰기 예산(계정 3,000·IP 6,000경기), 계정 잠금을 (아이디, IP) 조합으로, 내보낸 공동 운영자의 미사용 연결 링크 삭제, 날짜 일괄 정정·시리즈 질의를 호출당 D1 50회 한도 안으로, 합치기 되돌리기·복원 때 본인 연결 되감기, 시리즈 기준 판을 다수 구성으로, 시트 가로형 표 레드 열 우선 승패 반전 수정, 서폿 돌아가며의 기피 라인 위반 수정, 배포 전 점검 스크립트·자산 장기 캐시·조각 로드 실패 자동 새로 고침
 
 ### 화면·디자인(2026-11-08 정리)
@@ -169,13 +170,14 @@ Riot API 없이도 쌓인 승패·MMR·세션만으로 더 보여 주려고 넣�
 - 320~1440px 반응형, 좁은 화면 하단 탭, PC 두 단(기록·개인 통계·그래프·준비·티어), 자리 바뀜 애니메이션, 테마 3종, 접근성(aria·44px·색만으로 구분하지 않음)
 - 작은 글자 한 단계 올림(2026-11-09): 13px 이하이던 안내문·캡션·라벨·칩 글자를 14px, 10~11px짜리는 12px 이상으로. 승·패 점·티어 알약처럼 칸 안 글자는 칸도 같이 키움. 320·390px에서 가로 넘침 없음 확인
 - 화면 점검 후속(2026-11-08): 다른 화면으로 가면 맨 위에서 열림(같은 화면 안 범위·탭은 그대로, 뒤로 가기는 브라우저 위치), 토스트는 고정 행동 버튼 위에, 준비 화면 섞기 줄이 편성 판 바로 아래(서포터 횟수 판은 기본 접힘 + "초기화 필요" 배지), 신청자 0명이면 참가 신청 한 줄, 날짜 표기 통일(올해는 "11월 7일", 다른 해는 "2025년 11월 7일", 기간은 "7월 1일 ~ 8월 31일")
+- **전체 점검 후속(2026-11-09, 화면)**: 경기 시각 정정을 기기 시간대가 아닌 모임 시간대로 읽고 저장(`zonedDateTimeInput`/`zonedInputToUtc`), 스냅숏 ETag가 같으면 이전 객체를 그대로 써서 다시 그리지 않음 + `useApp` 반환 객체 메모, `Intl.DateTimeFormat` 캐시(`dateTimeFormat`), 그래프 분석·모임 화면의 무거운 계산 메모, 모임 대화상자는 실패하면 열린 채 오류 표시, 요청 ID를 같은 내용 재전송에 재사용(기록 정정·시즌·시리즈·날짜 정정), 없는 주소는 "없는 주소예요" 화면, 화면마다 문서 제목("화면 이름 · 내전 운영"), Dialog 포커스 가두기·복귀·`aria-labelledby`
 
 ---
 
 ## 4. 앞으로 나아갈 방향
 
 ### 바로 다음
-1. **운영 배포**: `docs/배포안내.md` 7~15절. 마이그레이션(0001~0023) 먼저, 그 뒤 `npm run deploy:staging` → 확인 → `npm run deploy:production`. staging에서 꼭 해볼 것: 522경기 백업으로 **복원을 실제 실행**하고 cpuTime 확인(무료 10ms 초과면 복원하는 날만 Paid), 21경기 이상 날짜 일괄 정정과 15판 시리즈 만들기(D1 질의 한도), 로그인 CPU(PBKDF2 20,000회), CSP 헤더, 조회 304, 실제 카카오·Google 로그인
+1. **운영 배포**: `docs/배포안내.md` 7~15절. 마이그레이션(0001~0024) 먼저, 그 뒤 `npm run deploy:staging` → 확인 → `npm run deploy:production`. staging에서 꼭 해볼 것: 522경기 백업으로 **복원을 실제 실행**하고 cpuTime 확인(무료 10ms 초과면 복원하는 날만 Paid), 21경기 이상 날짜 일괄 정정과 15판 시리즈 만들기(D1 질의 한도), 로그인 CPU(PBKDF2 20,000회), CSP 헤더, 조회 304, 실제 카카오·Google 로그인
 2. **실기기 검증**: 휴대폰 Safari·Chrome에서 준비 화면·결과 입력·조회 링크. 지금까지는 Chromium·WebKit 헤드리스만 확인
 3. **디자인 정리 계속**: 남은 항목은 PC 기록 화면의 표 형태, 홈·기록 요약 줄을 시즌 요약의 타일로 통일, 모임 화면(긴 세로 목록) 톤 정리, 라인 아이콘 세트 다듬기, 열지도 색, 로고·시그니처 요소, 모임 탭 하위 탭화, **작은 글자 키우기**(힌트·캡션·칩)
 4. **가져오기 "다른 경기로 넣기"**: 같은 날 같은 10명·같은 결과의 두 번째 경기를 따로 붙여 넣으면 "이미 있음"으로 건너뛴다. 공용 함수 `nextFreeFingerprint`는 있고, 가져오기 화면에서 그 줄에 선택지를 붙이는 연결이 남아 있다

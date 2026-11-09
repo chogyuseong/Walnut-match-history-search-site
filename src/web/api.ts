@@ -42,6 +42,19 @@ function requestHeaders(method: string, path: string, hasBody: boolean): Record<
 }
 
 export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+  return (await send<T>(method, path, body)).data;
+}
+
+/**
+ * GET과 함께 응답의 ETag를 돌려준다. 브라우저가 304를 받으면 캐시 본문을 200처럼 주므로 화면은 304를 직접 볼 수 없다.
+ * 대신 ETag가 지난번과 같으면 내용이 같으니, 부르는 쪽이 이전 객체를 그대로 두어 다시 그리기를 줄인다.
+ * ETag에는 serverTime이 들어가지 않는다(같은 ETag면 serverTime만 다를 수 있다. 304라면 어차피 이전 값이다).
+ */
+export async function getWithEtag<T>(path: string): Promise<{ data: T; etag: string | null }> {
+  return send<T>("GET", path);
+}
+
+async function send<T>(method: string, path: string, body?: unknown): Promise<{ data: T; etag: string | null }> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
     throw new ApiFailure("offline", "인터넷에 연결돼 있지 않아요.");
   }
@@ -83,7 +96,7 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
     );
   }
   if (method === "GET") rememberGeneration(path, parsed);
-  return parsed as T;
+  return { data: parsed as T, etag: response.headers?.get("ETag") ?? null };
 }
 
 /** 요청 ID. 확인 창을 열 때 한 번 만들고 재시도에는 같은 값을 쓴다. */

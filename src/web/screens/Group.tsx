@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { ParticipantView, Settings } from "../../shared/types";
 import { ApiFailure, call, mutate, newRequestId, patchParticipant } from "../api";
 import { resolveMerged } from "../../shared/merge";
@@ -51,6 +51,13 @@ export function Group() {
   const [anonResult, setAnonResult] = useState<{ name: string; count: number; memoMatchNos: number[] } | null>(null);
   const [resolving, setResolving] = useState<{ request: MemberRequestView; status: "done" | "declined" } | null>(null);
   const [reply, setReply] = useState("");
+  // 참석 계산은 모임 전체 경기를 훑는다. 스냅숏이 바뀔 때만 다시 계산한다.
+  const attendance = useMemo(
+    () => (snapshot ? attendanceReport(snapshot.matches, snapshot.group.timezone) : null),
+    [snapshot],
+  );
+  // 시즌 만들기 요청 ID: 같은 내용을 다시 보내면(응답을 못 받은 뒤 재시도) 같은 값을 쓴다. 성공하면 비운다.
+  const seasonRequest = useRef<{ id: string; key: string } | null>(null);
 
   if (!snapshot) return <NoGroupYet />;
   const gid = snapshot.group.id;
@@ -116,7 +123,7 @@ export function Group() {
   const matchNoOf = (id: string | null) => snapshot.matches.find((m) => m.id === id)?.matchNo;
   const tz = snapshot.group.timezone;
   // 오래 안 온 사람(attendance.ts): 모임 전체 기간의 모임 날 기준.
-  const absent = longAbsent(attendanceReport(snapshot.matches, tz), snapshot.participants, nameOf);
+  const absent = longAbsent(attendance!, snapshot.participants, nameOf);
 
   return (
     <div className="screen">
@@ -168,7 +175,14 @@ export function Group() {
           </p>
           <div className="button-row">
             <CopyButton label="조회 링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
-            <button type="button" className="link" onClick={() => setConfirmToken(true)}>
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setError(null);
+                setConfirmToken(true);
+              }}
+            >
               링크 다시 만들기
             </button>
           </div>
@@ -455,7 +469,14 @@ export function Group() {
           </Help>
           <p>
             지금: <strong>{settings.groupsPublic ? "조회자에게 공개" : "운영자만 봄"}</strong>{" "}
-            <button type="button" className="link" onClick={() => setPreviewPublic(true)}>
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setError(null);
+                setPreviewPublic(true);
+              }}
+            >
               {settings.groupsPublic ? "비공개로 바꾸기" : "공개로 바꾸기"}
             </button>
           </p>
@@ -624,11 +645,19 @@ export function Group() {
             className="season-form"
             onSubmit={(event) => {
               event.preventDefault();
-              // 요청 ID는 제출할 때 한 번 만들고 mutate의 재시도는 같은 값을 쓴다. 실패하면 입력을 남긴다.
+              // 요청 ID는 같은 내용으로 다시 제출하면(실패·확인 불가 뒤) 같은 값을 쓴다. 내용이 바뀌거나 성공하면 새로
+              // 만든다. 실패하면 입력을 남긴다.
+              const key = JSON.stringify(seasonForm);
+              if (seasonRequest.current?.key !== key) seasonRequest.current = { id: newRequestId(), key };
+              const requestId = seasonRequest.current.id;
               void run(
-                () => mutate(`/api/groups/${gid}/seasons`, { requestId: newRequestId(), ...seasonForm }),
+                () => mutate(`/api/groups/${gid}/seasons`, { requestId, ...seasonForm }),
                 "시즌을 만들었어요.",
-              ).then((ok) => ok && setSeasonForm({ name: "", startsOn: "", endsOn: "" }));
+              ).then((ok) => {
+                if (!ok) return;
+                seasonRequest.current = null;
+                setSeasonForm({ name: "", startsOn: "", endsOn: "" });
+              });
             }}
           >
             <label>
@@ -792,6 +821,8 @@ export function Group() {
               <p className="hint">한번 공개된 평가는 되돌릴 수 없습니다.</p>
             </>
           )}
+          {/* 실패하면 대화 상자를 열어 둔 채 이유를 보여 준다. */}
+          <ErrorNote error={error} />
           <div className="button-row">
             <button
               type="button"
@@ -801,7 +832,7 @@ export function Group() {
                 void saveSettings(
                   { ...settings, groupsPublic: !settings.groupsPublic },
                   settings.groupsPublic ? "비공개로 바꿨어요." : "공개로 바꿨어요.",
-                ).then(() => setPreviewPublic(false))
+                ).then((ok) => ok && setPreviewPublic(false))
               }
             >
               {settings.groupsPublic ? "비공개로 바꾸기" : "공개로 바꾸기"}
@@ -874,6 +905,8 @@ export function Group() {
             새 링크를 만들면 지금까지 공유한 링크는 더 이상 열리지 않습니다. 참가자에게 새 링크를 다시
             보내야 합니다.
           </p>
+          {/* 실패하면 대화 상자를 열어 둔 채 이유를 보여 준다. */}
+          <ErrorNote error={error} />
           <div className="button-row">
             <button
               type="button"
@@ -883,7 +916,7 @@ export function Group() {
                 void run(
                   () => mutate(`/api/groups/${gid}/view-token`, { requestId: newRequestId() }),
                   "새 링크를 만들었어요.",
-                ).then(() => setConfirmToken(false))
+                ).then((ok) => ok && setConfirmToken(false))
               }
             >
               새 링크 만들기

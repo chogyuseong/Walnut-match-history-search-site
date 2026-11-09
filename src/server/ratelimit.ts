@@ -21,6 +21,8 @@ export type Bucket =
   | "sheet-ip"
   | "heavy-account"
   | "heavy-ip"
+  | "snapshot-account"
+  | "snapshot-ip"
   | "signup-ip"
   | "login-ip"
   | "recover-ip"
@@ -47,6 +49,15 @@ export const DEFAULT_LIMITS: Record<Bucket, number> = {
   // 비싼 읽기(백업 내려받기·합치기 미리보기·가져오기 지문 목록). 화면이 한 번씩 부르는 경로라 넉넉히 둔다.
   "heavy-account": 60,
   "heavy-ip": 120,
+  // 운영자·멤버 스냅숏(모임 전체를 읽는 가장 비싼 GET, 2026-11-09). 본문을 만드는 200만 세고 304는 세지 않는다
+  // (조회 링크와 같은 방식). 화면은 탭으로 돌아올 때·자기 저장 뒤에 다시 읽고, 자료가 그대로면 304라 정상 사용은
+  // 분당 몇 번이다. 한도가 없으면 한 계정이 큰 모임(522경기 ≈ 6천~7천 행, 추정)을 If-None-Match 없이 반복 호출해
+  // D1 하루 읽기 500만 행을 몇십 분 만에 다 쓴다. 계정 60이면 그 속도를 분당 약 40만 행으로 묶는다.
+  // 쓰기 한도(write-account 60)와 같게 둔다: 저장할 때마다 자료가 바뀌어 다시 읽기가 200이 되므로(티어 화면처럼
+  // 사람마다 눌러 저장하는 경우), 스냅숏 한도가 쓰기 한도보다 작으면 저장은 되고 다시 읽기만 429가 난다.
+  // IP는 다른 버킷처럼 계정의 두 배(같은 집·같은 회선의 운영자 둘).
+  "snapshot-account": 60,
+  "snapshot-ip": 120,
   // 자체 계정(src/server/local.ts). 모든 /api/auth/* 에 걸리는 auth-ip(20)에 더해 경로별로 좁게 센다.
   // 가입은 "이미 쓰는 아이디"를 알려 주므로(아이디가 있는지 알 수 있음) 가장 좁게 둔다.
   "signup-ip": 5,
@@ -71,6 +82,8 @@ const LIMIT_VARS: Record<Bucket, keyof Env> = {
   "sheet-ip": "RATE_SHEET_PER_IP",
   "heavy-account": "RATE_HEAVY_PER_ACCOUNT",
   "heavy-ip": "RATE_HEAVY_PER_IP",
+  "snapshot-account": "RATE_SNAPSHOT_PER_ACCOUNT",
+  "snapshot-ip": "RATE_SNAPSHOT_PER_IP",
   "signup-ip": "RATE_SIGNUP_PER_IP",
   "login-ip": "RATE_LOGIN_PER_IP",
   "recover-ip": "RATE_RECOVER_PER_IP",

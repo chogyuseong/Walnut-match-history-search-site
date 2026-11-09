@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FUTURE_TOLERANCE_MS } from "../../shared/backfill";
 import { dateFindings, shiftYears, type YearRun } from "../../shared/dateCheck";
 import type { MatchView } from "../../shared/types";
@@ -22,6 +22,9 @@ export function DateCheck() {
   const [rangeTo, setRangeTo] = useState("");
   const [rangeYears, setRangeYears] = useState<1 | -1>(1);
   const [confirm, setConfirm] = useState<{ items: MatchView[]; years: 1 | -1 } | null>(null);
+  // 요청 ID: 같은 경기·같은 방향을 다시 보내면(실패·확인 불가 뒤) 같은 값을 쓴다. 성공하면 비운다.
+  // 옮기기는 두 번 하면 두 해가 밀리므로, 앞 요청이 실제로 저장됐을 때 서버가 두 번 처리하지 않게 하는 것이 중요하다.
+  const request = useRef<{ id: string; key: string } | null>(null);
 
   const tz = snapshot?.group.timezone ?? "Asia/Seoul";
   const confirmed = useMemo(
@@ -62,14 +65,18 @@ export function DateCheck() {
   const when = (m: MatchView) => whenIso(m.playedAt);
 
   async function apply(items: MatchView[], years: 1 | -1) {
+    const matchIds = items.map((m) => m.id);
+    const key = `${years}:${matchIds.join(",")}`;
+    if (request.current?.key !== key) request.current = { id: newRequestId(), key };
     setBusy(true);
     setError(null);
     try {
       await mutate(`/api/groups/${snapshot!.group.id}/matches/shift-dates`, {
-        requestId: newRequestId(),
-        matchIds: items.map((m) => m.id),
+        requestId: request.current.id,
+        matchIds,
         years,
       });
+      request.current = null;
       await app.refreshAfterOwnChange();
       setConfirm(null);
       app.setNotice(`${items.length}경기의 연도를 ${years > 0 ? "한 해 뒤로" : "한 해 앞으로"} 옮겼어요. 변경 내역에 남아요.`);

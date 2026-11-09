@@ -1,5 +1,5 @@
 import type { Draft } from "../shared/draft";
-import { placementGamesOf, ratePercent, safeTimeZone, SMALL_SAMPLE } from "../shared/stats";
+import { dateTimeFormat, placementGamesOf, ratePercent, safeTimeZone, SMALL_SAMPLE } from "../shared/stats";
 import { standings, titleBandsOf, titleGradeFor, type Standing, type TitleGrade } from "../shared/titles";
 import {
   POSITIONS,
@@ -72,7 +72,7 @@ export const STATE_LABEL: Record<MatchView["state"], string> = {
 
 export function formatTime(iso: string | null | undefined, timeZone = "Asia/Seoul"): string {
   if (!iso) return "";
-  return new Intl.DateTimeFormat("ko-KR", {
+  return dateTimeFormat("ko-KR", {
     timeZone: safeTimeZone(timeZone),
     hour: "numeric",
     minute: "2-digit",
@@ -86,7 +86,7 @@ export function formatTime(iso: string | null | undefined, timeZone = "Asia/Seou
 function dateParts(iso: string, timeZone: string): { y: number; m: number; d: number } {
   const plain = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (plain) return { y: Number(plain[1]), m: Number(plain[2]), d: Number(plain[3]) };
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = dateTimeFormat("en-US", {
     timeZone: safeTimeZone(timeZone),
     year: "numeric",
     month: "numeric",

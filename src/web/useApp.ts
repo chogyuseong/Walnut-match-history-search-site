@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { parseStoredDraft, type Draft, type DraftPerson } from "../shared/draft";
 import { remapDraft, remapPeople } from "../shared/merge";
 import type { Snapshot } from "../shared/types";
-import { ApiFailure, call, mutate, newRequestId } from "./api";
+import { ApiFailure, call, getWithEtag, mutate, newRequestId } from "./api";
 
 const DRAFT_KEY = "naejeon.draft.v1";
 const GROUP_KEY = "naejeon.group";
@@ -156,6 +156,11 @@ export function useApp(enabled: boolean): AppValue {
    * (같은 모임의 겹친 새로 고침도 마지막 요청의 응답만 남는다). 스냅숏을 비울 때(로그아웃 등)도 올린다.
    */
   const snapshotSeq = useRef(0);
+  /**
+   * 마지막으로 반영한 스냅숏과 그 ETag. 다시 읽었는데 ETag가 같으면(304 또는 같은 내용) 새로 해석한 객체 대신
+   * 이 객체를 그대로 써서, 스냅숏을 받는 화면 전체가 같은 내용으로 다시 계산·그리지 않게 한다.
+   */
+  const lastSnapshot = useRef<{ etag: string; snapshot: Snapshot } | null>(null);
 
   const setDraft = useCallback((next: Draft | null) => {
     draftRef.current = next;
@@ -173,11 +178,16 @@ export function useApp(enabled: boolean): AppValue {
   const loadSnapshot = useCallback(async (gid: string): Promise<Snapshot | null> => {
     const seq = ++snapshotSeq.current;
     try {
-      const next = await call<Snapshot>("GET", `/api/groups/${gid}/snapshot`);
+      const { data, etag } = await getWithEtag<Snapshot>(`/api/groups/${gid}/snapshot`);
+      const last = lastSnapshot.current;
+      const same = etag !== null && last !== null && last.etag === etag && last.snapshot.group.id === data.group.id;
+      const next = same ? last.snapshot : data;
       if (seq !== snapshotSeq.current) {
         // 더 나중에 보낸 요청이 있다: 화면 상태는 그 요청이 정한다. 부른 쪽에는 지금 모임 것일 때만 돌려준다.
         return next.group.id === groupRef.current ? next : null;
       }
+      lastSnapshot.current = etag === null ? null : { etag, snapshot: next };
+      // 같은 객체면 React가 다시 그리지 않는다.
       setSnapshot(next);
       setLoadedAt(Date.now());
       setLoadError(null);
@@ -371,29 +381,54 @@ export function useApp(enabled: boolean): AppValue {
     [switchGroup],
   );
 
-  return {
-    ready,
-    me,
-    groupId,
-    snapshot,
-    loadedAt,
-    loadError,
-    draft,
-    storageOk,
-    notice,
-    setNotice,
-    setDraft,
-    refresh,
-    refreshAfterOwnChange,
-    login,
-    reloadMe,
-    logout,
-    ensureGroup,
-    switchGroup,
-    createGroup,
-    switchSeq,
-    switching,
-  };
+  // 값이 바뀔 때만 새 객체를 만든다(컨텍스트를 받는 화면이 부모가 다시 그려질 때마다 따라 그리지 않게).
+  return useMemo(
+    () => ({
+      ready,
+      me,
+      groupId,
+      snapshot,
+      loadedAt,
+      loadError,
+      draft,
+      storageOk,
+      notice,
+      setNotice,
+      setDraft,
+      refresh,
+      refreshAfterOwnChange,
+      login,
+      reloadMe,
+      logout,
+      ensureGroup,
+      switchGroup,
+      createGroup,
+      switchSeq,
+      switching,
+    }),
+    [
+      ready,
+      me,
+      groupId,
+      snapshot,
+      loadedAt,
+      loadError,
+      draft,
+      storageOk,
+      notice,
+      setDraft,
+      refresh,
+      refreshAfterOwnChange,
+      login,
+      reloadMe,
+      logout,
+      ensureGroup,
+      switchGroup,
+      createGroup,
+      switchSeq,
+      switching,
+    ],
+  );
 }
 
 /** 주소의 # 뒤를 "/"로 나눈 값. 화면 전환에 쓴다. */

@@ -36,6 +36,9 @@ export interface Env {
   /** 비싼 읽기(백업 내려받기·합치기 미리보기·가져오기 지문 목록) 한도. 기본 계정당 60, IP당 120(창당). */
   RATE_HEAVY_PER_ACCOUNT?: string;
   RATE_HEAVY_PER_IP?: string;
+  /** 운영자·멤버 스냅숏 GET 중 본문을 만드는 200의 한도(304는 세지 않음). 기본 계정당 30, IP당 60(창당). */
+  RATE_SNAPSHOT_PER_ACCOUNT?: string;
+  RATE_SNAPSHOT_PER_IP?: string;
   /** 자체 계정 가입·로그인·복구 코드 확인의 IP별 한도(창당). 기본 5·10·5. */
   RATE_SIGNUP_PER_IP?: string;
   RATE_LOGIN_PER_IP?: string;

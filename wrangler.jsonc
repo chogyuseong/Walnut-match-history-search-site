@@ -48,6 +48,8 @@
     "RATE_VIEW_PER_IP": "5000",
     "RATE_HEAVY_PER_ACCOUNT": "5000",
     "RATE_HEAVY_PER_IP": "5000",
+    "RATE_SNAPSHOT_PER_ACCOUNT": "5000",
+    "RATE_SNAPSHOT_PER_IP": "5000",
     "RATE_SIGNUP_PER_IP": "5000",
     "RATE_LOGIN_PER_IP": "5000",
     "RATE_RECOVER_PER_IP": "5000",
@@ -89,6 +91,10 @@
         // 비싼 읽기(백업 내려받기·합치기 미리보기·가져오기 지문 목록).
         "RATE_HEAVY_PER_ACCOUNT": "60",
         "RATE_HEAVY_PER_IP": "120",
+        // 운영자·멤버 스냅숏 중 본문을 만드는 200(304는 세지 않음, 2026-11-09). D1 하루 읽기(500만 행) 보호.
+        // 쓰기 한도(60)와 같게: 저장마다 다시 읽기가 200이라 더 작으면 저장 뒤 다시 읽기만 429가 난다.
+        "RATE_SNAPSHOT_PER_ACCOUNT": "60",
+        "RATE_SNAPSHOT_PER_IP": "120",
         // 자체 계정(아이디 + 비밀번호) 경로의 IP별 한도. 아이디별 틀린 시도 제한(15분에 로그인 10·복구 5)은
         // 코드에 고정이다(src/server/local.ts). 자체 계정을 끄려면 "LOCAL_ACCOUNTS": "off"를 더한다.
         "RATE_SIGNUP_PER_IP": "5",
@@ -152,6 +158,8 @@
         "RATE_VIEW_PER_IP": "30",
         "RATE_HEAVY_PER_ACCOUNT": "60",
         "RATE_HEAVY_PER_IP": "120",
+        "RATE_SNAPSHOT_PER_ACCOUNT": "60",
+        "RATE_SNAPSHOT_PER_IP": "120",
         "RATE_SIGNUP_PER_IP": "5",
         "RATE_LOGIN_PER_IP": "10",
         "RATE_RECOVER_PER_IP": "5",

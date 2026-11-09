@@ -23,7 +23,7 @@ import type { Env } from "./env";
 import { parseAvoidField } from "./groups";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireString } from "./http";
 import { maintenanceError, maintenanceGuard, runMutation, sha256Hex } from "./mutation";
-import { buildSnapshot, loadMemberRequests } from "./snapshot";
+import { buildSnapshot, loadEtagHead, loadMemberRequests, snapshotEtag } from "./snapshot";
 
 /** 한 계정이 연결할 수 있는 참가자 수(모임마다 하나이므로 곧 참가 중인 모임 수). */
 export const MAX_LINKS_PER_ACCOUNT = 20;
@@ -368,6 +368,22 @@ export async function memberSnapshot(env: Env, ctx: MemberContext): Promise<Snap
     requests: await loadMemberRequests(env, ctx.groupId, ctx.participantId),
   };
   return snapshot;
+}
+
+/**
+ * 멤버 스냅숏의 ETag(조건부 요청, 2026-11-09). 조회 응답의 재료(snapshotEtag "viewer")에 "member"·계정·참가자를 더한다.
+ * - 멤버 응답에만 있는 값(me)의 출처: participants.avoid_positions, participant_links.avoid_self_at,
+ *   participant_requests(그 사람의 요청과 처리 상태). 세 표 모두 data_version 트리거가 있어(migrations/0021)
+ *   요청을 남기거나 운영자가 처리·지우면 data_version이 올라 ETag가 바뀐다. 그래서 이 표들을 따로 읽지 않는다
+ *   (모임 행 1행만 읽는다). 시각에 따라 달라지는 값은 없다.
+ * - 참가자 ID: me.participantId가 본문에 들어가고, 연결이 끊긴 뒤 다른 참가자로 다시 연결해도 예전 본문을 되살리지 않게.
+ * - 계정 ID: 같은 브라우저에서 다른 계정으로 바꿔 로그인했을 때 예전 계정의 본문을 304로 되살리지 않게.
+ * 모임이 없으면 null.
+ */
+export async function memberSnapshotEtag(env: Env, ctx: MemberContext): Promise<string | null> {
+  const head = await loadEtagHead(env, ctx.groupId, false);
+  if (!head) return null;
+  return snapshotEtag(env, head, "viewer", ["member", ctx.accountId, ctx.participantId]);
 }
 
 /** 이 연결이 그대로인지 batch 안에서 다시 확인하는 보호 문장(끊긴 직후의 요청을 막는다). */

@@ -1,6 +1,6 @@
 import { canGoBack } from "./nav";
 import { SessionExpiredNote } from "./screens/Login";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   fractionPercent,
   isCounted,
@@ -287,19 +287,66 @@ export function KpiStrip(props: { snapshot: Snapshot }) {
   );
 }
 
-/** 한 번에 하나만 띄우는 확인 창. 뒤 화면은 누를 수 없다. */
+/** 대화 상자 안에서 Tab으로 갈 수 있는 요소. 숨겨진 것(크기 없음)은 뺀다. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), ' +
+  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function focusablesIn(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
+}
+
+/** 열려 있는 대화 상자(나중에 연 것이 끝). Tab 가두기는 맨 위의 창만 한다(창 위에 창을 연 경우). */
+const openDialogs: HTMLElement[] = [];
+
+/**
+ * 한 번에 하나만 띄우는 확인 창. 뒤 화면은 누를 수 없다.
+ * 열리면 초점을 창으로 옮기고, Tab·Shift+Tab은 창 안에서만 돈다. 닫히면 열기 전에 초점이 있던 요소로 돌려준다.
+ * 창 이름은 제목(h2)을 aria-labelledby로 가리킨다.
+ */
 export function Dialog(props: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const onClose = useRef(props.onClose);
   onClose.current = props.onClose;
   // 창이 열릴 때 한 번만 초점을 옮긴다. 다시 그릴 때마다 옮기면 입력 중인 칸에서 초점이 빠진다.
   useEffect(() => {
-    ref.current?.focus();
+    const dialog = ref.current;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (dialog) openDialogs.push(dialog);
+    dialog?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose.current();
+      if (event.key !== "Tab" || !dialog || openDialogs[openDialogs.length - 1] !== dialog) return;
+      const items = focusablesIn(dialog);
+      if (items.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      const active = document.activeElement;
+      const inside = active instanceof Node && dialog.contains(active);
+      if (event.shiftKey) {
+        if (!inside || active === first || active === dialog) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (!inside || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      const index = dialog ? openDialogs.lastIndexOf(dialog) : -1;
+      if (index >= 0) openDialogs.splice(index, 1);
+      // 닫힌 뒤 초점을 연 요소로 돌려준다. 그 요소가 화면에서 사라졌으면 그대로 둔다.
+      // 화면이 그 자리로 튀지 않게 스크롤은 하지 않는다(창은 화면 위에 떠 있었으므로 보통 연 요소가 보인다).
+      if (opener && opener.isConnected) opener.focus({ preventScroll: true });
+    };
   }, []);
   return (
     <div className="overlay" role="presentation">
@@ -307,12 +354,12 @@ export function Dialog(props: { title: string; onClose: () => void; children: Re
         className="dialog"
         role="dialog"
         aria-modal="true"
-        aria-label={props.title}
+        aria-labelledby={titleId}
         tabIndex={-1}
         ref={ref}
       >
         <div className="dialog-head">
-          <h2>{props.title}</h2>
+          <h2 id={titleId}>{props.title}</h2>
           <button type="button" className="link" onClick={props.onClose}>
             닫기
           </button>

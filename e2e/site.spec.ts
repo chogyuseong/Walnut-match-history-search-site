@@ -355,7 +355,20 @@ test("홈 요약과 결과 이미지(PNG)", async ({ page }, testInfo) => {
   expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
   expect(png.readUInt32BE(16)).toBe(1080); // 너비
   expect(png.length).toBeGreaterThan(20_000);
+  // 창 안에서만 Tab이 돈다(앞뒤 모두). 창 이름은 제목(h2)에서 온다.
+  await expect(dialog.getByRole("heading", { level: 2, name: "오늘의 결과 이미지" })).toBeVisible();
+  const focusInside = () => dialog.evaluate((el) => el.contains(document.activeElement));
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press("Tab");
+    expect(await focusInside()).toBe(true);
+  }
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press("Shift+Tab");
+    expect(await focusInside()).toBe(true);
+  }
   await dialog.getByRole("button", { name: "닫기" }).click();
+  // 닫으면 창을 연 버튼으로 초점이 돌아온다.
+  await expect(page.getByRole("button", { name: "결과 이미지" })).toBeFocused();
 
   // 경기 한 건 이미지
   await page.goto("/#/records");
@@ -368,6 +381,26 @@ test("홈 요약과 결과 이미지(PNG)", async ({ page }, testInfo) => {
   const matchPng = await readFile(await (await second).path());
   expect(matchPng.subarray(1, 4).toString("ascii")).toBe("PNG");
   expect(matchPng.length).toBeGreaterThan(20_000);
+});
+
+test("없는 주소는 안내 화면, 문서 제목은 화면 이름을 따른다", async ({ page }) => {
+  await setup(page);
+  await page.goto("/#/no-such-page");
+  await expect(page.getByRole("heading", { level: 1, name: "없는 주소예요" })).toBeVisible();
+  await expect(page).toHaveTitle("없는 주소 · 내전 운영");
+  await page.getByRole("button", { name: "오늘 화면으로" }).click();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page).toHaveTitle("오늘 · 내전 운영");
+  await expect(page.getByRole("heading", { level: 1, name: "없는 주소예요" })).toHaveCount(0);
+
+  await page.goto("/#/records");
+  await expect(page).toHaveTitle("기록 · 내전 운영");
+  await page.goto("/#/graphs");
+  await expect(page).toHaveTitle("그래프 분석 · 내전 운영");
+  // 사이트 운영자가 아니면 admin은 없는 화면이 아니라 오늘 화면이다(존재를 숨김).
+  await page.goto("/#/admin");
+  await expect(page).toHaveTitle("오늘 · 내전 운영");
+  await expect(page.getByRole("heading", { level: 1, name: "없는 주소예요" })).toHaveCount(0);
 });
 
 test("참가자 고르기: 넓은 화면은 여러 열, 정렬, 10명 골라 팀 짜기", async ({ page }) => {

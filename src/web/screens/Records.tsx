@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import {
   anchorRecord,
   EMPTY_FILTER,
@@ -24,6 +24,8 @@ import {
   fractionPercent,
   matchesInScope,
   scopeLabel as scopeLabelOf,
+  zonedDateTimeInput,
+  zonedInputToUtc,
   type Scope,
 } from "../../shared/stats";
 import {
@@ -715,6 +717,8 @@ export function MatchDetail(props: {
   const [playedInput, setPlayedInput] = useState("");
   const [imageOpen, setImageOpen] = useState(false);
   const expectationOf = useExpectations(snapshot);
+  // 요청 ID는 같은 요청(동작·내용·경기 버전)을 다시 보낼 때 같은 값을 쓴다. 성공하거나 내용이 바뀌면 새로 만든다.
+  const request = useRef<{ id: string; key: string } | null>(null);
 
   if (!match) {
     return (
@@ -739,14 +743,17 @@ export function MatchDetail(props: {
 
   async function send(action: string, body: Record<string, unknown>) {
     if (!app) return;
+    const key = `${match!.id}:${match!.version}:${action}:${JSON.stringify(body)}`;
+    if (!request.current || request.current.key !== key) request.current = { id: newRequestId(), key };
     setBusy(true);
     setError(null);
     try {
       await mutate(`/api/groups/${snapshot.group.id}/matches/${match!.id}/${action}`, {
-        requestId: newRequestId(),
+        requestId: request.current.id,
         baseMatchVersion: match!.version,
         ...body,
       });
+      request.current = null;
       await app.refreshAfterOwnChange();
       closeEdit();
     } catch (e) {
@@ -832,12 +839,8 @@ export function MatchDetail(props: {
                 type="button"
                 className="secondary"
                 onClick={() => {
-                  // 입력 칸은 이 기기의 현지 시각으로 채운다.
-                  const d = new Date(match.playedAt);
-                  const pad = (v: number) => String(v).padStart(2, "0");
-                  setPlayedInput(
-                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
-                  );
+                  // 입력 칸은 화면에 보이는 시각과 같은 모임 시간대로 채운다(기기 시간대가 아니다).
+                  setPlayedInput(zonedDateTimeInput(match.playedAt, tz));
                   setEditing("playedAt");
                 }}
               >
@@ -989,13 +992,12 @@ export function MatchDetail(props: {
           <button
             type="button"
             className="primary wide"
-            disabled={busy || playedInput === "" || Number.isNaN(Date.parse(playedInput))}
-            onClick={() =>
-              void send("correct", {
-                field: "playedAt",
-                playedAt: new Date(playedInput).toISOString(),
-              })
-            }
+            disabled={busy || zonedInputToUtc(playedInput, tz) === null}
+            onClick={() => {
+              // 입력값은 모임 시간대의 시각으로 해석한다.
+              const playedAt = zonedInputToUtc(playedInput, tz);
+              if (playedAt) void send("correct", { field: "playedAt", playedAt });
+            }}
           >
             {busy ? "저장 중" : "변경"}
           </button>

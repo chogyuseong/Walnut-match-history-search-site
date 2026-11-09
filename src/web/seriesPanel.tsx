@@ -101,8 +101,22 @@ export function SeriesSummary(props: {
   );
 }
 
+/**
+ * 아직 성공하지 않은 요청의 ID(주소·내용 → 요청 ID). 실패("확인 불가" 등) 뒤 같은 버튼을 다시 누르면 같은 ID로
+ * 보내, 앞 요청이 실제로 저장됐더라도 서버가 한 번만 처리한다. 성공하면 지워 다음 같은 동작은 새 ID를 쓴다.
+ */
+const pendingRequests = new Map<string, string>();
+
 async function send(app: AppValue, path: string, body: Record<string, unknown>): Promise<void> {
-  await mutate(`/api/groups/${app.snapshot!.group.id}${path}`, { requestId: newRequestId(), ...body });
+  const url = `/api/groups/${app.snapshot!.group.id}${path}`;
+  const key = `${url}\n${JSON.stringify(body)}`;
+  let requestId = pendingRequests.get(key);
+  if (!requestId) {
+    requestId = newRequestId();
+    pendingRequests.set(key, requestId);
+  }
+  await mutate(url, { requestId, ...body });
+  pendingRequests.delete(key);
   await app.refreshAfterOwnChange();
 }
 

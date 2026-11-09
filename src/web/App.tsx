@@ -75,6 +75,7 @@ export function App() {
   const app = useApp(operatorMode);
   useKeyboardFlag();
   usePrefetchOperator(app, operatorMode);
+  useDocumentTitle(route, !!app.me?.siteAdmin);
 
   if (isJoin) {
     return (
@@ -149,8 +150,97 @@ export function App() {
   );
 }
 
-/** 사이트 이름. 상단 바와 푸터가 함께 쓴다. */
+/** 사이트 이름. 상단 바와 푸터, 문서 제목이 함께 쓴다. */
 const SITE_NAME = "내전 운영";
+
+/**
+ * 운영 화면의 주소 첫 조각(route[0]) → 화면 이름. 문서 제목("화면 이름 · 내전 운영")에 쓰고, 이 표에 없는 주소는
+ * "없는 주소" 화면을 보여 준다. 새 화면을 OperatorScreen에 더하면 여기에도 더한다.
+ * admin은 사이트 운영자가 아니면 오늘 화면을 보여 주므로(존재를 숨김) 제목도 그때는 "오늘"이다(pageTitle).
+ */
+const PAGE_TITLE: Record<string, string> = {
+  "": "오늘",
+  pick: "참가자 고르기",
+  prep: "팀 짜기",
+  priority: "티어 배정",
+  match: "경기 진행",
+  group: "모임",
+  import: "표 일괄 입력",
+  "sheet-import": "구글 시트에서 가져오기",
+  "legacy-import": "기존 사이트 기록 가져오기",
+  backfill: "지난 경기 입력",
+  merge: "중복 참가자 합치기",
+  dates: "날짜 점검",
+  delete: "모임 삭제 · 탈퇴",
+  search: "전적 검색",
+  transfer: "운영자 넘겨받기",
+  "co-invite": "공동 운영자 초대",
+  claim: "참가자 연결",
+  mine: "참가 중인 모임",
+  records: "기록",
+  m: "경기 상세",
+  season: "시즌 요약",
+  graphs: "그래프 분석",
+  ranking: "MMR 랭킹",
+  p: "개인 통계",
+  compare: "두 사람 비교",
+  privacy: "개인정보 처리방침",
+  "login-failed": "로그인 실패",
+  "login-return": "오늘",
+  admin: "사이트 운영 현황",
+};
+
+/** 조회 링크·예시 모임 안의 하위 화면(rest[0]) → 화면 이름. 없거나 모르는 값은 각 화면의 첫 화면 이름을 쓴다. */
+const SUB_PAGE_TITLE: Record<string, string> = {
+  records: "기록",
+  m: "경기 상세",
+  season: "시즌 요약",
+  graphs: "그래프 분석",
+  ranking: "MMR 랭킹",
+  p: "개인 통계",
+  compare: "두 사람 비교",
+  search: "전적 검색",
+  privacy: "개인정보 처리방침",
+  live: "참가자 편성",
+};
+
+/** 운영 화면 주소가 알려진 화면인지. */
+function isKnownPage(page: string | undefined): boolean {
+  return Object.prototype.hasOwnProperty.call(PAGE_TITLE, page ?? "");
+}
+
+/** 지금 주소의 문서 제목. 사람 이름 같은 동적 제목은 쓰지 않는다. */
+function pageTitle(route: string[], siteAdmin: boolean): string {
+  const [page = "", sub] = route;
+  let name: string;
+  if (page === "v" && route[1]) name = SUB_PAGE_TITLE[route[2] ?? ""] ?? "조회";
+  else if (page === "join" && route[1]) name = route[2] === "privacy" ? "개인정보 처리방침" : "참가 신청";
+  else if (page === "demo") name = SUB_PAGE_TITLE[sub ?? ""] ?? "예시 모임";
+  else if (page === "admin" && !siteAdmin) name = PAGE_TITLE[""]!;
+  else name = isKnownPage(page) ? PAGE_TITLE[page]! : "없는 주소";
+  return `${name} · ${SITE_NAME}`;
+}
+
+/** 주소가 바뀔 때마다 문서 제목(브라우저 탭·방문 기록)을 그 화면 이름으로 바꾼다. */
+function useDocumentTitle(route: string[], siteAdmin: boolean): void {
+  const title = pageTitle(route, siteAdmin);
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
+}
+
+/** 모르는 주소. 조용히 오늘 화면으로 보내지 않고 알린다(주소를 잘못 옮겨 적은 경우 등). */
+function NotFound() {
+  return (
+    <div className="screen">
+      <h1>없는 주소예요</h1>
+      <p>주소가 바뀌었거나 잘못 적혔을 수 있어요.</p>
+      <button type="button" className="primary" onClick={() => go("/")}>
+        오늘 화면으로
+      </button>
+    </div>
+  );
+}
 
 /**
  * 상단 바: 로고, 테마 고르기, 로그인 상태(운영 화면만). 넓은 화면에서는 주 메뉴가 이 바에 겹쳐 놓인다(CSS).
@@ -408,7 +498,9 @@ function OperatorScreen(props: { route: string[] }) {
       />
     );
   }
-  return <Today />;
+  // 알려진 화면인데 필요한 조각(ID 등)이 없거나, admin인데 사이트 운영자가 아니면(존재를 숨김) 오늘 화면.
+  if (isKnownPage(page)) return <Today />;
+  return <NotFound />;
 }
 
 /** 주 메뉴: 오늘 · 검색 · 기록 · 랭킹 · 분석 · 모임. 모임 탭은 로그인한 운영자에게만 보인다. */

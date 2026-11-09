@@ -220,8 +220,15 @@ export interface EtagHead {
 const ETAG_HEAD_COLUMNS =
   "id, name, timezone, live_version, settings_version_id, view_token, generation, maintenance, data_version";
 
-/** 운영자 스냅숏의 ETag용 모임 행(1행 읽기 + 연결 링크 색인 몇 행). 없으면 null. */
-export async function loadEtagHead(env: Env, groupId: string): Promise<EtagHead | null> {
+/**
+ * 스냅숏의 ETag용 모임 행. 없으면 null.
+ * 운영자(withClaims = true, 기본): 1행 읽기 + 연결 링크 색인 몇 행. 멤버(false): 모임 행 1행만
+ * (멤버 응답은 조회 응답 기반이라 연결 링크 목록이 없다).
+ */
+export async function loadEtagHead(env: Env, groupId: string, withClaims = true): Promise<EtagHead | null> {
+  if (!withClaims) {
+    return env.DB.prepare(`SELECT ${ETAG_HEAD_COLUMNS} FROM groups WHERE id = ?1`).bind(groupId).first<EtagHead>();
+  }
   // 비교 기준 시각은 스냅숏의 memberClaims 질의(snapshotStatements)와 같은 nowIso() 꼴이다.
   return env.DB.prepare(
     `SELECT ${ETAG_HEAD_COLUMNS},
@@ -257,8 +264,14 @@ async function shortHash(text: string): Promise<string> {
  * 이 값들이 같으면 buildSnapshot의 결과(serverTime 말고)가 같다는 것이 이 설계의 약속이다:
  * 스냅숏에 새 표를 싣게 되면 그 표에도 data_version 트리거를 만들어야 한다(migrations/0021 머리말).
  * 시각에 따라 달라지는 값을 스냅숏에 새로 넣으면 그 "다음 바뀌는 시각"도 claims_next_expiry처럼 재료에 넣어야 한다.
+ * extra: 부르는 쪽이 응답에 더하는 값의 재료(멤버 스냅숏의 계정·참가자, src/server/members.ts memberSnapshotEtag).
  */
-export async function snapshotEtag(env: Env, head: EtagHead, role: "operator" | "viewer"): Promise<string> {
+export async function snapshotEtag(
+  env: Env,
+  head: EtagHead,
+  role: "operator" | "viewer",
+  extra: readonly (string | number | null)[] = [],
+): Promise<string> {
   const parts: (string | number | null)[] = [
     ETAG_SHAPE,
     env.CF_VERSION_METADATA?.id ?? "",
@@ -274,6 +287,7 @@ export async function snapshotEtag(env: Env, head: EtagHead, role: "operator" | 
     head.view_token,
   ];
   if (role === "operator") parts.push(head.claims_next_expiry ?? null);
+  parts.push(...extra);
   return `W/"${await shortHash(JSON.stringify(parts))}"`;
 }
 

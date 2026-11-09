@@ -114,7 +114,7 @@ describe("요청 수 제한", () => {
       direct(LIMITS, "GET", `/api/view/${unique("nope")}`, { headers: { "CF-Connecting-IP": ip } });
     for (let i = 0; i < 3; i++) expect((await view()).status).toBe(404);
     expect((await view()).status).toBe(429);
-    // 운영자 화면의 읽기(스냅샷)는 제한하지 않는다.
+    // /api/me는 세지 않는다(스냅숏 한도는 test/snapshot-limits.test.ts).
     const cookie = await login();
     const meRes = await direct(LIMITS, "GET", "/api/me", { cookie, headers: { "CF-Connecting-IP": ip } });
     expect(meRes.status).toBe(200);

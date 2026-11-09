@@ -88,6 +88,7 @@ import {
   createMemberRequest,
   listMemberships,
   memberSnapshot,
+  memberSnapshotEtag,
   resolveMemberRequest,
   setOwnAvoid,
   unlinkByOperator,
@@ -171,6 +172,16 @@ app.use("/api/*", async (c, next) => {
 /** 조건부 요청(ETag) 경로의 캐시 헤더: 브라우저가 저장하되 매번 If-None-Match로 확인한다. 공용 캐시는 저장하지 않는다. */
 const REVALIDATE = "private, no-cache";
 
+/**
+ * 운영자·멤버 스냅숏의 요청 수 제한(2026-11-09, ratelimit.ts "snapshot-*"). 본문을 만드는 200일 때만 부른다:
+ * 304는 모임 행 1행 읽기뿐이라 세지 않는다(조회 링크와 같은 방식). ETag 헤더를 붙이기 전에 불러야 한다
+ * (429 응답에 ETag·private가 붙어 브라우저가 저장하면 다음 304가 그 429 본문을 되살릴 수 있다).
+ */
+async function countSnapshot(env: Env, req: Request, accountId: string): Promise<void> {
+  await hit(env, "snapshot-ip", clientIp(req));
+  await hit(env, "snapshot-account", accountId);
+}
+
 // 운영 환경 안전장치: 로컬(DEPLOY_ENV=local)이 아닌 곳에서 가짜 로그인이 켜져 있거나 필수 값이 없으면
 // 어떤 API도 처리하지 않는다(auth.ts productionConfigProblem). 이유는 응답에 싣지 않고 로그에만 남긴다.
 app.use("/api/*", async (c, next) => {
@@ -216,8 +227,8 @@ app.use("/api/*", async (c, next) => {
     ) {
       await hit(c.env, "view-ip", ip);
     } else if (HEAVY_READ.test(path)) {
-      // 비싼 읽기(모임 전체를 읽음): IP·계정별로 센다. 운영자 스냅숏과 /api/me는 화면이 자주 부르는
-      // 가벼운 경로라 세지 않는다(세면 정상 사용이 한도에 걸린다).
+      // 비싼 읽기(모임 전체를 읽음): IP·계정별로 센다. /api/me는 화면이 자주 부르는 가벼운 경로라 세지 않는다.
+      // 운영자·멤버 스냅숏은 경로 안에서 200일 때만 센다(countSnapshot, 304는 세지 않음).
       await hit(c.env, "heavy-ip", ip);
       const session = await readSession(c.env, c.req.raw);
       if (session) await hit(c.env, "heavy-account", session.id);
@@ -424,15 +435,18 @@ app.post("/api/groups", async (c) => {
 
 // 운영자 스냅숏. ETag(모임 행 1행만 읽어 계산)가 화면이 가진 것과 같으면 304로 답해 나머지를 읽지 않는다.
 // 응답 본문은 예전과 같다(헤더만 더함). 브라우저 fetch는 304를 저장해 둔 본문으로 바꿔 주므로 화면 변경이 필요 없다.
+// 요청 수 제한(snapshot-account·snapshot-ip)은 304가 아닐 때만 센다(countSnapshot).
 app.get("/api/groups/:gid/snapshot", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
   const head = await loadEtagHead(c.env, gid);
   if (!head) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
   const etag = await snapshotEtag(c.env, head, "operator");
+  const notModified = etagMatches(c.req.header("If-None-Match"), etag);
+  if (!notModified) await countSnapshot(c.env, c.req.raw, accountId);
   c.header("ETag", etag);
   c.header("Cache-Control", REVALIDATE);
-  if (etagMatches(c.req.header("If-None-Match"), etag)) return c.body(null, 304);
+  if (notModified) return c.body(null, 304);
   return c.json(await snapshotBody(c.env, gid, "operator", etag));
 });
 
@@ -822,8 +836,18 @@ app.post("/api/claim/:token/accept", async (c) => {
   return c.json(await acceptClaim(c.env, accountId, c.req.param("token")));
 });
 
+// 멤버 스냅숏. 운영자 스냅숏과 같은 조건부 요청(ETag는 members.ts memberSnapshotEtag: 조회 재료 + 계정·참가자)과
+// 요청 수 제한(200만 셈). 본문이 계정마다 다르므로 Vary: Cookie를 붙인다(참가 신청 공개 조회와 같다).
 app.get("/api/member/:gid/snapshot", async (c) => {
   const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
+  const etag = await memberSnapshotEtag(c.env, ctx);
+  if (!etag) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  const notModified = etagMatches(c.req.header("If-None-Match"), etag);
+  if (!notModified) await countSnapshot(c.env, c.req.raw, ctx.accountId);
+  c.header("ETag", etag);
+  c.header("Cache-Control", REVALIDATE);
+  c.header("Vary", "Cookie");
+  if (notModified) return c.body(null, 304);
   return c.json(await memberSnapshot(c.env, ctx));
 });
 
