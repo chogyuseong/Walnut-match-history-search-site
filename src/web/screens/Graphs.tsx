@@ -1,9 +1,11 @@
 import { RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGroup, sortRankingBy } from "../../shared/insights";
 import { useState, type ReactNode } from "react";
-import { matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
+import { fractionPercent, matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
 import { BackLink, Help, PosLabel, scopeFromValue, scopeValue, TitleBadge } from "../ui";
+import { useExpectations } from "../matchCard";
+import { BALANCED_MARGIN, fairnessReport, FAIRNESS_MIN_GAMES } from "../../shared/upset";
 
 /** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
 function standingText(standing: ShownStanding | undefined): ReactNode {
@@ -132,6 +134,7 @@ export function Graphs(props: {
   const [playerId, setPlayerId] = useState("");
   const [view, setView] = useState<View>("people");
   const nameOf = nameMap(snapshot);
+  const expectations = useExpectations(snapshot);
 
   const scopeLabel = scopeLabelOf(snapshot, scope);
   const years = matchYears(snapshot);
@@ -172,6 +175,10 @@ export function Graphs(props: {
   const blueRate = sides.known > 0 ? ratePercent(sides.blueWins, sides.known) : null;
   // 레드는 100 − 블루(시즌 요약과 같은 방식. 따로 반올림하면 합이 101%가 될 수 있다).
   const redRate = blueRate !== null ? 100 - blueRate : null;
+  // 편성 균형(upset.ts): 예상은 누적 MMR, 세는 경기는 이 범위.
+  const fairness = fairnessReport(expectations, scoped);
+  const balancedLow = fractionPercent(0.5 - BALANCED_MARGIN);
+  const balancedHigh = fractionPercent(0.5 + BALANCED_MARGIN);
   const fewCount = matrixRows.filter((r) => r.games < SMALL_SAMPLE).length;
   const playerLines = playerId === "" ? null : (matrix.get(playerId) ?? {});
   const selectable = [...snapshot.participants]
@@ -255,6 +262,11 @@ export function Graphs(props: {
               생겨 항상 50%이므로 보여주지 않습니다.
             </p>
             <p>진영 승률은 결과를 저장할 때 확인한 실제 진영 기준이고, 진영 미상 경기는 뺍니다.</p>
+            <p>
+              편성 균형은 경기 직전 팀원 MMR 평균으로 구한 예상 승률로 봅니다. 열 명 모두 배치 중인 경기는 예상이 의미가
+              적어 뺍니다. 균형 경기는 예상이 {balancedLow}~{balancedHigh}%였던 경기, 평균 치우침은 예상이 50%에서 벗어난
+              정도의 평균입니다.
+            </p>
           </Help>
         </div>
       </div>
@@ -323,6 +335,50 @@ export function Graphs(props: {
             </>
           )}
         </p>
+      </section>
+
+      <section className="graph-summary" aria-label="편성 균형">
+        <h2>편성 균형</h2>
+        {fairness.games < FAIRNESS_MIN_GAMES ? (
+          <p className="hint">경기가 더 쌓이면 보여요(판정할 수 있는 경기 {fairness.games}/{FAIRNESS_MIN_GAMES}).</p>
+        ) : (
+          <>
+            <dl className="ps-tiles season-tiles">
+              <div>
+                <dt className="tile-label">균형 경기({balancedLow}~{balancedHigh}%)</dt>
+                <dd className="season-stat">
+                  {ratePercent(fairness.balanced, fairness.games)}
+                  <span className="season-unit">%</span>
+                </dd>
+              </div>
+              <div>
+                <dt className="tile-label">평균 치우침</dt>
+                <dd className="season-stat">
+                  {fractionPercent(fairness.avgDeviation)}
+                  <span className="season-unit">%p</span>
+                </dd>
+              </div>
+              <div>
+                <dt className="tile-label">예상 우세 팀 승률</dt>
+                <dd className="season-stat">
+                  {fairness.favoriteGames > 0 ? ratePercent(fairness.favoriteWins, fairness.favoriteGames) : "—"}
+                  {fairness.favoriteGames > 0 && <span className="season-unit">%</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="tile-label">이변 경기</dt>
+                <dd className="season-stat">
+                  {fairness.upsets}
+                  <span className="season-unit">경기</span>
+                </dd>
+              </div>
+            </dl>
+            <p className="hint">
+              경기 전 예상 승률(누적 MMR) 기준 · 판정한 {fairness.games}경기. 예상이 50%에 가까울수록 섞기가 공정했다는
+              뜻이에요.
+            </p>
+          </>
+        )}
       </section>
 
       <div className="segmented graph-views" role="group" aria-label="분석 보기">

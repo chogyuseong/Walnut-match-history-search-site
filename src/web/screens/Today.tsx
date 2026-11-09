@@ -3,7 +3,7 @@ import { sessionSummary, sessionSummaryText } from "../../shared/sessionSummary"
 import { personRecords, searchByName, todayMatches } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
 import { formatDate, formatTime, nameMap, rateText, rateTier, standingsOf } from "../format";
-import { MatchCard } from "../matchCard";
+import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
 import { CopyButton, Dialog, ErrorNote, KpiStrip, StandingNote } from "../ui";
@@ -33,6 +33,7 @@ export function Today() {
   const snapshot = app.snapshot;
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const seriesBadge = useSeriesBadges(snapshot);
+  const expectation = useExpectations(snapshot);
   const current = snapshot?.matches.find((m) => m.state === "in_progress") ?? null;
   const awaiting = (snapshot?.matches ?? [])
     .filter((m) => m.state === "awaiting_result")
@@ -254,6 +255,7 @@ export function Today() {
                 timeZone={snapshot?.group.timezone ?? "Asia/Seoul"}
                 onOpen={() => go(`/m/${m.id}`)}
                 seriesBadge={seriesBadge(m.id)}
+                upset={expectation.get(m.id)?.upset}
                 onPerson={(id) => go(`/p/${id}`)}
               />
             ))}

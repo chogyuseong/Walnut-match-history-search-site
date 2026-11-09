@@ -21,6 +21,7 @@ import {
 } from "../../shared/insights";
 import { computeRatings, ratingValues, shownRating } from "../../shared/rating";
 import {
+  fractionPercent,
   matchesInScope,
   PLACEMENT_GAMES,
   scopeLabel as scopeLabelOf,
@@ -33,6 +34,7 @@ import {
   type Position,
   type Side,
   type Snapshot,
+  type Team,
 } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
 import {
@@ -52,7 +54,8 @@ import {
   teamRoster,
 } from "../format";
 import { csvFileName, downloadText, matchesCsv, rankingCsv } from "../csvExport";
-import { MatchCard } from "../matchCard";
+import { MatchCard, useExpectations } from "../matchCard";
+import { expectedOf, UPSET_THRESHOLD, type MatchExpectation } from "../../shared/upset";
 import { MatchMemoSection } from "../memoField";
 import { MatchSeriesSection, SeriesListSection, useSeriesBadges } from "../seriesPanel";
 import { drawMatchImage, fileDate, ShareImageDialog } from "../shareImage";
@@ -250,6 +253,7 @@ export function Records(props: {
 }) {
   const { snapshot } = props;
   const seriesBadge = useSeriesBadges(snapshot);
+  const expectation = useExpectations(snapshot);
   // 최근 세션에 경기가 없으면 "오늘"이 비어 보이므로 전체로 연다.
   const [scope, setScope] = useState<Scope>(() =>
     matchesInScope(snapshot, { kind: "today" }).length > 0 ? { kind: "today" } : { kind: "all" },
@@ -387,6 +391,7 @@ export function Records(props: {
                 onOpen={() => props.openMatch(m.id)}
                 onPerson={props.openPerson}
                 seriesBadge={seriesBadge(m.id)}
+                upset={expectation.get(m.id)?.upset}
                 action={
                   m.state === "awaiting_result" && props.onResult ? (
                     <button type="button" className="secondary" onClick={() => props.onResult!(m)}>
@@ -638,6 +643,37 @@ export function Records(props: {
 
 type Editing = null | "winner" | "side" | "positions" | "participant" | "playedAt";
 
+/**
+ * 경기 전 예상 한 줄(이변 지수, src/shared/upset.ts): "경기 전 예상 블루 62% : 레드 38%"와 이변 배지.
+ * 진영을 모르면 팀 A·B로 쓴다. 예상이 없으면(유효 확정 경기가 아님) 줄을 그리지 않고,
+ * 열 명 모두 배치 중이면 숫자 대신 "예상 없음"을 쓴다(판정하지 않음).
+ */
+function ExpectationLine(props: { expectation: MatchExpectation | undefined }) {
+  const e = props.expectation;
+  if (!e) return null;
+  if (!e.reliable) {
+    return <p className="hint">경기 전 예상 없음 · 열 명 모두 배치 중이라 판정하지 않아요</p>;
+  }
+  // 블루를 앞에 둔다. 앞쪽 숫자를 반올림하고 뒤쪽은 100 − 앞쪽(합이 101%가 되지 않게).
+  const first: Team = e.teamASide === "red" ? "B" : "A";
+  const second: Team = first === "A" ? "B" : "A";
+  const firstPct = fractionPercent(expectedOf(e, first));
+  return (
+    <p className="hint expectation-line">
+      경기 전 예상 {teamName(first, e.teamASide).replace(/팀$/, "")} {firstPct}% :{" "}
+      {teamName(second, e.teamASide).replace(/팀$/, "")} {100 - firstPct}%
+      {e.upset && (
+        <>
+          {" "}
+          <span className="series-badge" title={`이긴 쪽의 경기 전 예상이 ${Math.round(UPSET_THRESHOLD * 100)}% 미만이었어요`}>
+            이변
+          </span>
+        </>
+      )}
+    </p>
+  );
+}
+
 /** 경기 상세. 운영자에게는 항목 옆에 [수정]이 있다. 조회자는 읽기만 한다. */
 export function MatchDetail(props: {
   snapshot: Snapshot;
@@ -661,6 +697,7 @@ export function MatchDetail(props: {
   const [outId, setOutId] = useState<string | null>(null);
   const [playedInput, setPlayedInput] = useState("");
   const [imageOpen, setImageOpen] = useState(false);
+  const expectationOf = useExpectations(snapshot);
 
   if (!match) {
     return (
@@ -732,6 +769,8 @@ export function MatchDetail(props: {
       </p>
 
       <MatchTeams match={match} nameOf={nameOf} />
+
+      <ExpectationLine expectation={expectationOf.get(match.id)} />
 
       {match.state === "confirmed" && (
         <div className="button-row">

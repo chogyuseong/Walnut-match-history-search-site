@@ -310,7 +310,7 @@ describe("해당 없음과 결정성", () => {
     expect(s.awards.every((a) => a.winners.length === 0 && typeof a.none === "string")).toBe(true);
     const keys = new Set(s.awards.map((a) => a.key));
     expect([...keys].sort()).toEqual(
-      ["bestDuo", "bestRate", "lineBest", "longestStreak", "mostGames", "mostImproved", "mostSupport", "mostWins", "nemesis"].sort(),
+      ["bestDuo", "bestRate", "lineBest", "longestStreak", "mostGames", "mostImproved", "mostSupport", "mostWins", "nemesis", "upsetMaker"].sort(),
     );
     expect(seasonSummaryText(s, "모임", nameOf)).toContain("최고 승률: 해당 없음");
   });

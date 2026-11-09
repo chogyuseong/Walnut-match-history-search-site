@@ -74,6 +74,13 @@ const AWARD_MARKS: Record<Exclude<AwardKey, "lineBest">, ReactNode> = {
   mostImproved: <path d="M4 17l5.5-5.5 4 4L20 9M15 9h5v5" />,
   // 하트
   mostSupport: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
+  // 느낌표가 든 원(뜻밖의 결과)
+  upsetMaker: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 7.5v5.5M12 16v.5" />
+    </>
+  ),
 };
 
 /**

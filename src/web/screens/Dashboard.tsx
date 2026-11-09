@@ -14,7 +14,7 @@ import {
 import { isCounted } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rateText, rateTier, standingsOf } from "../format";
-import { MatchCard } from "../matchCard";
+import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { FormDots, StandingNote } from "../ui";
 
@@ -52,6 +52,7 @@ export function Dashboard(props: {
   const { snapshot, skipIds } = props;
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const seriesBadge = useSeriesBadges(snapshot);
+  const expectation = useExpectations(snapshot);
   const counted = useMemo(() => snapshot.matches.filter(isCounted), [snapshot]);
   const recent = useMemo(
     () =>
@@ -95,6 +96,7 @@ export function Dashboard(props: {
                 showDate
                 onOpen={() => props.openMatch(m.id)}
                 seriesBadge={seriesBadge(m.id)}
+                upset={expectation.get(m.id)?.upset}
                 onPerson={props.openPerson}
               />
             ))}

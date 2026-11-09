@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { memoOneLine } from "../shared/memo";
 import { isCounted } from "../shared/stats";
-import { POSITIONS, TEAMS, type MatchView, type Team } from "../shared/types";
+import { POSITIONS, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
+import { matchExpectations, type MatchExpectation } from "../shared/upset";
 import {
   formatDate,
   formatTime,
@@ -41,6 +42,8 @@ export function MatchCard(props: {
   action?: ReactNode;
   /** 이 경기가 속한 시리즈의 짧은 표시(예: "결승 · 2:1"). 없으면 배지를 그리지 않는다. */
   seriesBadge?: string | null;
+  /** 이변 경기면 "이변" 배지를 붙인다(src/shared/upset.ts, useExpectations). */
+  upset?: boolean;
 }) {
   const { match, nameOf, focusId } = props;
   const confirmed = isCounted(match);
@@ -70,9 +73,14 @@ export function MatchCard(props: {
         </button>
         {props.action && <span className="mc-action">{props.action}</span>}
       </div>
-      {(props.seriesBadge || match.memo) && (
-        // 시리즈 배지와 메모 한 줄(넘치면 말줄임). 메모는 글자로만 그린다(HTML로 해석하지 않음).
+      {(props.seriesBadge || props.upset || match.memo) && (
+        // 시리즈·이변 배지와 메모 한 줄(넘치면 말줄임). 메모는 글자로만 그린다(HTML로 해석하지 않음).
         <p className="mc-extra">
+          {props.upset && (
+            <span className="series-badge" title="경기 전 예상이 약팀이던 쪽이 이겼어요">
+              이변
+            </span>
+          )}
           {props.seriesBadge && <span className="series-badge">{props.seriesBadge}</span>}
           {match.memo && (
             <span className="mc-memo" title={match.memo}>
@@ -167,4 +175,12 @@ export function MatchCardList(props: { children: ReactNode; label?: string }) {
       {props.children}
     </ul>
   );
+}
+
+/**
+ * 경기마다의 경기 전 예상(이변 지수, src/shared/upset.ts). 모임 전체 누적 MMR로 계산하므로 스냅숏이 바뀔 때만 다시 센다.
+ * 경기 ID → 예상. 유효 확정 경기가 아니면 없다.
+ */
+export function useExpectations(snapshot: Snapshot | null): ReadonlyMap<string, MatchExpectation> {
+  return useMemo(() => (snapshot ? matchExpectations(snapshot.matches) : new Map()), [snapshot]);
 }

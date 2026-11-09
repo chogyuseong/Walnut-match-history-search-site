@@ -31,9 +31,11 @@ import {
 } from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
-import { nameMap, rateText, rateTier, standingsOf } from "../format";
+import { formatDate, nameMap, rateText, rateTier, standingsOf } from "../format";
+import { attendanceReport } from "../../shared/attendance";
+import { personUpsets, UPSET_THRESHOLD } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
-import { MatchCard } from "../matchCard";
+import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, FormDots, Help, Meter, PosLabel, RateBar, RateRing, RatingTrendLine, ScopePicker, TitleBadge, TrendLine, WinLossBar } from "../ui";
 
@@ -98,6 +100,7 @@ export function Person(props: {
   });
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const seriesBadge = useSeriesBadges(snapshot);
+  const expectation = useExpectations(snapshot);
   const person = snapshot.participants.find((p) => p.id === participantId);
 
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
@@ -106,6 +109,16 @@ export function Person(props: {
     [scoped, participantId, nameOf],
   );
   const results = useMemo(() => resultsOf(scoped, participantId), [scoped, participantId]);
+  // 이변 지수(upset.ts): 예상은 누적 MMR로, 세는 경기는 고른 범위.
+  const upsets = useMemo(
+    () => personUpsets(expectation, scoped, participantId),
+    [expectation, scoped, participantId],
+  );
+  // 참석 통계(attendance.ts): 고른 범위 안의 모임 날 기준.
+  const attendance = useMemo(
+    () => attendanceReport(scoped, snapshot.group.timezone).people.get(participantId) ?? null,
+    [scoped, snapshot, participantId],
+  );
   // 처음 몇 경기의 누적 승률은 크게 흔들리므로 SMALL_SAMPLE경기째부터 그린다.
   const trend = useMemo(
     () => cumulativeTrend(results).filter((p) => p.game >= SMALL_SAMPLE),
@@ -354,6 +367,19 @@ export function Person(props: {
                   </span>
                 </p>
               )}
+              {(upsets.upsetWins > 0 || upsets.underdogGames > 0) && (
+                <p className="hint">
+                  이변 승 {upsets.upsetWins}회
+                  {upsets.underdogGames > 0 &&
+                    ` · 약팀일 때 승률 ${pct(upsets.underdogWins, upsets.underdogGames)} (${upsets.underdogGames}경기)`}
+                </p>
+              )}
+              {attendance && (
+                <p className="hint">
+                  참석 {attendance.days}일 · 출석률 {pct(attendance.days, attendance.eligibleDays)} · 연속{" "}
+                  {attendance.currentStreak}일 · 마지막 {formatDate(attendance.lastDate, snapshot.group.timezone)}
+                </p>
+              )}
               {placement.title && (
                 <p className="hint">
                   칭호 <TitleBadge name={placement.title} grade={placement.grade} /> 누적 기준 · 범위를 바꿔도
@@ -403,7 +429,9 @@ export function Person(props: {
           <Help>
             동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난
             사람에서 고릅니다. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 고릅니다. 승률은
-            모두 {person.name} 기준입니다.
+            모두 {person.name} 기준입니다. 이변 승은 경기 전 예상(누적 MMR)이 {Math.round(UPSET_THRESHOLD * 100)}% 미만이던 팀으로 이긴
+            경기이고, 약팀일 때 승률은 예상이 50% 미만이던 경기의 승률입니다. 출석률은 처음 온 날부터 센 모임 날 중 온
+            비율입니다.
           </Help>
         )}
       </section>
@@ -590,6 +618,7 @@ export function Person(props: {
                 focusId={participantId}
                 onOpen={() => props.openMatch(m.id)}
                 seriesBadge={seriesBadge(m.id)}
+                upset={expectation.get(m.id)?.upset}
                 onPerson={props.openPerson}
               />
             ))}

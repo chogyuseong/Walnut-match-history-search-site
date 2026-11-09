@@ -35,7 +35,7 @@ import {
 } from "../../shared/rating";
 import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, standingsOf } from "../format";
-import { MatchCard } from "../matchCard";
+import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, FormDots, PosLabel, ScopePicker, StandingNote } from "../ui";
 
@@ -116,6 +116,7 @@ export function Compare(props: {
   const [shown, setShown] = useState(FIRST_PAGE);
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const seriesBadge = useSeriesBadges(snapshot);
+  const expectation = useExpectations(snapshot);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
   // 결과 기반 MMR: 범위와 무관하게 모임 전체 누적(rating.ts).
@@ -642,6 +643,7 @@ export function Compare(props: {
                 highlightIds={[a!, b!]}
                 onOpen={() => props.openMatch(m.id)}
                 seriesBadge={seriesBadge(m.id)}
+                upset={expectation.get(m.id)?.upset}
                 onPerson={props.openPerson}
               />
             ))}

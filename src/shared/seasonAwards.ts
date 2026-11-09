@@ -20,6 +20,7 @@ import {
   type Scope,
 } from "./stats";
 import { POSITIONS, type MatchView, type Position, type Snapshot } from "./types";
+import { matchExpectations, upsetWinsByPerson } from "./upset";
 
 /**
  * 최고 승률: 모임 전체 누적 확정 경기가 이만큼 이상인 사람만(랭킹의 "누적 50경기 이상" 묶음과 같게, 2026-11-08).
@@ -44,7 +45,8 @@ export type AwardKey =
   | "bestDuo"
   | "nemesis"
   | "mostImproved"
-  | "mostSupport";
+  | "mostSupport"
+  | "upsetMaker";
 
 export interface AwardWinner {
   /** 한 사람(대부분) 또는 두 사람(듀오·천적: [이긴 쪽, 진 쪽]). */
@@ -392,6 +394,20 @@ export function seasonSummary(
       rule: "서포터로 가장 많이 뛴 사람",
       winners: winners.map((r) => ({ participantIds: r.ids, value: `서포터 ${r.n}경기` })),
       none: eligible.length === 0 ? "서포터 포지션 기록이 없어요." : undefined,
+    });
+  }
+
+  // 이변 메이커(이변 승 최다). 예상은 모임 전체 누적 MMR로 구하고(upset.ts), 이 범위의 경기만 센다.
+  {
+    const wins = upsetWinsByPerson(matchExpectations(snapshot.matches), counted);
+    const eligible = [...wins.entries()].map(([id, n]) => ({ ids: [id], t: { games: 0, wins: 0 }, n }));
+    const winners = top(eligible, (a, b) => a.n - b.n, idsOrder);
+    awards.push({
+      key: "upsetMaker",
+      title: "이변 메이커",
+      rule: "경기 전 예상이 약팀이었는데 이긴 이변 승이 가장 많은 사람",
+      winners: winners.map((r) => ({ participantIds: r.ids, value: `이변 승 ${r.n}회` })),
+      none: eligible.length === 0 ? "이변으로 이긴 경기가 없어요." : undefined,
     });
   }
 

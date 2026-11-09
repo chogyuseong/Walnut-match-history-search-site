@@ -4,7 +4,7 @@ import { parseDateQuery, textContains } from "../../shared/search";
 import { localDate, matchesInScope, personRecords, searchByName } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rateText, rateTier, standingsOf } from "../format";
-import { MatchCard } from "../matchCard";
+import { MatchCard, useExpectations } from "../matchCard";
 import { addRecentSearch, loadRecentSearches, saveRecentSearches } from "../recentSearch";
 import {
   pushHashQuery,
@@ -55,6 +55,7 @@ export function Search(props: {
   const records = useMemo(() => personRecords(snapshot.matches), [snapshot]);
   const standing = useMemo(() => standingsOf(snapshot), [snapshot]);
   const nameOfId = useMemo(() => nameMap(snapshot), [snapshot]);
+  const expectation = useExpectations(snapshot);
   // 확정된 경기가 있는 사람과, 아직 경기가 없는 활성 참가자를 모두 찾을 수 있다.
   const people = useMemo(
     () =>
@@ -288,6 +289,7 @@ export function Search(props: {
                   nameOf={nameOfId}
                   timeZone={tz}
                   showDate
+                  upset={expectation.get(m.id)?.upset}
                   onOpen={() => {
                     remember(query);
                     props.openMatch!(m.id);

@@ -15,6 +15,7 @@ import { CoOperatorSelfSection, CoOperatorsSection } from "./CoOperators";
 import { GroupSwitcher, MembershipList } from "../groupSwitcher";
 import { RequestRow } from "./Member";
 import { memoLength } from "../../shared/memo";
+import { ABSENT_DAYS, attendanceReport, longAbsent } from "../../shared/attendance";
 import type { MemberRequestView } from "../../shared/types";
 
 /** 모임 탭 참가자 목록에서 처음 보여주는 사람 수. */
@@ -113,6 +114,8 @@ export function Group() {
   const resolvedRequests = requests.filter((r) => r.status !== "open");
   const matchNoOf = (id: string | null) => snapshot.matches.find((m) => m.id === id)?.matchNo;
   const tz = snapshot.group.timezone;
+  // 오래 안 온 사람(attendance.ts): 모임 전체 기간의 모임 날 기준.
+  const absent = longAbsent(attendanceReport(snapshot.matches, tz), snapshot.participants, nameOf);
 
   return (
     <div className="screen">
@@ -252,6 +255,24 @@ export function Group() {
             />{" "}
             보관한 참가자도 보기
           </label>
+          {absent.length === 0 ? (
+            <p className="hint">오래 안 온 사람 없음(모임 날 {ABSENT_DAYS}번 이상 빠진 활성 참가자)</p>
+          ) : (
+            <details>
+              <summary>오래 안 온 사람 {absent.length}명</summary>
+              <p className="hint">마지막으로 온 뒤 모임 날이 {ABSENT_DAYS}번 이상 지난 활성 참가자예요. 오래 안 온 순.</p>
+              <ul className="list" aria-label="오래 안 온 사람">
+                {absent.map((a) => (
+                  <li key={a.participantId} className="list-row static">
+                    <span className="name">{nameOf(a.participantId)}</span>
+                    <span className="stat">
+                      마지막 {formatDate(a.lastDate, tz)} · 그 뒤 모임 {a.missedSinceLast}번
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           <Help>
             티어: 1티어가 가장 잘하는 사람이에요. 같은 티어끼리는 팀·라인 모두 섞기·팀 추천에서 양 팀에 나뉘어요. 미지정은
             못하는 사람이 아니라 아직 안 정한 사람이에요.
