@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { placementGamesOf } from "../../shared/stats";
 import { titleBandsOf, titleGradeFor, type Standing } from "../../shared/titles";
 import type { MatchState, ParticipantView } from "../../shared/types";
 import { call, mutate, newRequestId } from "../api";
@@ -47,9 +48,9 @@ const STATE_TEXT: Record<MatchState, string> = {
   in_progress: "진행 중",
 };
 
-function placementText(s: Standing | null): string {
+function placementText(s: Standing | null, placementGames: number): string {
   if (!s) return "기록 없음";
-  return s.done ? "배치 완료" : `배치 ${s.games}/10`;
+  return s.done ? "배치 완료" : `배치 ${s.games}/${placementGames}`;
 }
 
 /**
@@ -287,7 +288,7 @@ export function Merge() {
                 <tr>
                   <th scope="row">배치</th>
                   {[preview.standings.source, preview.standings.target, preview.standings.merged].map((s, i) => (
-                    <td key={i}>{placementText(s)}</td>
+                    <td key={i}>{placementText(s, placementGamesOf(snapshot.group.settings))}</td>
                   ))}
                 </tr>
                 <tr>

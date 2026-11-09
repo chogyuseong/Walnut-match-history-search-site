@@ -1,19 +1,20 @@
 import { useMemo, useState } from "react";
 import { historyOf, isCompleteDraft, type Draft, type DraftPerson } from "../../shared/draft";
-import { draftBalance, laneMatchups } from "../../shared/prepTools";
+import { draftForecast } from "../../shared/forecast";
+import { draftBalance } from "../../shared/prepTools";
+import { computeRatings, ratingOptionsOf } from "../../shared/rating";
 import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
 import { DEFAULT_SETTINGS } from "../../shared/types";
 import { draftRosterText } from "../format";
 import { BackLink, CopyButton, ErrorNote, StickyAction } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { LoginDialog } from "./Login";
-import { BalanceSection } from "./prep/BalanceSection";
 import { BenchSection } from "./prep/BenchSection";
 import { ConstraintsSection } from "./prep/ConstraintsSection";
 import { DraftImageDialog } from "./prep/DraftImage";
 import { DrawSummary } from "./prep/DrawSummary";
+import { ForecastSection } from "./prep/ForecastSection";
 import { RecommendDialog, ReplaceDialog } from "./prep/EditDialogs";
-import { MatchupSection } from "./prep/MatchupSection";
 import { SeriesSection } from "./prep/SeriesSection";
 import { ShuffleSection, SideSection } from "./prep/ShuffleSection";
 import { StartAskDialog } from "./prep/StartAskDialog";
@@ -91,7 +92,7 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
     )
     .map((p) => ({ key: `p:${p.id}`, name: p.name, participantId: p.id }));
 
-  // 편성 균형: 티어는 운영자만 보는 정보라 로그인했고 모임 참가자 정보(운영자 응답)가 있을 때만 보여 준다.
+  // 티어 점수(예상 승률 판 아래 접힘): 티어는 운영자만 보는 정보라 로그인했고 모임 참가자 정보(운영자 응답)가 있을 때만 보여 준다.
   const showBalance =
     !!app.me?.accountId &&
     app.snapshot !== null &&
@@ -102,8 +103,14 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
     showBalance && app.snapshot
       ? draftBalance(draft, edit.priorityMap(), app.snapshot.group.settings.groupWeights ?? DEFAULT_SETTINGS.groupWeights)
       : null;
-  // 라인 맞대결: 지난 확정 경기에서 같은 라인의 두 사람이 서로 다른 팀으로 만난 전적(왼쪽 = 블루팀 사람 기준).
-  const matchups = app.snapshot ? laneMatchups(draft, app.snapshot.matches) : null;
+  // 예상 승률 판: MMR은 스냅숏이 바뀔 때만 다시 계산하고(경기 전체를 훑는다), 편성 쪽은 매번 가볍게 계산한다.
+  // MMR·라인 전적·맞대결은 공개 전적에서 나오므로 조회자에게도 보이고, 티어(balance)만 위 조건으로 숨긴다.
+  const ratingOptions = ratingOptionsOf(app.snapshot?.group.settings ?? {});
+  const ratings = useMemo(
+    () => (app.snapshot ? computeRatings(app.snapshot.matches, ratingOptionsOf(app.snapshot.group.settings)) : null),
+    [app.snapshot],
+  );
+  const forecast = app.snapshot && ratings ? draftForecast(draft, ratings, app.snapshot.matches, ratingOptions) : null;
   const undoSteps = historyOf(draft).length;
   const complete = isCompleteDraft(draft);
   const needsReset = resetCountsReady(draft, ctx);
@@ -194,8 +201,7 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
           />
           <SideSection edit={edit} />
           <BenchSection edit={edit} />
-          {matchups && <MatchupSection matchups={matchups} nameOf={nameOf} />}
-          {balance && <BalanceSection balance={balance} />}
+          {forecast && <ForecastSection forecast={forecast} nameOf={nameOf} balance={balance} placementGames={ratingOptions.placementGames} start={ratingOptions.start} />}
           <ConstraintsSection draft={draft} edit={edit} />
           <SeriesSection draft={draft} snapshot={app.snapshot} update={update} />
         </div>

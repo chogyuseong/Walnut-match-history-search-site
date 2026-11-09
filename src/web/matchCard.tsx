@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { memoOneLine } from "../shared/memo";
+import { ratingOptionsOf } from "../shared/rating";
 import { isCounted } from "../shared/stats";
 import { POSITIONS, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
 import { matchExpectations, type MatchExpectation } from "../shared/upset";
@@ -182,5 +183,8 @@ export function MatchCardList(props: { children: ReactNode; label?: string }) {
  * 경기 ID → 예상. 유효 확정 경기가 아니면 없다.
  */
 export function useExpectations(snapshot: Snapshot | null): ReadonlyMap<string, MatchExpectation> {
-  return useMemo(() => (snapshot ? matchExpectations(snapshot.matches) : new Map()), [snapshot]);
+  return useMemo(
+    () => (snapshot ? matchExpectations(snapshot.matches, ratingOptionsOf(snapshot.group.settings)) : new Map()),
+    [snapshot],
+  );
 }

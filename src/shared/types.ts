@@ -103,6 +103,18 @@ export interface Settings {
    * 없음(undefined) = 한 번도 저장하지 않음 → 켜짐. false로 저장하면 꺼짐(예전 추천과 같은 결과).
    */
   teamDiversity?: boolean;
+  /**
+   * 배치 경기 수(1~30 정수, stats.ts PLACEMENT_GAMES_MIN/MAX). 공개 정보라 조회 응답에도 나간다.
+   * 없음(undefined) = 한 번도 저장하지 않음 → 기본 10(placementGamesOf). 바꾸면 지난 경기까지 다시 계산된다.
+   */
+  placementGames?: number;
+  /**
+   * MMR 시작 점수(600~3000)·배치 중 K·배치 뒤 K(각 1~100), 모두 정수. 범위는 rating.ts RATING_SETTING_RANGES.
+   * 없음 = 저장하지 않음 → 기본 1200 · 50 · 30(ratingOptionsOf). 공개 정보라 조회 응답에도 나간다.
+   */
+  ratingStart?: number;
+  ratingKPlacement?: number;
+  ratingK?: number;
 }
 
 /** 칭호 한 구간. 누적 승률이 minRate% 이상이면 이 칭호다(위 구간부터 본다). */

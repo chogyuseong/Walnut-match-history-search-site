@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { laneDuels } from "../src/shared/headToHead";
+import { laneDuels, laneRivals, laneRivalSummary, type LaneRival } from "../src/shared/headToHead";
 import { headToHead, leadOf, rateLeadOf, recentResults, resultsOf, streakOf, synergyPoints } from "../src/shared/insights";
 import { POSITIONS, type MatchState, type MatchView, type Position, type Team } from "../src/shared/types";
 
@@ -63,6 +63,64 @@ describe("같은 라인 맞대결(headToHead.ts laneDuels)", () => {
     ]);
     expect(laneDuels(ms, "id0", "id0")).toEqual([]);
     expect(laneDuels([], "id0", "id5")).toEqual([]);
+  });
+});
+
+describe("맞라인 상대(headToHead.ts laneRivals·laneRivalSummary)", () => {
+  it("상대 팀·같은 포지션만, 라인마다 따로 세고 라인 순 → 경기 수 순으로 둔다", () => {
+    const ms = [
+      match(ids(0), ids(5), "A"), // id0 탑 vs id5 탑: 승
+      match(ids(0), ids(5), "B"), // 패
+      match(ids(0), ["id9", "id6", "id7", "id8", "id5"], "A"), // id0 탑 vs id9 탑: 승
+      match(ids(0), ids(5), "A", { positions: { id0: "mid", id2: "top" } }), // id0 미드 vs id7 미드
+      match(ids(0), ids(5), "B", { positions: { id0: "mid", id5: "mid", id2: "top", id7: "top" } }), // 미드 vs id5: 패
+      match(["id0", "id5", "id1", "id2", "id3"], ids(6), "A"), // 같은 팀 id5: 안 셈(상대 탑 id6만)
+      match(ids(0), ids(5), "A", { positions: { id0: null } }), // 내 포지션 없음
+      match(ids(0), ids(5), "A", { state: "excluded" }),
+    ];
+    expect(laneRivals(ms, "id0")).toEqual([
+      { position: "top", opponentId: "id5", games: 2, wins: 1, losses: 1 },
+      { position: "top", opponentId: "id9", games: 1, wins: 1, losses: 0 },
+      { position: "top", opponentId: "id6", games: 1, wins: 1, losses: 0 },
+      { position: "mid", opponentId: "id7", games: 1, wins: 1, losses: 0 },
+      { position: "mid", opponentId: "id5", games: 1, wins: 0, losses: 1 },
+    ]);
+    expect(laneRivals([], "id0")).toEqual([]);
+  });
+
+  it("요약은 min경기 이상 중 승률 최저·최고, 같은 승률이면 경기 수 많은 쪽", () => {
+    const r = (position: LaneRival["position"], opponentId: string, wins: number, losses: number): LaneRival => ({
+      position,
+      opponentId,
+      games: wins + losses,
+      wins,
+      losses,
+    });
+    const rivals = [
+      r("top", "a", 1, 2), // 33%
+      r("top", "b", 2, 4), // 33%, 경기 더 많음 → 가장 어려운
+      r("top", "c", 3, 0), // 100% → 가장 쉬운
+      r("top", "d", 0, 2), // 2경기: min 미만
+      r("mid", "e", 1, 1), // 2경기뿐
+    ];
+    expect(laneRivalSummary(rivals)).toEqual([
+      { position: "top", hardest: rivals[1], easiest: rivals[2] },
+      { position: "mid", hardest: null, easiest: null },
+    ]);
+    expect(laneRivalSummary(rivals, 2)[0]!.hardest).toBe(rivals[3]);
+    expect(laneRivalSummary([])).toEqual([]);
+  });
+  it("이기는 상대만 있으면 '어려운'은 없고, 지는 상대만 있으면 '쉬운'은 없다", () => {
+    const r = (opponentId: string, wins: number, losses: number): LaneRival => ({
+      position: "top",
+      opponentId,
+      games: wins + losses,
+      wins,
+      losses,
+    });
+    // 67%·100%로 모두 이기는 상대뿐: 최저인 67%를 "가장 어려운"이라 부르지 않는다.
+    expect(laneRivalSummary([r("a", 2, 1), r("b", 3, 0)])[0]).toEqual({ position: "top", hardest: null, easiest: expect.objectContaining({ opponentId: "b" }) });
+    expect(laneRivalSummary([r("a", 1, 2), r("b", 0, 3)])[0]).toEqual({ position: "top", hardest: expect.objectContaining({ opponentId: "b" }), easiest: null });
   });
 });
 

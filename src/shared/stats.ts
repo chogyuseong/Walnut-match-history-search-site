@@ -1,11 +1,25 @@
 import { searchPeople } from "./search";
-import type { MatchView, Snapshot } from "./types";
+import type { MatchView, Settings, Snapshot } from "./types";
 
 /**
  * 통계는 저장하지 않고 유효 확정 경기에서 매번 계산한다(docs/P2 P2-11).
  * 유효 확정 경기 = 상태가 결과 확정인 경기. 대기·취소·제외 경기는 세지 않는다.
  */
-export const PLACEMENT_GAMES = 10;
+/**
+ * 배치 경기 수 기본값. 누적 확정 경기가 이 수 이상이면 배치 완료(칭호, MMR K가 배치 뒤 값으로, 랭킹 묶음, 예상 신뢰 판정).
+ * 모임 설정(Settings.placementGames)에 값이 없으면 이 값을 쓴다. 바꾸면 그 설정을 저장하지 않은 모든 모임의 배치가 달라진다.
+ */
+export const PLACEMENT_GAMES_DEFAULT = 10;
+/** 기본값의 옛 이름(테스트·기본 인자용). 계산은 placementGamesOf(settings)로 읽은 값을 넘겨 쓴다. */
+export const PLACEMENT_GAMES = PLACEMENT_GAMES_DEFAULT;
+/** 설정에서 고를 수 있는 배치 경기 수 범위. 서버 검증과 설정 화면 입력 칸이 같이 쓴다. */
+export const PLACEMENT_GAMES_MIN = 1;
+export const PLACEMENT_GAMES_MAX = 30;
+
+/** 모임 설정의 배치 경기 수. 저장한 적이 없으면 기본값이다. */
+export function placementGamesOf(settings: Pick<Settings, "placementGames">): number {
+  return settings.placementGames ?? PLACEMENT_GAMES_DEFAULT;
+}
 
 export function isCounted(match: MatchView): boolean {
   return match.state === "confirmed" && match.winnerTeam !== null;
@@ -44,10 +58,13 @@ export interface Placement {
 }
 
 /** 배치 상태. 항상 모임 전체 누적 기준이다. */
-export function placements(allMatches: readonly MatchView[]): Map<string, Placement> {
+export function placements(
+  allMatches: readonly MatchView[],
+  placementGames: number = PLACEMENT_GAMES_DEFAULT,
+): Map<string, Placement> {
   const result = new Map<string, Placement>();
   for (const [id, record] of personRecords(allMatches)) {
-    result.set(id, { games: record.games, done: record.games >= PLACEMENT_GAMES });
+    result.set(id, { games: record.games, done: record.games >= placementGames });
   }
   return result;
 }

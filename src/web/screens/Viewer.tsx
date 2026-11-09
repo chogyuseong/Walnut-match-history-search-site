@@ -10,6 +10,7 @@ import { Dashboard } from "./Dashboard";
 import { Graphs } from "./Graphs";
 import { Person } from "./Person";
 import { Privacy } from "./Privacy";
+import { Ranking } from "./Ranking";
 import { MatchDetail, Records } from "./Records";
 import { Search } from "./Search";
 import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./SeasonSummary";
@@ -17,7 +18,7 @@ import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./Se
 /**
  * 화면 7 — 조회 화면(링크). 로그인이 없고 읽기만 한다.
  * 주소: #/v/토큰/now(현재 경기) · #/v/토큰/m/경기번호 · #/v/토큰/records · #/v/토큰/search(?q=질의, App이 떼어 낸다)
- *       · #/v/토큰/home(모임 요약) · #/v/토큰/compare/A/B(두 사람 비교)
+ *       · #/v/토큰/home(모임 요약) · #/v/토큰/ranking(MMR 랭킹) · #/v/토큰/compare/A/B(두 사람 비교)
  * 첫 화면(now)은 경기 중 자기 자리를 확인하는 화면이라 그대로 두고, 요약은 메뉴의 "요약"으로 연다.
  * 시작한 경기가 하나도 없으면 첫 화면에 요약을 함께 보여준다.
  */
@@ -217,7 +218,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
   );
 }
 
-export type ViewerTab = "now" | "home" | "search" | "records";
+export type ViewerTab = "now" | "home" | "search" | "records" | "ranking";
 
 /**
  * 조회 링크와 예시 모임(#/demo, src/web/screens/Demo.tsx)이 같이 쓰는 읽기 전용 화면들.
@@ -237,9 +238,16 @@ export function viewerPage(
           openMatch={(id) => go(`${base}/d/${id}`)}
           openPerson={(id) => go(`${base}/p/${id}`)}
           openGraphs={() => go(`${base}/graphs`)}
+          openRanking={() => go(`${base}/ranking`)}
           openSeason={(scope) => go(`${base}/season/${seasonRoutePart(scope)}`)}
         />
       ),
+    };
+  }
+  if (rest[0] === "ranking") {
+    return {
+      tab: "ranking",
+      body: <Ranking snapshot={snapshot} openPerson={(id) => go(`${base}/p/${id}`)} />,
     };
   }
   if (rest[0] === "season") {
@@ -311,6 +319,8 @@ export function viewerPage(
         snapshot={snapshot}
         openPerson={(id) => go(`${base}/p/${id}`)}
         back={() => go(`${base}/records`)}
+        player={rest[1] ?? ""}
+        choosePlayer={(id) => go(id ? `${base}/graphs/${id}` : `${base}/graphs`)}
       />
       ),
     };
@@ -377,7 +387,8 @@ export function ViewerNav(props: { base: string; group: string; current: ViewerT
       <strong>{props.group}</strong>
       <span>
         {props.member && <>{item("me", "내 정보")} </>}
-        {item("now", "현재 경기")} {item("home", "요약")} {item("search", "검색")} {item("records", "기록")}
+        {item("now", "현재 경기")} {item("home", "요약")} {item("search", "검색")} {item("records", "기록")}{" "}
+        {item("ranking", "랭킹")}
       </span>
     </nav>
   );

@@ -11,7 +11,7 @@ import {
   streakText,
   trends,
 } from "../../shared/insights";
-import { isCounted } from "../../shared/stats";
+import { isCounted, placementGamesOf } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rateText, rateTier, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
@@ -25,7 +25,7 @@ export function DashboardEmpty() {
       <h2>기록이 쌓이면 여기에</h2>
       <ul className="dash-empty-list">
         <li>최근 경기 5개 — 양 팀 명단과 이긴 팀</li>
-        <li>랭킹 상위 5명 — 배치(누적 10경기)를 마친 사람 먼저</li>
+        <li>랭킹 상위 5명 — 배치를 마친 사람 먼저</li>
         <li>요즘 흐름 — 3연승 이상 이어가는 사람, 최근 10경기 승률</li>
       </ul>
       <p className="hint">경기 결과를 저장하면 바로 채워집니다.</p>
@@ -63,6 +63,7 @@ export function Dashboard(props: {
     [snapshot, skipIds],
   );
   const placement = useMemo(() => standingsOf(snapshot), [snapshot]);
+  const placementGames = placementGamesOf(snapshot.group.settings);
   const top = useMemo(
     () =>
       rankAndSearch(lineRanking(snapshot.matches, null), placement, nameOf, "rate", "").ranked.slice(
@@ -136,7 +137,7 @@ export function Dashboard(props: {
                     · {r.wins}승 {r.games - r.wins}패 ({r.games}경기)
                     <br />
                     <span className="hint">
-                      <StandingNote standing={placement.get(r.participantId)} />
+                      <StandingNote standing={placement.get(r.participantId)} placementGames={placementGames} />
                     </span>
                   </span>
                 </button>

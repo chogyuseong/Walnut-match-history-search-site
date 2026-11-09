@@ -148,7 +148,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   const order = await page
     .getByRole("region")
     .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
-  expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "다른 플레이어와 비교", "참여 경기"]);
+  expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "다른 플레이어와 비교", "맞라인 상대", "참여 경기"]);
   // 참여 경기는 최근 10경기만 먼저 그리고 "더 보기"로 나머지를 연다.
   const played = page.getByRole("region", { name: "참여 경기" });
   await expect(played.getByRole("listitem")).toHaveCount(10);
@@ -274,28 +274,48 @@ test("그래프 분석", async ({ page }) => {
   await expect(people).toContainText("선수07");
   await page.getByLabel("라인", { exact: true }).selectOption({ label: "전체 라인" });
 
-  // 라인별 승률: 플레이어를 고르기 전에는 고르기 안내만 두고(전체 합은 항상 50%, 이유는 도움말에),
-  // 플레이어를 고르면 라인별 승률 보기로 바로 넘어가 그 사람의 라인별을 보여준다.
+  // 진영(요약 타일 아래 한 줄): 진영을 아는 8경기 중 블루 5승, 레드 3승. 미상 3경기는 제외하고 알려준다.
+  await expect(summary).toContainText("블루 63% · 5승 3패 (8경기)");
+  await expect(summary).toContainText("레드 38% · 3승 5패 (8경기)");
+  await expect(summary).toContainText("진영 미상 3경기는 제외했습니다.");
+  await expect(summary.locator(".ps-tiles > div").nth(2)).toContainText("63% : 37%");
+
+  // 라인별 승률: 플레이어를 고르기 전에는 고르기 안내만 둔다(전체 합은 항상 50%, 이유는 도움말에).
   const lines = page.getByRole("region", { name: "라인별 승률" });
   await expect(lines).toHaveCount(0);
   await expect(page.locator(".viz-root details.help").first()).toContainText("항상 50%");
   await views.getByRole("button", { name: "라인별 승률" }).click();
   await expect(lines).toContainText("한 사람을 고르면");
   await expect(lines.getByRole("listitem")).toHaveCount(0);
-  await views.getByRole("button", { name: "개인별 승률" }).click();
+
+  // 플레이어를 고르면(2026-11-09) 요약 타일 자리가 그 사람 묶음으로 바뀌고 주소에 남는다. 아래 보기는 그대로다.
   await page.getByLabel("플레이어", { exact: true }).selectOption({ label: "선수02" });
+  const profile = page.getByRole("region", { name: "고른 플레이어" });
+  await expect(profile).toContainText("73% · 8승 3패 (11경기)");
+  // 승률 추이는 개인 통계와 같은 부품(.trend). 11경기면 5경기째부터 그려져 선이 있다.
+  await expect(profile.locator(".trend svg")).toHaveAttribute("aria-label", /누적 승률 추이/);
+  await expect(summary).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`#/graphs/${s.people[1]!.id}$`));
   await expect(views.getByRole("button", { name: "라인별 승률" })).toHaveAttribute("aria-pressed", "true");
-  await expect(people).toHaveCount(0);
   await expect(lines.getByRole("listitem").filter({ hasText: "정글" })).toContainText(
     "73% · 8승 3패 (11경기)",
   );
   await expect(lines.getByRole("listitem").filter({ hasText: "서폿" })).toContainText("기록 없음");
 
-  // 진영(요약 타일 아래 한 줄): 진영을 아는 8경기 중 블루 5승, 레드 3승. 미상 3경기는 제외하고 알려준다.
-  await expect(summary).toContainText("블루 63% · 5승 3패 (8경기)");
-  await expect(summary).toContainText("레드 38% · 3승 5패 (8경기)");
-  await expect(summary).toContainText("진영 미상 3경기는 제외했습니다.");
-  await expect(summary.locator(".ps-tiles > div").nth(2)).toContainText("63% : 37%");
+  // 새 보기: 순위 변동(11경기, 배치 마친 10명) · 라인 모양 · 활동(오늘 범위가 아니면 달력).
+  await views.getByRole("button", { name: "순위 변동" }).click();
+  const race = page.getByRole("region", { name: "순위 변동" });
+  await expect(race.locator(".race-series.picked")).toHaveCount(1);
+  await views.getByRole("button", { name: "라인 모양" }).click();
+  await expect(page.getByRole("region", { name: "라인 모양" }).getByRole("img")).toHaveAttribute("aria-label", /정글 73%/);
+  await views.getByRole("button", { name: "활동" }).click();
+  await expect(page.getByRole("region", { name: "활동" })).toContainText("참석한 날 1일");
+
+  // 고르기 해제: 모임 전체 요약으로 바로 돌아간다.
+  await profile.getByRole("button", { name: "고르기 해제" }).click();
+  await expect(summary).toBeVisible();
+  await expect(profile).toHaveCount(0);
+  await page.getByLabel("플레이어", { exact: true }).selectOption({ label: "선수02" });
 
   // 플레이어 × 라인: 표로 읽을 수 있고 기록 없는 칸은 —, 5경기 미만은 색을 칠하지 않는다.
   await views.getByRole("button", { name: "플레이어 × 라인" }).click();
@@ -339,4 +359,64 @@ test("그래프 분석", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "dark" });
     await page.screenshot({ path: `${process.env.SHOT_DIR}/graphs-390-dark.png`, fullPage: true });
   }
+});
+
+test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계, 예시 모임 랭킹", async ({ page }) => {
+  const s = await setup(page);
+  const first10 = s.people.slice(0, 10);
+  // 선수01~10은 11경기(배치 완료), 선수11·12는 1경기(배치 진행 중).
+  for (let i = 0; i < 10; i++) await play(page.request, s, first10, i < 7 ? "A" : "B", "blue");
+  const mixed = [s.people[10]!, ...first10.slice(1, 5), s.people[11]!, ...first10.slice(6)];
+  await play(page.request, s, mixed, "A", "blue");
+
+  // 기록 화면의 소환사 랭킹에서도 들어갈 수 있다.
+  await page.goto("/#/records");
+  await page.getByRole("region", { name: "소환사 랭킹" }).getByRole("button", { name: "MMR 랭킹 전체 보기 →" }).click();
+  await expect(page).toHaveURL(/#\/ranking$/);
+  await page.goto("/#/");
+  const menu = page.getByRole("navigation", { name: "주 메뉴" });
+  await menu.getByRole("button", { name: "랭킹" }).click();
+  await expect(page).toHaveURL(/#\/ranking$/);
+  await expect(page.getByRole("heading", { level: 1, name: "MMR 랭킹" })).toBeVisible();
+  await expect(menu.getByRole("button", { name: "랭킹" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText("누적 기준 · 확정 경기만")).toBeVisible();
+
+  const table = page.getByRole("region", { name: "MMR 순위표" });
+  await expect(table.getByRole("listitem")).toHaveCount(12);
+  await expect(table).toContainText("배치 완료 · 50경기 미만 · 10명");
+  await expect(table).toContainText("배치 진행 중 · 2명");
+  // 배치 진행 중 두 사람은 맨 아래이고 MMR 대신 배치 판수를 보여 준다.
+  await expect(table.getByRole("listitem").nth(10)).toContainText("배치 1/10");
+  await expect(table.getByRole("listitem").nth(11)).toContainText("배치 1/10");
+  await expect(page.getByRole("region", { name: "랭킹 요약" }).locator(".ps-tiles > div")).toHaveCount(3);
+
+  // 추이는 한 번에 하나만 펼친다.
+  const firstRow = table.getByRole("listitem").first();
+  await firstRow.getByRole("button", { name: /MMR 추이/ }).click();
+  await expect(firstRow.locator(".trend svg")).toHaveAttribute("aria-label", /MMR 추이/);
+  await table.getByRole("listitem").nth(1).getByRole("button", { name: /MMR 추이/ }).click();
+  await expect(table.locator(".mmr-trend")).toHaveCount(1);
+
+  // 이름 검색: 순위 숫자는 그대로.
+  const rankOf11 = await table.getByRole("listitem").filter({ hasText: "선수11" }).locator(".rank").innerText();
+  await table.getByLabel("이름 검색").fill("선수11");
+  await expect(table.getByRole("listitem")).toHaveCount(1);
+  await expect(table.getByRole("listitem").locator(".rank")).toHaveText(rankOf11);
+
+  // 이름을 누르면 개인 통계.
+  await table.getByRole("button", { name: "선수11", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#/p/${s.people[10]!.id}$`));
+  await expect(page.getByRole("heading", { level: 1, name: /선수11/ })).toBeVisible();
+
+  // 예시 모임에도 랭킹 메뉴가 있다.
+  await page.goto("/#/demo/ranking");
+  await expect(page.getByRole("heading", { level: 1, name: "MMR 랭킹" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "예시 모임 메뉴" }).getByRole("button", { name: "랭킹" }),
+  ).toHaveAttribute("aria-current", "page");
+  expect(await page.getByRole("region", { name: "MMR 순위표" }).getByRole("listitem").count()).toBeGreaterThanOrEqual(5);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });

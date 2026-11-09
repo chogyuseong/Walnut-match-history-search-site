@@ -27,11 +27,11 @@ import {
 import { resolveMerged } from "../../shared/merge";
 import {
   computeRatings,
-  RATING_START,
   ratingBandOf,
   shownRating,
   signedDelta,
   type PersonRating,
+  ratingOptionsOf,
 } from "../../shared/rating";
 import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, standingsOf } from "../format";
@@ -94,7 +94,7 @@ function RateMeter(props: { tally: Tally; className?: string }) {
 /**
  * 두 사람 비교(#/compare/A/B). 운영자와 조회 링크가 같은 화면을 쓴다.
  * 머리 카드(요약: 범위 승률·최근 흐름·칭호·MMR·주 라인) → 도구 줄(사람 고르기·서로 바꾸기·범위) →
- * 나란히 보기(자세한 수치, 앞선 쪽 강조) · 라인별 승률 · 같은 팀일 때(시너지) · 상대일 때(같은 라인 맞대결·최근 흐름) →
+ * 나란히 보기(자세한 수치, 앞선 쪽 강조) · 라인별 승률 · 같은 라인으로 맞붙었을 때 · 같은 팀일 때(시너지) · 상대일 때(최근 흐름) →
  * 맞대결 경기 목록. 범위 필터를 따르고, 배치·칭호·MMR은 누적 기준이다.
  */
 export function Compare(props: {
@@ -120,7 +120,9 @@ export function Compare(props: {
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
   // 결과 기반 MMR: 범위와 무관하게 모임 전체 누적(rating.ts).
-  const ratings = useMemo(() => computeRatings(snapshot.matches), [snapshot]);
+  const ratingOptions = ratingOptionsOf(snapshot.group.settings);
+  const { placementGames } = ratingOptions;
+  const ratings = useMemo(() => computeRatings(snapshot.matches, ratingOptionsOf(snapshot.group.settings)), [snapshot]);
   // 고를 수 있는 사람: 확정 경기가 한 번이라도 있는 사람(누적), 이름순.
   const people = useMemo(
     () =>
@@ -205,8 +207,8 @@ export function Compare(props: {
   // 직접 고른 두 사람이라 막지 않는다. 한쪽이라도 누적 기준 미만이면 표본이 적다고만 알린다.
   const fewer = [a!, b!].filter((id) => (standings.get(id)?.games ?? 0) < COMPARE_MIN_GAMES);
 
-  const ratingA = ratings.get(a!)?.rating ?? RATING_START;
-  const ratingB = ratings.get(b!)?.rating ?? RATING_START;
+  const ratingA = ratings.get(a!)?.rating ?? ratingOptions.start;
+  const ratingB = ratings.get(b!)?.rating ?? ratingOptions.start;
   const synergy = synergyPoints(h2h.together, da.summary, db.summary);
   const against = h2h.against;
   const recentDuels = h2h.againstResults.slice(0, RECENT_DUELS);
@@ -214,9 +216,9 @@ export function Compare(props: {
   // 기대 승률은 팀 경기라 오해하기 쉬워 보여주지 않는다. 숫자와 차이만.
   const ratingCell = (r: PersonRating | undefined) => (
     <>
-      <span className="rating-num">{shownRating(r?.rating ?? RATING_START)}</span>
+      <span className="rating-num">{shownRating(r?.rating ?? ratingOptions.start)}</span>
       <span className="cmp-sub">
-        {ratingBandOf(r?.rating ?? RATING_START)} · {r?.games ?? 0}경기
+        {ratingBandOf(r?.rating ?? ratingOptions.start, ratingOptions.start)} · {r?.games ?? 0}경기
       </span>
     </>
   );
@@ -276,7 +278,7 @@ export function Compare(props: {
     const summary = side === "a" ? da.summary : db.summary;
     const recent = side === "a" ? recentA : recentB;
     const main = side === "a" ? mainA : mainB;
-    const rating = ratings.get(id)?.rating ?? RATING_START;
+    const rating = ratings.get(id)?.rating ?? ratingOptions.start;
     const recentTally = tallyOf(recent);
     return (
       <article className={`cmp-card cmp-${side}`} aria-label={`${name} 요약`}>
@@ -306,14 +308,14 @@ export function Compare(props: {
           <div>
             <dt>칭호</dt>
             <dd>
-              <StandingNote standing={standings.get(id)} />
+              <StandingNote standing={standings.get(id)} placementGames={placementGames} />
             </dd>
           </div>
           <div>
             <dt>MMR</dt>
             <dd>
               <span className="rating-num">{shownRating(rating)}</span>{" "}
-              <span className="cmp-card-cap">{ratingBandOf(rating)}</span>
+              <span className="cmp-card-cap">{ratingBandOf(rating, ratingOptions.start)}</span>
             </dd>
           </div>
           <div>
@@ -405,10 +407,10 @@ export function Compare(props: {
             <tr>
               <th scope="row">배치·칭호</th>
               <td className="cmp-small">
-                <StandingNote standing={standings.get(a!)} />
+                <StandingNote standing={standings.get(a!)} placementGames={placementGames} />
               </td>
               <td className="cmp-small">
-                <StandingNote standing={standings.get(b!)} />
+                <StandingNote standing={standings.get(b!)} placementGames={placementGames} />
               </td>
             </tr>
             <tr>
@@ -486,6 +488,47 @@ export function Compare(props: {
             포지션 기록이 없는 경기는 뺐습니다({nameA} {da.positionUnknown}경기, {nameB}{" "}
             {db.positionUnknown}경기).
           </p>
+        )}
+      </section>
+
+      {/* 같은 라인으로 서로 마주 선 경기만. 두 사람의 경기 수가 같고 승률은 서로 거울이라(A 60% ↔ B 40%) 한 줄에 둘 다 쓴다.
+          각자의 라인별 승률(위 표)은 전체 경기 기준이라 이와 다르다는 피드백이 있어 따로 뗐다. */}
+      <section className="card" aria-label="같은 라인 맞대결">
+        <h2>같은 라인으로 맞붙었을 때 ({scopeLabel})</h2>
+        {duels.length === 0 ? (
+          <p className="hint">두 사람이 같은 라인에서 상대 팀으로 만난 경기가 없어요.</p>
+        ) : (
+          <>
+            <p className="hint">
+              왼쪽 {nameA} · 오른쪽 {nameB}. 둘이 같은 포지션으로 상대 팀에 선 경기만 세요. 경기 수는 양쪽이 같고 승률은 서로
+              거울이에요.
+            </p>
+            <ul className="cmp-lane-duels">
+              {duels.map((d) => {
+                const lead = leadOf(d.wins, d.losses);
+                return (
+                  <li key={d.position} className={lead === "a" ? "lead-a" : lead === "b" ? "lead-b" : undefined}>
+                    <span className="cmp-duel-side cmp-duel-a">
+                      <span className={rateTier(d.wins, d.games)}>{rateText({ wins: d.wins, games: d.games })}</span>
+                      <span className="hint">{d.wins}승 {d.losses}패</span>
+                    </span>
+                    <span className="cmp-duel-mid">
+                      <PosLabel position={d.position} />
+                      <span className="hint">{d.games}경기</span>
+                    </span>
+                    <span className="cmp-duel-side cmp-duel-b">
+                      <span className={rateTier(d.losses, d.games)}>{rateText({ wins: d.losses, games: d.games })}</span>
+                      <span className="hint">{d.losses}승 {d.wins}패</span>
+                    </span>
+                    <span className="cmp-bar cmp-duel-bar" role="img" aria-label={`${d.games}경기 중 ${nameA} ${d.wins}승, ${nameB} ${d.losses}승`}>
+                      <span className="cmp-bar-a" style={{ flexGrow: d.wins }} />
+                      <span className="cmp-bar-b" style={{ flexGrow: d.losses }} />
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
 
@@ -577,26 +620,6 @@ export function Compare(props: {
                   results={recentDuels}
                   label={`최근 맞대결 ${recentDuels.length}경기 ${nameA} 기준, 최근 것이 앞:`}
                 />
-              </div>
-              <div>
-                <p className="row-label">같은 라인 맞대결 ({nameA} 기준)</p>
-                {duels.length === 0 ? (
-                  <p className="hint">같은 라인에서 맞붙은 경기는 없어요.</p>
-                ) : (
-                  <ul className="cmp-duels">
-                    {duels.map((d) => {
-                      const lead = leadOf(d.wins, d.losses);
-                      return (
-                        <li key={d.position} className={lead === "a" ? "is-win" : lead === "b" ? "is-loss" : undefined}>
-                          <PosLabel position={d.position} />
-                          <span className="cmp-duel-wl">
-                            {d.wins}승 {d.losses}패
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
               </div>
             </div>
             <p className="hint">경기 수가 적으면 우연일 수 있습니다.</p>

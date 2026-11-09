@@ -140,7 +140,7 @@ describe("가장 많이 성장: 반올림 차가 0이면 소수 한 자리", () 
     for (let i = 0; i < 200; i++) matches.push(mk(new Date(Date.UTC(2026, 1, 1, 0, i)).toISOString(), i < 101 ? "A" : "B"));
     for (let i = 0; i < 200; i++) matches.push(mk(new Date(Date.UTC(2026, 8, 1, 0, i)).toISOString(), i < 102 ? "A" : "B"));
     const snapshot = {
-      group: { timezone: "Asia/Seoul" },
+      group: { timezone: "Asia/Seoul", settings: {} },
       matches,
       participants: [],
       seasons: [

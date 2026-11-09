@@ -15,6 +15,7 @@ import { CoOperatorSelfSection, CoOperatorsSection } from "./CoOperators";
 import { GroupSwitcher, MembershipList } from "../groupSwitcher";
 import { RequestRow } from "./Member";
 import { memoLength } from "../../shared/memo";
+import { RATING_SETTING_KEYS, RATING_SETTING_RANGES, ratingOptionsOf, type RatingSettingKey } from "../../shared/rating";
 import { ABSENT_DAYS, attendanceReport, longAbsent } from "../../shared/attendance";
 import type { MemberRequestView } from "../../shared/types";
 
@@ -670,6 +671,7 @@ export function Group() {
             </button>
           </form>
         </section>
+        <RatingSettings settings={settings} busy={busy} onSave={saveSettings} />
         <TitleSettings settings={settings} busy={busy} error={error} onSave={saveSettings} />
       </GroupBlock>
 
@@ -1237,5 +1239,84 @@ function GroupBlock(props: {
       <summary>{props.title}</summary>
       <div className="group-block-body">{props.children}</div>
     </details>
+  );
+}
+
+/**
+ * MMR 설정: 배치 경기 수·시작 점수·배치 중 K·배치 뒤 K(rating.ts RATING_SETTING_RANGES).
+ * 배치·칭호·MMR은 저장하지 않고 매번 계산하므로 저장하면 지난 경기까지 새 값으로 다시 센다.
+ */
+function RatingSettings(props: {
+  settings: Settings;
+  busy: boolean;
+  onSave: (next: Settings, done: string) => Promise<boolean>;
+}) {
+  const options = ratingOptionsOf(props.settings);
+  const current: Record<RatingSettingKey, number> = {
+    placementGames: options.placementGames,
+    ratingStart: options.start,
+    ratingKPlacement: options.kPlacement,
+    ratingK: options.k,
+  };
+  const [drafts, setDrafts] = useState<Partial<Record<RatingSettingKey, string>>>({});
+  const valueOf = (key: RatingSettingKey) => drafts[key] ?? String(current[key]);
+  const invalid = RATING_SETTING_KEYS.filter((key) => {
+    const n = Number(valueOf(key));
+    const { min, max } = RATING_SETTING_RANGES[key];
+    return valueOf(key) === "" || !Number.isInteger(n) || n < min || n > max;
+  });
+  const changed = RATING_SETTING_KEYS.some((key) => Number(valueOf(key)) !== current[key]);
+
+  async function save() {
+    const next: Settings = { ...props.settings };
+    for (const key of RATING_SETTING_KEYS) next[key] = Number(valueOf(key));
+    if (await props.onSave(next, "MMR 설정을 저장했어요. 지난 경기까지 다시 계산했어요.")) setDrafts({});
+  }
+
+  return (
+    <section aria-label="MMR 설정">
+      <h2>MMR 설정</h2>
+      <p className="hint">
+        배치 경기 수만큼 확정 경기를 치르면 배치가 끝나 칭호가 붙고 변화 폭이 배치 뒤 값으로 바뀌어요. 바꾸면 지난
+        경기까지 전부 다시 계산돼요. 시작 점수는 보기 효과만, 변화 폭은 격차를 벌려요.
+      </p>
+      <form
+        className="rating-settings"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (invalid.length === 0 && changed) void save();
+        }}
+      >
+        {RATING_SETTING_KEYS.map((key) => {
+          const { label, min, max } = RATING_SETTING_RANGES[key];
+          return (
+            <label key={key} className="inline-label">
+              {label}
+              <input
+                type="number"
+                inputMode="numeric"
+                min={min}
+                max={max}
+                step={1}
+                value={valueOf(key)}
+                disabled={props.busy}
+                onChange={(e) => setDrafts({ ...drafts, [key]: e.target.value })}
+              />
+            </label>
+          );
+        })}
+        <button type="submit" className="secondary" disabled={props.busy || invalid.length > 0 || !changed}>
+          저장
+        </button>
+      </form>
+      {invalid.length > 0 && (
+        <p className="note warn" role="alert">
+          {invalid
+            .map((key) => `${RATING_SETTING_RANGES[key].label}는 ${RATING_SETTING_RANGES[key].min}~${RATING_SETTING_RANGES[key].max}`)
+            .join(", ")}{" "}
+          사이 정수로 적어 주세요.
+        </p>
+      )}
+    </section>
   );
 }

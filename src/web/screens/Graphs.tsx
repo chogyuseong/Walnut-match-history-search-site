@@ -1,11 +1,38 @@
-import { RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGroup, sortRankingBy } from "../../shared/insights";
-import { useState, type ReactNode } from "react";
-import { fractionPercent, matchesInScope, matchYears, personRecordsByLine, PLACEMENT_GAMES, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
+import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGroup, resultsOf, sortRankingBy, streakOf, streakText } from "../../shared/insights";
+import { useMemo, useState, type ReactNode } from "react";
+import { fractionPercent, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
-import { BackLink, Help, PosLabel, scopeFromValue, scopeValue, TitleBadge } from "../ui";
+import { Meter, BackLink, FormDots, Help, PosLabel, RateRing, RatingTierBadge, scopeFromValue, scopeValue, TitleBadge, TrendLine } from "../ui";
 import { useExpectations } from "../matchCard";
-import { BALANCED_MARGIN, fairnessReport, FAIRNESS_MIN_GAMES } from "../../shared/upset";
+import { BALANCED_MARGIN, fairnessReport, FAIRNESS_MIN_GAMES, personUpsets, UPSET_THRESHOLD, LOPSIDED_MARGIN, fairnessVerdict, type FairnessVerdict } from "../../shared/upset";
+import { attendanceReport } from "../../shared/attendance";
+import { computeRatings, shownRating, ratingOptionsOf } from "../../shared/rating";
+import { groupCommentary, playerCommentary, type Commentary } from "../../shared/commentary";
+import {
+  activityCalendar,
+  calendarRange,
+  CALENDAR_WEEKS,
+  dailyCounts,
+  groupLineTotals,
+  lineShape,
+  raceDrawable,
+  RACE_MIN_GAMES,
+  rankRace,
+  ratingRank,
+  storyCards,
+  WEEKDAY_LABEL,
+  type ShapeMode,
+} from "../../shared/graphs";
+import {
+  ActivityCalendarView,
+  CalendarLegend,
+  LineShapeChart,
+  RankRaceChart,
+  RACE_COLORED,
+  StoryStrip,
+  type ShapeEntry,
+} from "./graphFigures";
 
 /** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
 function standingText(standing: ShownStanding | undefined): ReactNode {
@@ -101,12 +128,28 @@ function cellBand(tally: Tally): string {
 }
 
 /** 보기 전환: 한 번에 하나만 전체 폭으로 그린다(2026-11-08 재구성). */
-type View = "people" | "matrix" | "lines";
+type View = "people" | "matrix" | "lines" | "race" | "shape" | "activity";
+
+// ─ 섞기 공정성(모임 전체) 묶음의 화면 상수 ─
+/** 판정 한 줄 문구. 색은 styles.css .fair-good/.fair-ok/.fair-poor. */
+const FAIR_VERDICT_TEXT: Record<FairnessVerdict, string> = {
+  good: "섞기가 공정했어요",
+  ok: "대체로 균형이에요",
+  poor: "치우친 경기가 많아요",
+};
+const FAIR_SEG_LABEL = { balanced: "균형", slight: "조금 치우침", lopsided: "많이 치우침" } as const;
+/** 분포 띠 구간 안에 경기 수를 쓰는 최소 비율(이보다 좁으면 숫자가 넘친다). */
+const FAIR_SEG_LABEL_MIN = 0.12;
+/** 평균 치우침 미터가 가득 차는 값(25%p). 실제 모임은 보통 3~12%p라 눈금이 너무 짧아지지 않게 잡았다. */
+const FAIR_DEVIATION_FULL = 0.25;
 
 const VIEW_LABEL: Record<View, string> = {
   people: "개인별 승률",
   matrix: "플레이어 × 라인",
   lines: "라인별 승률",
+  race: "순위 변동",
+  shape: "라인 모양",
+  activity: "활동",
 };
 
 /** 개인별 승률 묶음. 0~2는 랭킹 묶음(누적 기준), 3은 이 범위·라인에서 5경기 미만(자료 적음). */
@@ -127,18 +170,63 @@ export function Graphs(props: {
   snapshot: Snapshot;
   openPerson: (id: string) => void;
   back: () => void;
+  /** 주소에 담긴 고른 플레이어(#/graphs/ID). choosePlayer와 함께 주면 고르기가 주소를 따른다. */
+  player?: string;
+  /** 플레이어 고르기·해제(""). 주지 않으면 화면 안에서만 기억한다. */
+  choosePlayer?: (id: string) => void;
 }) {
   const { snapshot } = props;
+  const timeZone = snapshot.group.timezone;
+  const placementGames = placementGamesOf(snapshot.group.settings);
   const [scope, setScope] = useState<Scope>({ kind: "all" });
   const [line, setLine] = useState<Position | "">("");
-  const [playerId, setPlayerId] = useState("");
+  const [localPlayer, setLocalPlayer] = useState("");
   const [view, setView] = useState<View>("people");
-  const nameOf = nameMap(snapshot);
+  const [shapeMode, setShapeMode] = useState<ShapeMode>("rate");
+  const [compareId, setCompareId] = useState("");
+  const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const expectations = useExpectations(snapshot);
+  // 고른 플레이어: 주소(#/graphs/ID)에 두어 개인 통계로 갔다 돌아와도 남는다. 없는 사람 ID면 고르지 않은 것으로 본다.
+  const wanted = props.choosePlayer ? (props.player ?? "") : localPlayer;
+  const playerId = snapshot.participants.some((p) => p.id === wanted) ? wanted : "";
+  const choosePlayer = (id: string) => (props.choosePlayer ? props.choosePlayer(id) : setLocalPlayer(id));
 
   const scopeLabel = scopeLabelOf(snapshot, scope);
   const years = matchYears(snapshot);
-  const scoped = matchesInScope(snapshot, scope);
+  const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
+  // 새 그림 계산(src/shared/graphs.ts). MMR은 범위와 무관한 누적, 참석·이야기는 이 범위.
+  // 순위 변동·달력은 그 보기를 열었을 때만 계산한다(경기 수 × 사람 수라 다른 보기에서는 아깝다).
+  const ratings = useMemo(() => computeRatings(snapshot.matches, ratingOptionsOf(snapshot.group.settings)), [snapshot]);
+  const attendance = useMemo(() => attendanceReport(scoped, timeZone), [scoped, timeZone]);
+  const stories = useMemo(
+    () => storyCards({ scoped, expectations, attendance, ratings, nameOf, picked: playerId || null }),
+    [scoped, expectations, attendance, ratings, nameOf, playerId],
+  );
+  // 분석 코멘트(모임 전체)는 고른 사람이 없을 때만 보인다. 순위 변동 계산이 들어 있어 그때만 구한다.
+  const groupNotes = useMemo(
+    () =>
+      playerId === ""
+        ? groupCommentary({ allMatches: snapshot.matches, scoped, nameOf, ratings, expectations, timeZone, placementGames })
+        : null,
+    [playerId, snapshot, scoped, nameOf, ratings, expectations, timeZone, placementGames],
+  );
+  const race = useMemo(
+    () => (view === "race" ? rankRace(snapshot.matches, ratings, scoped, timeZone, placementGames) : null),
+    [view, snapshot, ratings, scoped, timeZone, placementGames],
+  );
+  const calendar = useMemo(() => {
+    if (view !== "activity" || scope.kind === "today") return null;
+    const today = localDate(snapshot.serverTime, timeZone);
+    let range: { start: string; end: string };
+    if (scope.kind === "season") {
+      const season = snapshot.seasons.find((s) => s.id === scope.seasonId);
+      if (!season) return null;
+      range = calendarRange({ kind: "season", startsOn: season.startsOn, endsOn: season.endsOn }, today);
+    } else {
+      range = calendarRange(scope, today);
+    }
+    return activityCalendar(dailyCounts(scoped, timeZone, playerId || null), range.start, range.end);
+  }, [view, scope, snapshot, scoped, timeZone, playerId]);
   const counted = scoped.filter((m) => m.state === "confirmed").length;
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const placement = standingsOf(snapshot);
@@ -175,15 +263,27 @@ export function Graphs(props: {
   const blueRate = sides.known > 0 ? ratePercent(sides.blueWins, sides.known) : null;
   // 레드는 100 − 블루(시즌 요약과 같은 방식. 따로 반올림하면 합이 101%가 될 수 있다).
   const redRate = blueRate !== null ? 100 - blueRate : null;
-  // 편성 균형(upset.ts): 예상은 누적 MMR, 세는 경기는 이 범위.
+  // 섞기 공정성(upset.ts): 예상은 누적 MMR, 세는 경기는 이 범위.
   const fairness = fairnessReport(expectations, scoped);
   const balancedLow = fractionPercent(0.5 - BALANCED_MARGIN);
   const balancedHigh = fractionPercent(0.5 + BALANCED_MARGIN);
+  const lopsidedHigh = fractionPercent(0.5 + LOPSIDED_MARGIN);
+  const verdict = fairnessVerdict(fairness);
   const fewCount = matrixRows.filter((r) => r.games < SMALL_SAMPLE).length;
   const playerLines = playerId === "" ? null : (matrix.get(playerId) ?? {});
+  // 고른 사람이 이 범위에 기록이 없어도 목록에서 사라지지 않게 함께 둔다.
   const selectable = [...snapshot.participants]
-    .filter((p) => matrixRows.some((r) => r.participantId === p.id))
+    .filter((p) => p.id === playerId || matrixRows.some((r) => r.participantId === p.id))
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  const shapeEntries: ShapeEntry[] =
+    playerId === ""
+      ? [{ key: "all", label: "모임 전체", axes: lineShape(groupLineTotals(matrix), "games"), slot: 1 }]
+      : [
+          { key: playerId, label: nameOf(playerId), axes: lineShape(matrix.get(playerId) ?? {}, shapeMode), slot: 1 },
+          ...(compareId !== "" && compareId !== playerId
+            ? [{ key: compareId, label: nameOf(compareId), axes: lineShape(matrix.get(compareId) ?? {}, shapeMode), slot: 2 as const }]
+            : []),
+        ];
 
   return (
     <div className="screen cols viz-root">
@@ -232,11 +332,8 @@ export function Graphs(props: {
             <select
               aria-label="플레이어"
               value={playerId}
-              onChange={(e) => {
-                setPlayerId(e.target.value);
-                // 플레이어를 고르면 그 사람의 라인별 승률로 바로 넘어간다.
-                if (e.target.value !== "") setView("lines");
-              }}
+              // 플레이어를 고르면 위쪽이 그 사람 묶음으로 바뀐다(2026-11-09). 아래 보기는 그대로 두고 그 사람을 강조한다.
+              onChange={(e) => choosePlayer(e.target.value)}
             >
               <option value="">선택 안 함</option>
               {selectable.map((p) => (
@@ -253,7 +350,7 @@ export function Graphs(props: {
           </p>
           <Help>
             <p>
-              개인별 승률 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({PLACEMENT_GAMES}경기 이상) → 배치 진행
+              개인별 승률 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({placementGames}경기 이상) → 배치 진행
               중이고, 그 안에서 승률순입니다. 보는 범위·라인에서 {SMALL_SAMPLE}경기 미만인 사람은 &lsquo;자료 적음&rsquo;으로
               맨 아래에 둡니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
             </p>
@@ -263,7 +360,7 @@ export function Graphs(props: {
             </p>
             <p>진영 승률은 결과를 저장할 때 확인한 실제 진영 기준이고, 진영 미상 경기는 뺍니다.</p>
             <p>
-              편성 균형은 경기 직전 팀원 MMR 평균으로 구한 예상 승률로 봅니다. 열 명 모두 배치 중인 경기는 예상이 의미가
+              섞기 공정성은 경기 직전 팀원 MMR 평균으로 구한 예상 승률로 봅니다. 열 명 모두 배치 중인 경기는 예상이 의미가
               적어 뺍니다. 균형 경기는 예상이 {balancedLow}~{balancedHigh}%였던 경기, 평균 치우침은 예상이 50%에서 벗어난
               정도의 평균입니다.
             </p>
@@ -271,6 +368,24 @@ export function Graphs(props: {
         </div>
       </div>
 
+      {/* ─ 위쪽 묶음: 고른 플레이어가 있으면 그 사람 묶음, 없으면 모임 전체 요약 타일 ─ */}
+      {playerId !== "" ? (
+        <PlayerProfile
+          snapshot={snapshot}
+          participantId={playerId}
+          scoped={scoped}
+          scopeLabel={scopeLabel}
+          ratings={ratings}
+          expectations={expectations}
+          attendance={attendance}
+          matrix={matrix}
+          standing={placement.get(playerId)}
+          cumulative={placement}
+          nameOf={nameOf}
+          openPerson={() => props.openPerson(playerId)}
+          clear={() => choosePlayer("")}
+        />
+      ) : (
       <section className="graph-summary" aria-label="분석 요약">
         <h2 className="sr-only">요약</h2>
         <dl className="ps-tiles season-tiles">
@@ -336,27 +451,83 @@ export function Graphs(props: {
           )}
         </p>
       </section>
+      )}
+      {groupNotes && <CommentaryCard notes={groupNotes} />}
 
-      <section className="graph-summary" aria-label="편성 균형">
-        <h2>편성 균형</h2>
+      {/* ─ 이야기 띠: 범위 안 유효 경기 5개부터. 카드를 누르면 그 사람을 고른다 ─ */}
+      <StoryStrip cards={stories} picked={playerId} onPick={choosePlayer} />
+
+      {/* ─ 섞기 공정성: 늘 모임 전체(고른 사람과 무관) ─ */}
+      <section className="graph-summary" aria-label="섞기 공정성(모임 전체)">
+        <h2>섞기 공정성(모임 전체)</h2>
         {fairness.games < FAIRNESS_MIN_GAMES ? (
           <p className="hint">경기가 더 쌓이면 보여요(판정할 수 있는 경기 {fairness.games}/{FAIRNESS_MIN_GAMES}).</p>
         ) : (
           <>
-            <dl className="ps-tiles season-tiles">
-              <div>
-                <dt className="tile-label">균형 경기({balancedLow}~{balancedHigh}%)</dt>
-                <dd className="season-stat">
+            {/* 머리: 큰 숫자(균형 경기 비율) + 한 줄 판정. 색은 fairnessVerdict(good·ok·poor)를 따른다. */}
+            <div className={`fair-head fair-${verdict}`}>
+              <div className="fair-big">
+                <span className="fair-pct">
                   {ratePercent(fairness.balanced, fairness.games)}
                   <span className="season-unit">%</span>
-                </dd>
+                </span>
+                <span className="fair-big-label">균형 경기</span>
               </div>
+              <div className="fair-verdict">
+                <strong>{FAIR_VERDICT_TEXT[verdict]}</strong>
+                <span className="hint">
+                  판정한 {fairness.games}경기 중 {fairness.balanced}경기가 예상 {balancedLow}~{balancedHigh}%였어요.
+                </span>
+              </div>
+            </div>
+            {/* 분포 띠: 균형 / 조금 치우침 / 많이 치우침 세 구간을 경기 수 비율로. 0인 구간은 그리지 않는다. */}
+            <div
+              className="fair-dist"
+              role="img"
+              aria-label={`균형 ${fairness.balanced}경기, 조금 치우침 ${fairness.slight}경기, 많이 치우침 ${fairness.lopsided}경기`}
+            >
+              {(
+                [
+                  ["balanced", fairness.balanced],
+                  ["slight", fairness.slight],
+                  ["lopsided", fairness.lopsided],
+                ] as const
+              ).map(([kind, n]) =>
+                n > 0 ? (
+                  <span
+                    key={kind}
+                    className={`fair-seg fair-seg-${kind}`}
+                    style={{ flexGrow: n }}
+                    title={`${FAIR_SEG_LABEL[kind]} ${n}경기`}
+                  >
+                    {n / fairness.games >= FAIR_SEG_LABEL_MIN && <span>{n}</span>}
+                  </span>
+                ) : null,
+              )}
+            </div>
+            <ul className="fair-legend" aria-hidden="true">
+              <li>
+                <i className="fair-seg-balanced" />
+                균형 {balancedLow}~{balancedHigh}%
+              </li>
+              <li>
+                <i className="fair-seg-slight" />
+                조금 치우침 ~{lopsidedHigh}%
+              </li>
+              <li>
+                <i className="fair-seg-lopsided" />
+                많이 치우침
+              </li>
+            </ul>
+            {/* 보조 타일 3칸: 미터로 크기를 보이게 한다. 평균 치우침은 FAIR_DEVIATION_FULL(25%p)을 가득으로 본다. */}
+            <dl className="ps-tiles season-tiles fair-tiles">
               <div>
                 <dt className="tile-label">평균 치우침</dt>
                 <dd className="season-stat">
                   {fractionPercent(fairness.avgDeviation)}
                   <span className="season-unit">%p</span>
                 </dd>
+                <Meter value={fairness.avgDeviation / FAIR_DEVIATION_FULL} tone="share" small />
               </div>
               <div>
                 <dt className="tile-label">예상 우세 팀 승률</dt>
@@ -364,6 +535,9 @@ export function Graphs(props: {
                   {fairness.favoriteGames > 0 ? ratePercent(fairness.favoriteWins, fairness.favoriteGames) : "—"}
                   {fairness.favoriteGames > 0 && <span className="season-unit">%</span>}
                 </dd>
+                {fairness.favoriteGames > 0 && (
+                  <Meter value={fairness.favoriteWins / fairness.favoriteGames} tone="share" mid small />
+                )}
               </div>
               <div>
                 <dt className="tile-label">이변 경기</dt>
@@ -371,16 +545,15 @@ export function Graphs(props: {
                   {fairness.upsets}
                   <span className="season-unit">경기</span>
                 </dd>
+                <Meter value={fairness.upsets / fairness.games} tone="share" small />
               </div>
             </dl>
-            <p className="hint">
-              경기 전 예상 승률(누적 MMR) 기준 · 판정한 {fairness.games}경기. 예상이 50%에 가까울수록 섞기가 공정했다는
-              뜻이에요.
-            </p>
+            <p className="hint">경기 전 예상 승률(누적 MMR) 기준. 예상이 50%에 가까울수록 섞기가 공정했다는 뜻이에요.</p>
           </>
         )}
       </section>
 
+      {/* ─ 보기 전환: 아래 보기 하나만 전체 폭으로. 고른 사람은 각 보기에서 강조만 한다 ─ */}
       <div className="segmented graph-views" role="group" aria-label="분석 보기">
         {(Object.keys(VIEW_LABEL) as View[]).map((v) => (
           <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
@@ -492,9 +665,272 @@ export function Graphs(props: {
           )}
         </section>
       )}
+
+      {/* ─ 보기: 순위 변동(MMR 순위, 누적 기준) ─ */}
+      {view === "race" && race && (
+        <section className="chart-card full" aria-label="순위 변동">
+          <h2>순위 변동</h2>
+          <p className="hint">
+            범위: {scopeLabel} · MMR 순위(누적 기준) · {race.unit === "day" ? "모임 날" : "경기"}마다 · 배치({placementGames}경기)
+            전에는 선이 없어요
+          </p>
+          {raceDrawable(race) ? (
+            <>
+              <RankRaceChart race={race} nameOf={nameOf} picked={playerId} />
+              <p className="hint">
+                마지막 상위 {RACE_COLORED}명은 색, 나머지는 회색{playerId !== "" ? ` · ${nameOf(playerId)} 님은 굵게` : ""}. 선을
+                누르면 그 사람만 진하게 봐요.
+              </p>
+            </>
+          ) : (
+            <p className="hint">
+              경기가 더 쌓이면 보여요(이 범위 {race.games}경기 · {RACE_MIN_GAMES}경기부터, 배치 마친 사람 2명부터).
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* ─ 보기: 라인 모양. 고른 사람이 없으면 모임 전체 경기 수 분포만(승률은 늘 50%라 뜻이 없다) ─ */}
+      {view === "shape" && (
+        <section className="chart-card full" aria-label="라인 모양">
+          <h2>라인 모양</h2>
+          {playerId === "" ? (
+            <p className="hint">
+              범위: {scopeLabel} · 모임 전체의 라인별 경기 수(가장 많은 라인이 끝). 모임 전체 승률은 늘 50%라 그리지 않아요.
+              위 &lsquo;플레이어&rsquo;에서 한 사람을 고르면 그 사람의 모양을 봐요.
+            </p>
+          ) : (
+            <>
+              <div className="shape-tools">
+                <div className="segmented" role="group" aria-label="라인 모양 값">
+                  <button type="button" aria-pressed={shapeMode === "rate"} onClick={() => setShapeMode("rate")}>
+                    승률
+                  </button>
+                  <button type="button" aria-pressed={shapeMode === "games"} onClick={() => setShapeMode("games")}>
+                    경기 수
+                  </button>
+                </div>
+                <label>
+                  비교할 사람
+                  <select aria-label="비교할 사람" value={compareId} onChange={(e) => setCompareId(e.target.value)}>
+                    <option value="">없음</option>
+                    {selectable
+                      .filter((p) => p.id !== playerId)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+              <p className="hint">
+                범위: {scopeLabel} ·{" "}
+                {shapeMode === "rate"
+                  ? `끝이 100%, 눈금은 33·67%. ${SMALL_SAMPLE}경기 미만 라인은 흐리게 안쪽으로 당겨요`
+                  : "사람마다 가장 많이 뛴 라인이 끝"}
+              </p>
+            </>
+          )}
+          <LineShapeChart entries={shapeEntries} mode={playerId === "" ? "games" : shapeMode} />
+        </section>
+      )}
+
+      {/* ─ 보기: 활동 달력. "오늘" 범위는 하루뿐이라 그리지 않는다 ─ */}
+      {view === "activity" && (
+        <section className="chart-card full" aria-label="활동">
+          <h2>활동</h2>
+          {scope.kind === "today" ? (
+            <p className="hint">오늘 범위에서는 달력을 그리지 않아요. 범위를 전체·시즌·연도로 바꿔 보세요.</p>
+          ) : calendar === null ? (
+            <p className="hint">이 범위의 기간을 찾을 수 없어요.</p>
+          ) : (
+            <>
+              <p className="hint">
+                범위: {scopeLabel}
+                {scope.kind === "all" ? ` · 최근 ${CALENDAR_WEEKS}주` : ""} · 칸 하나가 하루, 진할수록 경기가 많아요
+                {playerId !== "" ? ` · ${nameOf(playerId)} 님이 나온 경기만` : ""}
+              </p>
+              <ActivityCalendarView calendar={calendar} who={playerId !== "" ? nameOf(playerId) : "모임"} />
+              <CalendarLegend />
+              <p className="hint">
+                {calendar.activeDays === 0
+                  ? "이 기간에는 경기가 없어요."
+                  : `${playerId !== "" ? "참석한 날" : "모임 날"} ${calendar.activeDays}일 · 가장 바쁜 요일 ${
+                      calendar.busiestWeekday !== null ? WEEKDAY_LABEL[calendar.busiestWeekday] : "—"
+                    } · 하루 평균 ${calendar.avgPerDay.toFixed(1)}경기`}
+              </p>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }
+
+/** 프로필 묶음의 최근 흐름 칸 수. 개인 통계의 "최근 10경기"와 같게 둔다(바꾸면 두 화면이 다르게 보인다). */
+const PROFILE_RECENT = 10;
+
+/** 프로필 묶음의 승률 글: "63% · 5승 3패 (8경기)". */
+function recordLine(wins: number, games: number): string {
+  return games === 0 ? "이 범위에는 경기가 없어요" : `${percentText(wins, games)} · ${wins}승 ${games - wins}패 (${games}경기)`;
+}
+
+/**
+ * 고른 플레이어 묶음(2026-11-09). 요약 타일 자리에 그 사람 중심으로: 이름·칭호·버튼 → 승률 고리·MMR 순위·최근 흐름·
+ * 승률 추이·이변·참석 | 라인 모양. 계산은 개인 통계(Person.tsx)와 같은 공용 함수(resultsOf·personUpsets·attendance·
+ * computeRatings)를 쓴다. 승패·이변·참석·라인은 고른 범위, MMR·순위·칭호는 누적 기준이다(개인 통계와 같은 규칙).
+ * 입력의 ratings·expectations·attendance·matrix는 Graphs가 이미 계산한 것을 넘겨받는다(다시 계산하지 않게).
+ */
+function PlayerProfile(props: {
+  snapshot: Snapshot;
+  participantId: string;
+  scoped: Snapshot["matches"];
+  scopeLabel: string;
+  ratings: ReturnType<typeof computeRatings>;
+  expectations: ReturnType<typeof useExpectations>;
+  attendance: ReturnType<typeof attendanceReport>;
+  matrix: ReturnType<typeof playerLineMatrix>;
+  standing: ShownStanding | undefined;
+  cumulative: ReadonlyMap<string, { games: number }>;
+  nameOf: (id: string) => string;
+  openPerson: () => void;
+  clear: () => void;
+}) {
+  const { snapshot, participantId: id, scoped, standing } = props;
+  const name = snapshot.participants.find((p) => p.id === id)?.name ?? "";
+  const results = useMemo(() => resultsOf(scoped, id), [scoped, id]);
+  const wins = results.filter(Boolean).length;
+  const streaks = streakOf(results);
+  const recent10 = results.slice(-PROFILE_RECENT).reverse();
+  // 개인 통계와 같은 규칙: 처음 몇 경기는 누적 승률이 크게 흔들려 SMALL_SAMPLE경기째부터 그린다.
+  const trend = useMemo(() => cumulativeTrend(results).filter((p) => p.game >= SMALL_SAMPLE), [results]);
+  const rating = props.ratings.get(id);
+  const placementGames = placementGamesOf(snapshot.group.settings);
+  const rank = ratingRank(props.ratings, id, placementGames);
+  const upsets = personUpsets(props.expectations, scoped, id);
+  const attend = props.attendance.people.get(id);
+  const shape = lineShape(props.matrix.get(id) ?? {}, "rate");
+  const hasLines = shape.some((a) => a.games > 0);
+  const { ratings, expectations, attendance, cumulative, nameOf } = props;
+  const notes = useMemo(
+    () =>
+      playerCommentary({ scoped, participantId: id, nameOf, ratings, expectations, attendance, cumulative, placementGames }),
+    [scoped, id, nameOf, ratings, expectations, attendance, cumulative, placementGames],
+  );
+  return (
+    <section className="graph-profile" aria-label="고른 플레이어">
+      <div className="profile-head">
+        <h2>{name}</h2>
+        {standing?.title && <TitleBadge name={standing.title} grade={standing.grade} />}
+        <span className="profile-actions">
+          <button type="button" className="secondary" onClick={props.openPerson}>
+            자세히
+          </button>
+          <button type="button" className="secondary" onClick={props.clear}>
+            고르기 해제
+          </button>
+        </span>
+      </div>
+      {/* ─ 왼쪽(폰은 위): 승률 고리·MMR → 최근 흐름 → 승·패 띠 → 이변·참석 / 오른쪽(폰은 아래): 라인 모양 ─ */}
+      <div className="profile-grid">
+        <div className="profile-main">
+          <div className="ps-hero">
+            <RateRing wins={wins} games={results.length} />
+            <div className="ps-main">
+              <p className={`summary-line ${rateTier(wins, results.length)}`}>{recordLine(wins, results.length)}</p>
+              <p className="hint">범위: {props.scopeLabel}</p>
+              <p className="ps-rating">
+                {rating && standing?.done ? (
+                  <>
+                    <span className="rating-num">
+                      MMR {shownRating(rating.rating)}
+                      {rank ? ` · ${rank.rank}위 / ${rank.total}명` : ""}
+                    </span>{" "}
+                    <RatingTierBadge rating={rating.rating} placed />
+                  </>
+                ) : (
+                  <span className="rating-num">
+                    배치 진행 중 · {standing?.games ?? 0}/{placementGames}경기
+                  </span>
+                )}{" "}
+                <span className="hint">(누적 기준)</span>
+              </p>
+            </div>
+          </div>
+          {recent10.length > 0 && (
+            <div className="ps-form">
+              <span className="tile-label">
+                최근 {recent10.length}경기 (왼쪽이 최근)
+                {streaks.currentStreak !== 0 && (
+                  <>
+                    {" · "}
+                    <strong className={streaks.currentStreak > 0 ? "streak win" : "streak loss"}>
+                      {streakText(streaks.currentStreak)}
+                    </strong>
+                  </>
+                )}
+              </span>
+              <FormDots results={recent10} />
+            </div>
+          )}
+          {trend.length >= 2 ? (
+            <TrendLine points={trend} />
+          ) : results.length > 0 ? (
+            <p className="hint">승률 추이는 {SMALL_SAMPLE + 1}경기부터 그려요.</p>
+          ) : null}
+          {(upsets.upsetWins > 0 || upsets.underdogGames > 0) && (
+            <p className="hint" title={`이변 승: 경기 전 예상이 ${Math.round(UPSET_THRESHOLD * 100)}% 미만이던 팀으로 이긴 경기`}>
+              이변 승 {upsets.upsetWins}회
+              {upsets.underdogGames > 0 &&
+                ` · 약팀일 때 승률 ${percentText(upsets.underdogWins, upsets.underdogGames)} (${upsets.underdogGames}경기)`}
+            </p>
+          )}
+          {attend && (
+            <p className="hint">
+              참석 {attend.days}일 · 출석률 {percentText(attend.days, attend.eligibleDays)} · 연속 {attend.currentStreak}일
+            </p>
+          )}
+        </div>
+        <div className="profile-shape">
+          <span className="tile-label">라인 모양 (승률)</span>
+          {hasLines ? (
+            <LineShapeChart entries={[{ key: id, label: name, axes: shape, slot: 1 }]} mode="rate" small />
+          ) : (
+            <p className="hint">포지션 기록이 없어요.</p>
+          )}
+        </div>
+      </div>
+      <CommentaryCard notes={notes} />
+    </section>
+  );
+}
+
+/** 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록. 문장 앞 점 색은 tone(좋음 초록 · 주의 주황 · 보통 회색). */
+function CommentaryCard(props: { notes: Commentary }) {
+  const { summary, remarks } = props.notes;
+  return (
+    <section className="commentary" aria-label="분석 코멘트">
+      <h2>분석 코멘트</h2>
+      {remarks.length === 0 ? (
+        <p className="commentary-empty">경기가 쌓이면 코멘트가 생겨요.</p>
+      ) : (
+        <>
+          {summary && <p className="commentary-summary">{summary}</p>}
+          <ul className="commentary-remarks">
+            {remarks.map((r) => (
+              <li key={r.text} className={`remark-${r.tone}`} title={r.basis}>
+                {r.text}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="hint commentary-note">기록 수치를 규칙으로 읽어 쓴 평가예요.</p>
+    </section>
+  );
+}
+
 
 /** 승률 색 범례: 한 줄 띠. 낮은 쪽(30%↓)에서 높은 쪽(70%↑)까지 열 칸, 그 뒤 5경기 미만. 막대 그래프와 표가 같이 쓴다. */
 function HeatLegend() {

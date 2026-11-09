@@ -1,11 +1,11 @@
-import { computeRatings, expectedScore } from "./rating";
-import { isCounted, PLACEMENT_GAMES } from "./stats";
+import { computeRatings, DEFAULT_RATING_OPTIONS, expectedScore, type RatingOptions } from "./rating";
+import { isCounted } from "./stats";
 import type { MatchView, Side, Team } from "./types";
 
 /**
  * 이변 지수와 편성 공정성(2026-11-09). 저장하지 않고 스냅숏의 경기로 매번 계산한다(서버·스키마와 무관).
  *
- * - 경기 전 예상 승률: 그 경기 직전 각 팀원의 MMR(rating.ts의 history.before, 첫 경기면 시작값 1000) 평균으로
+ * - 경기 전 예상 승률: 그 경기 직전 각 팀원의 MMR(rating.ts의 history.before, 첫 경기면 시작값) 평균으로
  *   팀 A가 이길 확률을 Elo 식(expectedScore)으로 구한다. MMR 계산과 같은 순서·같은 경기(유효 확정 경기)를 쓴다.
  * - MMR은 범위와 무관한 모임 전체 누적이므로 예상 승률도 누적 기준이다. 범위(시즌·연도·오늘)는 집계할 경기만 고른다.
  */
@@ -18,8 +18,16 @@ import type { MatchView, Side, Team } from "./types";
 export const UPSET_THRESHOLD = 0.4;
 /** 균형 경기: 예상 승률이 50% ± 이 값 안(45~55%, 양 끝 포함). */
 export const BALANCED_MARGIN = 0.05;
-/** 편성 공정성은 판정 가능한 경기가 이만큼 이상일 때만 보여 준다(배치 판수와 같게). */
+/** 편성 공정성은 판정 가능한 경기가 이만큼 이상일 때만 보여 준다(기본 배치 판수와 같은 값, 배치 설정과는 무관). */
 export const FAIRNESS_MIN_GAMES = 10;
+/**
+ * "많이 치우친" 경기: |예상 − 50%|가 이 값을 넘으면(65% 초과 또는 35% 미만). BALANCED_MARGIN~이 값 사이는 "조금 치우침".
+ * 올리면 "많이 치우침" 띠가 짧아지고 "조금 치우침"이 길어진다. 이변 기준(0.4)과는 별개다.
+ */
+export const LOPSIDED_MARGIN = 0.15;
+/** 균형 경기 비율이 이 이상이면 "공정했어요", FAIRNESS_OK 이상이면 "대체로 균형", 그 아래는 "치우친 경기가 많아요". */
+export const FAIRNESS_GOOD = 0.6;
+export const FAIRNESS_OK = 0.4;
 
 export interface MatchExpectation {
   matchId: string;
@@ -30,7 +38,7 @@ export interface MatchExpectation {
   /** 예상 우세 팀. 정확히 50%면 null. */
   favoriteTeam: Team | null;
   /**
-   * 열 명 중 배치(누적 10경기)를 마친 사람이 한 명이라도 있으면 true.
+   * 열 명 중 배치(누적 경기가 배치 경기 수 이상)를 마친 사람이 한 명이라도 있으면 true.
    * 모두 배치 중이면 MMR이 아직 시작값 근처라 예상이 의미가 적어 이변·공정성 판정에서 뺀다(예상 값은 그대로 둔다).
    */
   reliable: boolean;
@@ -41,19 +49,23 @@ export interface MatchExpectation {
 }
 
 /** 유효 확정 경기마다의 경기 전 예상(경기 ID → 예상). 한쪽 팀이 빈 경기는 MMR 계산처럼 건너뛴다. */
-export function matchExpectations(matches: readonly MatchView[]): Map<string, MatchExpectation> {
-  // 경기·사람별 그 경기 직전 MMR과 그 전 경기 수(history의 순번).
+export function matchExpectations(
+  matches: readonly MatchView[],
+  options: Partial<RatingOptions> = {},
+): Map<string, MatchExpectation> {
+  const { placementGames } = { ...DEFAULT_RATING_OPTIONS, ...options };
+  // history의 순번이 곧 그 경기 전에 치른 경기 수다.
   const before = new Map<string, { rating: number; games: number }>();
-  for (const person of computeRatings(matches).values()) {
+  for (const person of computeRatings(matches, options).values()) {
     person.history.forEach((point, games) => {
       before.set(`${point.matchId}|${person.participantId}`, { rating: point.before, games });
     });
   }
-  const out = new Map<string, MatchExpectation>();
+  const expectations = new Map<string, MatchExpectation>();
   for (const match of matches) {
     if (!isCounted(match)) continue;
-    const a: number[] = [];
-    const b: number[] = [];
+    const ratingsA: number[] = [];
+    const ratingsB: number[] = [];
     let reliable = false;
     let missing = false;
     for (const r of match.roster) {
@@ -62,15 +74,15 @@ export function matchExpectations(matches: readonly MatchView[]): Map<string, Ma
         missing = true;
         break;
       }
-      (r.team === "A" ? a : b).push(point.rating);
-      if (point.games >= PLACEMENT_GAMES) reliable = true;
+      (r.team === "A" ? ratingsA : ratingsB).push(point.rating);
+      if (point.games >= placementGames) reliable = true;
     }
-    if (missing || a.length === 0 || b.length === 0) continue;
-    const avg = (list: number[]) => list.reduce((s, v) => s + v, 0) / list.length;
-    const expectedA = expectedScore(avg(a), avg(b));
+    if (missing || ratingsA.length === 0 || ratingsB.length === 0) continue;
+    const avg = (ratings: number[]) => ratings.reduce((s, v) => s + v, 0) / ratings.length;
+    const expectedA = expectedScore(avg(ratingsA), avg(ratingsB));
     const winnerTeam = match.winnerTeam!;
     const winnerExpected = winnerTeam === "A" ? expectedA : 1 - expectedA;
-    out.set(match.id, {
+    expectations.set(match.id, {
       matchId: match.id,
       expectedA,
       teamASide: match.teamASide,
@@ -81,10 +93,10 @@ export function matchExpectations(matches: readonly MatchView[]): Map<string, Ma
       surprise: 1 - winnerExpected,
     });
   }
-  return out;
+  return expectations;
 }
 
-/** 이변 판정: 판정 가능한 경기에서 이긴 팀의 경기 전 예상 승률이 UPSET_THRESHOLD 미만(경계값 0.4는 이변이 아니다). */
+/** 경계값 0.4 자체는 이변이 아니다(미만만). */
 export function isUpset(winnerExpected: number, reliable: boolean): boolean {
   return reliable && winnerExpected < UPSET_THRESHOLD;
 }
@@ -110,23 +122,23 @@ export function personUpsets(
   scoped: readonly MatchView[],
   participantId: string,
 ): PersonUpsets {
-  const out: PersonUpsets = { upsetWins: 0, upsetLosses: 0, underdogGames: 0, underdogWins: 0 };
+  const tally: PersonUpsets = { upsetWins: 0, upsetLosses: 0, underdogGames: 0, underdogWins: 0 };
   for (const match of scoped) {
     const e = expectations.get(match.id);
-    if (!e || !e.reliable) continue;
+    if (!e?.reliable) continue;
     const me = match.roster.find((r) => r.participantId === participantId);
     if (!me) continue;
     const won = me.team === e.winnerTeam;
     if (e.upset) {
-      if (won) out.upsetWins += 1;
-      else out.upsetLosses += 1;
+      if (won) tally.upsetWins += 1;
+      else tally.upsetLosses += 1;
     }
     if (e.favoriteTeam !== null && e.favoriteTeam !== me.team) {
-      out.underdogGames += 1;
-      if (won) out.underdogWins += 1;
+      tally.underdogGames += 1;
+      if (won) tally.underdogWins += 1;
     }
   }
-  return out;
+  return tally;
 }
 
 /** 범위 안 사람별 이변 승 횟수(0회인 사람은 없다). 시즌 시상이 쓴다. */
@@ -134,15 +146,15 @@ export function upsetWinsByPerson(
   expectations: ReadonlyMap<string, MatchExpectation>,
   scoped: readonly MatchView[],
 ): Map<string, number> {
-  const out = new Map<string, number>();
+  const wins = new Map<string, number>();
   for (const match of scoped) {
     const e = expectations.get(match.id);
     if (!e?.upset) continue;
     for (const r of match.roster) {
-      if (r.team === e.winnerTeam) out.set(r.participantId, (out.get(r.participantId) ?? 0) + 1);
+      if (r.team === e.winnerTeam) wins.set(r.participantId, (wins.get(r.participantId) ?? 0) + 1);
     }
   }
-  return out;
+  return wins;
 }
 
 export interface FairnessReport {
@@ -150,13 +162,16 @@ export interface FairnessReport {
   games: number;
   /** 예상 승률이 45~55% 안인 경기 수. */
   balanced: number;
+  /** 조금 치우친 경기 수(45~55% 밖이지만 35~65% 안). balanced + slight + lopsided = games. */
+  slight: number;
+  /** 많이 치우친 경기 수(65% 초과 또는 35% 미만). */
+  lopsided: number;
   /** |예상 승률 − 50%|의 평균(0~0.5). 경기가 없으면 0. */
   avgDeviation: number;
   /** 우세 팀이 있던(정확히 50%가 아닌) 경기 수. */
   favoriteGames: number;
   /** 그중 우세 팀이 실제로 이긴 경기 수(예측 적중). */
   favoriteWins: number;
-  /** 이변 경기 수. */
   upsets: number;
 }
 
@@ -165,22 +180,42 @@ export function fairnessReport(
   expectations: ReadonlyMap<string, MatchExpectation>,
   scoped: readonly MatchView[],
 ): FairnessReport {
-  const out: FairnessReport = { games: 0, balanced: 0, avgDeviation: 0, favoriteGames: 0, favoriteWins: 0, upsets: 0 };
+  const report: FairnessReport = {
+    games: 0,
+    balanced: 0,
+    slight: 0,
+    lopsided: 0,
+    avgDeviation: 0,
+    favoriteGames: 0,
+    favoriteWins: 0,
+    upsets: 0,
+  };
   let deviation = 0;
   for (const match of scoped) {
     const e = expectations.get(match.id);
-    if (!e || !e.reliable) continue;
-    out.games += 1;
+    if (!e?.reliable) continue;
+    report.games += 1;
     const d = Math.abs(e.expectedA - 0.5);
     deviation += d;
     // 소수 오차(0.55 − 0.5 = 0.05000…1)로 경계가 빠지지 않게 아주 작은 여유를 둔다.
-    if (d <= BALANCED_MARGIN + 1e-9) out.balanced += 1;
+    if (d <= BALANCED_MARGIN + 1e-9) report.balanced += 1;
+    else if (d <= LOPSIDED_MARGIN + 1e-9) report.slight += 1;
+    else report.lopsided += 1;
     if (e.favoriteTeam !== null) {
-      out.favoriteGames += 1;
-      if (e.favoriteTeam === e.winnerTeam) out.favoriteWins += 1;
+      report.favoriteGames += 1;
+      if (e.favoriteTeam === e.winnerTeam) report.favoriteWins += 1;
     }
-    if (e.upset) out.upsets += 1;
+    if (e.upset) report.upsets += 1;
   }
-  out.avgDeviation = out.games > 0 ? deviation / out.games : 0;
-  return out;
+  report.avgDeviation = report.games > 0 ? deviation / report.games : 0;
+  return report;
+}
+
+export type FairnessVerdict = "good" | "ok" | "poor";
+
+/** 균형 경기 비율로 한 줄 판정. 화면 머리글 문구와 색이 이 값을 따른다. 경기가 없으면 "ok". */
+export function fairnessVerdict(report: FairnessReport): FairnessVerdict {
+  if (report.games === 0) return "ok";
+  const share = report.balanced / report.games;
+  return share >= FAIRNESS_GOOD ? "good" : share >= FAIRNESS_OK ? "ok" : "poor";
 }

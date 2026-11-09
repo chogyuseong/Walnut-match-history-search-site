@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { newestFirst } from "../../shared/insights";
 import { parseDateQuery, textContains } from "../../shared/search";
-import { localDate, matchesInScope, personRecords, searchByName } from "../../shared/stats";
+import { localDate, matchesInScope, personRecords, searchByName, placementGamesOf } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rateText, rateTier, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
@@ -54,6 +54,7 @@ export function Search(props: {
   const inputRef = useRef<HTMLInputElement>(null);
   const records = useMemo(() => personRecords(snapshot.matches), [snapshot]);
   const standing = useMemo(() => standingsOf(snapshot), [snapshot]);
+  const placementGames = placementGamesOf(snapshot.group.settings);
   const nameOfId = useMemo(() => nameMap(snapshot), [snapshot]);
   const expectation = useExpectations(snapshot);
   // 확정된 경기가 있는 사람과, 아직 경기가 없는 활성 참가자를 모두 찾을 수 있다.
@@ -261,7 +262,7 @@ export function Search(props: {
                     )}
                     <br />
                     <span className="hint">
-                      <StandingNote standing={standing.get(r.id)} />
+                      <StandingNote standing={standing.get(r.id)} placementGames={placementGames} />
                     </span>
                   </span>
                   {r.games > 0 && <RateBar wins={r.wins} games={r.games} small />}

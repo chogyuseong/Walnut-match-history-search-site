@@ -243,7 +243,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await noHorizontalOverflow(page);
 });
 
-test("준비 화면 추가 기능(390px): 대기자 교체 · 편성 균형 · 라인 맞대결 · 되돌리기 여러 번 · 편성 이미지", async ({ page }) => {
+test("준비 화면 추가 기능(390px): 대기자 교체 · 예상 승률 판(티어 점수·라인 우위) · 되돌리기 여러 번 · 편성 이미지", async ({ page }) => {
   test.setTimeout(120000);
   // 11명을 고르면 앞 10명으로 팀을 짜고 11번째(준비11)는 대기자가 된다.
   await openPrep(page, 11);
@@ -255,11 +255,18 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 편성 균형 · �
   expect(await inTeams()).not.toContain("준비11");
   await noHorizontalOverflow(page);
 
-  // 편성 균형: 접힌 채로 시작하고, 열면 두 팀 티어 점수와 티어별 인원이 보인다.
+  // 예상 승률 판(2026-11-09): 기본 펼침. 지난 경기가 없으므로 모두 시작 MMR이라 50:50이고 신뢰 불가 문구가 나온다.
+  const forecast = page.getByRole("region", { name: "예상 승률" });
+  await expect(forecast.getByRole("heading", { name: "예상 승률" })).toBeVisible();
+  await expect(forecast.getByRole("img", { name: "블루팀 50% : 레드팀 50%" })).toBeVisible();
+  await expect(forecast).toContainText("아직 MMR이 쌓이지 않아 예상이 정확하지 않아요");
+  await expect(forecast).toContainText("팀 평균 MMR 1200 : 1200 · 배치 중 10명");
+
+  // 티어 점수: 판 맨 아래에 접힌 채로 있고, 열면 두 팀 티어 점수와 티어별 인원이 보인다(운영자만).
   const balanceList = page.getByRole("list", { name: "티어별 인원" });
-  await expect(page.getByText("편성 균형", { exact: true })).toBeVisible();
+  await expect(forecast.getByText("티어 점수 보기", { exact: true })).toBeVisible();
   await expect(balanceList).toBeHidden();
-  await page.getByText("편성 균형", { exact: true }).click();
+  await forecast.getByText("티어 점수 보기", { exact: true }).click();
   await expect(balanceList).toBeVisible();
   await expect(balanceList.getByRole("listitem")).toHaveCount(6);
   // 아무도 티어를 정하지 않았으므로 두 팀 모두 0점이고 균형이다.
@@ -267,22 +274,21 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 편성 균형 · �
   await expect(balanceList.getByRole("listitem").last()).toContainText("블루 5 · 레드 5");
   await noHorizontalOverflow(page);
 
-  // 라인 맞대결: 다섯 줄, 지난 경기가 없으므로 모두 "첫 맞대결". 390px에서는 전적을 다음 줄로 내려
-  // 이름이 잘리지 않는다(2026-11-08 화면 점검). 그래서 줄 높이는 두 줄(이름 한 줄 + 전적 한 줄)까지.
-  const lanes = page.getByRole("list", { name: "라인 맞대결 목록" }).getByRole("listitem");
+  // 라인별 우위: 다섯 줄, 모두 같은 MMR이라 "비슷", 지난 경기가 없으므로 "첫 맞대결". 이름은 잘리지 않는다.
+  const lanes = forecast.getByRole("list", { name: "라인별 우위" }).getByRole("listitem");
   await expect(lanes).toHaveCount(5);
   for (let i = 0; i < 5; i++) {
     await expect(lanes.nth(i)).toContainText("첫 맞대결");
-    await expect(lanes.nth(i)).toContainText(" vs ");
-    const box = (await lanes.nth(i).boundingBox())!;
-    expect(box.height, `맞대결 ${i + 1}번째 줄 두 줄 이내`).toBeLessThan(84);
-    const name = lanes.nth(i).locator(".name");
-    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth), `맞대결 ${i + 1}번째 이름 잘림 없음`).toBe(true);
+    await expect(lanes.nth(i).locator(".fc-edge")).toHaveText("비슷");
+    for (const name of await lanes.nth(i).locator(".fc-name").all()) {
+      expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth), `라인 ${i + 1}번째 이름 잘림 없음`).toBe(true);
+    }
   }
-  // 왼쪽은 블루팀 같은 라인 사람이다.
+  // 왼쪽(첫 사람 칸)은 블루팀 같은 라인 사람이다.
   const blueTop = (await readTeam(page, "A"))[0]!.name;
   const redTop = (await readTeam(page, "B"))[0]!.name;
-  await expect(lanes.first()).toContainText(`${blueTop} vs ${redTop}`);
+  await expect(lanes.first().locator(".fc-side-A")).toContainText(blueTop);
+  await expect(lanes.first().locator(".fc-side-B")).toContainText(redTop);
 
   // 되돌리기 여러 번: 처음 만든 편성에는 이력이 없고, 섞을 때마다 단계 수가 늘어난다.
   const tools = page.getByRole("region", { name: "섞기" });

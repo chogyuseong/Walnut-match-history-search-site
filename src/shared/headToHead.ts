@@ -77,3 +77,64 @@ export function laneDuels(matches: readonly MatchView[], a: string, b: string): 
   }
   return POSITIONS.flatMap((p) => byLine.get(p) ?? []);
 }
+
+export interface LaneRival {
+  position: Position;
+  opponentId: string;
+  /** 이 라인에서 상대 팀으로 마주 선 경기 수와 me 기준 승·패. */
+  games: number;
+  wins: number;
+  losses: number;
+}
+
+/**
+ * 맞라인 상대: me와 상대 팀이면서 같은 포지션이었던 사람을 라인별로 센다(laneDuels를 모든 상대로 펼친 것).
+ * 한 사람과 여러 라인에서 맞붙었으면 라인마다 따로 담고, me의 포지션 기록이 없는 경기는 뺀다.
+ * 라인 순서(탑~서폿) → 경기 수 많은 순.
+ */
+export function laneRivals(matches: readonly MatchView[], me: string): LaneRival[] {
+  const byKey = new Map<string, LaneRival>();
+  for (const match of matches) {
+    if (!isCounted(match)) continue;
+    const mine = match.roster.find((r) => r.participantId === me);
+    if (!mine || mine.position === null) continue;
+    const won = mine.team === match.winnerTeam;
+    for (const r of match.roster) {
+      if (r.team === mine.team || r.position !== mine.position) continue;
+      const key = `${mine.position}:${r.participantId}`;
+      const rival = byKey.get(key) ?? { position: mine.position, opponentId: r.participantId, games: 0, wins: 0, losses: 0 };
+      rival.games += 1;
+      if (won) rival.wins += 1;
+      else rival.losses += 1;
+      byKey.set(key, rival);
+    }
+  }
+  const lineOrder = (p: Position) => POSITIONS.indexOf(p);
+  return [...byKey.values()].sort((a, b) => lineOrder(a.position) - lineOrder(b.position) || b.games - a.games);
+}
+
+/** 라인별 가장 어려운·쉬운 맞라인 상대로 고를 최소 경기 수. 이보다 적으면 한두 판 운으로 순위가 갈린다. */
+export const LANE_RIVAL_MIN = 3;
+
+export interface LaneRivalPick {
+  position: Position;
+  /** min경기 이상 상대 중 승률 최저(같으면 경기 수 많은 쪽). 후보가 없으면 null. */
+  hardest: LaneRival | null;
+  /** min경기 이상 상대 중 승률 최고(같으면 경기 수 많은 쪽). */
+  easiest: LaneRival | null;
+}
+
+/** 맞라인 기록이 있는 라인마다(탑~서폿) 가장 어려운·쉬운 상대. 후보가 하나면 둘 다 같은 사람이다. */
+export function laneRivalSummary(rivals: readonly LaneRival[], min = LANE_RIVAL_MIN): LaneRivalPick[] {
+  return POSITIONS.flatMap((position) => {
+    const inLine = rivals.filter((r) => r.position === position);
+    if (inLine.length === 0) return [];
+    const eligible = inLine.filter((r) => r.games >= min);
+    const rate = (r: LaneRival) => r.wins / r.games;
+    // "어려운" 상대는 내가 지는 쪽(50% 미만)에서만, "쉬운" 상대는 이기는 쪽(50% 이상)에서만 고른다.
+    // 그냥 최저·최고로 고르면 67% 이기는 상대가 "가장 어려운"으로 나온다.
+    const hardest = [...eligible].filter((r) => rate(r) < 0.5).sort((a, b) => rate(a) - rate(b) || b.games - a.games)[0] ?? null;
+    const easiest = [...eligible].filter((r) => rate(r) >= 0.5).sort((a, b) => rate(b) - rate(a) || b.games - a.games)[0] ?? null;
+    return [{ position, hardest, easiest }];
+  });
+}

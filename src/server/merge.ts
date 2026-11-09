@@ -24,6 +24,7 @@
  *   먼저다(undoLinkPlan, docs/개선-합치기-2026-11-08.md).
  */
 import { mergeStandings, overlappingMatches, type MergeStandings } from "../shared/merge";
+import { placementGamesOf } from "../shared/stats";
 import { titleBandsOf } from "../shared/titles";
 import type { MatchState, MatchView } from "../shared/types";
 import type { Env } from "./env";
@@ -236,7 +237,13 @@ async function loadContext(
     inProgress,
     sourceEvents,
     rotation,
-    standings: mergeStandings(matches, sourceId, targetId, titleBandsOf(snapshot.group.settings)),
+    standings: mergeStandings(
+      matches,
+      sourceId,
+      targetId,
+      titleBandsOf(snapshot.group.settings),
+      placementGamesOf(snapshot.group.settings),
+    ),
     problems,
   };
 }

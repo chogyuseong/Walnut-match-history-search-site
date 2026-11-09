@@ -1,6 +1,6 @@
 import { normalizePriority, type Priority } from "./priority";
 import { priorityWeightOf } from "./recommend";
-import { isCounted, personRecords, PLACEMENT_GAMES, SMALL_SAMPLE } from "./stats";
+import { isCounted, personRecords, PLACEMENT_GAMES_DEFAULT, SMALL_SAMPLE } from "./stats";
 import { MAX_SKILL_GROUP, type GroupWeights, type MatchView, type ParticipantView } from "./types";
 
 /**
@@ -10,7 +10,7 @@ import { MAX_SKILL_GROUP, type GroupWeights, type MatchView, type ParticipantVie
 
 /**
  * 승률 보정값 k: (승 + k/2) / (경기 + k). 표본이 적은 사람이 극단(0%·100%)으로 가지 않게 50% 쪽으로 당긴다.
- * 배치 기준(10경기)과 같게 두어, 막 배치를 마친 사람은 실제 승률과 50%의 딱 중간이 되고
+ * 기본 배치 경기 수(10)와 같게 두어, 막 배치를 마친 사람은 실제 승률과 50%의 딱 중간이 되고
  * 경기가 쌓일수록 실제 승률에 가까워진다.
  */
 export const SUGGEST_PRIOR_GAMES = 10;
@@ -25,11 +25,11 @@ export interface SuggestRow {
   wins: number;
   /** 지금 티어. */
   current: Priority;
-  /** 제안 티어. 기록이 적거나(10경기 미만) 대상이 5명 미만이면 null. */
+  /** 제안 티어. 기록이 적거나(배치 경기 수 미만) 대상이 5명 미만이면 null. */
   suggested: Priority;
   /** 보정한 승률(0~1). */
   score: number;
-  /** few-games: 배치 전(10경기 미만)이라 제안 없음. */
+  /** few-games: 배치 전(배치 경기 수 미만)이라 제안 없음. */
   status: "ok" | "few-games";
 }
 
@@ -52,7 +52,7 @@ function byText(a: string, b: string): number {
 }
 
 /**
- * 티어 제안. 대상: 활성(보관·합쳐짐 제외)이고 모임 전체 누적 확정 경기가 10경기 이상인 사람.
+ * 티어 제안. 대상: 활성(보관·합쳐짐 제외)이고 모임 전체 누적 확정 경기가 배치 경기 수(모임 설정, 기본 10) 이상인 사람.
  * 보정 승률 높은 순으로 줄 세워 5등분한다: i번째(0부터) 사람은 floor(i × 5 / n) + 1티어(2026-11-06 전에는 4등분).
  * 정렬 순서(동점 처리): 보정 승률 → 경기 수 많은 순 → 참가자 ID 순. 보정 승률이 똑같은 사람들은
  * 그 무리의 첫 사람 티어를 함께 받는다(같은 성적이면 같은 티어). 대상이 5명 미만이면 아무도 제안하지 않는다.
@@ -61,6 +61,7 @@ function byText(a: string, b: string): number {
 export function suggestPriorities(
   participants: readonly ParticipantView[],
   matches: readonly MatchView[],
+  placementGames: number = PLACEMENT_GAMES_DEFAULT,
 ): SuggestResult {
   const records = personRecords(matches);
   const active = participants.filter((p) => p.status === "active" && !p.mergedInto);
@@ -76,7 +77,7 @@ export function suggestPriorities(
       current: normalizePriority(p.skillGroup),
       suggested: null,
       score: adjustedRate(wins, games),
-      status: games >= PLACEMENT_GAMES ? "ok" : "few-games",
+      status: games >= placementGames ? "ok" : "few-games",
     };
   });
   const eligible = rows

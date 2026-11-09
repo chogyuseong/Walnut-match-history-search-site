@@ -143,8 +143,11 @@ export function rankingGroup(
   return p.done ? 1 : 2;
 }
 
-/** MMR 표가 없는 사람의 정렬값(rating.ts RATING_START와 같다. rating.ts가 이 파일을 쓰므로 순환 import를 피해 따로 둔다). */
-const RATING_START_FOR_SORT = 1000;
+/**
+ * MMR 표가 없는 사람(한쪽 팀이 빈 경기만 있는 사람 등)의 정렬값. rating.ts RATING_START 기본값과 같다.
+ * rating.ts가 이 파일을 쓰므로 순환 import를 피해 따로 둔다. 시작값 설정을 바꾼 모임에서도 이 값이라 그런 사람의 자리만 조금 다를 수 있다.
+ */
+const RATING_START_FOR_SORT = 1200;
 
 /**
  * 랭킹 정렬. 누적 50경기 이상 → 배치 완료 → 배치 진행 중 순으로 묶고(모두 모임 전체 누적 기준),
@@ -152,7 +155,7 @@ const RATING_START_FOR_SORT = 1000;
  * - 승률: 승률 → 경기 수 → 이름 → ID (묶음 안에서는 stats.sortRanking과 같다)
  * - 경기 수: 경기 수 → 승률 → 이름 → ID
  * - 승수: 승수 → 승률 → 경기 수 → 이름 → ID
- * - MMR 순: MMR(누적, ratings) → 승률 → 경기 수 → 이름 → ID. ratings에 없는 사람은 시작값 1000으로 본다.
+ * - MMR 순: MMR(누적, ratings) → 승률 → 경기 수 → 이름 → ID. ratings에 없는 사람은 기본 시작값(1200)으로 본다.
  */
 export function sortRankingBy(
   records: readonly PersonRecord[],

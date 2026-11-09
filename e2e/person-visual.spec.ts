@@ -201,6 +201,15 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   await expect(sides.locator(".meter-fill.tone-red")).toHaveCount(1);
   await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("경기)");
 
+  // 맞라인 상대: 선수02는 정글에서 선수07과만 60경기 맞붙었다(20승 40패). 후보가 한 명이고 33%라 "가장 어려운" 칩만.
+  const laneRivalsRegion = page.getByRole("region", { name: "맞라인 상대" });
+  await expect(laneRivalsRegion.locator(".lane-chip.hard")).toHaveText("가장 어려운 선수07 33% (60경기)");
+  await expect(laneRivalsRegion.locator(".lane-chip.easy")).toHaveCount(0);
+  await laneRivalsRegion.getByText("전체 보기").click();
+  const rivalRow = laneRivalsRegion.getByRole("button", { name: /선수07/ });
+  await expect(rivalRow).toContainText("20승 40패 (60경기)");
+  await expect(rivalRow.locator(".meter")).toBeVisible();
+
   // 비교 지표: 선수02는 누적 60경기. 누적 10경기인 선수11·12는 같은 팀·상대 팀 목록과 동료·상대에서 빠진다.
   const synergy = page.getByRole("region", { name: "시너지" });
   await expect(synergy.getByRole("listitem").first().locator(".meter")).toBeVisible();

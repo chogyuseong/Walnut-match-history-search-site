@@ -19,11 +19,10 @@ import {
   type RankingSort,
   type WinnerSideFilter,
 } from "../../shared/insights";
-import { computeRatings, ratingValues, shownRating } from "../../shared/rating";
+import { computeRatings, ratingValues, shownRating, ratingOptionsOf, RATING_TIER_HELP } from "../../shared/rating";
 import {
   fractionPercent,
   matchesInScope,
-  PLACEMENT_GAMES,
   scopeLabel as scopeLabelOf,
   type Scope,
 } from "../../shared/stats";
@@ -59,7 +58,7 @@ import { expectedOf, UPSET_THRESHOLD, type MatchExpectation } from "../../shared
 import { MatchMemoSection } from "../memoField";
 import { MatchSeriesSection, SeriesListSection, useSeriesBadges } from "../seriesPanel";
 import { drawMatchImage, fileDate, ShareImageDialog } from "../shareImage";
-import { BackLink, Dialog, ErrorNote, FormDots, Help, KpiStrip, MatchTeams, ScopePicker, StandingNote } from "../ui";
+import { BackLink, Dialog, ErrorNote, FormDots, Help, KpiStrip, MatchTeams, RatingTierBadge, ScopePicker, StandingNote } from "../ui";
 import type { AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
@@ -243,6 +242,7 @@ export function Records(props: {
   openMatch: (id: string) => void;
   openPerson: (id: string) => void;
   openGraphs: () => void;
+  openRanking: () => void;
   onResult?: (match: MatchView) => void;
   /** 운영자에게만 있다: 지난 경기 한 건 입력 화면으로 간다. */
   openBackfill?: () => void;
@@ -295,7 +295,12 @@ export function Records(props: {
   const forms = useMemo(() => personForms(scoped, line), [scoped, line]);
   const noPosition = useMemo(() => (line ? matchesWithoutPositions(scoped) : 0), [scoped, line]);
   // MMR도 범위·라인과 무관하게 모임 전체 누적 확정 경기로 계산한다(rating.ts).
-  const ratings = useMemo(() => ratingValues(computeRatings(snapshot.matches)), [snapshot]);
+  const ratingOptions = ratingOptionsOf(snapshot.group.settings);
+  const { placementGames } = ratingOptions;
+  const ratings = useMemo(
+    () => ratingValues(computeRatings(snapshot.matches, ratingOptionsOf(snapshot.group.settings))),
+    [snapshot],
+  );
   const ranking = useMemo(
     () => rankAndSearch(lineRecords, placement, nameOf, sort, query, ratings),
     [lineRecords, placement, nameOf, sort, query, ratings],
@@ -458,6 +463,9 @@ export function Records(props: {
               ))}
             </select>
           </label>
+          <button type="button" className="link" onClick={props.openRanking}>
+            MMR 랭킹 전체 보기 →
+          </button>
         </div>
         <input
           type="search"
@@ -469,8 +477,8 @@ export function Records(props: {
         <p className="hint rank-rule">누적 {RANKING_VETERAN_GAMES}경기 이상인 사람을 먼저 보여줘요.</p>
         {sort === "rating" && (
           <p className="hint rating-rule">
-            MMR은 상대 팀의 평균 MMR을 감안해 승패마다 오르내리는 점수예요(시작 1000). 확정 경기만 세고 범위와
-            무관하게 누적입니다.
+            MMR은 상대 팀의 평균 MMR을 감안해 승패마다 오르내리는 점수예요(시작 {ratingOptions.start}). 확정 경기만 세고 범위와
+            무관하게 누적입니다. 3연승·3연패부터 변화 폭이 커져요(최대 1.5배). {RATING_TIER_HELP}
           </p>
         )}
         {scope.kind !== "all" && query.trim() !== "" && records.length === 0 && (
@@ -531,7 +539,7 @@ export function Records(props: {
                         {r.games}경기)
                         <br />
                         <span className="hint">
-                          <StandingNote standing={placement.get(r.participantId)} />
+                          <StandingNote standing={placement.get(r.participantId)} placementGames={placementGames} />
                         </span>
                         {ratings.has(r.participantId) && (
                           // 누적 MMR(작은 글자). 배치 진행 중이면 흐리게 둔다(아직 많이 흔들리는 값).
@@ -542,6 +550,15 @@ export function Records(props: {
                           >
                             {" · "}<span className="nowrap">MMR {shownRating(ratings.get(r.participantId)!)}</span>
                           </span>
+                        )}
+                        {ratings.has(r.participantId) && (
+                          <>
+                            {" "}
+                            <RatingTierBadge
+                              rating={ratings.get(r.participantId)!}
+                              placed={placement.get(r.participantId)?.done === true}
+                            />
+                          </>
                         )}
                       </span>
                     </button>
@@ -566,7 +583,7 @@ export function Records(props: {
           </p>
         )}
         <Help label="순서와 표시 규칙">
-          순서: 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료(누적 {PLACEMENT_GAMES}경기 이상) → 배치 진행 중, 묶음 안에서는 {RANKING_SORT_LABEL[sort]}
+          순서: 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료(누적 {placementGames}경기 이상) → 배치 진행 중, 묶음 안에서는 {RANKING_SORT_LABEL[sort]}
           {sort === "rate" ? " → 경기 수 → 이름" : sort === "games" ? " → 승률 → 이름" : " → 승률 → 경기 수 → 이름"}.
           이름을 검색하면 일치하는 순으로 보여주고 순위 숫자는 바뀌지 않습니다. 승·패 칸은 최근 경기가
           왼쪽이며, 2경기 이상 이어지면 연승·연패를 적습니다. 결과 미입력·제외 경기는 세지 않습니다.

@@ -11,7 +11,7 @@ import {
   type SuggestResult,
   type SuggestRow,
 } from "../../shared/priorityReview";
-import { PLACEMENT_GAMES, ratePercent, SMALL_SAMPLE } from "../../shared/stats";
+import { placementGamesOf, ratePercent, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
 import { patchParticipant } from "../api";
 import { POSITION_LABEL } from "../format";
@@ -267,8 +267,11 @@ function rowFacts(row: SuggestRow): string {
 /** 기록으로 제안받기: 미리보기 → 고른 사람만 저장. 자동으로 덮어쓰지 않는다. */
 function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () => void }) {
   const { app, snapshot } = props;
+  const placementGames = placementGamesOf(snapshot.group.settings);
   // 창을 연 때의 기록으로 계산해 둔다(적용 중 다시 읽어도 목록이 흔들리지 않게).
-  const [result] = useState<SuggestResult>(() => suggestPriorities(snapshot.participants, snapshot.matches));
+  const [result] = useState<SuggestResult>(() =>
+    suggestPriorities(snapshot.participants, snapshot.matches, placementGames),
+  );
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(changedSuggestions(result).map((r) => r.participantId)),
   );
@@ -303,12 +306,12 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
   return (
     <Dialog title="기록으로 제안받기" onClose={props.onClose}>
       <p className="hint">
-        제안은 승률만 본 참고값이에요(라인·상대·최근 흐름은 보지 않아요). 누적 {PLACEMENT_GAMES}경기 이상인 사람만,
+        제안은 승률만 본 참고값이에요(라인·상대·최근 흐름은 보지 않아요). 누적 {placementGames}경기 이상인 사람만,
         경기가 적을수록 승률을 50% 쪽으로 당겨({SUGGEST_PRIOR_GAMES}경기만큼) 줄 세운 뒤 5등분했어요.
       </p>
       {!result.ready ? (
         <p className="note" role="status">
-          누적 {PLACEMENT_GAMES}경기 이상인 사람이 {SUGGEST_MIN_PEOPLE}명 이상이어야 제안할 수 있어요. 지금{" "}
+          누적 {placementGames}경기 이상인 사람이 {SUGGEST_MIN_PEOPLE}명 이상이어야 제안할 수 있어요. 지금{" "}
           {result.eligible}명이에요.
         </p>
       ) : (
@@ -389,7 +392,10 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
     [snapshot],
   );
   const mismatches = useMemo(
-    () => priorityMismatches(suggestPriorities(snapshot.participants, snapshot.matches)),
+    () =>
+      priorityMismatches(
+        suggestPriorities(snapshot.participants, snapshot.matches, placementGamesOf(snapshot.group.settings)),
+      ),
     [snapshot],
   );
   const far = mismatches.filter((m) => m.kind === "far");

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PLACEMENT_GAMES } from "../../shared/stats";
+import { placementGamesOf } from "../../shared/stats";
 import {
   bandRangeText,
   DEFAULT_TITLE_BANDS,
@@ -62,7 +62,7 @@ export function TitleSettings(props: {
     <section aria-label="칭호">
       <h2>칭호</h2>
       <p className="hint">
-        배치를 마친 사람(누적 {PLACEMENT_GAMES}경기 이상)에게 누적 승률 구간에 따라 붙습니다. 시즌·연도
+        배치를 마친 사람(누적 {placementGamesOf(settings)}경기 이상)에게 누적 승률 구간에 따라 붙습니다. 시즌·연도
         범위를 바꿔도 바뀌지 않습니다.
         {settings.titleBands === undefined && " 지금 이름은 임시 기본값입니다."}
       </p>

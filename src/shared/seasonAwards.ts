@@ -7,6 +7,7 @@
  * - 티어(skillGroup)·기피 라인·서포터 횟수 보정값은 쓰지 않는다(조회 링크에서도 보는 화면이라).
  *   "헌신상"은 그 범위의 확정 경기에서 서포터 포지션으로 뛴 판 수다(서포터 순환 기록이 아니다).
  */
+import { ratingOptionsOf } from "./rating";
 import { byPlayOrder } from "./series";
 import {
   isCounted,
@@ -399,7 +400,7 @@ export function seasonSummary(
 
   // 이변 메이커(이변 승 최다). 예상은 모임 전체 누적 MMR로 구하고(upset.ts), 이 범위의 경기만 센다.
   {
-    const wins = upsetWinsByPerson(matchExpectations(snapshot.matches), counted);
+    const wins = upsetWinsByPerson(matchExpectations(snapshot.matches, ratingOptionsOf(snapshot.group.settings)), counted);
     const eligible = [...wins.entries()].map(([id, n]) => ({ ids: [id], t: { games: 0, wins: 0 }, n }));
     const winners = top(eligible, (a, b) => a.n - b.n, idsOrder);
     awards.push({

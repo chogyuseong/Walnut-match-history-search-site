@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { sessionSummary, sessionSummaryText } from "../../shared/sessionSummary";
-import { personRecords, searchByName, todayMatches } from "../../shared/stats";
+import { personRecords, searchByName, todayMatches, placementGamesOf } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
 import { formatDate, formatTime, nameMap, rateText, rateTier, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
@@ -46,6 +46,7 @@ export function Today() {
   const [query, setQuery] = useState("");
   const allTime = useMemo(() => personRecords(snapshot?.matches ?? []), [snapshot]);
   const standing = useMemo(() => (snapshot ? standingsOf(snapshot) : null), [snapshot]);
+  const placementGames = placementGamesOf(snapshot?.group.settings ?? {});
   const found = searchByName(
     [...allTime.values()].map((r) => ({ ...r, name: nameOf(r.participantId) })),
     query,
@@ -200,7 +201,7 @@ export function Today() {
                           {r.games}경기)
                           <br />
                           <span className="hint">
-                            <StandingNote standing={standing?.get(r.participantId)} />
+                            <StandingNote standing={standing?.get(r.participantId)} placementGames={placementGames} />
                           </span>
                         </span>
                       </button>

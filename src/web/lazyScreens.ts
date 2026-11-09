@@ -6,7 +6,7 @@ import { importWithReload, installChunkReload } from "./chunkReload";
  * 화면은 처음 열 때 받는다. 묶음 기준:
  *  (가) 로그인 없이 여는 공개 화면: 참가 신청·조회 링크·참가자 편성(조회 링크의 /live)·예시 모임·개인정보 처리방침 — 화면마다 따로.
  *  (나) 운영자 기본 흐름: 오늘(첫 화면)은 따로, 나머지(고르기·준비·경기·모임·기록·개인 등)는 한 덩어리(screens/operator.ts).
- *  (다) 무거운 드문 화면: 가져오기·과거 기록·합치기·사이트 현황·그래프·시즌 요약·비교 — 화면마다 따로.
+ *  (다) 무거운 드문 화면: 가져오기·과거 기록·합치기·사이트 현황·그래프·MMR 랭킹·시즌 요약·비교 — 화면마다 따로.
  * 같은 모듈을 여러 묶음이 쓰면 번들러가 공용 조각으로 뺀다(예: 조회 링크와 운영자 기록이 같이 쓰는 Records).
  *
  * 배포 뒤 옛 탭에서 사라진 조각을 받지 못하면 한 번 새로 고친다(src/web/chunkReload.ts). 미리 받기·지연 로딩 모두
@@ -86,5 +86,6 @@ export const Merge = lazyNamed(() => import("./screens/Merge"), "Merge");
 export const DateCheck = lazyNamed(() => import("./screens/DateCheck"), "DateCheck");
 export const SiteAdmin = lazyNamed(() => import("./screens/SiteAdmin"), "SiteAdmin");
 export const Graphs = lazyNamed(() => import("./screens/Graphs"), "Graphs");
+export const Ranking = lazyNamed(() => import("./screens/Ranking"), "Ranking");
 export const SeasonSummaryScreen = lazyNamed(() => import("./screens/SeasonSummary"), "SeasonSummaryScreen");
 export const Compare = lazyNamed(() => import("./screens/Compare"), "Compare");

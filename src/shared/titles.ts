@@ -1,10 +1,10 @@
 import { MAX_NAME_LENGTH, cleanName } from "./names";
-import { personRecords, PLACEMENT_GAMES, ratePercent } from "./stats";
+import { personRecords, PLACEMENT_GAMES_DEFAULT, ratePercent } from "./stats";
 import type { MatchView, Settings, TitleBand } from "./types";
 
 /**
  * 칭호(docs/P2 P2-11).
- * - 배치 완료자(누적 10경기 이상)에게만 붙는다.
+ * - 배치 완료자(누적 경기가 배치 경기 수 이상, 모임 설정·기본 10)에게만 붙는다.
  * - 누적 승률 구간으로 정하고, 범위(오늘·시즌·연도) 필터로 바뀌지 않는다.
  * - 구간과 이름은 모임 설정이다. 아래 기본 이름은 기존 서비스의 이름을 확인하지 못해 넣은 임시 이름이다.
  */
@@ -87,7 +87,7 @@ export interface Standing {
   games: number;
   wins: number;
   losses: number;
-  /** 배치 완료(누적 10경기 이상). */
+  /** 배치 완료(누적 경기가 배치 경기 수 이상). */
   done: boolean;
   /** 배치 완료자만 칭호가 있다. */
   title: string | null;
@@ -100,10 +100,11 @@ export interface Standing {
 export function standings(
   allMatches: readonly MatchView[],
   bands: readonly TitleBand[],
+  placementGames: number = PLACEMENT_GAMES_DEFAULT,
 ): Map<string, Standing> {
   const result = new Map<string, Standing>();
   for (const [id, record] of personRecords(allMatches)) {
-    const done = record.games >= PLACEMENT_GAMES;
+    const done = record.games >= placementGames;
     result.set(id, {
       games: record.games,
       wins: record.wins,

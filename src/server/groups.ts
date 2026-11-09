@@ -1,6 +1,7 @@
 import { encodeAvoid, MAX_AVOID, normalizeAvoidPositions } from "../shared/avoid";
 import { parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
 import { MAX_NAME_LENGTH, cleanName, nameKey } from "../shared/names";
+import { RATING_SETTING_KEYS, RATING_SETTING_RANGES } from "../shared/rating";
 import { parseTitleBands } from "../shared/titles";
 import {
   DEFAULT_SETTINGS,
@@ -421,7 +422,14 @@ export function parseSettings(value: unknown): Settings {
     throw new ApiError(400, "INVALID_FIELD", "settings 값이 올바르지 않습니다.");
   }
   const raw = value as Body;
-  assertOnlyKeys(raw, ["rotationEnabled", "groupsPublic", "groupWeights", "titleBands", "teamDiversity"]);
+  assertOnlyKeys(raw, [
+    "rotationEnabled",
+    "groupsPublic",
+    "groupWeights",
+    "titleBands",
+    "teamDiversity",
+    ...RATING_SETTING_KEYS,
+  ]);
   if (typeof raw.rotationEnabled !== "boolean" || typeof raw.groupsPublic !== "boolean") {
     throw new ApiError(400, "INVALID_FIELD", "settings 값이 올바르지 않습니다.");
   }
@@ -451,6 +459,16 @@ export function parseSettings(value: unknown): Settings {
       throw new ApiError(400, "INVALID_FIELD", "teamDiversity 값이 올바르지 않습니다.");
     }
     settings.teamDiversity = raw.teamDiversity;
+  }
+  // 배치 경기 수·MMR 시작값·K: 보내지 않으면 저장하지 않은 상태(기본값). 보내면 범위 안 정수만 받는다.
+  for (const key of RATING_SETTING_KEYS) {
+    const n = raw[key];
+    if (n === undefined) continue;
+    const { label, min, max } = RATING_SETTING_RANGES[key];
+    if (typeof n !== "number" || !Number.isInteger(n) || n < min || n > max) {
+      throw new ApiError(400, "INVALID_FIELD", `${label}는 ${min}~${max} 사이 정수여야 해요.`);
+    }
+    settings[key] = n;
   }
   return settings;
 }

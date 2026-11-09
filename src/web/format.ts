@@ -1,5 +1,5 @@
 import type { Draft } from "../shared/draft";
-import { ratePercent, safeTimeZone, SMALL_SAMPLE } from "../shared/stats";
+import { placementGamesOf, ratePercent, safeTimeZone, SMALL_SAMPLE } from "../shared/stats";
 import { standings, titleBandsOf, titleGradeFor, type Standing, type TitleGrade } from "../shared/titles";
 import {
   POSITIONS,
@@ -135,7 +135,7 @@ export function formatRange(
 export function standingsOf(snapshot: Snapshot): Map<string, ShownStanding> {
   const bands = titleBandsOf(snapshot.group.settings);
   const result = new Map<string, ShownStanding>();
-  for (const [id, s] of standings(snapshot.matches, bands)) {
+  for (const [id, s] of standings(snapshot.matches, bands, placementGamesOf(snapshot.group.settings))) {
     result.set(id, { ...s, grade: s.title ? titleGradeFor(s.wins, s.games, bands) : null });
   }
   return result;

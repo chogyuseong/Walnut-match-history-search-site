@@ -285,12 +285,12 @@ test("지난 경기 한 건 입력: 폼으로 넣고 세션·순환·진행 상�
   await expect(page.getByRole("heading", { level: 1, name: "지난 경기 입력" })).toBeVisible();
 });
 
-test("주 메뉴 5개: 320px에서 넘치지 않고 터치 대상 44px 이상", async ({ page }) => {
+test("주 메뉴 6개(랭킹 포함): 320px에서 넘치지 않고 터치 대상 44px 이상", async ({ page }) => {
   await setup(page);
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/#/search");
   const menu = page.getByRole("navigation", { name: "주 메뉴" });
-  await expect(menu.getByRole("button")).toHaveCount(5);
+  await expect(menu.getByRole("button")).toHaveCount(6);
   await noHorizontalOverflow(page);
   const boxes = await menu
     .getByRole("button")

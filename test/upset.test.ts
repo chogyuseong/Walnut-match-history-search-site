@@ -6,6 +6,7 @@ import {
   BALANCED_MARGIN,
   expectedOf,
   fairnessReport,
+  fairnessVerdict,
   isUpset,
   matchExpectations,
   personUpsets,
@@ -13,8 +14,6 @@ import {
   upsetWinsByPerson,
   type MatchExpectation,
 } from "../src/shared/upset";
-
-// 이변 지수와 편성 공정성(src/shared/upset.ts). 서버 없이 순수 계산만 본다.
 
 interface Options {
   winner?: Team;
@@ -166,7 +165,7 @@ describe("사람별 이변 집계", () => {
 describe("편성 공정성", () => {
   it("균형 경기 경계(45~55%)·평균 치우침·우세 팀 승률을 센다", () => {
     expect(BALANCED_MARGIN).toBe(0.05);
-    const list = [
+    const expectations = [
       fake("a", 0.55, "A"),
       fake("b", 0.45, "B"),
       fake("c", 0.56, "A"),
@@ -174,11 +173,14 @@ describe("편성 공정성", () => {
       fake("e", 0.5, "B"),
       fake("f", 0.9, "B", false),
     ];
-    const map = new Map(list.map((e) => [e.matchId, e]));
-    const scoped = list.map((e, i) => ({ ...match(i + 1), id: e.matchId }));
+    const map = new Map(expectations.map((e) => [e.matchId, e]));
+    const scoped = expectations.map((e, i) => ({ ...match(i + 1), id: e.matchId }));
     const r = fairnessReport(map, scoped);
     expect(r.games).toBe(5);
     expect(r.balanced).toBe(3);
+    // 치우침 0.06은 "조금", 0.2는 "많이". 세 구간의 합은 games다.
+    expect(r.slight).toBe(1);
+    expect(r.lopsided).toBe(1);
     expect(r.avgDeviation).toBeCloseTo((0.05 + 0.05 + 0.06 + 0.2 + 0) / 5, 12);
     // 우세 팀: a(A 승 적중), b(B 승 적중), c(A 적중), d(B 우세인데 A 승). e는 50%라 빠진다.
     expect(r.favoriteGames).toBe(4);
@@ -208,11 +210,24 @@ describe("편성 공정성", () => {
     expect(fairnessReport(new Map(), [])).toEqual({
       games: 0,
       balanced: 0,
+      slight: 0,
+      lopsided: 0,
       avgDeviation: 0,
       favoriteGames: 0,
       favoriteWins: 0,
       upsets: 0,
     });
+  });
+});
+
+describe("편성 판정", () => {
+  const base = { games: 10, slight: 0, lopsided: 0, avgDeviation: 0, favoriteGames: 0, favoriteWins: 0, upsets: 0 };
+  it("균형 비율 60% 이상 good, 40% 이상 ok, 그 아래 poor, 경기 없으면 ok", () => {
+    expect(fairnessVerdict({ ...base, balanced: 6 })).toBe("good");
+    expect(fairnessVerdict({ ...base, balanced: 5 })).toBe("ok");
+    expect(fairnessVerdict({ ...base, balanced: 4 })).toBe("ok");
+    expect(fairnessVerdict({ ...base, balanced: 3 })).toBe("poor");
+    expect(fairnessVerdict({ ...base, games: 0, balanced: 0 })).toBe("ok");
   });
 });
 

@@ -74,35 +74,32 @@ export function meetingDays(matches: readonly MatchView[], timeZone: string): Me
  */
 export function attendanceReport(matches: readonly MatchView[], timeZone: string): AttendanceReport {
   const days = meetingDays(matches, timeZone);
-  const people = new Map<string, PersonAttendance>();
-  const firstIndex = new Map<string, number>();
-  const lastIndex = new Map<string, number>();
-  const run = new Map<string, number>();
+  // 모임 날 순번으로 연속 참석을 센다. first·last·streak는 결과에 넣지 않는 중간값이다.
+  const tracks = new Map<string, { person: PersonAttendance; first: number; last: number; streak: number }>();
 
   days.forEach((day, i) => {
     for (const id of day.attendees) {
-      let p = people.get(id);
-      if (!p) {
-        p = { participantId: id, days: 0, eligibleDays: 0, currentStreak: 0, longestStreak: 0, lastDate: day.date, missedSinceLast: 0 };
-        people.set(id, p);
-        firstIndex.set(id, i);
+      let track = tracks.get(id);
+      if (!track) {
+        const person = { participantId: id, days: 0, eligibleDays: 0, currentStreak: 0, longestStreak: 0, lastDate: day.date, missedSinceLast: 0 };
+        track = { person, first: i, last: -1, streak: 0 };
+        tracks.set(id, track);
       }
-      // 바로 앞 모임 날에도 왔으면 이어 간다.
-      const next = lastIndex.get(id) === i - 1 ? (run.get(id) ?? 0) + 1 : 1;
-      run.set(id, next);
-      p.longestStreak = Math.max(p.longestStreak, next);
-      p.days += 1;
-      p.lastDate = day.date;
-      lastIndex.set(id, i);
+      track.streak = track.last === i - 1 ? track.streak + 1 : 1;
+      track.last = i;
+      track.person.longestStreak = Math.max(track.person.longestStreak, track.streak);
+      track.person.days += 1;
+      track.person.lastDate = day.date;
     }
   });
 
   const lastDay = days.length - 1;
-  for (const [id, p] of people) {
-    const last = lastIndex.get(id)!;
-    p.eligibleDays = lastDay - firstIndex.get(id)! + 1;
-    p.missedSinceLast = lastDay - last;
-    p.currentStreak = last === lastDay ? (run.get(id) ?? 0) : 0;
+  const people = new Map<string, PersonAttendance>();
+  for (const [id, { person, first, last, streak }] of tracks) {
+    person.eligibleDays = lastDay - first + 1;
+    person.missedSinceLast = lastDay - last;
+    person.currentStreak = last === lastDay ? streak : 0;
+    people.set(id, person);
   }
 
   const total = days.reduce((n, d) => n + d.attendees.size, 0);

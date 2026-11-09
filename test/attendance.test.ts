@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { ABSENT_DAYS, attendanceReport, longAbsent, meetingDays } from "../src/shared/attendance";
 import type { MatchView, ParticipantView } from "../src/shared/types";
 
-// 참석 통계(src/shared/attendance.ts). 서버 없이 순수 계산만 본다.
-
 const TZ = "Asia/Seoul";
 let seq = 0;
 

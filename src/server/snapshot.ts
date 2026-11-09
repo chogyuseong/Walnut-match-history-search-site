@@ -20,6 +20,7 @@ import {
   type Team,
 } from "../shared/types";
 import { decodeAvoid } from "../shared/avoid";
+import { RATING_SETTING_KEYS } from "../shared/rating";
 import type { Env } from "./env";
 import { foldAdjustments } from "./supportCounts";
 import { ApiError, nowIso } from "./http";
@@ -822,5 +823,8 @@ function viewerSettings(settings: Settings): Settings {
     groupWeights: settings.groupsPublic ? settings.groupWeights : [0, 0, 0, 0, 0],
   };
   if (settings.titleBands !== undefined) view.titleBands = settings.titleBands;
+  for (const key of RATING_SETTING_KEYS) {
+    if (settings[key] !== undefined) view[key] = settings[key];
+  }
   return view;
 }

@@ -28,6 +28,7 @@ export function OperatorRecords() {
         openMatch={(matchId) => go(`/m/${matchId}`)}
         openPerson={(personId) => go(`/p/${personId}`)}
         openGraphs={() => go("/graphs")}
+        openRanking={() => go("/ranking")}
         openBackfill={app.me?.accountId ? () => go("/backfill") : undefined}
         onResult={setResultFor}
         openSeason={(scope) => go(`/season/${seasonRoutePart(scope)}`)}

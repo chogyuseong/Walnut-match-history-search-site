@@ -23,6 +23,7 @@ import {
   Pick,
   Prep,
   preload,
+  Ranking,
   PriorityScreen,
   Privacy,
   Search,
@@ -263,7 +264,7 @@ function LoadFailed() {
 }
 
 /** 기록(스냅숏)이 있어야 그릴 수 있는 화면. */
-const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "p", "compare", "search", "group", "merge", "backfill", "priority", "season", "dates"]);
+const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "ranking", "p", "compare", "search", "group", "merge", "backfill", "priority", "season", "dates"]);
 
 function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
@@ -364,8 +365,21 @@ function OperatorScreen(props: { route: string[] }) {
         snapshot={app.snapshot}
         openPerson={(personId) => go(`/p/${personId}`)}
         back={() => go("/records")}
+        player={id ?? ""}
+        choosePlayer={(personId) => go(personId ? `/graphs/${personId}` : "/graphs")}
       />
     );
+  }
+  if (page === "ranking") {
+    if (!app.snapshot) {
+      return (
+        <div className="screen">
+          <h1>MMR 랭킹</h1>
+          <p>확정 경기가 쌓이면 보여요.</p>
+        </div>
+      );
+    }
+    return <Ranking snapshot={app.snapshot} openPerson={(personId) => go(`/p/${personId}`)} />;
   }
   if (page === "p" && id) {
     if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
@@ -397,7 +411,7 @@ function OperatorScreen(props: { route: string[] }) {
   return <Today />;
 }
 
-/** 주 메뉴: 오늘 · 검색 · 기록 · 분석 · 모임. 모임 탭은 로그인한 운영자에게만 보인다. */
+/** 주 메뉴: 오늘 · 검색 · 기록 · 랭킹 · 분석 · 모임. 모임 탭은 로그인한 운영자에게만 보인다. */
 function Tabs(props: { current: string }) {
   const app = useAppValue();
   const tab =
@@ -407,8 +421,8 @@ function Tabs(props: { current: string }) {
     props.current === "p" ||
     props.current === "compare"
       ? "records"
-      : props.current === "graphs"
-        ? "graphs"
+      : props.current === "graphs" || props.current === "ranking"
+        ? props.current
         : props.current === "group" ||
             props.current === "import" ||
             props.current === "sheet-import" ||
@@ -440,6 +454,13 @@ function Tabs(props: { current: string }) {
         onClick={() => go("/records")}
       >
         기록
+      </button>
+      <button
+        type="button"
+        aria-current={tab === "ranking" ? "page" : undefined}
+        onClick={() => go("/ranking")}
+      >
+        랭킹
       </button>
       <button
         type="button"

@@ -5,12 +5,12 @@ import {
   fractionPercent,
   isCounted,
   matchYears,
-  PLACEMENT_GAMES,
   ratePercent,
   sideTotals,
   SMALL_SAMPLE,
   type Scope,
 } from "../shared/stats";
+import { ratingTierOf } from "../shared/rating";
 import type { TitleGrade } from "../shared/titles";
 import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/types";
 import { ApiFailure } from "./api";
@@ -77,10 +77,13 @@ const ROLE_SHAPES: Record<Position, ReactNode> = {
   ),
 };
 
-/** 라인 아이콘만(꾸밈). 뜻은 곁의 글자가 전해야 한다. */
+/**
+ * 라인 아이콘만(꾸밈). 뜻은 곁의 글자가 전해야 한다.
+ * pos-{라인} 클래스로 라인별 색(styles.css의 --pos-*)이 들어간다(2026-11-09, 준비 화면에서 라인이 한눈에 보이게).
+ */
 export function RoleIcon(props: { position: Position }) {
   return (
-    <svg className="role-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+    <svg className={`role-icon pos-${props.position}`} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
       {ROLE_SHAPES[props.position]}
     </svg>
   );
@@ -89,8 +92,9 @@ export function RoleIcon(props: { position: Position }) {
 /** 라인 이름과 아이콘. 아이콘은 꾸밈이고 뜻은 글자가 전한다. */
 export function PosLabel(props: { position: Position | null }) {
   if (!props.position) return <span className="pos">-</span>;
+  // data-pos로 글자와 아이콘에 같은 라인 색을 준다(styles.css .pos[data-pos]).
   return (
-    <span className="pos">
+    <span className="pos" data-pos={props.position}>
       <RoleIcon position={props.position} />
       {POSITION_LABEL[props.position]}
     </span>
@@ -220,16 +224,31 @@ export function TitleBadge(props: { name: string; grade: TitleGrade | null }) {
 }
 
 /**
+ * MMR 티어 이름표(rating.ts RATING_TIERS, LoL 시즌 2 Elo 구간). 배치 중이면 그리지 않는다.
+ * 칭호(TitleBadge)는 테두리형 알약이라 이것은 채움형 네모로 두어 나란히 서도 구분되게 한다.
+ */
+export function RatingTierBadge(props: { rating: number; placed: boolean }) {
+  const tier = ratingTierOf(props.rating, props.placed);
+  if (!tier) return null;
+  return (
+    <span className={`mmr-tier mmr-tier-${tier.key}`}>
+      <span className="sr-only">MMR 티어 </span>
+      {tier.name}
+    </span>
+  );
+}
+
+/**
  * 배치·칭호 표시. 누적 기준이며 범위 필터와 무관하다(docs/P2 P2-11).
- * 배치 중은 "배치 진행 중 7/10"으로만 쓰고 낮은 실력처럼 보이게 하지 않는다.
+ * 배치 중은 "배치 진행 중 7/10"(10은 모임 설정의 배치 경기 수)으로만 쓰고 낮은 실력처럼 보이게 하지 않는다.
  * 칭호는 구간 순서로 정한 등급 색·엠블럼으로 보여준다(TitleBadge).
  */
-export function StandingNote(props: { standing: ShownStanding | undefined }) {
+export function StandingNote(props: { standing: ShownStanding | undefined; placementGames: number }) {
   const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null, grade: null };
   if (!s.done) {
     return (
       <span className="standing">
-        배치 진행 중 {s.games}/{PLACEMENT_GAMES} (누적 기준)
+        배치 진행 중 {s.games}/{props.placementGames} (누적 기준)
       </span>
     );
   }
@@ -542,6 +561,30 @@ export function FormDots(props: { results: readonly boolean[]; label?: string })
   );
 }
 
+
+/**
+ * 추이 그래프의 틀: 왼쪽에 세로 눈금 세 개(위·가운데·아래), 아래에 가로 구간 숫자 세 개(처음·중간·끝).
+ * SVG는 preserveAspectRatio="none"으로 늘어나므로 글자는 SVG 밖 HTML에 둔다. 눈금이 없으면 선의 높이가 어느 정도인지
+ * 가늠할 수 없다는 피드백으로 넣었다.
+ */
+function TrendFrame(props: { yTicks: [string, string, string]; xTicks: [string, string, string]; children: ReactNode }) {
+  return (
+    <div className="trend-plot">
+      <div className="trend-y" aria-hidden="true">
+        {props.yTicks.map((t, i) => (
+          <span key={i}>{t}</span>
+        ))}
+      </div>
+      {props.children}
+      <div className="trend-x" aria-hidden="true">
+        {props.xTicks.map((t, i) => (
+          <span key={i}>{t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * 누적 승률 추이(작은 선 그래프). 그래프 화면의 .viz-root 색 변수를 쓴다.
  * 50% 기준선을 두고, 처음·끝 값은 글자로 함께 적는다.
@@ -559,22 +602,26 @@ export function TrendLine(props: { points: readonly { game: number; rate: number
   const y = (rate: number) => 4 + ((0.5 + spread - rate) / (spread * 2)) * (H - 8);
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.game).toFixed(1)},${y(p.rate).toFixed(1)}`).join("");
   const pct = (r: number) => `${fractionPercent(r)}%`;
+  const midGame = Math.round((first.game + last.game) / 2);
   return (
-    <figure className="trend viz-root">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`누적 승률 추이: ${first.game}경기째 ${pct(first.rate)}에서 ${last.game}경기째 ${pct(last.rate)}`}
+    <figure className="trend trend-rate viz-root">
+      <TrendFrame
+        yTicks={[pct(0.5 + spread), "50%", pct(0.5 - spread)]}
+        xTicks={[`${first.game}경기`, `${midGame}경기`, `${last.game}경기`]}
       >
-        <rect x="0" y="0" width={W} height={H} className="trend-bg" />
-        <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="trend-mid" vectorEffect="non-scaling-stroke" />
-        <path d={path} className="trend-path" vectorEffect="non-scaling-stroke" />
-      </svg>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={`누적 승률 추이: ${first.game}경기째 ${pct(first.rate)}에서 ${last.game}경기째 ${pct(last.rate)}, 위아래 끝 ${pct(0.5 + spread)} / ${pct(0.5 - spread)}`}
+        >
+          <rect x="0" y="0" width={W} height={H} className="trend-bg" />
+          <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="trend-mid" vectorEffect="non-scaling-stroke" />
+          <path d={path} className="trend-path" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </TrendFrame>
       <figcaption className="trend-caption">
-        <span>
-          누적 승률 추이 · 가운데 선 50% · 위아래 끝 {pct(0.5 + spread)} / {pct(0.5 - spread)}
-        </span>
+        <span>누적 승률 추이</span>
         <span>
           {first.game}경기째 {pct(first.rate)} → <strong>{last.game}경기째 {pct(last.rate)}</strong>
         </span>
@@ -584,16 +631,16 @@ export function TrendLine(props: { points: readonly { game: number; rate: number
 }
 
 /**
- * MMR 추이(작은 선 그래프). TrendLine과 같은 모양·클래스이고, 가운데 기준선이 시작값 1000이다.
- * 세로축은 1000을 가운데에 두고 위아래를 같은 폭으로 잡는다(최소 ±50). 처음·끝 값은 글자로 함께 적는다.
+ * MMR 추이(작은 선 그래프). TrendLine과 같은 모양·클래스이고, 가운데 기준선이 시작값(모임 설정)이다.
+ * 세로축은 시작값을 가운데에 두고 위아래를 같은 폭으로 잡는다(최소 ±50). 처음·끝 값은 글자로 함께 적는다.
  * points: 0경기째(시작값)부터. rating.ts ratingTrend의 결과.
  */
-export function RatingTrendLine(props: { points: readonly { game: number; rating: number }[] }) {
+export function RatingTrendLine(props: { points: readonly { game: number; rating: number }[]; start: number }) {
   const { points } = props;
   if (points.length < 2) return null;
   const W = 300;
   const H = 72;
-  const MID = 1000;
+  const MID = props.start;
   const last = points[points.length - 1]!;
   const first = points[0]!;
   const spread = Math.max(50, ...points.map((p) => Math.abs(p.rating - MID))) * 1.05;
@@ -602,22 +649,26 @@ export function RatingTrendLine(props: { points: readonly { game: number; rating
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.game).toFixed(1)},${y(p.rating).toFixed(1)}`).join("");
   const n = (r: number) => String(Math.round(r));
   const at = (game: number) => (game === 0 ? "시작" : `${game}경기째`);
+  const midGame = Math.round((first.game + last.game) / 2);
   return (
-    <figure className="trend viz-root">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`MMR 추이: ${at(first.game)} ${n(first.rating)}에서 ${last.game}경기째 ${n(last.rating)}`}
+    <figure className="trend trend-rating viz-root">
+      <TrendFrame
+        yTicks={[n(MID + spread), String(MID), n(MID - spread)]}
+        xTicks={[first.game === 0 ? "시작" : `${first.game}경기`, `${midGame}경기`, `${last.game}경기`]}
       >
-        <rect x="0" y="0" width={W} height={H} className="trend-bg" />
-        <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="trend-mid" vectorEffect="non-scaling-stroke" />
-        <path d={path} className="trend-path" vectorEffect="non-scaling-stroke" />
-      </svg>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={`MMR 추이: ${at(first.game)} ${n(first.rating)}에서 ${last.game}경기째 ${n(last.rating)}, 위아래 끝 ${n(MID + spread)} / ${n(MID - spread)}`}
+        >
+          <rect x="0" y="0" width={W} height={H} className="trend-bg" />
+          <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="trend-mid" vectorEffect="non-scaling-stroke" />
+          <path d={path} className="trend-path" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </TrendFrame>
       <figcaption className="trend-caption">
-        <span>
-          MMR 추이 · 가운데 선 {MID} · 위아래 끝 {n(MID + spread)} / {n(MID - spread)}
-        </span>
+        <span>MMR 추이</span>
         <span>
           {at(first.game)} {n(first.rating)} → <strong>{last.game}경기째 {n(last.rating)}</strong>
         </span>

@@ -1,4 +1,5 @@
 import type { Draft, DraftPerson } from "./draft";
+import { PLACEMENT_GAMES_DEFAULT } from "./stats";
 import { standings, type Standing } from "./titles";
 import type { MatchView, ParticipantView, TitleBand } from "./types";
 
@@ -67,9 +68,10 @@ export function mergeStandings(
   sourceId: string,
   targetId: string,
   bands: readonly TitleBand[],
+  placementGames: number = PLACEMENT_GAMES_DEFAULT,
 ): MergeStandings {
-  const before = standings(matches, bands);
-  const after = standings(mergedMatches(matches, sourceId, targetId), bands);
+  const before = standings(matches, bands, placementGames);
+  const after = standings(mergedMatches(matches, sourceId, targetId), bands, placementGames);
   return {
     source: before.get(sourceId) ?? null,
     target: before.get(targetId) ?? null,

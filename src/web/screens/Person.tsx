@@ -13,7 +13,6 @@ import {
 import {
   matchesInScope,
   personDetail,
-  PLACEMENT_GAMES,
   ratePercent,
   scopeLabel as scopeLabelOf,
   SMALL_SAMPLE,
@@ -21,13 +20,15 @@ import {
   type Scope,
   type Tally,
 } from "../../shared/stats";
-import { pairRecord } from "../../shared/headToHead";
+import { LANE_RIVAL_MIN, laneRivals, laneRivalSummary, pairRecord } from "../../shared/headToHead";
 import {
   computeRatings,
   RATING_RECENT_GAMES,
   ratingTrend,
   shownRating,
   signedDelta,
+  ratingOptionsOf,
+  RATING_TIER_HELP,
 } from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
@@ -37,7 +38,7 @@ import { personUpsets, UPSET_THRESHOLD } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import { BackLink, FormDots, Help, Meter, PosLabel, RateBar, RateRing, RatingTrendLine, ScopePicker, TitleBadge, TrendLine, WinLossBar } from "../ui";
+import { BackLink, FormDots, Help, Meter, PosLabel, RateBar, RateRing, RatingTierBadge, RatingTrendLine, ScopePicker, TitleBadge, TrendLine, WinLossBar } from "../ui";
 
 function rate(tally: Tally): string {
   return rateText(tally.wins, tally.games);
@@ -78,7 +79,7 @@ function pct(part: number, whole: number): string {
 }
 
 /**
- * 개인 통계. 순서: 요약(한눈에 보기) → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 참여 경기(맨 아래).
+ * 개인 통계. 순서: 요약(한눈에 보기) → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 다른 플레이어와 비교 → 맞라인 상대 → 참여 경기(맨 아래).
  * 운영자와 조회자가 같은 화면을 본다. 실력 그룹은 보여주지 않는다.
  */
 export function Person(props: {
@@ -127,8 +128,10 @@ export function Person(props: {
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
   // 결과 기반 MMR도 범위와 무관하게 모임 전체 누적 확정 경기로 계산한다(rating.ts).
+  const ratingOptions = ratingOptionsOf(snapshot.group.settings);
+  const { placementGames } = ratingOptions;
   const rating = useMemo(
-    () => computeRatings(snapshot.matches).get(participantId) ?? null,
+    () => computeRatings(snapshot.matches, ratingOptionsOf(snapshot.group.settings)).get(participantId) ?? null,
     [snapshot, participantId],
   );
   const ratingPoints = useMemo(() => (rating ? ratingTrend(rating.history) : []), [rating]);
@@ -145,6 +148,8 @@ export function Person(props: {
     () => (rival ? pairRecord(scoped, participantId, rival) : null),
     [scoped, participantId, rival],
   );
+  const laneOpponents = useMemo(() => laneRivals(scoped, participantId), [scoped, participantId]);
+  const lanePicks = useMemo(() => laneRivalSummary(laneOpponents), [laneOpponents]);
 
   // 중복 참가자 합치기로 다른 사람에게 합쳐진 이름: 기록은 모두 남은 사람에게 옮겨졌으므로 그쪽으로 안내한다.
   const mergedTarget = person?.mergedInto
@@ -344,7 +349,7 @@ export function Person(props: {
               <p className="hint">
                 {placement.done
                   ? `배치 완료 · 누적 ${placement.games}경기 (누적 기준)`
-                  : `배치 진행 중 · ${placement.games}/${PLACEMENT_GAMES}경기 (누적 기준)`}
+                  : `배치 진행 중 · ${placement.games}/${placementGames}경기 (누적 기준)`}
               </p>
               {rating && rating.games > 0 && (
                 <p className="ps-rating">
@@ -352,6 +357,7 @@ export function Person(props: {
                     MMR {shownRating(rating.rating)} · 최고 {shownRating(rating.peak)} · 최근{" "}
                     {Math.min(RATING_RECENT_GAMES, rating.games)}경기 {signedDelta(rating.delta10)}
                   </span>{" "}
+                  <RatingTierBadge rating={rating.rating} placed={placement.done} />{" "}
                   <span className="hint">(누적 기준)</span>
                 </p>
               )}
@@ -415,23 +421,28 @@ export function Person(props: {
             </div>
           </dl>
         )}
-        {trend.length >= 2 ? (
-          <TrendLine points={trend} />
-        ) : detail.summary.games > 0 ? (
-          // 바로 아래 MMR 그래프를 승률 추이로 오해하지 않게 함께 적는다(2026-11-08 화면 점검).
-          <p className="hint">
-            승률 추이는 {SMALL_SAMPLE + 1}경기부터 그려요{rating && rating.games >= 2 ? "(아래는 MMR 추이)" : ""}.
-          </p>
-        ) : null}
-        {/* MMR 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
-        {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} />}
+        {/* ─ 추이 두 장: 넓은 화면(720px~)은 승률·MMR을 반씩 한 줄에 나란히, 좁으면 하나씩 쌓인다(.trend-pair) ─ */}
+        {(trend.length >= 2 || detail.summary.games > 0 || (rating && rating.games >= 2)) && (
+          <div className="trend-pair">
+            {trend.length >= 2 ? (
+              <TrendLine points={trend} />
+            ) : detail.summary.games > 0 ? (
+              // 옆(또는 아래) MMR 그래프를 승률 추이로 오해하지 않게 함께 적는다(2026-11-08 화면 점검).
+              <p className="hint">
+                승률 추이는 {SMALL_SAMPLE + 1}경기부터 그려요{rating && rating.games >= 2 ? "(옆은 MMR 추이)" : ""}.
+              </p>
+            ) : null}
+            {/* MMR 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
+            {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} start={ratingOptions.start} />}
+          </div>
+        )}
         {detail.summary.games > 0 && (
           <Help>
             동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난
             사람에서 고릅니다. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 고릅니다. 승률은
             모두 {person.name} 기준입니다. 이변 승은 경기 전 예상(누적 MMR)이 {Math.round(UPSET_THRESHOLD * 100)}% 미만이던 팀으로 이긴
             경기이고, 약팀일 때 승률은 예상이 50% 미만이던 경기의 승률입니다. 출석률은 처음 온 날부터 센 모임 날 중 온
-            비율입니다.
+            비율입니다. MMR은 시작 {ratingOptions.start}점이고 3연승·3연패부터 변화 폭이 커져요(최대 1.5배). {RATING_TIER_HELP}
           </Help>
         )}
       </section>
@@ -598,6 +609,67 @@ export function Person(props: {
         <p className="hint">
           {person.name} 기준입니다. 결과가 확정된 경기만 셉니다(라인 맞대결·두 사람 비교와 같은 기준).
         </p>
+      </section>
+
+      <section className="lane-rivals" aria-label="맞라인 상대">
+        <h2>맞라인 상대 ({scopeLabel})</h2>
+        {laneOpponents.length === 0 ? (
+          <p className="hint">포지션이 기록된 맞대결이 쌓이면 보여요.</p>
+        ) : (
+          <>
+            <p className="hint">같은 라인에서 상대 팀으로 만난 경기만 세요({person.name} 기준).</p>
+            <ul className="list">
+              {lanePicks.map(({ position, hardest, easiest }) => (
+                <li key={position} className="list-row static lane-rival-row">
+                  <PosLabel position={position} />
+                  {hardest || easiest ? (
+                    <span className="chips">
+                      {/* 어려운 쪽은 50% 미만, 쉬운 쪽은 50% 이상에서만 고르므로(laneRivalSummary) 하나만 있을 수 있다. */}
+                      {hardest && (
+                        <span className="chip lane-chip hard">
+                          가장 어려운 {nameOf(hardest.opponentId)} {pct(hardest.wins, hardest.games)} ({hardest.games}경기)
+                        </span>
+                      )}
+                      {easiest && (
+                        <span className="chip lane-chip easy">
+                          가장 쉬운 {nameOf(easiest.opponentId)} {pct(easiest.wins, easiest.games)} ({easiest.games}경기)
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="hint">{LANE_RIVAL_MIN}경기 이상 맞붙은 상대가 아직 없어요</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <details>
+              <summary>전체 보기 ({laneOpponents.length})</summary>
+              <ul className="list">
+                {laneOpponents.map((r) => (
+                  <li key={`${r.position}:${r.opponentId}`}>
+                    <button
+                      type="button"
+                      className="list-row has-bar"
+                      onClick={() =>
+                        props.openCompare
+                          ? props.openCompare(participantId, r.opponentId)
+                          : props.openPerson(r.opponentId)
+                      }
+                    >
+                      <span className="name">
+                        <PosLabel position={r.position} /> {nameOf(r.opponentId)}
+                      </span>
+                      <span className="stat">
+                        {r.wins}승 {r.losses}패 ({r.games}경기)
+                      </span>
+                      <RateBar wins={r.wins} games={r.games} small />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </>
+        )}
       </section>
 
       <section className="full" aria-label="참여 경기">

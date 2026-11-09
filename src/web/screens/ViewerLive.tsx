@@ -84,6 +84,9 @@ export function ViewerLive(props: { token: string }) {
         <span>
           <a className="link" href={`#/v/${token}/now`}>
             기록 보기
+          </a>{" "}
+          <a className="link" href={`#/v/${token}/ranking`}>
+            랭킹
           </a>
         </span>
       </nav>

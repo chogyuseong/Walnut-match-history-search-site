@@ -111,7 +111,7 @@ async function shots(page: Page, s: Setup, dir: string) {
       await page.goto("/#/graphs");
       await setTheme(page, theme);
       await page.getByLabel("플레이어", { exact: true }).selectOption({ label: "선수12" });
-      await expect(page.getByRole("region", { name: "라인별 승률" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "고른 플레이어" })).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: join(dir, `graphs-${theme}-${width}.png`), fullPage: true });
 
