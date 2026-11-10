@@ -10,6 +10,7 @@ import {
   type ParticipantView,
   type Position,
   type RevisionView,
+  type RosterEntry,
   type RotationView,
   type SeriesFormat,
   type SeriesView,
@@ -139,6 +140,23 @@ function toMatchView(row: MatchRow): MatchView {
   return view;
 }
 
+interface RosterRow {
+  match_id: string;
+  participant_id: string;
+  team: Team;
+  position: Position | null;
+  champion: string | null;
+}
+
+const ROSTER_COLUMNS = "match_id, participant_id, team, position, champion";
+
+function toRosterEntry(row: RosterRow): RosterEntry {
+  const entry: RosterEntry = { participantId: row.participant_id, team: row.team, position: row.position };
+  // 챔피언은 고른 사람만 넣는다(메모와 같은 방식: 기록하지 않는 모임의 응답 모양은 예전과 같다).
+  if (row.champion !== null) entry.champion = row.champion;
+  return entry;
+}
+
 /** 경기 하나를 명단과 함께 읽는다. 다른 모임의 경기는 찾지 못한다. */
 export async function loadMatch(env: Env, groupId: string, matchId: string): Promise<MatchView> {
   const row = await env.DB.prepare(
@@ -149,15 +167,11 @@ export async function loadMatch(env: Env, groupId: string, matchId: string): Pro
   if (!row) throw new ApiError(404, "NOT_FOUND", "경기를 찾을 수 없습니다.");
   const view = toMatchView(row);
   const roster = await env.DB.prepare(
-    "SELECT participant_id, team, position FROM match_roster WHERE match_id = ?1 AND group_id = ?2",
+    `SELECT ${ROSTER_COLUMNS} FROM match_roster WHERE match_id = ?1 AND group_id = ?2`,
   )
     .bind(matchId, groupId)
-    .all<{ participant_id: string; team: Team; position: Position | null }>();
-  view.roster = roster.results.map((r) => ({
-    participantId: r.participant_id,
-    team: r.team,
-    position: r.position,
-  }));
+    .all<RosterRow>();
+  view.roster = roster.results.map(toRosterEntry);
   return view;
 }
 
@@ -173,20 +187,15 @@ export async function loadMatchesByIds(env: Env, groupId: string, matchIds: read
       `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
     ).bind(groupId, list),
     env.DB.prepare(
-      `SELECT match_id, participant_id, team, position FROM match_roster
+      `SELECT ${ROSTER_COLUMNS} FROM match_roster
        WHERE group_id = ?1 AND match_id IN (SELECT value FROM json_each(?2))`,
     ).bind(groupId, list),
   ]);
   const views = new Map(
     (rows!.results as unknown as MatchRow[]).map((r) => [r.id, toMatchView(r)] as const),
   );
-  for (const r of roster!.results as unknown as {
-    match_id: string;
-    participant_id: string;
-    team: Team;
-    position: Position | null;
-  }[]) {
-    views.get(r.match_id)?.roster.push({ participantId: r.participant_id, team: r.team, position: r.position });
+  for (const r of roster!.results as unknown as RosterRow[]) {
+    views.get(r.match_id)?.roster.push(toRosterEntry(r));
   }
   return [...views.values()];
 }
@@ -407,7 +416,7 @@ export function snapshotStatements(
       )
       .bind(groupId),
     db.prepare(`SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 ORDER BY played_at, match_no`).bind(groupId),
-    db.prepare("SELECT match_id, participant_id, team, position FROM match_roster WHERE group_id = ?1").bind(groupId),
+    db.prepare(`SELECT ${ROSTER_COLUMNS} FROM match_roster WHERE group_id = ?1`).bind(groupId),
     ...revisionStatements(env, groupId),
     db
       .prepare("SELECT id, name, starts_on, ends_on FROM seasons WHERE group_id = ?1 ORDER BY starts_on")
@@ -504,12 +513,8 @@ export function parseSnapshot(role: "operator" | "viewer", results: D1Result[]):
     byId.set(view.id, view);
     return view;
   });
-  for (const r of rowsOf<{ match_id: string; participant_id: string; team: Team; position: Position | null }>(next())) {
-    byId.get(r.match_id)?.roster.push({
-      participantId: r.participant_id,
-      team: r.team,
-      position: r.position,
-    });
+  for (const r of rowsOf<RosterRow>(next())) {
+    byId.get(r.match_id)?.roster.push(toRosterEntry(r));
   }
 
   const revisions = parseRevisions(next(), next(), next());

@@ -18,6 +18,11 @@ export interface RosterEntry {
   team: Team;
   /** 지난 경기 입력·이관 경기는 포지션이 없을 수 있다. */
   position: Position | null;
+  /**
+   * 그 경기에서 쓴 챔피언의 고정 키(src/shared/champions.ts, migrations/0025). 고른 사람만 들어 있는 선택 항목이다.
+   * 메모처럼 공개 정보다: 조회 링크 응답·백업에도 들어간다.
+   */
+  champion?: string;
 }
 
 export interface MatchView {

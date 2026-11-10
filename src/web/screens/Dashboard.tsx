@@ -14,8 +14,8 @@ import {
 import { isCounted, placementGamesOf } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rankClass, rateText, rateTier, standingsOf } from "../format";
-import { MatchCard, useExpectations } from "../matchCard";
-import { useSeriesBadges } from "../seriesPanel";
+import { MatchCard, MatchScoreboard, useExpectations } from "../matchCard";
+import { seriesScoreOfMatch, useSeriesBadges } from "../seriesPanel";
 import { FormDots, StandingNote } from "../ui";
 
 /** 결과를 저장한 경기가 없을 때. 무엇이 쌓이는지만 짧게 알려준다. */
@@ -40,6 +40,8 @@ const TOP_PEOPLE = 5;
 /**
  * 홈 아래쪽 요약: 최근 경기 5개, 랭킹 상위 5명(전체 누적), 요즘 흐름(연승 중·최근 10경기 승률).
  * 운영자 홈과 조회 링크의 요약 화면이 같이 쓴다. 확정 경기가 없으면 안내 한 줄만 낸다.
+ * 요약 탭(headline)에서는 가장 최근 확정 경기를 전광판(MatchScoreboard)으로 크게 올리고 나머지를 "이전 경기" 카드로 둔다.
+ * 운영자 홈은 위에 오늘의 결과가 따로 있어 전광판을 두지 않는다.
  */
 export function Dashboard(props: {
   snapshot: Snapshot;
@@ -48,20 +50,27 @@ export function Dashboard(props: {
   openRanking: () => void;
   /** 위에서 이미 보여준 경기(오늘의 결과)는 최근 경기에서 뺀다. */
   skipIds?: ReadonlySet<string>;
+  /** 가장 최근 확정 경기를 전광판으로 올린다(조회·예시 요약 탭). */
+  headline?: boolean;
 }) {
   const { snapshot, skipIds } = props;
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const seriesBadge = useSeriesBadges(snapshot);
   const expectation = useExpectations(snapshot);
   const counted = useMemo(() => snapshot.matches.filter(isCounted), [snapshot]);
-  const recent = useMemo(
-    () =>
-      newestFirst(snapshot.matches.filter((m) => m.state !== "canceled" && !skipIds?.has(m.id))).slice(
-        0,
-        RECENT_MATCHES,
-      ),
-    [snapshot, skipIds],
-  );
+  // 전광판은 확정 경기만 올린다(결과 미입력·제외 경기는 크게 걸 승패가 없다). 그보다 새 미확정 경기는 아래 카드에 남는다.
+  // 전광판까지 합쳐 최근 경기 RECENT_MATCHES개다.
+  const { headline, olderOnly, recent } = useMemo(() => {
+    const newest = newestFirst(snapshot.matches.filter((m) => m.state !== "canceled" && !skipIds?.has(m.id)));
+    const top = props.headline ? (newest.find(isCounted) ?? null) : null;
+    return {
+      headline: top,
+      // 전광판 경기보다 새 미확정 경기가 아래 목록에 있으면 그 목록을 "이전 경기"라고 부를 수 없다.
+      olderOnly: top !== null && newest[0] === top,
+      recent: newest.filter((m) => m !== top).slice(0, top ? RECENT_MATCHES - 1 : RECENT_MATCHES),
+    };
+  }, [snapshot, skipIds, props.headline]);
+  const headlineSeries = useMemo(() => (headline ? seriesScoreOfMatch(snapshot, headline) : null), [snapshot, headline]);
   const placement = useMemo(() => standingsOf(snapshot), [snapshot]);
   const placementGames = placementGamesOf(snapshot.group.settings);
   const top = useMemo(
@@ -79,10 +88,21 @@ export function Dashboard(props: {
 
   return (
     <div className="dashboard">
+      {headline && (
+        <MatchScoreboard
+          match={headline}
+          nameOf={nameOf}
+          timeZone={snapshot.group.timezone}
+          onOpen={() => props.openMatch(headline.id)}
+          onPerson={props.openPerson}
+          series={headlineSeries}
+          upset={expectation.get(headline.id)?.upset}
+        />
+      )}
       {recent.length > 0 && (
-        <section aria-label="최근 경기">
+        <section aria-label={olderOnly ? "이전 경기" : "최근 경기"}>
           <div className="section-head">
-            <h2>최근 경기</h2>
+            <h2>{olderOnly ? "이전 경기" : "최근 경기"}</h2>
             <button type="button" className="link" onClick={props.openRanking}>
               기록 전체 보기
             </button>

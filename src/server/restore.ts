@@ -215,6 +215,8 @@ interface RosterRow {
   participantId: string;
   team: "A" | "B";
   position: string | null;
+  /** 챔피언 키(migrations/0025). 이 항목이 없는 예전 백업은 null. */
+  champion: string | null;
 }
 interface MRow {
   id: string;
@@ -599,7 +601,13 @@ export function validateBackup(
         if (posSeen.has(`${e.team}:${pos}`)) return p.add(`${at}: 한 팀에 같은 포지션이 둘입니다.`);
         posSeen.add(`${e.team}:${pos}`);
       }
-      roster.push({ participantId: e.participantId, team: e.team, position: pos as string | null });
+      // 챔피언(2026-11-10). 지금 목록에 있는 키인지는 보지 않고 모양만 본다: 목록에서 이름이 빠진 키가 든 백업도
+      // 복원은 되어야 한다(화면은 모르는 키를 키 글자 그대로 보여 준다).
+      const champion = e.champion ?? null;
+      if (champion !== null && !(typeof champion === "string" && /^[A-Za-z0-9]{1,32}$/.test(champion))) {
+        return p.add(`${at}: 챔피언 값 오류`);
+      }
+      roster.push({ participantId: e.participantId, team: e.team, position: pos as string | null, champion });
     }
     if (teamA !== 5) return p.add(`${at}: 팀당 5명이 아닙니다.`);
     matches.push({
@@ -1351,9 +1359,9 @@ async function buildRestorePlan(
       data.importBatches.map((b) => [
         batchId(b.id), b.kind, b.sourceKey, b.label, b.createdAt, b.options === null ? null : JSON.stringify(b.options),
       ]), maxBytes),
-    ...insertStatements(env, groupId, "match_roster", ["match_id", "participant_id", "team", "position"],
+    ...insertStatements(env, groupId, "match_roster", ["match_id", "participant_id", "team", "position", "champion"],
       data.matches.flatMap((m) =>
-        m.roster.map((r) => [map(m.id), map(r.participantId), r.team, r.position])), maxBytes),
+        m.roster.map((r) => [map(m.id), map(r.participantId), r.team, r.position, r.champion])), maxBytes),
     ...insertStatements(env, groupId, "rotation_cycles",
       ["id", "session_id", "status", "created_at", "closed_at"],
       data.cycles.map((c) => [map(c.id), map(c.sessionId), c.status, c.createdAt, c.closedAt]), maxBytes),

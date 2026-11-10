@@ -89,3 +89,7 @@ export const Graphs = lazyNamed(() => import("./screens/Graphs"), "Graphs");
 export const Ranking = lazyNamed(() => import("./screens/Ranking"), "Ranking");
 export const SeasonSummaryScreen = lazyNamed(() => import("./screens/SeasonSummary"), "SeasonSummaryScreen");
 export const Compare = lazyNamed(() => import("./screens/Compare"), "Compare");
+
+// 화면 안의 조각: 결과 입력 창의 "챔피언도 기록하기"를 펼쳤을 때만 챔피언 목록을 받는다(오늘 화면 묶음에 넣지 않는다).
+// 부르는 쪽이 Suspense로 감싼다(감싸지 않으면 화면 전체가 "불러오는 중"으로 바뀐다).
+export const ChampionFields = lazyNamed(() => import("./championPicker"), "ChampionFields");

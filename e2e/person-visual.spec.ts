@@ -298,7 +298,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   const dir = process.env.SHOTS_DIR;
   if (dir) {
     mkdirSync(dir, { recursive: true });
-    for (const theme of ["dark", "deeplol", "light"]) {
+    for (const theme of ["dark", "violet", "light"]) {
       for (const width of [390, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(personUrl);

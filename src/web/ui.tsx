@@ -263,7 +263,10 @@ export function StandingNote(props: { standing: ShownStanding | undefined; place
   );
 }
 
-/** 누적 경기 수, 진영별 승률, 참가자 수를 한 줄로 보여준다. 확정된 경기가 없으면 그리지 않는다. */
+/**
+ * 누적 경기 수, 진영별 승률, 참가자 수를 한 줄로 보여준다. 확정된 경기가 없으면 그리지 않는다.
+ * 진영 승률은 "54% ▬▬▬ 46%"처럼 두 숫자 사이에 블루·레드 비율 막대를 둔다(2026-11-10 요약 화면 시안의 상단 띠).
+ */
 export function KpiStrip(props: { snapshot: Snapshot }) {
   const { snapshot } = props;
   const games = snapshot.matches.filter(isCounted).length;
@@ -278,8 +281,14 @@ export function KpiStrip(props: { snapshot: Snapshot }) {
         누적 경기<strong>{games}경기</strong>
       </span>
       {sides.known > 0 && (
-        <span>
-          블루 : 레드 승률<strong className="blue">{blueRate}%</strong> :{" "}
+        // 숫자 사이의 막대는 같은 비율을 그림으로 한 번 더 보여 줄 뿐이라 읽지 않는다(숫자가 뜻을 전한다).
+        <span className="kpi-sides">
+          블루 : 레드 승률<strong className="blue">{blueRate}%</strong>
+          <span className="kpi-split" aria-hidden="true">
+            <span className="kpi-split-blue" style={{ flexGrow: blueRate }} />
+            <span className="kpi-split-red" style={{ flexGrow: 100 - blueRate }} />
+          </span>
+          <span className="sr-only"> : </span>
           <strong className="red">{100 - blueRate}%</strong>
         </span>
       )}
@@ -433,6 +442,11 @@ export function MatchTeams(props: {
   highlightId?: string | null;
   /** 있으면 사람 줄이 버튼이 된다(진행 중 화면의 "다른 사람으로 교체"). 화면 읽기 이름은 "{포지션} {이름} 교체". */
   onPick?: (participantId: string) => void;
+  /**
+   * 있으면 챔피언을 기록한 사람의 이름 밑에 챔피언 이름을 적는다(경기 상세). 챔피언 목록(src/shared/champions.ts)을
+   * 첫 화면 묶음에 넣지 않으려고 이름 바꾸기 함수를 부르는 화면에서 받는다.
+   */
+  championName?: (key: string) => string;
 }) {
   return (
     <div className="teams">
@@ -463,9 +477,21 @@ export function MatchTeams(props: {
                   className={entry.participantId === props.highlightId ? "row me" : "row"}
                 >
                   <PosLabel position={entry.position} />
-                  <span className="name" title={props.nameOf(entry.participantId)}>
-                    {props.nameOf(entry.participantId)}
-                  </span>
+                  {entry.champion && props.championName ? (
+                    <span className="name-stack">
+                      <span className="name" title={props.nameOf(entry.participantId)}>
+                        {props.nameOf(entry.participantId)}
+                      </span>
+                      <span className="champ-name">
+                        <span className="sr-only">챔피언 </span>
+                        {props.championName(entry.champion)}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="name" title={props.nameOf(entry.participantId)}>
+                      {props.nameOf(entry.participantId)}
+                    </span>
+                  )}
                 </li>
               ),
             )}

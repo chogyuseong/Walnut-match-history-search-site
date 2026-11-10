@@ -37,7 +37,9 @@ import {
   type Snapshot,
   type Team,
 } from "../../shared/types";
+import { championName } from "../../shared/champions";
 import { ApiFailure, mutate, newRequestId } from "../api";
+import { ChampionFields } from "../championPicker";
 import {
   formatDate,
   formatRange,
@@ -665,7 +667,23 @@ export function Records(props: {
   );
 }
 
-type Editing = null | "winner" | "side" | "positions" | "participant" | "playedAt";
+type Editing = null | "winner" | "side" | "positions" | "participant" | "playedAt" | "champions";
+
+/** 경기의 챔피언 기록({ 참가자 ID: 챔피언 키 }, 고른 사람만). 챔피언 저장 요청의 본문 모양이다. */
+function championsOf(match: MatchView): Record<string, string> {
+  return Object.fromEntries(match.roster.flatMap((r) => (r.champion ? [[r.participantId, r.champion]] : [])));
+}
+
+function sameChampions(a: Readonly<Record<string, string>>, b: Readonly<Record<string, string>>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
+}
+
+/** 경기 상세 목록 줄의 요약: "기록 없음" 또는 "10명 중 4명". 이름별 챔피언은 위의 팀 판에 있다. */
+function championSummary(match: MatchView): string {
+  const count = match.roster.filter((r) => r.champion).length;
+  return count === 0 ? "기록 없음" : `${match.roster.length}명 중 ${count}명`;
+}
 
 /**
  * 경기 전 예상 한 줄(이변 지수, src/shared/upset.ts): "경기 전 예상 블루 62% : 레드 38%"와 이변 배지.
@@ -720,6 +738,8 @@ export function MatchDetail(props: {
   const [picked, setPicked] = useState<string[]>([]);
   const [outId, setOutId] = useState<string | null>(null);
   const [playedInput, setPlayedInput] = useState("");
+  // 챔피언 수정 창에서 고르는 중인 값({ 참가자 ID: 챔피언 키 }).
+  const [championDraft, setChampionDraft] = useState<Record<string, string>>({});
   const [imageOpen, setImageOpen] = useState(false);
   const expectationOf = useExpectations(snapshot);
   // 요청 ID는 같은 요청(동작·내용·경기 버전)을 다시 보낼 때 같은 값을 쓴다. 성공하거나 내용이 바뀌면 새로 만든다.
@@ -797,7 +817,7 @@ export function MatchDetail(props: {
         {match.source === "import" ? " · 이관" : ""}
       </p>
 
-      <MatchTeams match={match} nameOf={nameOf} />
+      <MatchTeams match={match} nameOf={nameOf} championName={championName} />
 
       <ExpectationLine expectation={expectationOf.get(match.id)} />
 
@@ -864,6 +884,22 @@ export function MatchDetail(props: {
                   참가자 교체
                 </button>
               </span>
+            </li>
+          )}
+          {operator && (
+            <li className="list-row static">
+              <span>챔피언: {championSummary(match)}</span>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setChampionDraft(championsOf(match));
+                  setEditing("champions");
+                }}
+              >
+                <span aria-hidden="true">{match.roster.some((r) => r.champion) ? "수정" : "기록"}</span>
+                <span className="sr-only">{match.roster.some((r) => r.champion) ? "챔피언 수정" : "챔피언 기록"}</span>
+              </button>
             </li>
           )}
         </ul>
@@ -1005,6 +1041,28 @@ export function MatchDetail(props: {
             }}
           >
             {busy ? "저장 중" : "변경"}
+          </button>
+        </Dialog>
+      )}
+
+      {editing === "champions" && (
+        <Dialog title="챔피언 기록" onClose={closeEdit}>
+          <p className="note">승패와 통계는 그대로예요. 조회 링크에서도 보여요.</p>
+          <ChampionFields
+            match={match}
+            nameOf={nameOf}
+            history={snapshot.matches}
+            value={championDraft}
+            onChange={setChampionDraft}
+          />
+          <ErrorNote error={error} />
+          <button
+            type="button"
+            className="primary wide"
+            disabled={busy || sameChampions(championDraft, championsOf(match))}
+            onClick={() => void send("champions", { champions: championDraft })}
+          >
+            {busy ? "저장 중" : "챔피언 저장"}
           </button>
         </Dialog>
       )}

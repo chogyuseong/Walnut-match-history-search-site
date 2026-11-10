@@ -1,4 +1,5 @@
 import { FUTURE_TOLERANCE_MS } from "../shared/backfill";
+import { isChampionKey } from "../shared/champions";
 import { shiftYears } from "../shared/dateCheck";
 import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
 import { MEMO_MAX, memoLength, normalizeMemo } from "../shared/memo";
@@ -413,27 +414,30 @@ export async function confirmResult(
   matchId: string,
   body: Body,
 ): Promise<MatchView> {
-  assertOnlyKeys(body, ["requestId", "baseMatchVersion", "winnerTeam", "winnerSide", "memo"]);
+  assertOnlyKeys(body, ["requestId", "baseMatchVersion", "winnerTeam", "winnerSide", "memo", "champions"]);
   const requestId = requestIdOf(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   const winnerTeam = requireOneOf<Team>(body.winnerTeam, TEAMS, "winnerTeam");
   const winnerSide = requireOneOf<Side>(body.winnerSide, SIDES, "winnerSide");
   const teamASide = teamASideFromWinner(winnerTeam, winnerSide);
-  // 메모(선택). 보낸 요청만 메모를 바꾼다(빈 글 = 지우기). 보내지 않은 요청은 예전과 같은 내용으로 해시한다.
+  // 메모·챔피언(선택). 보낸 요청만 그 값을 바꾼다. 보내지 않은 요청은 예전과 같은 내용으로 해시한다
+  // (기능이 생기기 전에 보낸 요청을 같은 요청 ID로 다시 보내도 같은 요청으로 본다).
   const memo = body.memo === undefined ? undefined : parseMemo(body.memo);
+  const champions = body.champions === undefined ? undefined : parseChampions(body.champions);
+  const payload: Record<string, unknown> = { matchId, baseMatchVersion, winnerTeam, winnerSide };
+  if (memo !== undefined) payload.memo = memo;
+  if (champions !== undefined) payload.champions = champions;
   await runMutation(env, {
     groupId,
     requestId,
     op: "result",
-    payload:
-      memo === undefined
-        ? { matchId, baseMatchVersion, winnerTeam, winnerSide }
-        : { matchId, baseMatchVersion, winnerTeam, winnerSide, memo },
+    payload,
     conflictDetails: () => matchConflictDetails(env, groupId, matchId),
     build: async () => {
       const match = await loadMatch(env, groupId, matchId);
       assertMatchVersion(match, baseMatchVersion);
       assertState(match, ["in_progress", "awaiting_result"]);
+      if (champions !== undefined) assertChampionsInRoster(match, champions);
       const now = nowIso();
       const statements = [
         matchGuard(env, groupId, matchId, baseMatchVersion, match.state),
@@ -461,6 +465,7 @@ export async function confirmResult(
           env.DB.prepare("UPDATE matches SET memo = ?1 WHERE id = ?2 AND group_id = ?3").bind(memo, matchId, groupId),
         );
       }
+      if (champions !== undefined) statements.push(setChampions(env, groupId, matchId, champions));
       // 진행 중이던 경기가 끝나면 "진행 중 1개" 자리가 비므로 진행 상태가 바뀐다.
       if (match.state === "in_progress") statements.push(bumpLiveVersion(env, groupId));
       return { stored: { matchId }, statements };
@@ -638,6 +643,85 @@ export async function saveMemo(env: Env, groupId: string, matchId: string, body:
              )`,
           ).bind(matchId, groupId, baseMemo),
           env.DB.prepare("UPDATE matches SET memo = ?1 WHERE id = ?2 AND group_id = ?3").bind(memo, matchId, groupId),
+        ],
+      };
+    },
+  });
+  return loadMatch(env, groupId, matchId);
+}
+
+/* ------------------------------------------------------------------ */
+/* 챔피언 기록(migrations/0025)                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 챔피언 입력 { 참가자 ID: 챔피언 키 }를 검사한다. 이 경기에서 쓴 챔피언 전체이고, 빠진 사람은 "기록 없음"이 된다
+ * (일부만 채워도 저장된다). 같은 챔피언을 두 사람이 고른 것은 막지 않는다(화면이 흐리게 알려 주기만 한다).
+ * 명단에 있는 사람인지는 경기를 읽은 뒤 assertChampionsInRoster가 본다.
+ */
+function parseChampions(value: unknown): Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value) || Object.keys(value).length > 10) {
+    throw new ApiError(400, "INVALID_FIELD", "champions 값이 올바르지 않습니다.");
+  }
+  for (const key of Object.values(value)) {
+    if (!isChampionKey(key)) {
+      throw new ApiError(400, "INVALID_CHAMPION", "목록에 없는 챔피언이 있습니다. 화면을 새로 고친 뒤 다시 골라 주세요.");
+    }
+  }
+  return value as Record<string, string>;
+}
+
+function assertChampionsInRoster(match: MatchView, champions: Record<string, string>): void {
+  const outside = Object.keys(champions).filter((id) => !match.roster.some((r) => r.participantId === id));
+  if (outside.length > 0) {
+    throw new ApiError(400, "INVALID_PARTICIPANT", "이 경기의 참가자가 아닙니다.", { participantIds: outside });
+  }
+}
+
+/** 명단 10행의 챔피언을 한 문장으로 바꾼다(입력에 없는 사람은 NULL). 경기 버전은 부르는 쪽이 올린다. */
+function setChampions(
+  env: Env,
+  groupId: string,
+  matchId: string,
+  champions: Record<string, string>,
+): D1PreparedStatement {
+  return env.DB.prepare(
+    `UPDATE match_roster SET champion = (SELECT value FROM json_each(?1) WHERE key = match_roster.participant_id)
+     WHERE match_id = ?2 AND group_id = ?3`,
+  ).bind(JSON.stringify(champions), matchId, groupId);
+}
+
+/**
+ * 확정 경기의 챔피언을 넣거나 고치거나 지운다(운영자·공동 운영자). 보낸 값이 그 경기 챔피언 전체가 된다.
+ * 메모와 달리 경기 버전을 올리고 baseMatchVersion으로 충돌을 막는다. 명단 표에는 data_version 트리거가 없어
+ * (migrations/0021) matches 행을 바꿔야 조회 응답의 ETag가 바뀌기 때문이다. 대신 그 사이 다른 기기에서 열어 둔
+ * 정정 창은 충돌로 한 번 막힌다(새로 읽고 다시 하면 된다). 승패가 아니라서 변경 이력에는 남기지 않는다.
+ */
+export async function saveChampions(env: Env, groupId: string, matchId: string, body: Body): Promise<MatchView> {
+  assertOnlyKeys(body, ["requestId", "baseMatchVersion", "champions"]);
+  const requestId = requestIdOf(body);
+  const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
+  const champions = parseChampions(body.champions);
+  await runMutation(env, {
+    groupId,
+    requestId,
+    op: "champions",
+    payload: { matchId, baseMatchVersion, champions },
+    conflictDetails: () => matchConflictDetails(env, groupId, matchId),
+    build: async () => {
+      const match = await loadMatch(env, groupId, matchId);
+      assertMatchVersion(match, baseMatchVersion);
+      assertState(match, ["confirmed"]);
+      assertChampionsInRoster(match, champions);
+      return {
+        stored: { matchId },
+        statements: [
+          matchGuard(env, groupId, matchId, baseMatchVersion, "confirmed"),
+          setChampions(env, groupId, matchId, champions),
+          env.DB.prepare("UPDATE matches SET version = version + 1 WHERE id = ?1 AND group_id = ?2").bind(
+            matchId,
+            groupId,
+          ),
         ],
       };
     },

@@ -287,6 +287,7 @@ export function viewerPage(
           <KpiStrip snapshot={snapshot} />
           <Dashboard
             snapshot={snapshot}
+            headline
             openMatch={(id) => go(`${base}/d/${id}`)}
             openPerson={(id) => go(`${base}/p/${id}`)}
             openRanking={() => go(`${base}/records`)}

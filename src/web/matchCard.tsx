@@ -169,6 +169,145 @@ function TeamLine(props: {
   );
 }
 
+/**
+ * 요약 화면 맨 위의 전광판(2026-11-10 시안 "중계 화면"): 가장 최근 확정 경기 하나를 크게 보여 준다.
+ * 경기 카드(MatchCard)와 같은 약속을 지킨다: 머리 줄이 경기 상세로 가는 버튼이고 빈 곳을 눌러도 같은 곳,
+ * 이름은 개인 통계 버튼, 팀마다 "블루팀 승리" 같은 이름의 group.
+ * - 왼쪽은 블루, 오른쪽은 레드. 진영을 모르면 팀 A가 왼쪽이고 줄 머리는 "●A"/"■B"(teamName 규칙).
+ * - 포지션이 모두 있으면 가운데 라인 칸을 두고 라인끼리 마주 세운다. 없으면 라인 칸 없이 두 줄로만 나눈다.
+ *   라인 칸은 두 팀 group 사이에 따로 두어(읽지 않음) 팀 group 안에는 그 팀 이름만 들어간다.
+ * - 가운데 숫자는 시리즈 점수(seriesScoreOfMatch)이고, 시리즈가 아니면 숫자 없이 승패만 쓴다.
+ */
+export function MatchScoreboard(props: {
+  match: MatchView;
+  nameOf: (id: string) => string;
+  timeZone: string;
+  onOpen: () => void;
+  onPerson: (id: string) => void;
+  /** 이 경기의 시리즈 이름과 팀별 시리즈 승수. 없으면 가운데 숫자를 그리지 않는다. */
+  series: { title: string; wins: Record<Team, number> } | null;
+  upset?: boolean;
+}) {
+  const { match, series } = props;
+  // 팀 A가 레드인 경기만 B를 왼쪽에 둔다(블루가 늘 왼쪽). 진영 미상은 A가 왼쪽.
+  const [left, right]: [Team, Team] = knownSideOf("A", match.teamASide) === "red" ? ["B", "A"] : ["A", "B"];
+  const withPositions = match.roster.length > 0 && match.roster.every((r) => r.position !== null);
+  const when = `${formatDate(match.playedAt, props.timeZone)} ${formatTime(match.playedAt, props.timeZone)}`;
+  const side = (team: Team, end: "left" | "right") => {
+    const won = isCounted(match) ? match.winnerTeam === team : null;
+    const known = knownSideOf(team, match.teamASide);
+    return (
+      <div className={`sb-side ${end}${known ? ` sb-${known}` : ""}`} aria-hidden="true">
+        <span className="sb-side-name">
+          {known ? (
+            SIDE_LABEL[known]
+          ) : (
+            <>
+              {TEAM_MARK[team]}
+              {team}
+            </>
+          )}
+        </span>
+        {won !== null && <span className={won ? "sb-verdict win" : "sb-verdict"}>{won ? "승리" : "패배"}</span>}
+      </div>
+    );
+  };
+  const team = (t: Team, end: "left" | "right") => {
+    const won = isCounted(match) ? match.winnerTeam === t : null;
+    return (
+      <div
+        className={`sb-team ${end}${won === null ? "" : won ? " is-win" : " is-loss"}`}
+        role="group"
+        aria-label={`${teamName(t, match.teamASide)}${won === null ? "" : won ? " 승리" : " 패배"}`}
+      >
+        {teamRoster(match, t).map((entry) => {
+          const name = props.nameOf(entry.participantId);
+          return (
+            <button
+              key={entry.participantId}
+              type="button"
+              className="sb-name"
+              title={entry.position && !withPositions ? `${POSITION_LABEL[entry.position]} ${name}` : name}
+              onClick={() => props.onPerson(entry.participantId)}
+            >
+              <span className="sb-name-text">{name}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <article className={`scoreboard tone-${matchTone(match)}`} aria-label={`최근 경기 ${match.matchNo}경기`}>
+      <div className="sb-stripe" aria-hidden="true">
+        <span className={knownSideOf(left, match.teamASide) ? "sb-stripe-blue" : ""} />
+        <span className={knownSideOf(right, match.teamASide) ? "sb-stripe-red" : ""} />
+      </div>
+      <button type="button" className="sb-main" onClick={props.onOpen}>
+        <span className="sb-kicker">
+          최근 경기 · {match.matchNo}경기<span className="sr-only"> · {resultLine(match)}</span>
+        </span>
+        <span className="sb-when">
+          {series && <>{series.title} · </>}
+          {when}
+        </span>
+      </button>
+      {(props.upset || match.memo) && (
+        <p className="mc-extra sb-extra">
+          {props.upset && (
+            <span className="series-badge" title="경기 전 예상이 약팀이던 쪽이 이겼어요">
+              이변
+            </span>
+          )}
+          {match.memo && (
+            <span className="mc-memo" title={match.memo}>
+              <span className="mc-memo-label">메모</span>
+              {memoOneLine(match.memo)}
+            </span>
+          )}
+        </p>
+      )}
+      <div className="sb-score">
+        {side(left, "left")}
+        {series ? (
+          <p className="sb-series">
+            <span className="sr-only">시리즈 점수 </span>
+            <span className={series.wins[left] < series.wins[right] ? "sb-series-num trail" : "sb-series-num"}>
+              {series.wins[left]}
+            </span>
+            <span className="sb-series-colon" aria-hidden="true">
+              :
+            </span>
+            <span className="sr-only"> 대 </span>
+            <span className={series.wins[right] < series.wins[left] ? "sb-series-num trail" : "sb-series-num"}>
+              {series.wins[right]}
+            </span>
+          </p>
+        ) : (
+          <span className="sb-vs" aria-hidden="true">
+            vs
+          </span>
+        )}
+        {side(right, "right")}
+      </div>
+      <div className={withPositions ? "sb-lanes with-pos" : "sb-lanes"}>
+        {team(left, "left")}
+        {withPositions && (
+          <div className="sb-roles" aria-hidden="true">
+            {POSITIONS.map((p) => (
+              <span key={p} className="sb-role">
+                <PosLabel position={p} />
+              </span>
+            ))}
+          </div>
+        )}
+        {team(right, "right")}
+      </div>
+    </article>
+  );
+}
+
 /** 경기 카드 목록. 비어 있으면 아무것도 그리지 않는다. */
 export function MatchCardList(props: { children: ReactNode; label?: string }) {
   return (

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import {
   presetWinnerSide,
   teamASideFromWinner,
@@ -11,6 +11,7 @@ import { normalizeMemo } from "../../shared/memo";
 import { mutate, newRequestId } from "../api";
 import { MemoField, memoTooLong } from "../memoField";
 import { formatTime, TEAM_MARK, teamBoxClass, teamName, teamRoster, winnerText } from "../format";
+import { ChampionFields } from "../lazyScreens";
 import { Dialog, ErrorNote } from "../ui";
 import { useAppValue } from "../useApp";
 
@@ -49,12 +50,16 @@ export function ResultSheet(props: {
   const [memo, setMemo] = useState(match.memo ?? "");
   const memoValue = normalizeMemo(memo);
   const memoChanged = props.mode === "result" && memoValue !== (match.memo ?? null);
+  // 챔피언(선택, 결과 입력에서만). 접힌 영역을 펼쳐 한 명이라도 골랐을 때만 보낸다: 쓰지 않는 모임의 요청은 예전과 같다.
+  const [championsOpen, setChampionsOpen] = useState(false);
+  const [champions, setChampions] = useState<Record<string, string>>({});
+  const championCount = Object.keys(champions).length;
   // 요청 ID는 창을 열 때 한 번 만들고, 내용이 바뀌면 새로 만든다. 재시도에는 같은 값을 쓴다.
   const request = useRef<{ id: string; key: string } | null>(null);
 
   async function save() {
     if (!winner || !side || !app.groupId || memoTooLong(memo)) return;
-    const key = `${winner}:${side}:${memoChanged ? (memoValue ?? "") : "-"}`;
+    const key = `${winner}:${side}:${memoChanged ? (memoValue ?? "") : "-"}:${JSON.stringify(champions)}`;
     if (!request.current || request.current.key !== key) {
       request.current = { id: newRequestId(), key };
     }
@@ -74,6 +79,7 @@ export function ResultSheet(props: {
               winnerSide: side,
               // 메모는 바꿨을 때만 보낸다(빈 글 = 지우기).
               ...(memoChanged ? { memo: memoValue ?? "" } : {}),
+              ...(championCount > 0 ? { champions } : {}),
             }
           : {
               requestId: request.current.id,
@@ -94,6 +100,27 @@ export function ResultSheet(props: {
   }
 
   const title = `${match.matchNo}경기 ${props.mode === "result" ? "결과" : "승리 팀 수정"}`;
+
+  // 펼치기 전에는 고르기 칸(과 챔피언 목록 조각)을 그리지 않는다.
+  const championSection = (
+    <details className="champ-details" onToggle={(e) => setChampionsOpen(e.currentTarget.open)}>
+      <summary>
+        챔피언도 기록하기(선택)
+        {championCount > 0 ? ` · ${championCount}명` : ""}
+      </summary>
+      {championsOpen && (
+        <Suspense fallback={<p className="hint">불러오는 중…</p>}>
+          <ChampionFields
+            match={match}
+            nameOf={nameOf}
+            history={app.snapshot?.matches ?? []}
+            value={champions}
+            onChange={setChampions}
+          />
+        </Suspense>
+      )}
+    </details>
+  );
 
   if (saved) {
     return (
@@ -191,6 +218,7 @@ export function ResultSheet(props: {
         )}
 
         {winner && <MemoField value={memo} onChange={setMemo} />}
+        {winner && championSection}
 
         <ErrorNote error={error} onCheck={() => void save()} />
         <button
@@ -280,6 +308,7 @@ export function ResultSheet(props: {
             <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠집니다.</p>
           )}
           {props.mode === "result" && <MemoField value={memo} onChange={setMemo} />}
+          {props.mode === "result" && championSection}
         </section>
       )}
 

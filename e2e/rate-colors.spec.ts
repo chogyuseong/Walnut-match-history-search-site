@@ -100,7 +100,7 @@ async function setTheme(page: Page, theme: string) {
 async function shots(page: Page, s: Setup, dir: string) {
   mkdirSync(dir, { recursive: true });
   const top = s.people[11]!; // 목표 72%
-  for (const theme of ["dark", "deeplol", "light"]) {
+  for (const theme of ["dark", "violet", "light"]) {
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/#/p/${top.id}`);

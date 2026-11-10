@@ -71,8 +71,6 @@ export const PODIUM_PLACES = 3;
 export const BRAND_PLACES = 5;
 /** 왼쪽 색 띠와 굵은 순위 숫자를 주는 마지막 순위. 늘리면 강조가 흔해져 상위가 덜 눈에 띈다. */
 export const HIGHLIGHT_PLACES = 10;
-/** MMR 막대의 가장 짧은 길이(묶음 최저 MMR). 0이면 꼴찌 막대가 사라져 빈 줄처럼 보인다. */
-export const BAR_FLOOR = 0.08;
 
 /**
  * 시상대: 누적 50경기 이상 묶음의 1~3위. 그 묶음이 맨 위라 순위 숫자 그대로 1·2·3이다.
@@ -93,34 +91,48 @@ export function rankEmphasis(rank: number, placing: boolean): RankEmphasis {
   return rank <= BRAND_PLACES ? "tier-brand" : "tier-bold";
 }
 
-/** 묶음별 MMR 최저·최고. 막대는 묶음 안에서만 견준다(묶음이 다르면 경기 수 기준이 달라 견주기 어렵다). */
-export function ratingRangeByGroup(
-  ranked: readonly RankedRow[],
-  table: RatingTable,
-  placement: ReadonlyMap<string, Placement>,
-): Map<RankingGroup, { min: number; max: number }> {
-  const ranges = new Map<RankingGroup, { min: number; max: number }>();
-  for (const row of ranked) {
-    const rating = table.get(row.participantId)?.rating;
-    if (rating === undefined) continue;
-    const group = rankingGroup(placement, row.participantId);
-    const range = ranges.get(group);
-    if (!range) ranges.set(group, { min: rating, max: rating });
-    else {
-      range.min = Math.min(range.min, rating);
-      range.max = Math.max(range.max, rating);
-    }
-  }
-  return ranges;
+/** 시작값 기준 막대의 눈금: 왼쪽 끝 lo · 오른쪽 끝 hi · 기준선 start. */
+export interface MmrScale {
+  lo: number;
+  hi: number;
+  start: number;
 }
 
 /**
- * MMR 막대 길이(0~1). 최고 대비 비율(rating/max)은 시작값 근처끼리라 모두 0.9 언저리로 똑같아 보여서,
- * 묶음 최저를 BAR_FLOOR, 최고를 1로 두고 그 사이를 선형으로 나눈다. 모두 같으면 가득 채운다.
+ * 순위표 막대의 눈금. 배치 완료자의 최저·최고 MMR로 잡되 시작값이 늘 범위 안에 들게 넓힌다(모두 시작값보다
+ * 높아도 기준선이 왼쪽 끝에 보여야 "얼마나 올랐나"가 읽힌다). 배치 진행 중은 막대를 그리지 않으므로 빼고,
+ * 검색으로 줄이 줄어도 눈금이 흔들리지 않게 검색 전 전체 순위표(ranked)로 계산한다. 배치 완료자가 없으면 null.
  */
-export function mmrBarShare(rating: number, range: { min: number; max: number }): number {
-  if (range.max === range.min) return 1;
-  return BAR_FLOOR + (1 - BAR_FLOOR) * ((rating - range.min) / (range.max - range.min));
+export function mmrScale(
+  ranked: readonly RankedRow[],
+  table: RatingTable,
+  placement: ReadonlyMap<string, Placement>,
+  start: number,
+): MmrScale | null {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const row of ranked) {
+    const rating = table.get(row.participantId)?.rating;
+    if (rating === undefined || rankingGroup(placement, row.participantId) === STILL_PLACING) continue;
+    lo = Math.min(lo, rating);
+    hi = Math.max(hi, rating);
+  }
+  if (lo === Infinity) return null;
+  return { lo: Math.min(lo, start), hi: Math.max(hi, start), start };
+}
+
+/**
+ * 한 사람의 막대 위치(0~1 비율). 시작값보다 높으면 기준선에서 오른쪽으로, 낮으면 왼쪽으로 뻗는다.
+ * 모두 시작값 그대로라 눈금 폭이 0이면 길이 0(기준선만 보인다).
+ */
+export function divergingBar(rating: number, scale: MmrScale): { left: number; width: number; up: boolean } {
+  const span = scale.hi - scale.lo;
+  if (span === 0) return { left: 0, width: 0, up: true };
+  const at = (value: number) => (value - scale.lo) / span;
+  const up = rating >= scale.start;
+  return up
+    ? { left: at(scale.start), width: at(rating) - at(scale.start), up }
+    : { left: at(rating), width: at(scale.start) - at(rating), up };
 }
 
 /** 묶음별 인원(묶음 머리글에 적는다). 검색 전 전체 순위표 기준이다. */

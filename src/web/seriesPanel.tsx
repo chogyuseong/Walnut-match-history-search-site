@@ -11,9 +11,10 @@ import {
   seriesScore,
   seriesTeamNames,
   seriesTitle,
+  teamKey,
   type SeriesScore,
 } from "../shared/series";
-import { SERIES_FORMATS, type MatchView, type SeriesFormat, type SeriesView, type Snapshot } from "../shared/types";
+import { SERIES_FORMATS, type MatchView, type SeriesFormat, type SeriesView, type Snapshot, type Team } from "../shared/types";
 import { mutate, newRequestId } from "./api";
 import { formatDate, STATE_LABEL } from "./format";
 import { Dialog, ErrorNote } from "./ui";
@@ -40,6 +41,27 @@ export function useSeriesBadges(snapshot: Snapshot | null): (matchId: string) =>
     }
     return (matchId: string) => (index.has(matchId) ? (cache.get(matchId) ?? null) : null);
   }, [snapshot]);
+}
+
+/**
+ * 요약 화면 전광판 가운데 숫자: 이 경기가 속한 시리즈의 지금 점수를 이 경기의 팀 A·B 쪽으로 옮긴 것.
+ * 시리즈 점수(seriesScore)는 기준 판의 팀 A였던 사람들 쪽이 앞이라, 이 경기에서 그 사람들이 팀 B면 뒤집는다.
+ * 시리즈에 없거나 구성이 달라 점수에서 뺀 판(mismatch·dropped)이면 null(전광판은 숫자 없이 승패만 쓴다).
+ */
+export function seriesScoreOfMatch(
+  snapshot: Snapshot,
+  match: MatchView,
+): { title: string; wins: Record<Team, number> } | null {
+  const series = seriesIndex(snapshot.series).get(match.id);
+  if (!series) return null;
+  const score = seriesScore(series, snapshot.matches);
+  const game = score.games.find((g) => g.match.id === match.id);
+  if (!game || game.status === "mismatch" || game.status === "dropped") return null;
+  const aIsFirst = teamKey(match.roster, "A") === score.teams[0].join(",");
+  return {
+    title: seriesTitle(series),
+    wins: aIsFirst ? { A: score.wins[0], B: score.wins[1] } : { A: score.wins[1], B: score.wins[0] },
+  };
 }
 
 /** 판 하나의 짧은 결과 글. */

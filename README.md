@@ -44,7 +44,7 @@
 | 서버 | Cloudflare Workers + [Hono](https://hono.dev) 4, D1(SQLite), R2(자동 백업), Cron Trigger | 무료 요금제 기준으로 설계(요청당 CPU 10ms, D1 하루 쓰기 10만 행) |
 | 화면 | React 19 + Vite 8, TypeScript 7 | UI 라이브러리 없음. 디자인 토큰(CSS 변수) + 직접 만든 부품, 테마 3종(다크·바이올렛·라이트) |
 | 공용 로직 | `src/shared` 순수 함수 | 서버와 화면이 같은 계산(통계·편성·칭호·MMR)을 씀 |
-| 테스트 | Vitest 5(단위·통합, Workers 런타임), Playwright(브라우저 흐름) | 2026-11-10 기준 vitest 980개, e2e 109개 |
+| 테스트 | Vitest 5(단위·통합, Workers 런타임), Playwright(브라우저 흐름) | 2026-11-10 기준 vitest 998개, e2e 111개 |
 | 검사 | ESLint(typescript-eslint + react-hooks), `check:bundle`(JS 크기 상한) | GitHub Actions `.github/workflows/ci.yml` |
 | 배포 | wrangler 4, 환경 `staging` / `production` | 운영 배포는 아직 없음 |
 
@@ -89,7 +89,7 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 src/server/   Workers API(Hono). index.ts 라우팅, mutation.ts(모임 안 쓰기 공통 경로), snapshot.ts, auth.ts, matches.ts, groups.ts …
 src/shared/   서버·화면 공용 순수 로직. stats(통계) · draft/prepTools/rotation/priority/avoid(편성) · titles(칭호) · rating(MMR) · search · seasonAwards …
 src/web/      React 화면. App.tsx 라우팅, useApp.ts 상태, lazyScreens.ts 지연 로딩, screens/*(화면), screens/prep/*(준비 화면 조각), styles.css(토큰·스타일)
-migrations/   D1 마이그레이션 0001~0024(0004는 없음, 번호 건너뜀)
+migrations/   D1 마이그레이션 0001~0025(0004는 없음, 번호 건너뜀)
 test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서 · scripts/  seed, check-bundle
 ```
 
@@ -111,7 +111,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 
 ### 배포(요약)
 
-`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → `npm run deploy:staging`·마이그레이션 0001~0024·확인 → `npm run deploy:production`. 배포 명령은 먼저 `scripts/predeploy-check.mjs`로 자리 표시값(`REPLACE-WITH-…`)과 production의 `[채워야 함]`을 검사해 남아 있으면 멈춥니다. wrangler 명령을 손으로 칠 때는 **항상 `--env staging|production`**(빠뜨리면 로컬 설정 `AUTH_MODE=fake`·D1 ID `0000…`이 올라가려 함. 공개 주소에서 가짜 로그인은 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
+`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → `npm run deploy:staging`·마이그레이션 0001~0025·확인 → `npm run deploy:production`. 배포 명령은 먼저 `scripts/predeploy-check.mjs`로 자리 표시값(`REPLACE-WITH-…`)과 production의 `[채워야 함]`을 검사해 남아 있으면 멈춥니다. wrangler 명령을 손으로 칠 때는 **항상 `--env staging|production`**(빠뜨리면 로컬 설정 `AUTH_MODE=fake`·D1 ID `0000…`이 올라가려 함. 공개 주소에서 가짜 로그인은 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
 
 ---
 
@@ -172,13 +172,14 @@ Riot API 없이도 쌓인 승패·MMR·세션만으로 더 보여 주려고 넣�
 - 화면 점검 후속(2026-11-08): 다른 화면으로 가면 맨 위에서 열림(같은 화면 안 범위·탭은 그대로, 뒤로 가기는 브라우저 위치), 토스트는 고정 행동 버튼 위에, 준비 화면 섞기 줄이 편성 판 바로 아래(서포터 횟수 판은 기본 접힘 + "초기화 필요" 배지), 신청자 0명이면 참가 신청 한 줄, 날짜 표기 통일(올해는 "11월 7일", 다른 해는 "2025년 11월 7일", 기간은 "7월 1일 ~ 8월 31일")
 - **전체 점검 후속(2026-11-09, 화면)**: 경기 시각 정정을 기기 시간대가 아닌 모임 시간대로 읽고 저장(`zonedDateTimeInput`/`zonedInputToUtc`), 스냅숏 ETag가 같으면 이전 객체를 그대로 써서 다시 그리지 않음 + `useApp` 반환 객체 메모, `Intl.DateTimeFormat` 캐시(`dateTimeFormat`), 그래프 분석·모임 화면의 무거운 계산 메모, 모임 대화상자는 실패하면 열린 채 오류 표시, 요청 ID를 같은 내용 재전송에 재사용(기록 정정·시즌·시리즈·날짜 정정), 없는 주소는 "없는 주소예요" 화면, 화면마다 문서 제목("화면 이름 · 내전 운영"), Dialog 포커스 가두기·복귀·`aria-labelledby`
 - **2026-11-10 디자인 재정비**("기록지" 컨셉): 먹색 바탕·미색 글자·포인트는 골드 하나, 그림자·글로우 제거, 알약 → 각진 라벨, 칭호 compact, 목록은 카드 한 장 안의 구분선 줄(`.list-card`), 순위 숫자 색, 라이트는 종이색 바탕 + 잉크색 채운 버튼. 잔손질: 경기 카드 이름 한 줄 말줄임, 시상 카드 내용 높이·라인별 공통 기준 한 줄, 패 점 외곽선, 막대·분포 띠 가늘게, 팀 판 위쪽 진영 띠, PC 제목 1.75rem. 토큰 대비는 `test/theme-contrast.test.ts`가 검사
+- **2026-11-10 차콜 테마**: 다크 바탕·글자를 무채색 차콜로(바탕 #16171a · 카드 #1e1f23 · 글자 #eceef1), 포인트는 골드 그대로. 상단 바·하단 탭은 한 단계 밝은 면(`--ih-bg-bar`), 지금 화면 탭은 채운 버튼 색으로 채운 칸(운영자 탭·조회 메뉴 공통), 표·순위표·전광판 머리 줄은 올린 면(`--ih-bg-elevated`), 모서리 4~6px. 전적 사이트의 흔한 관습만 따랐고 특정 사이트의 색 조합·로고·배치는 가져오지 않았다. 바이올렛 테마의 식별자는 `violet`(예전 저장값은 읽을 때 옮겨 적는다)
 
 ---
 
 ## 4. 앞으로 나아갈 방향
 
 ### 바로 다음
-1. **운영 배포**: `docs/배포안내.md` 7~15절. 마이그레이션(0001~0024) 먼저, 그 뒤 `npm run deploy:staging` → 확인 → `npm run deploy:production`. staging에서 꼭 해볼 것: 522경기 백업으로 **복원을 실제 실행**하고 cpuTime 확인(무료 10ms 초과면 복원하는 날만 Paid), 21경기 이상 날짜 일괄 정정과 15판 시리즈 만들기(D1 질의 한도), 로그인 CPU(PBKDF2 20,000회), CSP 헤더, 조회 304, 실제 카카오·Google 로그인
+1. **운영 배포**: `docs/배포안내.md` 7~15절. 마이그레이션(0001~0025) 먼저, 그 뒤 `npm run deploy:staging` → 확인 → `npm run deploy:production`. staging에서 꼭 해볼 것: 522경기 백업으로 **복원을 실제 실행**하고 cpuTime 확인(무료 10ms 초과면 복원하는 날만 Paid), 21경기 이상 날짜 일괄 정정과 15판 시리즈 만들기(D1 질의 한도), 로그인 CPU(PBKDF2 20,000회), CSP 헤더, 조회 304, 실제 카카오·Google 로그인
 2. **실기기 검증**: 휴대폰 Safari·Chrome에서 준비 화면·결과 입력·조회 링크. 지금까지는 Chromium·WebKit 헤드리스만 확인
 3. **디자인 정리 계속**: 남은 항목은 PC 기록 화면의 표 형태, 홈·기록 요약 줄을 시즌 요약의 타일로 통일, 모임 화면(긴 세로 목록) 톤 정리, 라인 아이콘 세트 다듬기, 열지도 색, 로고·시그니처 요소, 모임 탭 하위 탭화, **작은 글자 키우기**(힌트·캡션·칩)
 4. **가져오기 "다른 경기로 넣기"**: 같은 날 같은 10명·같은 결과의 두 번째 경기를 따로 붙여 넣으면 "이미 있음"으로 건너뛴다. 공용 함수 `nextFreeFingerprint`는 있고, 가져오기 화면에서 그 줄에 선택지를 붙이는 연결이 남아 있다
@@ -190,7 +191,7 @@ Riot API 없이도 쌓인 승패·MMR·세션만으로 더 보여 주려고 넣�
 - **요금제**: Cloudflare 무료로 시작, 사용자가 늘면 Workers Paid($5)로 코드 변경 없이 전환. 조회가 아주 많아지면 Rate Limiting 바인딩 또는 KV 검토
 
 ### 하지 않을 것
-- 챔피언·KDA·CS 통계, Riot 계정 전적 조회, 내전 라운지, 참가자끼리의 메시지·댓글, 참가자의 직접 기록 수정(요청만 가능)
+- 챔피언 통계·KDA·CS(챔피언은 결과 입력이나 경기 상세에서 원하면 골라 기록만 한다. 통계·랭킹에는 쓰지 않는다), Riot 계정 전적 조회, 내전 라운지, 참가자끼리의 메시지·댓글, 참가자의 직접 기록 수정(요청만 가능)
 
 ---
 

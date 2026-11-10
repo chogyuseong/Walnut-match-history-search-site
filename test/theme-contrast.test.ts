@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import css from "../src/web/styles.css?raw";
 
-// 세 테마(dark·deeplol·light)의 색 토큰이 WCAG 대비 기준을 지키는지 styles.css를 직접 읽어 검사한다.
+// 세 테마(dark·violet·light)의 색 토큰이 WCAG 대비 기준을 지키는지 styles.css를 직접 읽어 검사한다.
 // 글자는 바탕 대비 4.5:1, 승률 막대는 막대 바탕(--viz-track) 대비 3:1. 반투명(rgba) 테두리·틴트는 검사하지 않는다.
-// deeplol은 dark 토큰을 물려받고 바뀐 값만 덮어쓴다.
+// violet은 dark 토큰을 물려받고 바뀐 값만 덮어쓴다.
 
 /** 선택자 묶음(예: `:root,\n[data-theme="dark"]`)으로 시작하는 블록 안의 `--이름: #hex;` 선언을 모두 모은다. */
 function tokensOf(selectorPattern: RegExp): Map<string, string> {
@@ -18,10 +18,10 @@ function tokensOf(selectorPattern: RegExp): Map<string, string> {
 }
 
 const darkSel = /^:root,\s*\[data-theme="dark"\]$/;
-// 라인 색·신호 색은 dark·deeplol이 함께 쓰는 블록(`:root, [data-theme="dark"], [data-theme="deeplol"]`)에 있다.
-const sharedDark = tokensOf(/^:root,\s*\[data-theme="dark"\],\s*\[data-theme="deeplol"\]$/);
+// 라인 색·신호 색은 dark·violet이 함께 쓰는 블록(`:root, [data-theme="dark"], [data-theme="violet"]`)에 있다.
+const sharedDark = tokensOf(/^:root,\s*\[data-theme="dark"\],\s*\[data-theme="violet"\]$/);
 const dark = new Map([...tokensOf(darkSel), ...sharedDark]);
-const deeplol = new Map([...dark, ...tokensOf(/^\[data-theme="deeplol"\]$/)]);
+const violet = new Map([...dark, ...tokensOf(/^\[data-theme="violet"\]$/)]);
 const light = new Map([...dark, ...tokensOf(/^\[data-theme="light"\]$/)]);
 // 막대 바탕: .viz-root(다크·바이올렛)과 [data-theme="light"] .viz-root.
 const vizDark = tokensOf(/^\.viz-root$/);
@@ -42,14 +42,14 @@ function contrast(a: string, b: string): number {
 const HEAT = ["h4", "h3", "h2", "h1", "0", "0h", "0l", "l1", "l2", "l3", "l4"];
 const THEMES = [
   { name: "dark", t: dark, viz: vizDark },
-  { name: "deeplol", t: deeplol, viz: vizDark },
+  { name: "violet", t: violet, viz: vizDark },
   { name: "light", t: light, viz: vizLight },
 ] as const;
 
 describe("테마 색 대비", () => {
   it("토큰을 읽었다", () => {
-    expect(dark.get("--ih-bg-canvas")).toBe("#121316");
-    expect(deeplol.get("--ih-bg-canvas")).toBe("#131219");
+    expect(dark.get("--ih-bg-canvas")).toBe("#16171a");
+    expect(violet.get("--ih-bg-canvas")).toBe("#131219");
     expect(light.get("--ih-bg-canvas")).toBe("#f5f3ee");
     expect(vizDark.get("--viz-track")).toMatch(/^#/);
     expect(vizLight.get("--viz-track")).toMatch(/^#/);

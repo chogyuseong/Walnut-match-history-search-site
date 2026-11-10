@@ -61,6 +61,7 @@ import {
   importMatches,
   replaceLiveParticipant,
   restoreMatch,
+  saveChampions,
   saveMemo,
   setImportBatchExcluded,
   shiftMatchDates,
@@ -877,6 +878,8 @@ const matchActions = {
   correct: correctMatch,
   // 경기 메모(migrations/0016). 진행 중·결과 대기·확정 경기.
   memo: saveMemo,
+  // 챔피언 기록(migrations/0025). 확정 경기만. 결과 입력 때 함께 고른 것은 result 요청의 champions로 온다.
+  champions: saveChampions,
 } as const;
 
 app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {

@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { rankingGroup } from "../src/shared/insights";
 import {
-  BAR_FLOOR,
-  mmrBarShare,
+  divergingBar,
   mmrRanking,
+  mmrScale,
   podiumOf,
   rankEmphasis,
   rankingGroupSizes,
   rankingHighlights,
-  ratingRangeByGroup,
 } from "../src/shared/ranking";
 import { computeRatings } from "../src/shared/rating";
 import { placements } from "../src/shared/stats";
@@ -159,18 +158,32 @@ describe("MMR 랭킹", () => {
     expect(rankEmphasis(1, true)).toBeNull();
   });
 
-  it("MMR 막대: 묶음 최저는 BAR_FLOOR, 최고는 1, 사이는 선형, 모두 같으면 1", () => {
-    expect(mmrBarShare(900, { min: 900, max: 1100 })).toBeCloseTo(BAR_FLOOR, 10);
-    expect(mmrBarShare(1100, { min: 900, max: 1100 })).toBeCloseTo(1, 10);
-    expect(mmrBarShare(1000, { min: 900, max: 1100 })).toBeCloseTo(BAR_FLOOR + (1 - BAR_FLOOR) / 2, 10);
-    expect(mmrBarShare(1000, { min: 1000, max: 1000 })).toBe(1);
+  it("MMR 막대 눈금: 배치 완료자의 최저·최고에 시작값을 넣어 넓히고, 배치 완료자가 없으면 null", () => {
     const matches = season();
     const table = computeRatings(matches);
     const placement = placements(matches);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
-    const ranges = ratingRangeByGroup(ranked, table, placement);
-    const veterans = ranked.filter((r) => rankingGroup(placement, r.participantId) === 0);
-    const values = veterans.map((r) => table.get(r.participantId)!.rating);
-    expect(ranges.get(0)).toEqual({ min: Math.min(...values), max: Math.max(...values) });
+    const placed = ranked.filter((r) => rankingGroup(placement, r.participantId) !== 2);
+    const values = placed.map((r) => table.get(r.participantId)!.rating);
+    const lo = Math.min(...values);
+    const hi = Math.max(...values);
+    expect(mmrScale(ranked, table, placement, 1200)).toEqual({ lo: Math.min(lo, 1200), hi: Math.max(hi, 1200), start: 1200 });
+    // 시작값이 모두보다 낮으면 왼쪽 끝이 시작값이다.
+    expect(mmrScale(ranked, table, placement, lo - 50)!.lo).toBe(lo - 50);
+    expect(mmrScale([], table, placement, 1200)).toBeNull();
+  });
+
+  it("MMR 막대: 시작값보다 높으면 기준선에서 오른쪽, 낮으면 왼쪽, 눈금 폭이 0이면 길이 0", () => {
+    const scale = { lo: 1000, hi: 1600, start: 1200 };
+    const up = divergingBar(1500, scale);
+    expect(up.up).toBe(true);
+    expect(up.left).toBeCloseTo(1 / 3, 10);
+    expect(up.width).toBeCloseTo(0.5, 10);
+    const down = divergingBar(1050, scale);
+    expect(down.up).toBe(false);
+    expect(down.left).toBeCloseTo(50 / 600, 10);
+    expect(down.width).toBeCloseTo(150 / 600, 10);
+    expect(divergingBar(1200, scale).width).toBe(0);
+    expect(divergingBar(1200, { lo: 1200, hi: 1200, start: 1200 })).toEqual({ left: 0, width: 0, up: true });
   });
 });
