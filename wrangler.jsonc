@@ -116,8 +116,9 @@
         // 화면 오류 보고(로그인 없음)의 IP별 한도.
         "RATE_CLIENT_ERROR_PER_IP": "10",
         // 대량 쓰기 하루 예산: 가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수(UTC 하루, src/server/ratelimit.ts).
-        "RATE_BULK_ROWS_PER_ACCOUNT": "3000",
-        "RATE_BULK_ROWS_PER_IP": "6000",
+        // 2026-11-11 기존 522경기 이전이 끝나 3000·6000에서 낮춤. 큰 모임을 새로 옮길 때는 그날만 올려 배포한다.
+        "RATE_BULK_ROWS_PER_ACCOUNT": "1000",
+        "RATE_BULK_ROWS_PER_IP": "2000",
         // IP 하루 벌점: 분 단위 한도에 걸린 창이 하루(UTC) 이만큼이면 그 IP는 한국 시각 다음 오전 9시까지 429다.
         // 여럿이 한 IP를 나눠 쓰는 저녁(PC방·같은 와이파이)에 몇 번 걸리는 것은 정상이라 넉넉히 둔다.
         "RATE_STRIKES_PER_IP_DAY": "20",
