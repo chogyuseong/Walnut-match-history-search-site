@@ -2,11 +2,11 @@ import { createElement, lazy, useState, type ComponentProps, type ComponentType,
 import { importWithReload, installChunkReload } from "./chunkReload";
 
 /**
- * 화면 단위 코드 분할. 첫 화면 묶음(main.tsx → App.tsx)에는 껍데기(상단 바·탭·로그인 창·상태 훅)만 두고
+ * 화면 단위 코드 분할. 첫 화면 묶음(main.tsx → App.tsx)에는 껍데기(상단 바·탭·로그인 상태·상태 훅)만 두고
  * 화면은 처음 열 때 받는다. 묶음 기준:
  *  (가) 로그인 없이 여는 공개 화면: 참가 신청·조회 링크·참가자 편성(조회 링크의 /live)·예시 모임·개인정보 처리방침 — 화면마다 따로.
  *  (나) 운영자 기본 흐름: 오늘(첫 화면)은 따로, 나머지(고르기·준비·경기·모임·기록·개인 등)는 한 덩어리(screens/operator.ts).
- *  (다) 무거운 드문 화면: 가져오기·과거 기록·합치기·사이트 현황·그래프·MMR 랭킹·시즌 요약·비교 — 화면마다 따로.
+ *  (다) 무거운 드문 화면: 가져오기·과거 기록·합치기·사이트 현황·그래프·MMR 랭킹·시즌 요약·비교·챔피언 티어 — 화면마다 따로.
  * 같은 모듈을 여러 묶음이 쓰면 번들러가 공용 조각으로 뺀다(예: 조회 링크와 운영자 기록이 같이 쓰는 Records).
  *
  * 배포 뒤 옛 탭에서 사라진 조각을 받지 못하면 한 번 새로 고친다(src/web/chunkReload.ts). 미리 받기·지연 로딩 모두
@@ -89,6 +89,19 @@ export const Graphs = lazyNamed(() => import("./screens/Graphs"), "Graphs");
 export const Ranking = lazyNamed(() => import("./screens/Ranking"), "Ranking");
 export const SeasonSummaryScreen = lazyNamed(() => import("./screens/SeasonSummary"), "SeasonSummaryScreen");
 export const Compare = lazyNamed(() => import("./screens/Compare"), "Compare");
+/** 챔피언 티어. 운영자·조회 링크·예시 모임이 모두 이 조각을 연다(챔피언 목록을 조회 화면 묶음에 더 싣지 않게). */
+export const ChampionTier = lazyNamed(() => import("./screens/ChampionTier"), "ChampionTier");
+
+// 로그인 창·로그인 실패 안내(screens/Login.tsx). 카카오·Google 버튼 그림과 가입·복구 단계까지 들어 있어 첫 화면에 싣지 않는다.
+// 로그인 버튼에 포인터가 올라가거나 초점이 가면 prefetchLogin으로 미리 받아, 누른 뒤 창이 늦게 뜨지 않게 한다.
+// 상단 바·오류 문구처럼 화면 조각 밖에서 그리는 곳은 부르는 쪽이 Suspense로 감싼다.
+export const loadLogin = () => import("./screens/Login");
+export const LoginDialog = lazyNamed(loadLogin, "LoginDialog");
+export const LoginFailed = lazyNamed(loadLogin, "LoginFailed");
+export function prefetchLogin(): void {
+  // 운영 묶음 미리 받기와 같은 규칙: 실패해도(오프라인 등) 창을 열 때 다시 받는다.
+  preload(loadLogin).catch(() => undefined);
+}
 
 // 화면 안의 조각: 결과 입력 창의 "챔피언도 기록하기"를 펼쳤을 때만 챔피언 목록을 받는다(오늘 화면 묶음에 넣지 않는다).
 // 부르는 쪽이 Suspense로 감싼다(감싸지 않으면 화면 전체가 "불러오는 중"으로 바뀐다).

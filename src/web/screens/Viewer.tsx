@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { resolveMerged } from "../../shared/merge";
 import type { Snapshot } from "../../shared/types";
 import { ApiFailure, call } from "../api";
 import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
-import { Dialog, KpiStrip, MatchTeams } from "../ui";
+import { ChampionTier } from "../lazyScreens";
+import { KpiStrip, MatchTeams, ScreenHead } from "../screenKit";
+import { Dialog } from "../ui";
 import { go } from "../useApp";
 import { Compare } from "./Compare";
 import { Dashboard } from "./Dashboard";
@@ -19,6 +21,7 @@ import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./Se
  * 화면 7 — 조회 화면(링크). 로그인이 없고 읽기만 한다.
  * 주소: #/v/토큰/now(현재 경기) · #/v/토큰/m/경기번호 · #/v/토큰/records · #/v/토큰/search(?q=질의, App이 떼어 낸다)
  *       · #/v/토큰/home(모임 요약) · #/v/토큰/ranking(MMR 랭킹) · #/v/토큰/compare/A/B(두 사람 비교)
+ *       · #/v/토큰/champions(챔피언 티어)
  * 첫 화면(now)은 경기 중 자기 자리를 확인하는 화면이라 그대로 두고, 요약은 메뉴의 "요약"으로 연다.
  * 시작한 경기가 하나도 없으면 첫 화면에 요약을 함께 보여준다.
  */
@@ -119,14 +122,11 @@ export function Viewer(props: { token: string; rest: string[] }) {
     <>
       <ViewerNav base={base} group={snapshot.group.name} current="now" />
       {snapshot.group.maintenance && <MaintenanceNote />}
-      <div className="screen">
+      <div className={match ? "screen" : "screen page-wide home-screen"}>
         {!match ? (
           <>
             {/* 조회 홈: 화면 제목이 없던 자리(2026-11-08 화면 점검). 모임 이름을 화면 제목으로 둔다. */}
-            <header className="screen-head">
-              <h1>{snapshot.group.name}</h1>
-            </header>
-            <p>아직 시작한 경기가 없어요.</p>
+            <ScreenHead title={snapshot.group.name} desc="아직 시작한 경기가 없어요." />
             <Dashboard
               snapshot={snapshot}
               openMatch={(id) => go(`${base}/d/${id}`)}
@@ -218,7 +218,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
   );
 }
 
-export type ViewerTab = "now" | "home" | "search" | "records" | "ranking";
+export type ViewerTab = "now" | "home" | "search" | "records" | "ranking" | "champions";
 
 /**
  * 조회 링크와 예시 모임(#/demo, src/web/screens/Demo.tsx)이 같이 쓰는 읽기 전용 화면들.
@@ -247,7 +247,28 @@ export function viewerPage(
   if (rest[0] === "ranking") {
     return {
       tab: "ranking",
-      body: <Ranking snapshot={snapshot} openPerson={(id) => go(`${base}/p/${id}`)} />,
+      body: (
+        <Ranking
+          snapshot={snapshot}
+          openPerson={(id) => go(`${base}/p/${id}`)}
+          openChampions={() => go(`${base}/champions`)}
+        />
+      ),
+    };
+  }
+  if (rest[0] === "champions") {
+    return {
+      tab: "champions",
+      body: (
+        // 화면 코드를 받는 동안 메뉴는 그대로 두고 본문 자리만 비운다.
+        <Suspense fallback={<p className="screen">불러오는 중…</p>}>
+          <ChampionTier
+            snapshot={snapshot}
+            openMatch={(id) => go(`${base}/d/${id}`)}
+            openPerson={(id) => go(`${base}/p/${id}`)}
+          />
+        </Suspense>
+      ),
     };
   }
   if (rest[0] === "season") {
@@ -280,10 +301,8 @@ export function viewerPage(
     return {
       tab: "home",
       body: (
-        <div className="screen">
-          <header className="screen-head">
-            <h1>{snapshot.group.name} 요약</h1>
-          </header>
+        <div className="screen page-wide home-screen">
+          <ScreenHead title={`${snapshot.group.name} 요약`} desc="최근 경기와 순위 · 확정 경기 기준" />
           <KpiStrip snapshot={snapshot} />
           <Dashboard
             snapshot={snapshot}
@@ -371,12 +390,14 @@ export function MaintenanceNote() {
 
 /**
  * 조회 메뉴. member면(참가자로 연결한 모임, src/web/screens/Member.tsx) 맨 앞에 "내 정보"를 둔다.
+ * 좁은 화면 하단 고정 줄은 6칸이 한계라("현재 경기"가 넘친다) member일 때 "챔피언"은 넓은 화면에만 두고,
+ * 좁은 화면에서는 랭킹 화면 머리의 "챔피언 티어" 링크로 간다(styles.css .nav-wide-only).
  */
 export function ViewerNav(props: { base: string; group: string; current: ViewerTab | "me"; member?: boolean }) {
-  const item = (tab: ViewerTab | "me", label: string) => (
+  const item = (tab: ViewerTab | "me", label: string, wideOnly = false) => (
     <button
       type="button"
-      className="link"
+      className={wideOnly ? "link nav-wide-only" : "link"}
       aria-current={props.current === tab ? "page" : undefined}
       onClick={() => go(`${props.base}/${tab}`)}
     >
@@ -389,7 +410,7 @@ export function ViewerNav(props: { base: string; group: string; current: ViewerT
       <span>
         {props.member && <>{item("me", "내 정보")} </>}
         {item("now", "현재 경기")} {item("home", "요약")} {item("search", "검색")} {item("records", "기록")}{" "}
-        {item("ranking", "랭킹")}
+        {item("ranking", "랭킹")} {item("champions", "챔피언", props.member)}
       </span>
     </nav>
   );

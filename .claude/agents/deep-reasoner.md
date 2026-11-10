@@ -1,7 +1,8 @@
 ---
 name: deep-reasoner
 description: 어려운 추론과 설계 판단을 담당한다. 아키텍처 결정, 여러 대안 사이의 트레이드오프 비교, 원인이 불분명한 버그의 근본 원인 분석, 복잡한 알고리즘·동시성·데이터 모델 문제처럼 깊이 생각해야 하는 경우에 사용. 단순 실행이나 기계적인 수정에는 쓰지 말 것.
-model: claude-fable-5-2
+model: claude-opus-5-5
+effort: medium
 tools: Read, Glob, Grep, Bash, PowerShell, WebSearch, WebFetch
 ---
 

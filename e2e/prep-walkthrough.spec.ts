@@ -247,8 +247,9 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 예상 승률 판(
   test.setTimeout(120000);
   // 11명을 고르면 앞 10명으로 팀을 짜고 11번째(준비11)는 대기자가 된다.
   await openPrep(page, 11);
-  const bench = page.getByRole("region", { name: "대기자" });
-  await expect(bench.getByRole("heading")).toHaveText("대기자 1명");
+  // 2026-11-10: 대기자 구역은 "쉬는 사람"으로 바뀌어 편성 판 아래로 옮겼다. 11명을 골라 오늘 명단도 함께 보인다.
+  const bench = page.getByRole("region", { name: "쉬는 사람" });
+  await expect(bench.getByRole("heading")).toHaveText("쉬는 사람 1명 · 오늘 온 11명");
   await expect(bench.getByRole("listitem")).toHaveCount(1);
   await expect(bench).toContainText("준비11");
   const inTeams = async () => [...(await readTeam(page, "A")), ...(await readTeam(page, "B"))].map((r) => r.name);
@@ -358,7 +359,7 @@ test("끌어다 놓기(PC): 사람을 다른 자리에 놓으면 둘이 바뀌�
   await page.getByRole("button", { name: "다시 앞으로" }).click();
   expect((await readTeam(page, "B"))[2]!.name).toBe(a0);
   // 레드 미드(이제 a0) → 대기자에 놓기: 대기자가 들어오고 a0은 대기자로 간다(교체와 같이 되돌리기 이력은 비워진다).
-  const benchList = page.getByRole("region", { name: "대기자" });
+  const benchList = page.getByRole("region", { name: "쉬는 사람" });
   const benchName = (await benchList.getByRole("button").first().innerText()).match(/준비\d\d/)![0];
   await team(page, "B")
     .getByRole("button", { name: new RegExp(a0) })
@@ -368,3 +369,50 @@ test("끌어다 놓기(PC): 사람을 다른 자리에 놓으면 둘이 바뀌�
   await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(0);
 });
 
+
+test("직전 편성 대비 한 줄(390px): 두 사람을 바꾸면 달라진 조건이 편성 판 아래에, '방금 변경 되돌리기'로 사라진다", async ({ page }) => {
+  await openPrep(page);
+  const blue = team(page, "A");
+  const red = team(page, "B");
+  const note = page.getByRole("status").filter({ hasText: "직전 편성 대비" });
+  // 처음 만든 편성에는 직전 편성이 없어 줄이 없다.
+  await expect(note).toHaveCount(0);
+
+  // 블루 탑을 고정하고, 블루 탑·블루 정글을 같은 팀으로 묶는다(고정·조건 걸기는 이력을 남기지 않는다).
+  await rows(blue).nth(0).click();
+  await page.getByRole("button", { name: "포지션 고정" }).click();
+  await rows(blue).nth(0).click();
+  await page.getByRole("button", { name: "같은 팀으로 묶기" }).click();
+  await rows(blue).nth(1).click();
+  await expect(note).toHaveCount(0);
+  const before = [...(await readTeam(page, "A")), ...(await readTeam(page, "B"))].map((r) => r.name);
+
+  // 블루 탑과 레드 탑을 바꾼다: 묶은 조건이 깨지고 고정이 풀린다. 둘 다 경고라 줄 전체가 경고 톤이다.
+  await rows(blue).nth(0).click();
+  await rows(red).nth(0).click();
+  await expect(note).toHaveText(/^직전 편성 대비 · 어긴 팀 조건 0 → 1개 · 옮겨져 풀린 고정 1명/);
+  await expect(note).toHaveClass(/warn/);
+  // 평가 낱말 없이 숫자만.
+  await expect(note).not.toContainText(/좋아|나빠|개선/);
+  // "직전 편성으로" 버튼은 그대로 하나다(새 버튼은 이름이 다르다).
+  await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(1);
+  await noHorizontalOverflow(page);
+  const box = await note.boundingBox();
+  // 320px 기준 최대 3줄 설계(390px에서는 더 적다): 글줄 높이 약 24px × 4 미만.
+  expect(box!.height).toBeLessThan(110);
+
+  // 명단 텍스트에는 이 줄이 들어가지 않는다.
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "명단 텍스트 복사" }).click();
+  const manual = page.locator("textarea");
+  const copied = page.getByRole("button", { name: "복사했어요" });
+  await expect(manual.or(copied)).toBeVisible();
+  const text = (await manual.isVisible()) ? await manual.inputValue() : await page.evaluate(() => navigator.clipboard.readText());
+  expect(text).not.toContain("직전 편성 대비");
+  expect(text).not.toContain("풀린 고정");
+
+  await note.getByRole("button", { name: "방금 변경 되돌리기" }).click();
+  await expect(note).toHaveCount(0);
+  expect([...(await readTeam(page, "A")), ...(await readTeam(page, "B"))].map((r) => r.name)).toEqual(before);
+  await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(0);
+});

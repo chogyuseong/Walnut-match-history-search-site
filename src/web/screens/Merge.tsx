@@ -4,7 +4,8 @@ import { titleBandsOf, titleGradeFor, type Standing } from "../../shared/titles"
 import type { MatchState, ParticipantView } from "../../shared/types";
 import { call, mutate, newRequestId } from "../api";
 import { formatDate, formatTime, nameMap } from "../format";
-import { Dialog, ErrorNote, Help, TitleBadge } from "../ui";
+import { Help, TitleBadge } from "../screenKit";
+import { Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 
 /** 되돌리기 응답의 본인 연결 결과(src/server/merge.ts UndoLinkResult). */

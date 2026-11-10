@@ -1,11 +1,6 @@
 import { satisfies, type TeamConstraint } from "./recommend";
+import { DRAFT_FORMAT_VERSION, HISTORY_MAX, normalizeDraftSide, swapSides } from "./storedDraft";
 import { POSITIONS, TEAMS, type MatchView, type Position, type SeriesFormat, type Team } from "./types";
-
-/**
- * 편성 초안. 기기에만 보관하고 서버에는 저장하지 않는다(docs/P2 P2-1).
- * "이 팀으로 시작"을 누를 때 명단 전체를 서버로 보내고 서버가 처음부터 검증한다.
- */
-export const DRAFT_FORMAT_VERSION = 1;
 
 export interface DraftPerson {
   /** 초안 안에서의 고유 키. 참가자 ID가 있으면 "p:ID", 아직 없으면 "n:이름키". */
@@ -33,6 +28,10 @@ export interface DrawRecord {
   fromPosition: Position;
 }
 
+/**
+ * 편성 초안. 기기에만 보관하고 서버에는 저장하지 않는다(docs/P2 P2-1).
+ * "이 팀으로 시작"을 누를 때 명단 전체를 서버로 보내고 서버가 처음부터 검증한다.
+ */
 export interface Draft {
   formatVersion: number;
   groupId: string | null;
@@ -79,9 +78,6 @@ export interface Draft {
    */
   bench?: DraftPerson[];
 }
-
-/** 되돌리기 이력의 최대 단계 수. */
-export const HISTORY_MAX = 5;
 
 /** 초안의 되돌리기 이력(오래된 것이 앞). 이력이 없는 예전 초안은 previousSlots 하나를 1단계로 본다. */
 export function historyOf(draft: Draft): DraftSlot[][] {
@@ -280,44 +276,6 @@ export function swapPeople(draft: Draft, keyA: string, keyB: string): Draft {
   });
 }
 
-/**
- * 진영 바꾸기(docs/P4 시나리오 19): 블루팀(A) 5명과 레드팀(B) 5명을 통째로 맞바꾼다.
- * 팀 구성·포지션·고정은 사람을 따라가고 A/B 이름표만 바뀐다. 팀 A는 계속 블루라(teamASide = "blue")
- * 블루였던 5명이 레드가 된다.
- * 서포터 추첨 기록도 함께 옮긴다. 추첨 지문에는 팀 이름표가 들어가지 않으므로(rotation.ts)
- * 옮긴 기록은 그대로 유효하고, "두 팀 추첨 유지"가 깨지지 않는다.
- * 직전 편성(되돌리기)도 같은 방식으로 바꿔, 되돌려도 추첨 기록과 어긋나지 않게 한다.
- * 두 번 바꾸면 원래와 같다. 팀 조건(같은 팀·다른 팀)은 진영과 무관하다.
- */
-export function swapSides(draft: Draft): Draft {
-  const flip = (slots: DraftSlot[]): DraftSlot[] =>
-    slots.map((s) => ({ ...s, team: s.team === "A" ? "B" : "A" }));
-  const draws: Partial<Record<Team, DrawRecord>> = {};
-  if (draft.draws.B) draws.A = draft.draws.B;
-  if (draft.draws.A) draws.B = draft.draws.A;
-  const next: Draft = {
-    ...draft,
-    slots: flip(draft.slots),
-    previousSlots: draft.previousSlots ? flip(draft.previousSlots) : null,
-    draws,
-    teamASide: "blue",
-  };
-  // 되돌리기 이력·다시 앞으로도 같은 방식으로 뒤집는다(이력에서 꺼낸 자리가 지금 진영 기준과 맞게).
-  if (draft.history) next.history = draft.history.map(flip);
-  if (draft.redoSlots) next.redoSlots = flip(draft.redoSlots);
-  return next;
-}
-
-/**
- * 예전 초안을 "팀 A = 블루"로 맞춘다. "red"였으면(블루였던 쪽이 B) 두 팀을 맞바꿔 블루였던 5명이 그대로 블루가 되게 하고,
- * 없었으면("나중에 정하기") 지금 자리 그대로 A를 블루로 둔다. 이미 "blue"면 그대로 돌려준다.
- */
-export function normalizeDraftSide(draft: Draft): Draft {
-  if (draft.teamASide === "blue") return draft;
-  if (draft.teamASide === "red") return swapSides(draft);
-  return { ...draft, teamASide: "blue" };
-}
-
 /** 진영 랜덤: 시드로 반반 확률로 두 팀을 맞바꾼다(진영 바꾸기). 팀 A는 계속 블루다. */
 export function randomDraftSide(draft: Draft): Draft {
   const swap = rngFromSeed(draft.seed)() < 0.5;
@@ -484,36 +442,4 @@ export function keepMatchPositions(
   // 같은 사람들이면 되돌리기 이력에 남기고, 사람이 다르면 이력을 비운다.
   next = samePeople ? pushHistory(draft, next) : withoutHistory(next);
   return next;
-}
-
-/** 저장소에서 읽은 값이 쓸 수 있는 초안인지 확인한다. 형식이 다르면 버린다. */
-export function parseStoredDraft(text: string | null): Draft | null {
-  if (!text) return null;
-  try {
-    const value = JSON.parse(text) as Draft;
-    if (value.formatVersion !== DRAFT_FORMAT_VERSION) return null;
-    if (!Array.isArray(value.people) || !Array.isArray(value.slots)) return null;
-    if (value.people.length !== 10 || value.slots.length !== 10) return null;
-    // 선택 필드(되돌리기 이력·다시 앞으로·대기자)는 모양이 어긋나면 그 필드만 버린다. 없는 예전 초안은 그대로 읽는다.
-    const slotsOk = (v: unknown): v is DraftSlot[] => Array.isArray(v) && v.length === 10;
-    if (value.history !== undefined) {
-      if (Array.isArray(value.history) && value.history.every(slotsOk)) {
-        value.history = value.history.slice(-HISTORY_MAX);
-        value.previousSlots = value.history[value.history.length - 1] ?? null;
-      } else {
-        delete value.history;
-      }
-    }
-    if (value.redoSlots !== undefined && value.redoSlots !== null && !slotsOk(value.redoSlots)) delete value.redoSlots;
-    if (value.bench !== undefined) {
-      const ok =
-        Array.isArray(value.bench) &&
-        value.bench.every((p) => typeof p?.key === "string" && typeof p?.name === "string");
-      if (!ok) delete value.bench;
-    }
-    // 예전 초안(진영 "red"·없음)은 팀 A = 블루로 맞춘다.
-    return normalizeDraftSide(value);
-  } catch {
-    return null;
-  }
 }

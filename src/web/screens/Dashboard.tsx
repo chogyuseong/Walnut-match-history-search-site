@@ -12,11 +12,12 @@ import {
   trends,
 } from "../../shared/insights";
 import { isCounted, placementGamesOf } from "../../shared/stats";
-import type { Snapshot } from "../../shared/types";
-import { nameMap, rankClass, rateText, rateTier, standingsOf } from "../format";
+import type { MatchView, Snapshot, Team } from "../../shared/types";
+import { formatDate, formatTime, knownSideOf, matchTone, nameMap, rankClass, rateText, rateTier, resultLine, standingsOf, TEAM_MARK, teamRoster } from "../format";
 import { MatchCard, MatchScoreboard, useExpectations } from "../matchCard";
 import { seriesScoreOfMatch, useSeriesBadges } from "../seriesPanel";
-import { FormDots, StandingNote } from "../ui";
+import { DataTable, type TableColumn } from "../dataTable";
+import { FormDots, StandingNote, useMediaQuery } from "../screenKit";
 
 /** 결과를 저장한 경기가 없을 때. 무엇이 쌓이는지만 짧게 알려준다. */
 export function DashboardEmpty() {
@@ -40,8 +41,10 @@ const TOP_PEOPLE = 5;
 /**
  * 홈 아래쪽 요약: 최근 경기 5개, 랭킹 상위 5명(전체 누적), 요즘 흐름(연승 중·최근 10경기 승률).
  * 운영자 홈과 조회 링크의 요약 화면이 같이 쓴다. 확정 경기가 없으면 안내 한 줄만 낸다.
- * 요약 탭(headline)에서는 가장 최근 확정 경기를 전광판(MatchScoreboard)으로 크게 올리고 나머지를 "이전 경기" 카드로 둔다.
+ * 요약 탭(headline)에서는 가장 최근 확정 경기를 전광판(MatchScoreboard)으로 크게 올리고 나머지를 "이전 경기"로 둔다.
  * 운영자 홈은 위에 오늘의 결과가 따로 있어 전광판을 두지 않는다.
+ * PC(1024px 이상)는 2단: 왼쪽 넓은 단(.dash-main)에 전광판과 이전 경기 표(한 경기 한 줄), 오른쪽 좁은 단(.dash-grid)에
+ * 랭킹 상위·요즘 흐름. 좁은 화면은 한 단으로 쌓고 이전 경기는 경기 카드 모양이다(표의 다섯 명 칸이 들어갈 폭이 없다).
  */
 export function Dashboard(props: {
   snapshot: Snapshot;
@@ -83,47 +86,62 @@ export function Dashboard(props: {
   );
   const forms = useMemo(() => personForms(snapshot.matches), [snapshot]);
   const flow = useMemo(() => trends(snapshot.matches, nameOf), [snapshot, nameOf]);
+  const wide = useMediaQuery("(min-width: 1024px)");
 
   if (counted.length === 0) return <DashboardEmpty />;
 
   return (
     <div className="dashboard">
-      {headline && (
-        <MatchScoreboard
-          match={headline}
-          nameOf={nameOf}
-          timeZone={snapshot.group.timezone}
-          onOpen={() => props.openMatch(headline.id)}
-          onPerson={props.openPerson}
-          series={headlineSeries}
-          upset={expectation.get(headline.id)?.upset}
-        />
-      )}
-      {recent.length > 0 && (
-        <section aria-label={olderOnly ? "이전 경기" : "최근 경기"}>
-          <div className="section-head">
-            <h2>{olderOnly ? "이전 경기" : "최근 경기"}</h2>
-            <button type="button" className="link" onClick={props.openRanking}>
-              기록 전체 보기
-            </button>
-          </div>
-          <ul className="list match-cards">
-            {recent.map((m) => (
-              <MatchCard
-                key={m.id}
-                match={m}
+      <div className="dash-main">
+        {headline && (
+          <MatchScoreboard
+            match={headline}
+            nameOf={nameOf}
+            timeZone={snapshot.group.timezone}
+            onOpen={() => props.openMatch(headline.id)}
+            onPerson={props.openPerson}
+            series={headlineSeries}
+            upset={expectation.get(headline.id)?.upset}
+          />
+        )}
+        {recent.length > 0 && (
+          <section aria-label={olderOnly ? "이전 경기" : "최근 경기"}>
+            <div className="section-head">
+              <h2>{olderOnly ? "이전 경기" : "최근 경기"}</h2>
+              <button type="button" className="link" onClick={props.openRanking}>
+                기록 전체 보기
+              </button>
+            </div>
+            {wide ? (
+              <RecentMatchTable
+                matches={recent}
                 nameOf={nameOf}
                 timeZone={snapshot.group.timezone}
-                showDate
-                onOpen={() => props.openMatch(m.id)}
-                seriesBadge={seriesBadge(m.id)}
-                upset={expectation.get(m.id)?.upset}
-                onPerson={props.openPerson}
+                openMatch={props.openMatch}
+                openPerson={props.openPerson}
+                seriesBadge={seriesBadge}
+                upset={(id) => expectation.get(id)?.upset === true}
               />
-            ))}
-          </ul>
-        </section>
-      )}
+            ) : (
+              <ul className="list match-cards">
+                {recent.map((m) => (
+                  <MatchCard
+                    key={m.id}
+                    match={m}
+                    nameOf={nameOf}
+                    timeZone={snapshot.group.timezone}
+                    showDate
+                    onOpen={() => props.openMatch(m.id)}
+                    seriesBadge={seriesBadge(m.id)}
+                    upset={expectation.get(m.id)?.upset}
+                    onPerson={props.openPerson}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+      </div>
 
       <div className="dash-grid">
         <section aria-label="랭킹 상위">
@@ -220,5 +238,117 @@ export function Dashboard(props: {
         </section>
       </div>
     </div>
+  );
+}
+
+/** 표의 블루 칸·레드 칸에 놓을 팀. 진영을 모르는 경기는 팀 A를 블루 칸에 두고 칸 안에 "●A"를 붙인다(teamName 규칙). */
+function teamInColumn(match: MatchView, column: "blue" | "red"): Team {
+  const aSide = knownSideOf("A", match.teamASide);
+  if (aSide === null) return column === "blue" ? "A" : "B";
+  return aSide === column ? "A" : "B";
+}
+
+/**
+ * 이전 경기 표(PC): 한 경기 한 줄. 번호 · 일시(시리즈·이변 표시) · 결과 · 블루 다섯 · 레드 다섯.
+ * 줄 아무 데나 누르면 경기 상세(번호 칸 버튼이 키보드 길), 이름은 개인 통계. 이긴 팀 칸은 굵게, 진 팀은 흐리게.
+ * 메모는 없는 경기가 많아 칸을 두지 않는다(빈 칸이 줄줄이 생긴다). 경기 상세에서 본다.
+ */
+function RecentMatchTable(props: {
+  matches: readonly MatchView[];
+  nameOf: (id: string) => string;
+  timeZone: string;
+  openMatch: (id: string) => void;
+  openPerson: (id: string) => void;
+  seriesBadge: (id: string) => string | null;
+  upset: (id: string) => boolean;
+}) {
+  const team = (column: "blue" | "red"): TableColumn<MatchView> => ({
+    key: column,
+    label: column === "blue" ? "블루" : "레드",
+    className: `rm-team rm-${column}`,
+    cell: (m) => {
+      const t = teamInColumn(m, column);
+      const won = m.state === "confirmed" && m.winnerTeam ? m.winnerTeam === t : null;
+      return (
+        <span className={won === null ? "rm-names" : won ? "rm-names is-win" : "rm-names is-loss"}>
+          {knownSideOf(t, m.teamASide) === null && (
+            <span className="rm-mark">
+              {TEAM_MARK[t]}
+              {t}
+            </span>
+          )}
+          {teamRoster(m, t).map((entry) => (
+            <button
+              key={entry.participantId}
+              type="button"
+              className="link rm-name"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.openPerson(entry.participantId);
+              }}
+            >
+              {props.nameOf(entry.participantId)}
+            </button>
+          ))}
+        </span>
+      );
+    },
+  });
+  const columns: TableColumn<MatchView>[] = [
+    {
+      key: "no",
+      label: "경기",
+      num: true,
+      cell: (m) => (
+        <button
+          type="button"
+          className="link rm-open"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.openMatch(m.id);
+          }}
+        >
+          {m.matchNo}
+        </button>
+      ),
+    },
+    {
+      key: "when",
+      label: "일시",
+      className: "rm-when",
+      cell: (m) => {
+        const series = props.seriesBadge(m.id);
+        return (
+          <>
+            {formatDate(m.playedAt, props.timeZone)} {formatTime(m.playedAt, props.timeZone)}
+            {(series || props.upset(m.id)) && (
+              <span className="rm-tags">
+                {props.upset(m.id) && <span className="series-badge">이변</span>}
+                {series && <span className="series-badge">{series}</span>}
+              </span>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      key: "result",
+      label: "결과",
+      className: "rm-result",
+      cell: (m) => <span className={`rm-tone tone-${matchTone(m)}`}>{resultLine(m)}</span>,
+    },
+    team("blue"),
+    team("red"),
+  ];
+  return (
+    <DataTable
+      caption="이전 경기"
+      className="recent-table"
+      columns={columns}
+      rows={props.matches}
+      rowKey={(m) => m.id}
+      onRowClick={(m) => props.openMatch(m.id)}
+      rowClass={(m) => (m.state === "excluded" ? "is-excluded" : "")}
+    />
   );
 }

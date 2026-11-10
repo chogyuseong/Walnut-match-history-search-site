@@ -28,6 +28,7 @@ import {
   groupLimitGuard,
   isGroupLimitError,
   MAX_GROUPS_PER_ACCOUNT,
+  MAX_PARTICIPANTS_PER_GROUP,
   parseSettings,
   tooManyGroupsError,
 } from "./groups";
@@ -66,7 +67,6 @@ export const GROUP_DATA_TABLES = [
   "requests",
 ] as const;
 export const MAX_RESTORE_BODY_BYTES = 8 * 1024 * 1024;
-const MAX_PARTICIPANTS = 200;
 const MAX_MATCHES = 10_000;
 const MAX_PROBLEMS = 30;
 /** json_each로 넘기는 값 하나의 크기 상한. D1 문자열 한도 2MB보다 충분히 작게. */
@@ -412,7 +412,7 @@ export function validateBackup(
   const pids = new Set<string>();
   const activeKeys = new Set<string>();
   const rawParticipants = arrayField(raw, "participants", p);
-  if (rawParticipants.length > MAX_PARTICIPANTS) p.add(`참가자가 ${MAX_PARTICIPANTS}명을 넘습니다.`);
+  if (rawParticipants.length > MAX_PARTICIPANTS_PER_GROUP) p.add(`참가자가 ${MAX_PARTICIPANTS_PER_GROUP}명을 넘습니다.`);
   rawParticipants.forEach((r, i) => {
     const at = `참가자 ${i + 1}번째`;
     if (!isObj(r) || !isId(r.id) || typeof r.name !== "string") return p.add(`${at}: 형식 오류`);

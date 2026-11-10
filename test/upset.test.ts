@@ -102,6 +102,45 @@ describe("경기 전 예상", () => {
   });
 });
 
+describe("경기 전 예상: 미래 결과가 섞이지 않는다(속성, 2026-11-10 설계 4절 D)", () => {
+  /** 시드로 재현하는 난수(테스트 전용). */
+  function rng(seed: number): () => number {
+    let state = seed >>> 0;
+    return () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  /** 14명 중 10명을 매번 다르게 뽑아 섞은 경기들. 결과·상태도 무작위(확정이 대부분, 가끔 결과 대기·제외·취소). */
+  function randomMatches(seed: number, count: number): MatchView[] {
+    const random = rng(seed);
+    return Array.from({ length: count }, (_, i) => {
+      const pool = Array.from({ length: 14 }, (_, k) => k).sort(() => random() - 0.5).slice(0, 10);
+      const roll = random();
+      const state: MatchView["state"] = roll < 0.06 ? "awaiting_result" : roll < 0.1 ? "excluded" : roll < 0.13 ? "canceled" : "confirmed";
+      return match(i + 1, { teamA: pool.slice(0, 5), teamB: pool.slice(5), winner: random() < 0.5 ? "A" : "B", state });
+    });
+  }
+
+  it("앞부분 경기만 넣어 계산한 그 경기의 예상이 전체 기록으로 계산한 값과 같다", () => {
+    for (const seed of [1, 7, 42]) {
+      const all = randomMatches(seed, 40);
+      // 넣는 순서는 섞는다: 계산은 경기 시각 → 번호로 다시 세운다.
+      const full = matchExpectations([...all].reverse(), { placementGames: 3 });
+      let compared = 0;
+      for (let k = 1; k <= all.length; k++) {
+        const target = all[k - 1]!;
+        const prefix = matchExpectations(all.slice(0, k), { placementGames: 3 });
+        expect(prefix.get(target.id), `시드 ${seed}, ${k}번째`).toEqual(full.get(target.id));
+        if (full.has(target.id)) compared += 1;
+      }
+      // 확정 경기 대부분을 실제로 견줬다(예상이 없는 경기끼리만 같아서 통과하는 일이 없게).
+      expect(compared).toBeGreaterThan(30);
+    }
+  });
+});
+
 describe("이변 판정", () => {
   it("경계값: 이긴 팀 예상이 40%면 이변이 아니고 그 미만이면 이변이다", () => {
     expect(UPSET_THRESHOLD).toBe(0.4);

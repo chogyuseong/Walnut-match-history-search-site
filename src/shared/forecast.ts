@@ -87,20 +87,56 @@ export function draftForecast(
   matches: readonly MatchView[],
   options: Partial<RatingOptions> = {},
 ): DraftForecast {
+  const lineRecords = new Map(POSITIONS.map((pos) => [pos, personRecordsByLine(matches, pos)]));
+  const { teams, expectedA, reliable, personOf } = expectationOf(draft, ratings, options, (participantId, position) => {
+    const record = lineRecords.get(position)!.get(participantId);
+    return { games: record?.games ?? 0, wins: record?.wins ?? 0 };
+  });
+
+  const reasons: Record<Team, Position[]> = { A: [], B: [] };
+  const lanes = laneMatchups(draft, matches).map((matchup): LaneForecast => {
+    const blue = matchup.leftKey ? personOf(matchup.leftKey, matchup.position) : null;
+    const red = matchup.rightKey ? personOf(matchup.rightKey, matchup.position) : null;
+    const edge = blue && red ? blue.rating - red.rating : null;
+    const edgeTeam = edge === null || Math.abs(edge) < LANE_EDGE_MIN ? null : edge > 0 ? "A" : "B";
+    if (edgeTeam) reasons[edgeTeam].push(matchup.position);
+    return { ...matchup, blue, red, edge, edgeTeam };
+  });
+
+  return { teams, expectedA, reliable, lanes, reasons };
+}
+
+/**
+ * 팀 평균 MMR과 블루 예상 승률만(라인 전적·맞대결 없이). 준비 화면 "직전 편성 대비" 줄(prepDelta.ts)이
+ * 직전 자리와 지금 자리를 같은 식으로 견줄 때 쓴다. draftForecast와 숫자가 같다(같은 함수를 거친다).
+ */
+export function teamExpectation(
+  draft: Pick<Draft, "people" | "slots">,
+  ratings: RatingTable,
+  options: Partial<RatingOptions> = {},
+): Pick<DraftForecast, "teams" | "expectedA" | "reliable"> {
+  const { teams, expectedA, reliable } = expectationOf(draft, ratings, options, () => ({ games: 0, wins: 0 }));
+  return { teams, expectedA, reliable };
+}
+
+function expectationOf(
+  draft: Pick<Draft, "people" | "slots">,
+  ratings: RatingTable,
+  options: Partial<RatingOptions>,
+  lineOf: (participantId: string, position: Position) => Tally,
+) {
   const { placementGames, start } = { ...DEFAULT_RATING_OPTIONS, ...options };
   const idOf = new Map(draft.people.map((p) => [p.key, p.participantId]));
-  const lineRecords = new Map(POSITIONS.map((pos) => [pos, personRecordsByLine(matches, pos)]));
 
   const personOf = (key: string, position: Position): ForecastPerson => {
     const participantId = idOf.get(key) ?? null;
     const rated = participantId ? ratings.get(participantId) : undefined;
-    const record = participantId ? lineRecords.get(position)!.get(participantId) : undefined;
     return {
       key,
       participantId,
       rating: rated?.rating ?? start,
       games: rated?.games ?? 0,
-      line: { games: record?.games ?? 0, wins: record?.wins ?? 0 },
+      line: participantId ? lineOf(participantId, position) : { games: 0, wins: 0 },
     };
   };
 
@@ -120,18 +156,7 @@ export function draftForecast(
   }
   const bothFilled = teams.A.size > 0 && teams.B.size > 0;
   const expectedA = bothFilled ? expectedScore(teams.A.average, teams.B.average) : EVEN_PROB;
-
-  const reasons: Record<Team, Position[]> = { A: [], B: [] };
-  const lanes = laneMatchups(draft, matches).map((matchup): LaneForecast => {
-    const blue = matchup.leftKey ? personOf(matchup.leftKey, matchup.position) : null;
-    const red = matchup.rightKey ? personOf(matchup.rightKey, matchup.position) : null;
-    const edge = blue && red ? blue.rating - red.rating : null;
-    const edgeTeam = edge === null || Math.abs(edge) < LANE_EDGE_MIN ? null : edge > 0 ? "A" : "B";
-    if (edgeTeam) reasons[edgeTeam].push(matchup.position);
-    return { ...matchup, blue, red, edge, edgeTeam };
-  });
-
-  return { teams, expectedA, reliable: reliable && bothFilled, lanes, reasons };
+  return { teams, expectedA, reliable: reliable && bothFilled, personOf };
 }
 
 /** 레드 쪽은 따로 반올림하지 않고 FULL_PERCENT − 이 값으로 쓴다. 따로 반올림하면 합이 99나 101이 될 수 있다. */

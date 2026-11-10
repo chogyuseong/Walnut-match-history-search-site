@@ -1,11 +1,10 @@
 import { useState } from "react";
+import { ROLE_LABEL } from "./account";
 import { ErrorNote } from "./ui";
 import { go, useAppValue } from "./useApp";
 
 /** 계정당 모임 수(대표 + 공동 운영 합계). 서버의 MAX_GROUPS_PER_ACCOUNT와 같다(src/server/groups.ts). */
 export const MAX_GROUPS = 5;
-
-export const ROLE_LABEL = { owner: "대표", co: "공동 운영자" } as const;
 
 /**
  * 모임 탭 맨 위의 "모임 고르기". 내 모임(대표·공동 운영)을 보여 주고 고르면 그 모임으로 바뀐다(기기에 기억).

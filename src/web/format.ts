@@ -300,16 +300,6 @@ export function draftRosterText(draft: Draft): string {
   return lines.join("\n");
 }
 
-/** 클립보드에 복사한다. 실패하면 false를 돌려주고 호출한 쪽이 글 상자를 보여준다. */
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function viewLink(token: string, suffix = "now"): string {
   return `${location.origin}/#/v/${token}/${suffix}`;
 }

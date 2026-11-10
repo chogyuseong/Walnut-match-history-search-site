@@ -8,7 +8,7 @@ import {
 } from "../../shared/graphs";
 import { ratePercent, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITION_LABEL } from "../format";
-import { RoleIcon } from "../ui";
+import { RoleIcon } from "../screenKit";
 
 /**
  * 그래프 분석 화면(Graphs.tsx)의 그림 부품(2026-11-09): 이야기 띠 · 순위 변동 · 라인 모양 · 활동 달력 · 승·패 띠.

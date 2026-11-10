@@ -1,9 +1,27 @@
-import { Help } from "../../ui";
+import { Help } from "../../screenKit";
 import type { ReactNode } from "react";
 import type { RotationContext } from "../../../shared/rotation";
 import { TEAMS } from "../../../shared/types";
 import { go } from "../../useApp";
 import type { PrepEditing } from "./usePrepEditing";
+
+/**
+ * 버튼 설명. 버튼의 title 풍선은 터치 화면에서 뜨지 않아 같은 글을 섞기 구역 맨 아래 접힌 "버튼 설명"에 모아 둔다
+ * (2026-11-10, 버튼마다 글을 늘리면 폰에서 섞기 버튼이 편성 판에서 멀어진다). 한 곳에서 고치면 둘 다 바뀐다.
+ */
+const TIP = {
+  teamShuffle: "10명을 두 팀으로 새로 나누고 라인도 섞어요. 같은 티어끼리는 양 팀에 고르게 나뉘어요.",
+  recommend: "티어 합이 비슷한 편성 3개를 보여 줘요. 골라서 적용해요.",
+  lineShuffle: "팀원은 그대로 두고 팀 안에서 라인만 섞어요.",
+  fairShuffle: "라인을 섞은 뒤, 팀마다 서포터를 아직 안 간 사람으로 정해요.",
+  draw: "팀마다 서포터를 아직 안 간 사람과 맞바꿔요. 나머지 8명은 그대로예요.",
+  swapSides: "블루팀 5명과 레드팀 5명을 통째로 맞바꿔요. 라인·고정·서포터는 사람을 따라가요.",
+  priority: "사람마다 1~5티어를 정해요. 팀·라인 모두 섞기와 균형 팀 추천이 티어를 봐요.",
+  avoid: "사람마다 못 가는 라인을 정해요. 라인을 섞을 때 그 라인을 되도록 피해요.",
+  supportCount: "이번 주기에 서포터로 간 횟수. 서폿 돌아가며·서포터만 바꾸기가 이 횟수를 봐요. 누르면 바로 아래에 펼쳐져요.",
+  needsReset: "한 팀이 모두 서포터를 배정받았어요. 펼쳐서 초기화할 수 있어요.",
+  randomSide: "반반 확률로 블루팀과 레드팀을 맞바꿔요.",
+} as const;
 
 /** 섞기 구역: 팀을 새로 짜기(팀·라인 모두 섞기, 균형 팀 추천)와 팀은 그대로(라인·서포터 섞기, 진영 바꾸기). */
 export function ShuffleSection(props: {
@@ -22,7 +40,7 @@ export function ShuffleSection(props: {
         <button
           type="button"
           className="secondary"
-          title="10명을 두 팀으로 새로 나누고 라인도 섞어요. 같은 티어끼리는 양 팀에 고르게 나뉘어요."
+          title={TIP.teamShuffle}
           onClick={edit.runTeamShuffle}
         >
           팀·라인 모두 섞기
@@ -30,7 +48,7 @@ export function ShuffleSection(props: {
         <button
           type="button"
           className="secondary"
-          title="티어 합이 비슷한 편성 3개를 보여 줘요. 골라서 적용해요."
+          title={TIP.recommend}
           onClick={edit.showRecommendations}
         >
           균형 팀 추천
@@ -41,7 +59,7 @@ export function ShuffleSection(props: {
         <button
           type="button"
           className="secondary"
-          title="팀원은 그대로 두고 팀 안에서 라인만 섞어요."
+          title={TIP.lineShuffle}
           onClick={() => edit.runShuffle(false)}
         >
           라인만 섞기
@@ -50,7 +68,7 @@ export function ShuffleSection(props: {
           <button
             type="button"
             className="secondary"
-            title="라인을 섞은 뒤, 팀마다 서포터를 아직 안 간 사람으로 정해요."
+            title={TIP.fairShuffle}
             onClick={() => edit.runShuffle(true)}
           >
             라인 섞기 + 서폿 돌아가며
@@ -60,7 +78,7 @@ export function ShuffleSection(props: {
           <button
             type="button"
             className="secondary"
-            title="팀마다 서포터를 아직 안 간 사람과 맞바꿔요. 나머지 8명은 그대로예요."
+            title={TIP.draw}
             onClick={() => edit.runDraw(TEAMS)}
           >
             서포터만 바꾸기
@@ -69,7 +87,7 @@ export function ShuffleSection(props: {
         <button
           type="button"
           className="secondary"
-          title="블루팀 5명과 레드팀 5명을 통째로 맞바꿔요. 라인·고정·서포터는 사람을 따라가요."
+          title={TIP.swapSides}
           onClick={edit.swapTeamSides}
         >
           진영 바꾸기
@@ -96,7 +114,7 @@ export function ShuffleSection(props: {
         <button
           type="button"
           className="secondary"
-          title="사람마다 1~5티어를 정해요. 팀·라인 모두 섞기와 균형 팀 추천이 티어를 봐요."
+          title={TIP.priority}
           onClick={() => go("/priority")}
         >
           티어 배정
@@ -104,7 +122,7 @@ export function ShuffleSection(props: {
         <button
           type="button"
           className="secondary"
-          title="사람마다 못 가는 라인을 정해요. 라인을 섞을 때 그 라인을 되도록 피해요."
+          title={TIP.avoid}
           onClick={() => go("/priority/avoid")}
         >
           기피 라인
@@ -115,12 +133,12 @@ export function ShuffleSection(props: {
             className="secondary"
             aria-expanded={support.open}
             aria-controls="support-count-panel"
-            title="이번 주기에 서포터로 간 횟수. 서폿 돌아가며·서포터만 바꾸기가 이 횟수를 봐요. 누르면 바로 아래에 펼쳐져요."
+            title={TIP.supportCount}
             onClick={support.onToggle}
           >
             {support.label}
             {support.needsReset && (
-              <span className="badge warn-badge" title="한 팀이 모두 서포터를 배정받았어요. 펼쳐서 초기화할 수 있어요.">
+              <span className="badge warn-badge" title={TIP.needsReset}>
                 초기화 필요
               </span>
             )}
@@ -140,6 +158,20 @@ export function ShuffleSection(props: {
         <p>팀을 새로 짜기: 같은 티어끼리는 양 팀에 나뉘어요. 팀은 그대로: 팀원은 바뀌지 않아요.</p>
         {ctx.enabled && <p>'서폿 돌아가며'와 '서포터만 바꾸기'는 팀마다 서포터를 아직 안 간 사람으로 정해요.</p>}
       </Help>
+      {/* "이름 — 설명" 꼴: 버튼 이름 바로 뒤에 쌍점을 쓰면 "서포터 횟수: 2명 기록" 같은 버튼 글과 겹쳐 읽힌다. */}
+      <Help label="버튼 설명">
+        <p>팀·라인 모두 섞기 — {TIP.teamShuffle}</p>
+        <p>균형 팀 추천 — {TIP.recommend}</p>
+        <p>라인만 섞기 — {TIP.lineShuffle}</p>
+        {ctx.enabled && <p>라인 섞기 + 서폿 돌아가며 — {TIP.fairShuffle}</p>}
+        {ctx.enabled && <p>서포터만 바꾸기 — {TIP.draw}</p>}
+        <p>진영 바꾸기 — {TIP.swapSides}</p>
+        <p>티어 배정 — {TIP.priority}</p>
+        <p>기피 라인 — {TIP.avoid}</p>
+        {support && <p>서포터 횟수 — {TIP.supportCount}</p>}
+        {support?.needsReset && <p>초기화 필요 — {TIP.needsReset}</p>}
+        <p>진영 랜덤 — {TIP.randomSide}</p>
+      </Help>
     </section>
   );
 }
@@ -154,7 +186,7 @@ export function SideSection(props: { edit: PrepEditing }) {
         <button
           type="button"
           className="secondary"
-          title="반반 확률로 블루팀과 레드팀을 맞바꿔요."
+          title={TIP.randomSide}
           onClick={props.edit.randomSide}
         >
           진영 랜덤

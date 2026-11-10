@@ -126,6 +126,14 @@ function repeatScore(team: readonly string[], diversity: DiversityInput): number
   return score;
 }
 
+/**
+ * 두 팀에서 같은 팀이 되는 쌍들이 최근 경기에서 같은 팀이었던 횟수의 합. 추천 후보의 repeatPairs와 같은 계산이라
+ * 준비 화면 "직전 편성 대비" 줄(prepDelta.ts)의 반복 수가 추천 창 숫자와 어긋나지 않는다.
+ */
+export function repeatPairsOf(teamA: readonly string[], teamB: readonly string[], diversity: DiversityInput): number {
+  return repeatScore(teamA, diversity) + repeatScore(teamB, diversity);
+}
+
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -194,7 +202,7 @@ export function recommendTeams(
     const bottomCount: [number, number] = [count(teamA, MAX_SKILL_GROUP), count(teamB, MAX_SKILL_GROUP)];
     const unassignedCount: [number, number] = [count(teamA, null), count(teamB, null)];
     const repeat = diversity
-      ? repeatScore(teamA.map((p) => p.key), diversity) + repeatScore(teamB.map((p) => p.key), diversity)
+      ? repeatPairsOf(teamA.map((p) => p.key), teamB.map((p) => p.key), diversity)
       : 0;
     return [
       {

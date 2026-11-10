@@ -130,12 +130,16 @@ describe("playerCommentary", () => {
 });
 
 describe("groupCommentary", () => {
-  it("공정성: 예상이 50% 근처인 경기가 많으면 공정, 판정 근거를 괄호로", () => {
+  it("공정성: 판정 경기 수와 예상 45~55% 경기 수를 사실로 쓴다(판정 낱말 없이, 2026-11-10 F5)", () => {
     // 매 경기 팀을 번갈아 이기게 해 MMR이 비슷하게 유지된다.
     const c = group(range(30, (i) => match(i, { winner: i % 2 ? "A" : "B", side: i % 4 < 2 ? "blue" : "red" })));
-    const fair = c.remarks.find((r) => r.text.includes("섞기가"));
-    expect(fair?.text).toMatch(/균형 경기 \d+%/);
-    expect(c.summary).not.toBe("");
+    const fair = c.remarks.find((r) => r.text.includes("예상 45~55%"));
+    expect(fair?.text).toMatch(/^판정 \d+경기 중 \d+경기가 예상 45~55%였어요\(균형 경기 \d+%\)\./);
+    expect(fair?.text).toMatch(/예상 우세 팀이 \d+경기 중 \d+경기 이겼어요\(\d+%\)/);
+    expect(fair?.basis).toContain("판정");
+    expect(c.summary).toMatch(/^균형 경기 \d+%/);
+    // 표본이 말해 주는 것보다 많이 말하던 문구는 어디에도 남지 않는다.
+    for (const t of [c.summary, ...texts(c)]) expect(t).not.toMatch(/공정해요|공정한 섞기|실력을 잘 반영|안정된 MMR|자리 잡는/);
   });
 
   it("진영 편차: 블루가 15%p 이상 많이 이기면 진영 랜덤 권유", () => {
@@ -159,10 +163,16 @@ describe("groupCommentary", () => {
     expect(texts(mixed).some((t) => t.includes("사람00·사람05"))).toBe(false);
   });
 
-  it("이변 비율이 높으면 '이변이 많은 편'", () => {
+  it("이변 비율이 높으면 이변 경기 수를 사실로 쓴다(까닭을 짐작하지 않는다)", () => {
     // 팀 A가 15연승해 강팀이 된 뒤 연달아 진다.
-    const c = group([...range(15, (i) => match(i, { winner: "A" })), ...range(10, (i) => match(100 + i, { winner: "B" }))]);
-    expect(texts(c).some((t) => /이변이 많은 편이에요\(\d+\/\d+경기\)/.test(t))).toBe(true);
+    const matches = [...range(15, (i) => match(i, { winner: "A" })), ...range(10, (i) => match(100 + i, { winner: "B" }))];
+    const c = group(matches);
+    expect(texts(c).some((t) => /^판정 \d+경기 중 \d+경기가 이변이었어요\(\d+%\)\.$/.test(t))).toBe(true);
+    expect(texts(c).some((t) => /아슬아슬|뜻이에요/.test(t))).toBe(false);
+    // 강팀으로 연달아 진 사람: "방심" 같은 성향 판정 대신 횟수만.
+    const loser = player(matches, "p0");
+    expect(loser.remarks.some((r) => r.text.includes("방심"))).toBe(false);
+    expect(loser.remarks.some((r) => /^예상 승률 60% 넘는 강팀으로 진 경기가 \d+회로, 약팀으로 이긴 \d+회보다 많아요\.$/.test(r.text))).toBe(true);
   });
 
   it("문장 수 상한과 빈 범위", () => {

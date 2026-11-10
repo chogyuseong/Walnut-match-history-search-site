@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { avoidMapFor } from "../../shared/avoid";
 import { draftFromMatch } from "../../shared/draft";
+import { nextLineup, planNextDraft, sessionMatchesOf } from "../../shared/nightPool";
+import { TEAM_SIZE_TOTAL } from "../../shared/prepTools";
 import { matchesName } from "../../shared/search";
-import type { MatchView } from "../../shared/types";
+import type { MatchView, Snapshot } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
 import { formatTime, matchRosterText, nameMap, POSITION_LABEL, teamName, viewLink } from "../format";
-import { BackLink, CopyButton, Dialog, ErrorNote, MatchTeams, StickyAction } from "../ui";
+import { BackLink, MatchTeams, StickyAction } from "../screenKit";
+import { CopyButton, Dialog, ErrorNote } from "../ui";
+import { liveNightPool, readCarry, writeNightPool } from "../nightPoolStore";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
 /**
  * 다음 판 준비(후보 A): 초안이 없으면 같은 팀으로 만들고, 있으면 그 초안을 연다.
  * series가 true면 "시리즈로 이어가기"를 골라 둔다(직전 경기가 시리즈에 없으면 3판 2선승으로 새로 만든다. 준비 화면에서 바꿀 수 있다).
+ * 오늘 명단이 있으면(11명 이상 온 밤) 쉬던 사람을 넣은 초안을 만든다(src/shared/nightPool.ts). 시리즈는 같은 10명이 이어서 하는
+ * 판이라 바꾸지 않고 쉬는 사람만 붙인다. 지난 경기의 팀 조건은 두 사람이 모두 새 초안에 있으면 이어 온다.
  */
 export function prepareNext(app: AppValue, from: MatchView, options: { series?: boolean } = {}): void {
   const series = options.series ? { format: "bo3" as const, name: "" } : null;
@@ -20,21 +26,43 @@ export function prepareNext(app: AppValue, from: MatchView, options: { series?: 
     app.setDraft({ ...app.draft, series: app.draft.series ?? series });
   }
   if (!app.draft && app.snapshot) {
-    const nameOf = nameMap(app.snapshot);
-    const draft = draftFromMatch(from, nameOf, {
-        groupId: app.snapshot.group.id,
-        baseLiveVersion: app.snapshot.group.liveVersion,
-        seed: (Math.random() * 0xffffffff) >>> 0,
-        now: new Date().toISOString(),
-        // 같은 팀으로 포지션을 새로 뽑을 때도 기피 라인을 되도록 피한다.
-        avoid: avoidMapFor(
-          from.roster.map((r) => ({ key: `p:${r.participantId}`, participantId: r.participantId })),
-          app.snapshot.participants,
-        ),
-      });
-    app.setDraft({ ...draft, sourceMatchId: from.id, series });
+    const snapshot = app.snapshot;
+    const nameOf = nameMap(snapshot);
+    const base = draftFromMatch(from, nameOf, {
+      groupId: snapshot.group.id,
+      baseLiveVersion: snapshot.group.liveVersion,
+      seed: (Math.random() * 0xffffffff) >>> 0,
+      now: new Date().toISOString(),
+      // 같은 팀으로 포지션을 새로 뽑을 때도 기피 라인을 되도록 피한다.
+      avoid: avoidMapFor(
+        from.roster.map((r) => ({ key: `p:${r.participantId}`, participantId: r.participantId })),
+        snapshot.participants,
+      ),
+    });
+    const night = liveNightPool(snapshot);
+    if (night?.changed) writeNightPool(night.pool);
+    const draft = planNextDraft({ ...base, sourceMatchId: from.id, series }, from, {
+      pool: night?.pool ?? null,
+      added: night?.added ?? [],
+      matches: snapshot.matches,
+      carried: readCarry(snapshot.group.id),
+      series: series !== null,
+    });
+    app.setDraft(draft);
   }
   go("/prep");
+}
+
+/**
+ * 결과 저장 창의 "다음 판 쉬는 사람(제안)" 이름. 오늘 명단이 11명 이상일 때만 있다.
+ * 운영자가 이 줄을 소리 내 읽거나 단톡에 옮기는 순간을 노린 것이라, "다음 경기 준비"가 만들 초안과 같은 규칙으로 센다.
+ */
+function nextRestNames(snapshot: Snapshot | null, saved: MatchView): string[] {
+  const night = liveNightPool(snapshot);
+  if (!snapshot || !night || night.pool.people.length <= TEAM_SIZE_TOTAL) return [];
+  const matches = snapshot.matches.map((m) => (m.id === saved.id ? saved : m));
+  const lineup = nextLineup(night.pool, saved, sessionMatchesOf(night.pool, matches));
+  return lineup.outKeys.map((key) => night.pool.people.find((p) => p.key === key)?.name ?? "");
 }
 
 /** 화면 4 — 진행 중 경기. 주요 행동은 "결과 입력" 하나다. */
@@ -78,22 +106,28 @@ export function Match() {
         // 저장을 마쳤으면 진행 중 경기가 없으므로 홈으로 돌아간다.
         if (!match) go("/");
       }}
-      afterSave={(saved) => (
-        <div className="button-row">
-          <button type="button" className="primary" onClick={() => prepareNext(app, saved)}>
-            다음 경기 준비
-          </button>
-          <button type="button" className="secondary" onClick={() => prepareNext(app, saved, { series: true })}>
-            시리즈로 이어가기
-          </button>
-          <button type="button" className="link" onClick={() => go("/records")}>
-            기록 보기
-          </button>
-          <button type="button" className="link" onClick={() => go(`/m/${saved.id}`)}>
-            수정
-          </button>
-        </div>
-      )}
+      afterSave={(saved) => {
+        const resting = nextRestNames(app.snapshot, saved);
+        return (
+          <>
+            {resting.length > 0 && <p className="hint">다음 판 쉬는 사람(제안): {resting.join(" · ")}</p>}
+            <div className="button-row">
+              <button type="button" className="primary" onClick={() => prepareNext(app, saved)}>
+                다음 경기 준비
+              </button>
+              <button type="button" className="secondary" onClick={() => prepareNext(app, saved, { series: true })}>
+                시리즈로 이어가기
+              </button>
+              <button type="button" className="link" onClick={() => go("/records")}>
+                기록 보기
+              </button>
+              <button type="button" className="link" onClick={() => go(`/m/${saved.id}`)}>
+                수정
+              </button>
+            </div>
+          </>
+        );
+      }}
     />
   );
 
@@ -223,6 +257,7 @@ export function Match() {
                 티어·서포터 횟수는 보이지 않아요.
               </p>
               <p className="hint">링크는 항상 지금 진행 중인 경기를 보여 줘요(사람을 바꾸면 그대로 반영돼요).</p>
+              <p className="hint">한 번 보내 두면 다음 경기도 같은 링크예요.</p>
               <div className="button-row">
                 <CopyButton label="편성 링크 복사" text={() => viewLink(snapshot.group.viewToken!, "live")} />
               </div>

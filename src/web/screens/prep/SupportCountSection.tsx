@@ -4,7 +4,8 @@ import { resetCountsReady, supportCounts, type RotationContext } from "../../../
 import { mutate, newRequestId } from "../../api";
 import { SupportCountEditor } from "../../supportCountEditor";
 import { formatTime } from "../../format";
-import { Dialog, ErrorNote, Help } from "../../ui";
+import { Help } from "../../screenKit";
+import { Dialog, ErrorNote } from "../../ui";
 import type { AppValue } from "../../useApp";
 import type { PrepStatus } from "./usePrepStart";
 

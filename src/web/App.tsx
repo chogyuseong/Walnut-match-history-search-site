@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AccountControl, LOGIN_ONLY, LoginRequired } from "./account";
 import {
   Backfill,
+  ChampionTier,
   Claim,
   CoInvite,
   Compare,
@@ -13,6 +14,7 @@ import {
   Join,
   LegacyImport,
   loadOperatorScreens,
+  LoginFailed,
   Match,
   MatchDetail,
   Member,
@@ -35,7 +37,7 @@ import {
   Viewer,
   ViewerLive,
 } from "./lazyScreens";
-import { LoginFailed } from "./screens/Login";
+import { CHAMPION_PORTRAITS } from "./portraits";
 import { stripRouteQuery, useSearchShortcut } from "./searchRoute";
 import { seasonRoutePart, seasonScopeFromRoute } from "./seasonRoute";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
@@ -182,6 +184,7 @@ const PAGE_TITLE: Record<string, string> = {
   season: "시즌 요약",
   graphs: "그래프 분석",
   ranking: "MMR 랭킹",
+  champions: "챔피언 티어",
   p: "개인 통계",
   compare: "두 사람 비교",
   privacy: "개인정보 처리방침",
@@ -197,6 +200,7 @@ const SUB_PAGE_TITLE: Record<string, string> = {
   season: "시즌 요약",
   graphs: "그래프 분석",
   ranking: "MMR 랭킹",
+  champions: "챔피언 티어",
   p: "개인 통계",
   compare: "두 사람 비교",
   search: "전적 검색",
@@ -250,18 +254,6 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const mark = (
     <>
-      {/* 로고 마크: 상자·그라데이션 없이 포인트 색(currentColor) 단색 선. */}
-      <span className="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" focusable="false">
-          <polygon
-            points="12 2.5 20 7.25 20 16.75 12 21.5 4 16.75 4 7.25"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinejoin="round"
-          />
-          <path d="M8.5 15L12 8L15.5 15" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
-        </svg>
-      </span>
       <span>
         내전 <em>운영</em>
       </span>
@@ -301,7 +293,11 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
   );
 }
 
-/** 라이엇 게임즈와 무관한 서비스임을 알리는 문구. 디자인 키트의 안내에 따라 모든 화면 아래에 둔다. */
+/**
+ * 라이엇 게임즈와 무관한 서비스임을 알리는 문구. 디자인 키트의 안내에 따라 모든 화면 아래에 둔다.
+ * 챔피언 초상화(라이엇 자산)를 켜 두면 라이엇 "Legal Jibber Jabber" 정책이 요구하는 문구를 원문 그대로 더하고,
+ * 끄면(src/web/portraits.ts CHAMPION_PORTRAITS) 그 문구를 빼고 "게임 이미지를 쓰지 않는다"는 예전 문구로 돌아간다.
+ */
 function LegalFooter(props: { privacyHref?: string }) {
   return (
     // 배치 때문에 <main> 안에 두므로, 보조 기기가 사이트 푸터로 알도록 역할을 직접 적는다.
@@ -312,11 +308,26 @@ function LegalFooter(props: { privacyHref?: string }) {
         Games, and all associated properties are trademarks or registered trademarks of Riot Games,
         Inc.
       </p>
-      <p>
-        이 사이트는 라이엇 게임즈의 공식 서비스가 아니며, 내전 모임의 경기 기록과 통계를 위해
-        만들었습니다. 라이엇 게임즈의 로고·상표·게임 이미지를 쓰지 않고, 라인 아이콘은 직접 그린
-        도형입니다.
-      </p>
+      {CHAMPION_PORTRAITS ? (
+        <>
+          <p>
+            {SITE_NAME} was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
+            Riot Games. Riot Games does not endorse or sponsor this project.
+          </p>
+          <p>
+            이 사이트는 라이엇 게임즈의 공식 서비스가 아니며, 내전 모임의 경기 기록과 통계를 위해
+            만들었습니다. 라이엇 게임즈의 로고·상표는 쓰지 않습니다. 챔피언 초상화는 라이엇 게임즈의
+            자산이며 위 정책에 따라 라이엇이 공개한 자료(Data Dragon)에서 불러옵니다. 라인 아이콘은 직접
+            그린 도형입니다.
+          </p>
+        </>
+      ) : (
+        <p>
+          이 사이트는 라이엇 게임즈의 공식 서비스가 아니며, 내전 모임의 경기 기록과 통계를 위해
+          만들었습니다. 라이엇 게임즈의 로고·상표·게임 이미지를 쓰지 않고, 라인 아이콘은 직접 그린
+          도형입니다.
+        </p>
+      )}
       <p className="legal-links">
         <a href={props.privacyHref ?? "#/privacy"}>개인정보 처리방침</a>
       </p>
@@ -355,7 +366,7 @@ function LoadFailed() {
 }
 
 /** 기록(스냅숏)이 있어야 그릴 수 있는 화면. */
-const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "ranking", "p", "compare", "search", "group", "merge", "backfill", "priority", "season", "dates"]);
+const NEEDS_SNAPSHOT = new Set(["records", "m", "graphs", "ranking", "champions", "p", "compare", "search", "group", "merge", "backfill", "priority", "season", "dates"]);
 
 function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
@@ -470,7 +481,29 @@ function OperatorScreen(props: { route: string[] }) {
         </div>
       );
     }
-    return <Ranking snapshot={app.snapshot} openPerson={(personId) => go(`/p/${personId}`)} />;
+    return (
+      <Ranking
+        snapshot={app.snapshot}
+        openPerson={(personId) => go(`/p/${personId}`)}
+        openChampions={() => go("/champions")}
+        emptyAction={
+          <button type="button" className="primary" onClick={() => go("/pick")}>
+            이름 넣고 팀 짜기
+          </button>
+        }
+      />
+    );
+  }
+  // 기록이 없으면(모임이 없는 계정) 아래의 알려진 화면 처리로 오늘 화면을 보여 준다.
+  if (page === "champions" && app.snapshot) {
+    return (
+      <ChampionTier
+        snapshot={app.snapshot}
+        openMatch={(matchId) => go(`/m/${matchId}`)}
+        openPerson={(personId) => go(`/p/${personId}`)}
+        operator
+      />
+    );
   }
   if (page === "p" && id) {
     if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
@@ -504,7 +537,10 @@ function OperatorScreen(props: { route: string[] }) {
   return <NotFound />;
 }
 
-/** 주 메뉴: 오늘 · 검색 · 기록 · 랭킹 · 분석 · 모임. 모임 탭은 로그인한 운영자에게만 보인다. */
+/**
+ * 주 메뉴: 오늘 · 검색 · 기록 · 랭킹 · 챔피언 · 분석 · 모임. 모임 탭은 로그인한 운영자에게만 보인다.
+ * 좁은 화면(하단 탭)은 6칸이 한계라 "챔피언"을 숨기고(.nav-wide-only) 랭킹 화면 머리의 링크로 간다.
+ */
 function Tabs(props: { current: string }) {
   const app = useAppValue();
   const tab =
@@ -514,7 +550,7 @@ function Tabs(props: { current: string }) {
     props.current === "p" ||
     props.current === "compare"
       ? "records"
-      : props.current === "graphs" || props.current === "ranking"
+      : props.current === "graphs" || props.current === "ranking" || props.current === "champions"
         ? props.current
         : props.current === "group" ||
             props.current === "import" ||
@@ -554,6 +590,14 @@ function Tabs(props: { current: string }) {
         onClick={() => go("/ranking")}
       >
         랭킹
+      </button>
+      <button
+        type="button"
+        className="nav-wide-only"
+        aria-current={tab === "champions" ? "page" : undefined}
+        onClick={() => go("/champions")}
+      >
+        챔피언
       </button>
       <button
         type="button"

@@ -1,9 +1,10 @@
 # 정적 화면(Workers Static Assets)의 응답 헤더. vite가 이 폴더(public/)를 dist/web으로 그대로 복사한다(vite.config.ts publicDir).
 # API(/api/*)는 Worker가 같은 값을 붙인다(src/server/http.ts securityHeaders). 값을 바꾸면 두 곳을 함께 바꾼다.
-# 외부 출처는 글꼴(Pretendard CSS·woff2, cdn.jsdelivr.net)뿐이다. 화면에 인라인 스크립트는 없다.
+# 외부 출처는 글꼴(Pretendard CSS·woff2, cdn.jsdelivr.net)과 챔피언 초상화(ddragon.leagueoflegends.com, src/web/portraits.ts)뿐이다.
+# 화면에 인라인 스크립트는 없다.
 # HSTS는 https 응답에서만 브라우저가 따른다(로컬 http 개발 서버에서는 무시된다).
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net data:; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net data:; img-src 'self' data: blob: https://ddragon.leagueoflegends.com; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

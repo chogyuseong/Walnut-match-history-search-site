@@ -8,12 +8,12 @@ import {
   removeConstraint,
   replacePerson,
   swapPeople,
-  swapSides,
   toggleLock,
   undoDraft,
   type Draft,
   type DraftPerson,
 } from "../../../shared/draft";
+import { swapSides } from "../../../shared/storedDraft";
 import { swapWithBench } from "../../../shared/prepTools";
 import { avoidMapFor, avoidViolations } from "../../../shared/avoid";
 import { shuffleTeamsByPriority, teamShuffleText, type PriorityMap } from "../../../shared/priority";
@@ -239,10 +239,10 @@ export function usePrepEditing(app: AppValue, draft: Draft, ctx: RotationContext
       update(swapPeople(draft, sourceKey, targetKey));
     } else if (inSlots(sourceKey) && inBench(targetKey)) {
       update(swapWithBench(draft, sourceKey, targetKey));
-      app.setNotice(`${nameOf(sourceKey)} 님 자리에 ${nameOf(targetKey)} 님을 넣었어요. ${nameOf(sourceKey)} 님은 대기자로 갔어요.`);
+      app.setNotice(`${nameOf(sourceKey)} 님 자리에 ${nameOf(targetKey)} 님을 넣었어요. ${nameOf(sourceKey)} 님은 쉬는 사람으로 갔어요.`);
     } else if (inBench(sourceKey) && inSlots(targetKey)) {
       update(swapWithBench(draft, targetKey, sourceKey));
-      app.setNotice(`${nameOf(targetKey)} 님 자리에 ${nameOf(sourceKey)} 님을 넣었어요. ${nameOf(targetKey)} 님은 대기자로 갔어요.`);
+      app.setNotice(`${nameOf(targetKey)} 님 자리에 ${nameOf(sourceKey)} 님을 넣었어요. ${nameOf(targetKey)} 님은 쉬는 사람으로 갔어요.`);
     } else {
       return;
     }
@@ -264,7 +264,7 @@ export function usePrepEditing(app: AppValue, draft: Draft, ctx: RotationContext
     setSelectedKey(null);
     setPairMode(null);
     setDrawNote(null);
-    app.setNotice(`${outgoing} 님 자리에 ${incoming.name} 님을 넣었어요. ${outgoing} 님은 대기자로 갔어요.`);
+    app.setNotice(`${outgoing} 님 자리에 ${incoming.name} 님을 넣었어요. ${outgoing} 님은 쉬는 사람으로 갔어요.`);
   }
 
   return {

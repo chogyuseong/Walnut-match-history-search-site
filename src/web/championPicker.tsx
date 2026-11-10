@@ -1,8 +1,9 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { championName, championUsage, searchChampions } from "../shared/champions";
 import { TEAMS, type MatchView } from "../shared/types";
+import { ChampionPortrait } from "./championPortrait";
 import { POSITION_LABEL, TEAM_MARK, teamName, teamRoster } from "./format";
-import { PosLabel } from "./ui";
+import { PosLabel } from "./screenKit";
 
 /**
  * 경기 명단 10명의 챔피언 고르기(2026-11-10, migrations/0025). 결과 입력 창(접힌 영역)과 경기 상세의 챔피언 수정이 함께 쓴다.
@@ -203,7 +204,10 @@ function ChampionCombobox(props: {
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(i)}
             >
-              <span>{option.champion.name}</span>
+              <span className="champ-option-name">
+                <ChampionPortrait championKey={option.champion.key} size={28} />
+                {option.champion.name}
+              </span>
               {option.taken ? (
                 <span className="champ-note">다른 사람이 고름</span>
               ) : option.used > 0 ? (

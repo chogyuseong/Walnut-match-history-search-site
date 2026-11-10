@@ -5,7 +5,8 @@ import type { MatchView } from "../../shared/types";
 import { mutate, newRequestId } from "../api";
 import { localDate } from "../../shared/stats";
 import { formatTime } from "../format";
-import { BackLink, Dialog, ErrorNote, Help } from "../ui";
+import { BackLink, Help } from "../screenKit";
+import { Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 
 /**

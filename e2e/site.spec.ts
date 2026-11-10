@@ -231,13 +231,13 @@ test("기록 거르기: 사람(여러 명은 모두 함께)·승패·이긴 진�
   // 사람을 고르기 전에는 라인·승패를 고를 수 없다.
   await expect(list.getByLabel("승패", { exact: true })).toHaveCount(0);
 
-  await list.getByLabel("거를 사람 추가").selectOption({ label: "선수01" });
+  await page.getByLabel("거를 사람 추가").selectOption({ label: "선수01" });
   await expect(cards).toHaveCount(10);
   const summary = list.getByRole("status");
   await expect(summary).toContainText("선수01 참가 · 10경기 · 선수01 70% · 7승 3패");
 
   // 두 번째 사람: 둘 다 뛴 경기만. 선수01과 선수11은 함께 뛴 적이 없다.
-  await list.getByLabel("거를 사람 추가").selectOption({ label: "선수11" });
+  await page.getByLabel("거를 사람 추가").selectOption({ label: "선수11" });
   await expect(cards).toHaveCount(0);
   await expect(list.getByText("조건에 맞는 경기가 없어요.")).toBeVisible();
   await list.getByRole("button", { name: "선수11 조건 빼기" }).click();
@@ -259,12 +259,12 @@ test("기록 거르기: 사람(여러 명은 모두 함께)·승패·이긴 진�
   await expect(summary).toHaveCount(0);
 
   // 이긴 진영만으로도 거른다. 선수02 + 블루 승 = 5경기, 5승 0패.
-  await list.getByLabel("이긴 진영").selectOption({ label: "블루 승" });
+  await page.getByLabel("이긴 진영").selectOption({ label: "블루 승" });
   await expect(cards).toHaveCount(5);
-  await list.getByLabel("이긴 진영").selectOption({ label: "진영 미상" });
+  await page.getByLabel("이긴 진영").selectOption({ label: "진영 미상" });
   await expect(cards).toHaveCount(3);
-  await list.getByLabel("이긴 진영").selectOption({ label: "블루 승" });
-  await list.getByLabel("거를 사람 추가").selectOption({ label: "선수02" });
+  await page.getByLabel("이긴 진영").selectOption({ label: "블루 승" });
+  await page.getByLabel("거를 사람 추가").selectOption({ label: "선수02" });
   await expect(cards).toHaveCount(5);
   await expect(summary).toContainText("선수02 참가 · 블루 승 · 5경기 · 선수02 100% · 5승 0패");
   // 고른 사람이 한 명이면 카드는 그 사람 기준 승·패 색이다.

@@ -6,7 +6,8 @@ import { formatDate, formatTime, nameMap, rateText, rateTier, standingsOf } from
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
-import { CopyButton, Dialog, ErrorNote, KpiStrip, StandingNote } from "../ui";
+import { KpiStrip, ScreenHead, StandingNote } from "../screenKit";
+import { CopyButton, Dialog, ErrorNote } from "../ui";
 import { Dashboard, DashboardEmpty } from "./Dashboard";
 import { go, useAppValue } from "../useApp";
 import { Intro, isFirstVisit } from "./Intro";
@@ -75,15 +76,19 @@ export function Today() {
   }
 
   return (
-    <div className="screen home-screen">
-      <header className="screen-head">
-        <h1>{snapshot?.group.name ?? "내전 운영"}</h1>
-        {snapshot && app.loadedAt && (
-          <span className="badge ok">
-            저장됨 · {formatTime(new Date(app.loadedAt).toISOString())} 확인
-          </span>
-        )}
-      </header>
+    <div className="screen page-wide home-screen">
+      <ScreenHead
+        title={snapshot?.group.name ?? "내전 운영"}
+        badge={
+          snapshot &&
+          app.loadedAt && (
+            <span className="badge ok">
+              저장됨 · {formatTime(new Date(app.loadedAt).toISOString())} 확인
+            </span>
+          )
+        }
+        desc="오늘 할 입력과 모임 기록 요약"
+      />
 
       {app.ready && !app.me?.accountId && firstVisit && <Intro />}
 

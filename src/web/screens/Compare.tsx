@@ -37,7 +37,7 @@ import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import { BackLink, FormDots, PosLabel, ScopePicker, StandingNote } from "../ui";
+import { BackLink, FormDots, PosLabel, ScopePicker, ScreenHead, StandingNote } from "../screenKit";
 
 function rateText(t: Tally): string {
   return t.games === 0 ? "기록 없음" : `${ratePercent(t.wins, t.games)}%`;
@@ -176,10 +176,7 @@ export function Compare(props: {
     // 아직 두 사람을 고르지 않음: 머리 카드 자리에 고르기 두 칸을 둔다.
     return (
       <div className="screen compare-screen">
-        <header className="screen-head">
-          <BackLink label="← 기록" fallback={props.back} />
-          <h1>두 사람 비교</h1>
-        </header>
+        <ScreenHead back={<BackLink label="← 기록" fallback={props.back} />} title="두 사람 비교" />
         <div className="cmp-duel is-empty">
           <div className="cmp-card cmp-a cmp-slot">{pickSelect("a", "cmp-slot-pick")}</div>
           <span className="cmp-vs-mark" aria-hidden="true">
@@ -329,12 +326,15 @@ export function Compare(props: {
 
   return (
     <div className="screen cols viz-root compare-screen">
-      <header className="screen-head">
-        <BackLink label="← 기록" fallback={props.back} />
-        <h1>
-          {nameA} <span className="vs">vs</span> {nameB}
-        </h1>
-      </header>
+      <ScreenHead
+        back={<BackLink label="← 기록" fallback={props.back} />}
+        title={
+          <>
+            {nameA} <span className="vs">vs</span> {nameB}
+          </>
+        }
+        desc="같은 범위에서 두 사람의 전적을 나란히 봅니다"
+      />
 
       <div className="cmp-duel">
         {personCard("a")}

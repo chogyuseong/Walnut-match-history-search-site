@@ -1,3 +1,4 @@
+import { CHAMPION_PORTRAITS } from "../portraits";
 import { PRIVACY, PRIVACY_IS_DRAFT } from "../legal";
 
 /**
@@ -178,6 +179,12 @@ export function Privacy(props: { back: () => void; backLabel: string }) {
           <li>
             jsDelivr: 화면 글꼴(Pretendard)을 받아 오는 과정에서 브라우저가 jsDelivr에 접속합니다.
           </li>
+          {CHAMPION_PORTRAITS && (
+            <li>
+              라이엇 게임즈: 챔피언 초상화를 라이엇의 이미지 서버(ddragon.leagueoflegends.com)에서 받아 오는 과정에서
+              브라우저가 그 서버에 직접 접속합니다(접속 주소 등이 라이엇에 전달될 수 있습니다).
+            </li>
+          )}
         </ul>
         <p className="hint">국외 이전과 처리 위탁의 정확한 고지 범위는 확인이 필요합니다(초안).</p>
       </section>

@@ -38,7 +38,23 @@ import { personUpsets, UPSET_THRESHOLD } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import { BackLink, FormDots, Help, Meter, PosLabel, RateBar, RateRing, RatingTierBadge, RatingTrendLine, ScopePicker, TitleBadge, TrendLine, WinLossBar } from "../ui";
+import {
+  BackLink,
+  FormDots,
+  Help,
+  Meter,
+  PosLabel,
+  RateBar,
+  RateRing,
+  RatingTierBadge,
+  RatingTrendLine,
+  ScopePicker,
+  ScreenHead,
+  TitleBadge,
+  TrendLine,
+  WinLossBar,
+  FilterBar,
+} from "../screenKit";
 
 function rate(tally: Tally): string {
   return rateText(tally.wins, tally.games);
@@ -148,7 +164,11 @@ export function Person(props: {
     () => (rival ? pairRecord(scoped, participantId, rival) : null),
     [scoped, participantId, rival],
   );
-  const laneOpponents = useMemo(() => laneRivals(scoped, participantId), [scoped, participantId]);
+  // 배치 중인 상대는 뺀다. 몇 판 안 뛴 사람과의 한두 경기가 "가장 쉬운·어려운 상대"로 뽑히지 않게(랭킹과 같은 누적 기준).
+  const laneOpponents = useMemo(
+    () => laneRivals(scoped, participantId).filter((r) => standings.get(r.opponentId)?.done),
+    [scoped, participantId, standings],
+  );
   const lanePicks = useMemo(() => laneRivalSummary(laneOpponents), [laneOpponents]);
 
   // 중복 참가자 합치기로 다른 사람에게 합쳐진 이름: 기록은 모두 남은 사람에게 옮겨졌으므로 그쪽으로 안내한다.
@@ -317,25 +337,30 @@ export function Person(props: {
 
   return (
     <div className="screen cols person-screen">
-      <header className="screen-head">
-        <BackLink label="← 기록" fallback={props.back} />
-        <h1>{person.name}</h1>
-        {person.status === "archived" && <span className="badge">보관</span>}
-        {props.openCompare && (
-          <button type="button" className="secondary" onClick={() => props.openCompare!(participantId)}>
-            다른 사람과 비교
-          </button>
-        )}
-      </header>
-
-      <ScopePicker
-        snapshot={snapshot}
-        scope={scope}
-        onChange={(next) => {
-          setScope(next);
-          setShown(FIRST_PAGE);
-        }}
+      <ScreenHead
+        back={<BackLink label="← 기록" fallback={props.back} />}
+        title={person.name}
+        badge={person.status === "archived" && <span className="badge">보관</span>}
+        desc={`${scopeLabel} 기록 · 배치와 칭호는 누적 기준`}
+        actions={
+          props.openCompare && (
+            <button type="button" className="secondary" onClick={() => props.openCompare!(participantId)}>
+              다른 사람과 비교
+            </button>
+          )
+        }
       />
+
+      <FilterBar label="보기 조건">
+        <ScopePicker
+          snapshot={snapshot}
+          scope={scope}
+          onChange={(next) => {
+            setScope(next);
+            setShown(FIRST_PAGE);
+          }}
+        />
+      </FilterBar>
 
       <section className="card person-summary full" aria-label="요약">
         <h2>요약 ({scopeLabel})</h2>
@@ -614,10 +639,10 @@ export function Person(props: {
       <section className="lane-rivals" aria-label="맞라인 상대">
         <h2>맞라인 상대 ({scopeLabel})</h2>
         {laneOpponents.length === 0 ? (
-          <p className="hint">포지션이 기록된 맞대결이 쌓이면 보여요.</p>
+          <p className="hint">배치를 마친 상대와 포지션이 기록된 맞대결이 쌓이면 보여요.</p>
         ) : (
           <>
-            <p className="hint">같은 라인에서 상대 팀으로 만난 경기만 세요({person.name} 기준).</p>
+            <p className="hint">같은 라인에서 상대 팀으로 만난 경기만 세요({person.name} 기준). 배치 중인 상대는 빼요.</p>
             <ul className="list list-card">
               {lanePicks.map(({ position, hardest, easiest }) => (
                 <li key={position} className="list-row static lane-rival-row">

@@ -2,6 +2,7 @@
 name: fast-worker
 description: 명령 실행, 테스트 실행, 단순한 코드 수정처럼 범위가 명확하고 기계적인 작업을 빠르게 처리한다. 빌드/테스트/린트 돌리기, 오타·이름 변경·한두 파일 수준의 간단한 수정에 사용. 설계 판단이나 원인이 불분명한 디버깅에는 쓰지 말 것.
 model: sonnet
+effort: medium
 tools: Bash, PowerShell, Read, Edit, Write, Glob, Grep
 ---
 

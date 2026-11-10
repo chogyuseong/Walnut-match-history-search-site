@@ -1,4 +1,4 @@
-import { Help } from "./ui";
+import { Help } from "./screenKit";
 import { useCallback, useEffect, useState } from "react";
 import { call, mutate, newRequestId } from "./api";
 import { CopyButton, Dialog, ErrorNote } from "./ui";

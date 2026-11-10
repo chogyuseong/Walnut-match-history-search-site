@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { parseStoredDraft, type Draft, type DraftPerson } from "../shared/draft";
+import type { Draft, DraftPerson } from "../shared/draft";
+import { parseStoredDraft } from "../shared/storedDraft";
 import { remapDraft, remapPeople } from "../shared/merge";
 import type { Snapshot } from "../shared/types";
 import { ApiFailure, call, getWithEtag, mutate, newRequestId } from "./api";
@@ -44,11 +45,13 @@ function putStash(draft: Draft): void {
   }
 }
 
-/** 모임을 지운 뒤 그 모임에 묶인 기기 저장값(맡겨 둔 편성, 고른 목록)을 지운다. */
+/** 모임을 지운 뒤 그 모임에 묶인 기기 저장값(맡겨 둔 편성, 고른 목록, 오늘 명단)을 지운다. */
 export function forgetGroupStorage(groupId: string): void {
   try {
     localStorage.removeItem(stashKey(groupId));
     localStorage.removeItem(pickKey(groupId));
+    // 오늘 명단·이어 갈 팀 조건(src/web/nightPoolStore.ts). 첫 화면 묶음이라 그 파일을 부르지 않고 키만 적는다.
+    for (const key of ["night", "constraints"]) localStorage.removeItem(`naejeon.${key}.v1.${groupId}`);
   } catch {
     // 무시
   }

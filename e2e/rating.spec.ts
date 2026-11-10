@@ -107,8 +107,8 @@ test("랭킹 MMR 순 · 개인 통계 MMR · 두 사람 비교 MMR 차 · 랭킹
   await expect(rows.filter({ hasText: "선수01" }).locator(".rating-num")).toContainText("MMR 1252");
   await expect(rows.filter({ hasText: "선수01" }).locator(".rating-num")).toHaveClass(/hint/);
 
-  await ranking.getByRole("button", { name: "MMR 순", exact: true }).click();
-  await expect(ranking.getByRole("button", { name: "MMR 순", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await ranking.getByRole("button", { name: "MMR", exact: true }).click();
+  await expect(ranking.getByRole("button", { name: "MMR", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(
     ranking.getByText(
       "MMR은 상대 팀의 평균 MMR을 감안해 승패마다 오르내리는 점수예요(시작 1200). 확정 경기만 세고 범위와 무관하게 누적입니다.",

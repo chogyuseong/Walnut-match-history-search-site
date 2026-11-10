@@ -3,9 +3,22 @@ import { useMemo, useState, type ReactNode } from "react";
 import { fractionPercent, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
-import { Meter, BackLink, FormDots, Help, PosLabel, RateRing, RatingTierBadge, scopeFromValue, scopeValue, TitleBadge, TrendLine } from "../ui";
+import {
+  Meter,
+  BackLink,
+  FormDots,
+  Help,
+  PosLabel,
+  RateRing,
+  RatingTierBadge,
+  scopeFromValue,
+  scopeValue,
+  ScreenHead,
+  TitleBadge,
+  TrendLine,
+} from "../screenKit";
 import { useExpectations } from "../matchCard";
-import { BALANCED_MARGIN, fairnessReport, FAIRNESS_MIN_GAMES, personUpsets, UPSET_THRESHOLD, LOPSIDED_MARGIN, fairnessVerdict, type FairnessVerdict } from "../../shared/upset";
+import { BALANCED_MARGIN, fairnessReport, FAIRNESS_GOOD, FAIRNESS_MIN_GAMES, FAIRNESS_OK, personUpsets, UPSET_THRESHOLD, LOPSIDED_MARGIN, fairnessVerdict, type FairnessVerdict } from "../../shared/upset";
 import { attendanceReport } from "../../shared/attendance";
 import { computeRatings, shownRating, ratingOptionsOf } from "../../shared/rating";
 import { groupCommentary, playerCommentary, type Commentary } from "../../shared/commentary";
@@ -131,11 +144,14 @@ function cellBand(tally: Tally): string {
 type View = "people" | "matrix" | "lines" | "race" | "shape" | "activity";
 
 // ─ 섞기 공정성(모임 전체) 묶음의 화면 상수 ─
-/** 판정 한 줄 문구. 색은 styles.css .fair-good/.fair-ok/.fair-poor. */
+/**
+ * 판정 한 줄 문구. 색은 styles.css .fair-good/.fair-ok/.fair-poor. 구간을 숫자로만 쓴다(2026-11-10 F5:
+ * "섞기가 공정했어요"는 예상 승률이 MMR로 낸 추정이라는 점을 빼고 말한다).
+ */
 const FAIR_VERDICT_TEXT: Record<FairnessVerdict, string> = {
-  good: "섞기가 공정했어요",
-  ok: "대체로 균형이에요",
-  poor: "치우친 경기가 많아요",
+  good: `균형 경기 ${fractionPercent(FAIRNESS_GOOD)}% 이상`,
+  ok: `균형 경기 ${fractionPercent(FAIRNESS_OK)}~${fractionPercent(FAIRNESS_GOOD) - 1}%`,
+  poor: `균형 경기 ${fractionPercent(FAIRNESS_OK)}% 미만`,
 };
 const FAIR_SEG_LABEL = { balanced: "균형", slight: "조금 치우침", lopsided: "많이 치우침" } as const;
 /** 분포 띠 구간 안에 경기 수를 쓰는 최소 비율(이보다 좁으면 숫자가 넘친다). */
@@ -295,10 +311,11 @@ export function Graphs(props: {
 
   return (
     <div className="screen cols viz-root">
-      <header className="screen-head">
-        <BackLink label="← 기록" fallback={props.back} />
-        <h1>그래프 분석</h1>
-      </header>
+      <ScreenHead
+        back={<BackLink label="← 기록" fallback={props.back} />}
+        title="그래프 분석"
+        desc="범위·플레이어를 골라 승률·라인·진영·편성 흐름을 봅니다"
+      />
 
       {/* 도구 띠: 왼쪽 고르기, 오른쪽 요약 글과 도움말(2026-11-08 재구성. 예전에는 필터·요약·도움말이 따로 흩어져 있었다). */}
       <div className="graph-tools">
@@ -556,7 +573,9 @@ export function Graphs(props: {
                 <Meter value={fairness.upsets / fairness.games} tone="share" small />
               </div>
             </dl>
-            <p className="hint">경기 전 예상 승률(누적 MMR) 기준. 예상이 50%에 가까울수록 섞기가 공정했다는 뜻이에요.</p>
+            <p className="hint">
+              경기 전 예상 승률(누적 MMR로 낸 추정) 기준. 예상이 50%에 가까운 경기는 두 팀 MMR 평균이 비슷했던 경기예요.
+            </p>
           </>
         )}
       </section>
@@ -927,8 +946,10 @@ function CommentaryCard(props: { notes: Commentary }) {
           {summary && <p className="commentary-summary">{summary}</p>}
           <ul className="commentary-remarks">
             {remarks.map((r) => (
-              <li key={r.text} className={`remark-${r.tone}`} title={r.basis}>
+              <li key={r.text} className={`remark-${r.tone}`}>
                 {r.text}
+                {/* 근거는 title 풍선이 아니라 글로 둔다(터치 화면에서는 풍선이 뜨지 않는다). */}
+                {r.basis && <span className="remark-basis">기준: {r.basis}</span>}
               </li>
             ))}
           </ul>

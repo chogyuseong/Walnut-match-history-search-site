@@ -5,7 +5,15 @@ import { compareMetrics, countedChronological, mainLine, synergyPoints } from ".
 import { PLACEMENT_GAMES_DEFAULT, isCounted, localDate, personDetail, personRecords, ratePercent, sideTotals, SMALL_SAMPLE, type Tally } from "./stats";
 import { shownRating, type RatingTable } from "./rating";
 import { POSITIONS, type MatchView, type Position } from "./types";
-import { fairnessReport, fairnessVerdict, FAIRNESS_MIN_GAMES, personUpsets, type MatchExpectation } from "./upset";
+import {
+  BALANCED_MARGIN,
+  fairnessReport,
+  fairnessVerdict,
+  FAIRNESS_MIN_GAMES,
+  personUpsets,
+  UPSET_THRESHOLD,
+  type MatchExpectation,
+} from "./upset";
 
 /**
  * 그래프 분석의 "분석 코멘트": 이미 계산한 기록 수치를 정해 둔 규칙으로 읽어 판단형 한국어 문장을 만든다(외부 AI 없음).
@@ -19,7 +27,7 @@ export interface Remark {
   /** 근거 수치를 괄호로 붙인 문장. */
   text: string;
   tone: RemarkTone;
-  /** 어느 수치를 읽었는지(화면의 title 풍선). */
+  /** 어느 수치를 읽었는지. 화면은 문장 아래 작은 글씨로 보인다(터치 화면에서는 title 풍선이 뜨지 않아 2026-11-10에 바꿈). */
   basis?: string;
 }
 
@@ -84,9 +92,12 @@ export const ATTEND_LOYAL_RATE = 90;
 // ─ 모임 코멘트 임계값 ─
 /** 모임 문장 최대 수. */
 export const GROUP_REMARK_MAX = 5;
-/** 예상 우세 팀 승률(%)이 이 이상이면 "MMR이 실력을 잘 반영". */
+/**
+ * 예상 우세 팀 승률(%)이 이 이상이면 문장 점이 "좋음" 색이다. 문장은 숫자만 쓴다(2026-11-10 F5).
+ * 예전에는 "MMR이 실력을 잘 반영"이라고 썼지만 판정 10경기에서 6승 이상은 동전 던지기로도 약 38% 나온다(이항 분포).
+ */
 export const PREDICT_GOOD = 60;
-/** 이 미만이면 "예상이 자주 빗나가 MMR이 자리 잡는 중". 50%면 동전 던지기와 같다. */
+/** 이 미만이면 문장 점이 "주의" 색이다. 50%면 동전 던지기와 같다. */
 export const PREDICT_POOR = 55;
 /** 모임 진영 편차를 말하는 최소 진영 확인 경기 수. 적으면 몇 판 차이로 15%p가 쉽게 난다. */
 export const GROUP_SIDE_MIN_GAMES = 20;
@@ -263,7 +274,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     });
   } else if (upsets.upsetLosses - upsets.upsetWins >= UPSET_LOSS_EXCESS) {
     remarks.push({
-      text: `강팀일 때 방심하는 편이에요(이변 패 ${upsets.upsetLosses}회, 이변 승 ${upsets.upsetWins}회).`,
+      text: `예상 승률 ${Math.round((1 - UPSET_THRESHOLD) * 100)}% 넘는 강팀으로 진 경기가 ${upsets.upsetLosses}회로, 약팀으로 이긴 ${upsets.upsetWins}회보다 많아요.`,
       tone: "warn",
       basis: "이변 승·패",
     });
@@ -378,21 +389,16 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   const verdict = fairnessVerdict(fairness);
   const predict = fairness.favoriteGames > 0 ? ratePercent(fairness.favoriteWins, fairness.favoriteGames) : null;
   if (fairReady) {
-    const balanced = `균형 경기 ${ratePercent(fairness.balanced, fairness.games)}%`;
+    // 사실만 쓴다(2026-11-10 F5): "공정해요"·"MMR이 실력을 잘 반영" 같은 판정은 표본 수가 말해 주는 것보다 많이 말한다.
+    const low = Math.round((0.5 - BALANCED_MARGIN) * 100);
+    const high = Math.round((0.5 + BALANCED_MARGIN) * 100);
     const head =
-      verdict === "good"
-        ? `섞기가 공정해요(${balanced}).`
-        : verdict === "ok"
-          ? `섞기가 대체로 공정해요(${balanced}).`
-          : `한쪽으로 치우친 편성이 많아요(${balanced}).`;
+      `판정 ${fairness.games}경기 중 ${fairness.balanced}경기가 예상 ${low}~${high}%였어요` +
+      `(균형 경기 ${ratePercent(fairness.balanced, fairness.games)}%).`;
     const tail =
       predict === null
         ? ""
-        : predict >= PREDICT_GOOD
-          ? ` 예상 우세 팀이 ${predict}% 이겨 MMR이 실력을 잘 반영하고 있어요.`
-          : predict < PREDICT_POOR
-            ? ` 예상이 자주 빗나가(우세 팀 승률 ${predict}%) 아직 MMR이 자리 잡는 중이에요.`
-            : "";
+        : ` 예상 우세 팀이 ${fairness.favoriteGames}경기 중 ${fairness.favoriteWins}경기 이겼어요(${predict}%).`;
     remarks.push({
       text: head + tail,
       tone: verdict === "poor" || (predict !== null && predict < PREDICT_POOR) ? "warn" : verdict === "good" ? "good" : "neutral",
@@ -520,21 +526,20 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   // 6. 이변 비율.
   if (fairReady && fairness.upsets / fairness.games >= UPSET_SHARE) {
     remarks.push({
-      text: `이변이 많은 편이에요(${fairness.upsets}/${fairness.games}경기). 편성이 아슬아슬하거나 실력 차가 좁다는 뜻이에요.`,
+      text: `판정 ${fairness.games}경기 중 ${fairness.upsets}경기가 이변이었어요(${ratePercent(fairness.upsets, fairness.games)}%).`,
       tone: "neutral",
       basis: "경기 전 예상 40% 미만 팀의 승리",
     });
   }
 
-  // 총평: 손질할 곳이 있으면 그것을, 없으면 섞기·MMR 상태를 짧게.
+  // 총평: 손질할 곳이 있으면 그것을, 없으면 섞기 수치를 짧게(판정 낱말 없이).
   const fixes = [sideSkew ? "진영" : "", fairReady && verdict === "poor" ? "편성" : ""].filter(Boolean);
   let summary: string;
   if (fixes.length > 0) summary = `${fixes.join("·")} 손질 필요`;
   else if (!fairReady) summary = "경기가 더 쌓이면 섞기 판단이 가능해요";
   else {
-    const mix = verdict === "good" ? "공정한 섞기" : "무난한 섞기";
-    const mmr = predict === null ? "" : predict >= PREDICT_GOOD ? " + 안정된 MMR" : predict < PREDICT_POOR ? " + 자리 잡는 중인 MMR" : " + 무난한 MMR";
-    summary = mix + mmr;
+    const balancedShare = `균형 경기 ${ratePercent(fairness.balanced, fairness.games)}%`;
+    summary = predict === null ? balancedShare : `${balancedShare} · 예상 우세 팀 승률 ${predict}%`;
   }
   return { summary, remarks: remarks.slice(0, GROUP_REMARK_MAX) };
 }

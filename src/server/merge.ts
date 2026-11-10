@@ -23,7 +23,8 @@
  *   되돌리기는 "같은 사람이 아니었다"는 뜻이므로 다른 사람의 계정이 남길 대상의 "본인"으로 남지 않게 하는 것이
  *   먼저다(undoLinkPlan, docs/개선-합치기-2026-11-08.md).
  */
-import { mergeStandings, overlappingMatches, type MergeStandings } from "../shared/merge";
+import { overlappingMatches } from "../shared/merge";
+import { mergeStandings, type MergeStandings } from "../shared/mergeStandings";
 import { placementGamesOf } from "../shared/stats";
 import { titleBandsOf } from "../shared/titles";
 import type { MatchState, MatchView } from "../shared/types";

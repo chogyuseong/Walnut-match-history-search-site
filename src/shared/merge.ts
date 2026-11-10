@@ -1,11 +1,10 @@
 import type { Draft, DraftPerson } from "./draft";
-import { PLACEMENT_GAMES_DEFAULT } from "./stats";
-import { standings, type Standing } from "./titles";
-import type { MatchView, ParticipantView, TitleBand } from "./types";
+import type { MatchView, ParticipantView } from "./types";
 
 /**
  * 중복 참가자 합치기의 순수 계산(서버 미리보기와 화면이 함께 쓴다).
- * 저장은 src/server/merge.ts가 한다.
+ * 저장은 src/server/merge.ts가 한다. 합치기 전후 칭호 비교(누적 승패 계산이 필요)는 mergeStandings.ts에 따로 둔다:
+ * 이 파일은 화면 첫 묶음(useApp.ts가 기기의 초안·고른 목록을 고칠 때)에도 실리므로 통계 계산을 부르지 않는다.
  */
 
 /** 합쳐진 사람의 ID를 마지막으로 남은 사람의 ID로 바꾼다. 합쳐지지 않았으면 그대로. */
@@ -33,50 +32,6 @@ export function overlappingMatches(
   return matches.filter(
     (m) => m.roster.some((r) => r.participantId === a) && m.roster.some((r) => r.participantId === b),
   );
-}
-
-/** 합친 뒤의 경기 목록(계산용). 합칠 대상의 명단 행을 남길 대상으로 바꾼다. */
-export function mergedMatches(
-  matches: readonly MatchView[],
-  sourceId: string,
-  targetId: string,
-): MatchView[] {
-  return matches.map((m) =>
-    m.roster.some((r) => r.participantId === sourceId)
-      ? {
-          ...m,
-          roster: m.roster.map((r) =>
-            r.participantId === sourceId ? { ...r, participantId: targetId } : r,
-          ),
-        }
-      : m,
-  );
-}
-
-export interface MergeStandings {
-  /** 합치기 전 합칠 대상. 확정 경기가 없으면 null. */
-  source: Standing | null;
-  /** 합치기 전 남길 대상. */
-  target: Standing | null;
-  /** 합친 뒤 남길 대상. */
-  merged: Standing | null;
-}
-
-/** 합치기 전후의 누적 승패·배치·칭호(docs/P2 P2-11, 누적 기준). */
-export function mergeStandings(
-  matches: readonly MatchView[],
-  sourceId: string,
-  targetId: string,
-  bands: readonly TitleBand[],
-  placementGames: number = PLACEMENT_GAMES_DEFAULT,
-): MergeStandings {
-  const before = standings(matches, bands, placementGames);
-  const after = standings(mergedMatches(matches, sourceId, targetId), bands, placementGames);
-  return {
-    source: before.get(sourceId) ?? null,
-    target: before.get(targetId) ?? null,
-    merged: after.get(targetId) ?? null,
-  };
 }
 
 function remapPerson(

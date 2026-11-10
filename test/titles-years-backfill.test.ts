@@ -6,7 +6,8 @@ import {
   winnerSideOf,
   type BackfillForm,
 } from "../src/shared/backfill";
-import { createDraft, swapSides, undoDraft, type Draft, type DraftPerson } from "../src/shared/draft";
+import { createDraft, undoDraft, type Draft, type DraftPerson } from "../src/shared/draft";
+import { swapSides } from "../src/shared/storedDraft";
 import { drawStatus, drawSupport, type RotationContext } from "../src/shared/rotation";
 import {
   localYear,

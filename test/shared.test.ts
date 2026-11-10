@@ -5,7 +5,6 @@ import {
   createDraft,
   draftFromMatch,
   isCompleteDraft,
-  parseStoredDraft,
   removeConstraint,
   replacePerson,
   rerollPositions,
@@ -16,6 +15,7 @@ import {
   type Draft,
   type DraftPerson,
 } from "../src/shared/draft";
+import { parseStoredDraft } from "../src/shared/storedDraft";
 import { parseNameList } from "../src/shared/names";
 import { recommendTeams, type RecommendPerson } from "../src/shared/recommend";
 import {

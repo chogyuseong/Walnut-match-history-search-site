@@ -4,7 +4,7 @@ import { avoids } from "../../../shared/avoid";
 import { drawStatus, supportCountOf, type RotationContext } from "../../../shared/rotation";
 import { POSITIONS, TEAMS } from "../../../shared/types";
 import { TEAM_MARK, teamBoxClass } from "../../format";
-import { PosLabel } from "../../ui";
+import { PosLabel } from "../../screenKit";
 import { prepTeamName } from "./common";
 import type { PrepEditing } from "./usePrepEditing";
 
@@ -165,7 +165,7 @@ export function SelectionBar(props: { draft: Draft; edit: PrepEditing; canReplac
   if (!selectedKey) {
     return (
       <p className="hint">
-        두 사람을 차례로 누르면 자리가 바뀝니다. PC에서는 사람을 끌어다 다른 자리나 대기자에 놓아도 돼요.
+        두 사람을 차례로 누르면 자리가 바뀝니다. PC에서는 사람을 끌어다 다른 자리나 쉬는 사람에 놓아도 돼요.
       </p>
     );
   }
@@ -178,7 +178,7 @@ export function SelectionBar(props: { draft: Draft; edit: PrepEditing; canReplac
           : pairMode === "different"
             ? "다른 팀으로 나눌 사람을 누르세요."
             : edit.bench.length > 0
-              ? "바꿀 사람이나 대기자를 누르세요."
+              ? "바꿀 사람이나 쉬는 사람을 누르세요."
               : "바꿀 사람을 누르세요."}
       </span>
       <button

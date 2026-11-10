@@ -13,7 +13,7 @@ import {
   SEARCH_FOCUS_EVENT,
   takeSearchFocus,
 } from "../searchRoute";
-import { RateBar, StandingNote } from "../ui";
+import { RateBar, ScreenHead, StandingNote } from "../screenKit";
 
 /** 경기 결과를 처음에 보여주는 수와 "더 보기"로 더 여는 수. */
 const MATCH_PAGE = 20;
@@ -144,10 +144,12 @@ export function Search(props: {
   const visibleMatches = matchHits.slice(0, matchShown);
 
   return (
-    <div className="screen">
-      <header className="screen-head">
-        <h1>전적 검색</h1>
-        {props.openCompare && (
+    <div className="screen page-wide search-screen">
+      <ScreenHead
+        title="전적 검색"
+        desc="모임의 전체 누적 기록에서 찾습니다. 배치와 칭호는 누적 기준이며, 결과 미입력·제외 경기는 세지 않습니다."
+        actions={
+          props.openCompare && (
           <button
             type="button"
             className="secondary"
@@ -159,8 +161,9 @@ export function Search(props: {
           >
             {comparing ? "비교 그만두기" : "두 사람 비교"}
           </button>
-        )}
-      </header>
+          )
+        }
+      />
       {comparing && (
         <p className="note" role="status">
           {picked.length === 0
@@ -194,10 +197,6 @@ export function Search(props: {
           />
         </label>
       </form>
-      <p className="hint">
-        모임의 전체 누적 기록에서 찾습니다. 배치와 칭호는 누적 기준이며, 결과 미입력·제외 경기는
-        세지 않습니다.
-      </p>
       {props.openMatch && !comparing && (
         <p className="hint">초성(ㄱㅅ)으로도 찾고, 날짜(11/7)나 메모 글자를 넣으면 경기도 찾아요. 단축키: /</p>
       )}

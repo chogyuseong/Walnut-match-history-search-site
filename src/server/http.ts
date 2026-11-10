@@ -107,13 +107,14 @@ export async function readOptionalJsonBody(req: Request, maxBytes = MAX_BODY_BYT
  * - 외부 출처: 글꼴 CSS·글꼴 파일(Pretendard, cdn.jsdelivr.net, src/web/index.html). 그 밖에는 모두 같은 출처.
  * - 화면에 인라인 스크립트는 없다(빌드된 index.html은 모듈 스크립트 파일 하나). 인라인 스타일은 React style 속성 때문에 허용.
  * - img-src의 data:·blob:은 공유 이미지(캔버스)·백업 파일 내려받기(Blob URL)에 쓴다.
+ *   ddragon.leagueoflegends.com은 챔피언 초상화(src/web/portraits.ts). 초상화를 꺼도 남겨 둬서 해가 없다.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
   "font-src 'self' https://cdn.jsdelivr.net data:",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://ddragon.leagueoflegends.com",
   "connect-src 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",

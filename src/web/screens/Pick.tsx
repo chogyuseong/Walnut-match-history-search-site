@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { avoidMapFor } from "../../shared/avoid";
 import { applyTeams, createDraft, withoutHistory, type DraftPerson } from "../../shared/draft";
 import { BENCH_MAX, splitBench, TEAM_SIZE_TOTAL, withBench } from "../../shared/prepTools";
@@ -10,8 +10,9 @@ import { remapPeople } from "../../shared/merge";
 import { diversityFor, recommendTeams } from "../../shared/recommend";
 import { latestSessionId } from "../../shared/stats";
 import { formatDate } from "../format";
-import { StickyAction } from "../ui";
+import { StickyAction } from "../screenKit";
 import { JoinPanel, type JoinEntryView } from "../joinPanel";
+import { liveNightPool, startNightPool } from "../nightPoolStore";
 import { go, pickKey, useAppValue } from "../useApp";
 
 /** 고른 목록은 모임마다 따로 기억한다(모임 고르기). 예전 키(모임 구분 없음)에 남은 목록은 처음 연 모임으로 옮긴다. */
@@ -51,6 +52,18 @@ export function Pick() {
       // 보관하지 못해도 선택은 화면에 남아 있다.
     }
   }, [selected, app.groupId]);
+
+  // 11명 이상 온 밤 중간에 다시 고르러 오면(늦게 온 사람·먼저 간 사람) 빈 목록 대신 오늘 명단을 채운다.
+  // 스냅숏이 늦게 올 수 있어 처음 한 번만 본다. 그 뒤 운영자가 비운 목록을 다시 채우지 않는다.
+  const prefillChecked = useRef(false);
+  useEffect(() => {
+    if (prefillChecked.current || !app.snapshot) return;
+    prefillChecked.current = true;
+    const night = liveNightPool(app.snapshot);
+    if (selected.length > 0 || !night) return;
+    setSelected(night.pool.people.slice(0, MAX_PICK));
+    setMessages([`오늘 온 ${night.pool.people.length}명을 온 순서대로 불러왔어요. 다르면 바꿔 주세요.`]);
+  }, [app.snapshot, selected.length]);
 
   // 합치기 뒤 최신 상태를 받으면 화면에 든 고른 목록의 합쳐진 사람도 남은 사람으로 바꾼다
   // (기기 보관분은 useApp이 바꾸지만 이미 열린 화면의 상태는 여기서 바꿔야 한다).
@@ -234,6 +247,11 @@ export function Pick() {
       if (best) draft = withoutHistory(applyTeams(draft, best.teamA, avoid));
     }
     app.setDraft(withBench(draft, bench));
+    // 대기자가 있는 밤만 오늘 명단을 남긴다. 정확히 10명이면 남기지 않아 준비 화면·다음 판이 예전과 똑같다.
+    // 이미 오늘 명단이 있으면(밤 중간에 다시 고름) 10명이어도 덮어써서 먼저 간 사람이 다음 판 제안에 남지 않게 한다.
+    if (app.groupId && (bench.length > 0 || liveNightPool(app.snapshot))) {
+      startNightPool(app.snapshot, app.groupId, [...players, ...bench]);
+    }
     setSelected([]);
     setWaiting([]);
     go("/prep");

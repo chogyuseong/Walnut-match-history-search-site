@@ -25,7 +25,7 @@ export const FAIRNESS_MIN_GAMES = 10;
  * 올리면 "많이 치우침" 띠가 짧아지고 "조금 치우침"이 길어진다. 이변 기준(0.4)과는 별개다.
  */
 export const LOPSIDED_MARGIN = 0.15;
-/** 균형 경기 비율이 이 이상이면 "공정했어요", FAIRNESS_OK 이상이면 "대체로 균형", 그 아래는 "치우친 경기가 많아요". */
+/** 균형 경기 비율의 구간 경계(good·ok·poor). 그래프 분석은 이 구간을 숫자로만 쓴다("균형 경기 60% 이상"). */
 export const FAIRNESS_GOOD = 0.6;
 export const FAIRNESS_OK = 0.4;
 

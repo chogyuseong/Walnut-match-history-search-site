@@ -25,7 +25,11 @@ import { loadGroup, loadOpenSession, parseSnapshot, snapshotStatements } from ".
 
 /** 한 계정이 맡을 수 있는 모임 수(대표 + 공동 운영 합계). 만들기·백업으로 새 모임·넘겨받기·공동 운영자 수락이 함께 지킨다. */
 export const MAX_GROUPS_PER_ACCOUNT = 5;
-const MAX_PARTICIPANTS_PER_GROUP = 200;
+/**
+ * 한 모임의 참가자 상한(보관된 사람 포함, 행 수 기준). 백업 복원(restore.ts)도 같은 값으로 파일을 거절하므로
+ * 둘이 어긋나면 자기 모임의 백업을 복원하지 못한다. 바꿀 때는 이 상수 하나만 고친다.
+ */
+export const MAX_PARTICIPANTS_PER_GROUP = 200;
 
 type Body = Record<string, unknown>;
 
@@ -211,31 +215,56 @@ export async function ensureParticipants(
   if (new Set(keys).size !== keys.length) {
     throw new ApiError(400, "DUPLICATE_NAME", "같은 이름이 두 번 들어 있습니다.");
   }
-  await runMutation(env, {
-    groupId,
-    requestId: requireRequestId(body),
-    op: "ensure-participants",
-    payload: { names },
-    build: async () => {
-      const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM participants WHERE group_id = ?1")
-        .bind(groupId)
-        .first<{ n: number }>();
-      if ((count?.n ?? 0) >= MAX_PARTICIPANTS_PER_GROUP) {
-        throw new ApiError(409, "TOO_MANY_PARTICIPANTS", "참가자가 너무 많습니다.");
-      }
-      const now = nowIso();
-      return {
-        stored: {},
-        statements: names.map((name, i) =>
-          env.DB.prepare(
-            `INSERT INTO participants (id, group_id, name, name_key, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT (group_id, name_key) WHERE status = 'active' DO NOTHING`,
-          ).bind(newId(), groupId, name, keys[i], now),
-        ),
-      };
-    },
-  });
+  const tooMany = () => new ApiError(409, "TOO_MANY_PARTICIPANTS", "참가자가 너무 많습니다.");
+  try {
+    await runMutation(env, {
+      groupId,
+      requestId: requireRequestId(body),
+      op: "ensure-participants",
+      payload: { names },
+      build: async () => {
+        // "지금 수 ≥ 상한"만 보면 199명에서 30명을 한 번에 넣어 229명이 될 수 있었다. 실제로 새로 생길 행 수를 더해 본다.
+        // 이미 활성 참가자인 이름은 아래 INSERT가 건너뛰므로 세지 않는다(보관된 같은 이름은 새 행이 생기므로 센다).
+        // 여기서는 빠른 거절만 한다. 확정은 batch 맨 앞의 보호 문장이 같은 계산으로 다시 한다.
+        const count = await env.DB.prepare(
+          `SELECT COUNT(*) AS n,
+                  SUM(CASE WHEN status = 'active' AND name_key IN (SELECT value FROM json_each(?2)) THEN 1 ELSE 0 END) AS existing
+           FROM participants WHERE group_id = ?1`,
+        )
+          .bind(groupId, JSON.stringify(keys))
+          .first<{ n: number; existing: number | null }>();
+        const adding = keys.length - (count?.existing ?? 0);
+        if (adding > 0 && (count?.n ?? 0) + adding > MAX_PARTICIPANTS_PER_GROUP) throw tooMany();
+        const now = nowIso();
+        return {
+          stored: {},
+          statements: [
+            // 위 확인은 batch 밖이라, 195명 모임에 두 기기가 5명씩 동시에 넣으면 둘 다 통과해 205명이 됐다(그 백업은
+            // 복원이 거절한다). batch 안에서 같은 계산을 다시 해 넘으면 batch 전체를 되돌린다.
+            env.DB.prepare(
+              `INSERT INTO guard (state_conflict)
+               SELECT 1 FROM (
+                 SELECT COUNT(*) AS adding FROM json_each(?2)
+                 WHERE value NOT IN (SELECT name_key FROM participants WHERE group_id = ?1 AND status = 'active')
+               )
+               WHERE adding > 0 AND (SELECT COUNT(*) FROM participants WHERE group_id = ?1) + adding > ?3`,
+            ).bind(groupId, JSON.stringify(keys), MAX_PARTICIPANTS_PER_GROUP),
+            ...names.map((name, i) =>
+              env.DB.prepare(
+                `INSERT INTO participants (id, group_id, name, name_key, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT (group_id, name_key) WHERE status = 'active' DO NOTHING`,
+              ).bind(newId(), groupId, name, keys[i], now),
+            ),
+          ],
+        };
+      },
+    });
+  } catch (error) {
+    // 이 batch에서 VERSION_CONFLICT가 되는 것은 위 보호 문장(guard_state_conflict)뿐이다(runMutation이 바꿔 준다).
+    if (error instanceof ApiError && error.code === "VERSION_CONFLICT") throw tooMany();
+    throw error;
+  }
   const placeholders = keys.map((_, i) => `?${i + 2}`).join(", ");
   const rows = await env.DB.prepare(
     `SELECT id, name, status, skill_group, name_key FROM participants

@@ -5,12 +5,15 @@
  * - 이름은 사물·자연 낱말로 지은 가짜 이름이다. 실제 사람 이름처럼 보이는 이름, 알려진 닉네임은 쓰지 않는다.
  * - 티어(skillGroup)·기피 라인(avoidPositions)·서포터 보정값은 넣지 않는다(조회 링크 응답과 같은 모양).
  * - 기본 구성: 24명, 경기 약 100개(2026년 3~10월 매주 금요일 2~4경기), 시즌 2개, 메모·시리즈 약간.
+ * - 챔피언: 앞쪽 경기는 비워 두고(기록을 나중에 시작한 모임처럼) 그 뒤로도 가끔 빠뜨려, 챔피언 티어 화면의 입력률이
+ *   100%가 아니게 한다. 사람마다 라인별로 즐겨 쓰는 챔피언이 있어 "주로 쓴 사람"이 고르게 갈린다.
  */
 import {
   DEFAULT_SETTINGS,
   POSITIONS,
   type MatchView,
   type ParticipantView,
+  type Position,
   type RosterEntry,
   type SeasonView,
   type SeriesView,
@@ -47,6 +50,18 @@ const NAMES = [
   "느린시계",
   "둥근돌",
 ];
+
+/**
+ * 라인별 예시 챔피언(키는 src/shared/champions.ts). 목록을 통째로 불러오지 않으려고 키만 적는다(예시 화면 용량).
+ * 챔피언 키가 목록에 있는지는 test/champion-tier.test.ts가 확인한다.
+ */
+const CHAMPION_POOLS: Record<Position, readonly string[]> = {
+  top: ["Garen", "Darius", "Fiora", "Camille", "Jax", "Sett", "Malphite", "Ornn", "Riven", "Aatrox", "Gwen", "KSante"],
+  jungle: ["LeeSin", "Vi", "Kayn", "Graves", "Hecarim", "Amumu", "Warwick", "Viego", "Khazix", "Nidalee", "JarvanIV", "Ekko"],
+  mid: ["Ahri", "Syndra", "Yasuo", "Yone", "Zed", "Orianna", "Viktor", "Akali", "Sylas", "Lux", "Katarina", "Hwei", "Aurora"],
+  adc: ["Jinx", "Kaisa", "Ezreal", "Ashe", "Caitlyn", "Jhin", "Vayne", "MissFortune", "Lucian", "Xayah", "Smolder", "Yunara"],
+  support: ["Thresh", "Lulu", "Nautilus", "Leona", "Karma", "Nami", "Rakan", "Blitzcrank", "Morgana", "Senna", "Milio", "Braum"],
+};
 
 const MEMOS = [
   "마지막 한타로 뒤집은 경기",
@@ -185,6 +200,8 @@ export function buildDemoSnapshot(options: DemoOptions = {}): Snapshot {
     }
   });
 
+  addChampions(matches, people, options.seed ?? 20261106);
+
   const seasons: SeasonView[] = [
     { id: "demo-season1", name: "예시 시즌 1", startsOn: "2026-03-01", endsOn: "2026-06-30" },
     { id: "demo-season2", name: "예시 시즌 2", startsOn: "2026-07-01", endsOn: "2026-10-31" },
@@ -209,4 +226,41 @@ export function buildDemoSnapshot(options: DemoOptions = {}): Snapshot {
     seasons,
     series,
   };
+}
+
+/**
+ * 경기 명단에 챔피언을 채운다. 승패·명단을 만든 난수와 따로 굴려서, 챔피언을 바꿔도 다른 예시 기록(순위·시즌 시상)은 그대로다.
+ * - 앞 25% 경기는 비운다(챔피언 기록을 중간부터 시작한 모임). 그 뒤 경기도 10%는 통째로, 기록한 경기도 칸마다 5%는 비운다.
+ * - 사람마다 라인별 즐겨 쓰는 챔피언 셋이 있고 70%는 그중에서(앞의 것일수록 자주), 나머지는 그 라인 아무 챔피언이나 고른다.
+ * - 한 경기 안에서는 같은 챔피언이 겹치지 않게 한다(실제 게임처럼).
+ */
+function addChampions(matches: MatchView[], people: readonly ParticipantView[], seed: number): void {
+  const random = seeded(seed ^ 0x5eed);
+  const favorites = new Map<string, string[]>();
+  for (const person of people) {
+    for (const position of POSITIONS) {
+      const pool = [...CHAMPION_POOLS[position]];
+      const picks: string[] = [];
+      for (let i = 0; i < 3; i++) picks.push(pool.splice(Math.floor(random() * pool.length), 1)[0]!);
+      favorites.set(`${person.id}:${position}`, picks);
+    }
+  }
+  const startAt = Math.floor(matches.length * 0.25);
+  matches.forEach((match, index) => {
+    if (index < startAt || random() < 0.1) return;
+    const used = new Set<string>();
+    match.roster = match.roster.map((entry) => {
+      if (!entry.position || random() < 0.05) return entry;
+      const pool = CHAMPION_POOLS[entry.position];
+      const liked = favorites.get(`${entry.participantId}:${entry.position}`)!;
+      let key = "";
+      for (let tries = 0; tries < 6 && (key === "" || used.has(key)); tries++) {
+        const roll = random();
+        key = roll < 0.35 ? liked[0]! : roll < 0.55 ? liked[1]! : roll < 0.7 ? liked[2]! : pool[Math.floor(random() * pool.length)]!;
+      }
+      if (used.has(key)) return entry;
+      used.add(key);
+      return { ...entry, champion: key };
+    });
+  });
 }

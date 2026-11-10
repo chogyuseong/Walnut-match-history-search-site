@@ -388,7 +388,10 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
   // 배치 진행 중 두 사람은 맨 아래이고 MMR 대신 배치 판수를 보여 준다.
   await expect(table.getByRole("listitem").nth(10)).toContainText("배치 1/10");
   await expect(table.getByRole("listitem").nth(11)).toContainText("배치 1/10");
-  await expect(page.getByRole("region", { name: "랭킹 요약" }).locator(".ps-tiles > div")).toHaveCount(3);
+  // 요약 카드 줄: 1위(누적 50경기 이상인 사람이 없어 배치 완료자 중 1위) · 최근 상승 · 최고 기록 · 티어 분포.
+  const cards = page.getByRole("region", { name: "랭킹 요약" }).locator(".stat-card");
+  await expect(cards).toHaveCount(4);
+  await expect(cards.first()).toContainText("배치 완료자 중");
 
   // 추이는 한 번에 하나만 펼친다.
   const firstRow = table.getByRole("listitem").first();
@@ -399,7 +402,8 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
 
   // 이름 검색: 순위 숫자는 그대로.
   const rankOf11 = await table.getByRole("listitem").filter({ hasText: "선수11" }).locator(".rank").innerText();
-  await table.getByLabel("이름 검색").fill("선수11");
+  // 이름 검색 칸은 순위표 위 필터 줄에 있다.
+  await page.getByRole("group", { name: "순위표 찾기" }).getByLabel("이름 검색").fill("선수11");
   await expect(table.getByRole("listitem")).toHaveCount(1);
   await expect(table.getByRole("listitem").locator(".rank")).toHaveText(rankOf11);
 

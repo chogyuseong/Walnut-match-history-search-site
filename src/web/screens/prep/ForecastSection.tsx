@@ -17,7 +17,7 @@ import { shownRating } from "../../../shared/rating";
 import { ratePercent } from "../../../shared/stats";
 import type { Team } from "../../../shared/types";
 import { POSITION_LABEL } from "../../format";
-import { PosLabel } from "../../ui";
+import { Help, PosLabel } from "../../screenKit";
 import { prepTeamName } from "./common";
 
 /** 팀 상자(.team.side-blue/red)와 같은 색을 쓰도록 styles.css .fc-tone-A/B가 변수를 잡는다. */
@@ -32,6 +32,8 @@ export function ForecastSection(props: {
   forecast: DraftForecast;
   nameOf: (key: string) => string;
   balance: DraftBalance | null;
+  /** 직전 편성(되돌리기 이력)의 티어 점수. 운영자이고 직전 편성이 있을 때만. 차가 달라졌을 때 한 줄로 쓴다. */
+  previousBalance?: DraftBalance | null;
   placementGames: number;
   /** MMR 시작값(모임 설정). 연결 안 된 사람을 이 값으로 계산한다. */
   start: number;
@@ -110,6 +112,11 @@ export function ForecastSection(props: {
             ))}
           </ul>
           <p className="hint">
+            {props.previousBalance && balance.assigned > 0 && props.previousBalance.diff !== balance.diff && (
+              <>
+                직전 편성 대비 티어 점수 차(블루 − 레드) {props.previousBalance.diff} → {balance.diff}.{" "}
+              </>
+            )}
             {balance.assigned === 0
               ? "티어를 정한 사람이 없어 점수가 모두 0이에요."
               : "점수는 균형 팀 추천과 같은 방식이에요(티어 가중치, 미지정은 정한 사람들의 가운데 값)."}{" "}
@@ -121,6 +128,12 @@ export function ForecastSection(props: {
       <p className="hint">
         예상은 경기 직전 MMR 평균의 Elo 기대 승률이에요. 라인 우위는 두 사람 MMR 차 {LANE_EDGE_MIN} 이상일 때 표시해요.
       </p>
+      {/* 줄마다의 title 풍선은 터치 화면에서 뜨지 않아 같은 글을 접힌 도움말에도 둔다. */}
+      <Help label="라인별 계산 보기">
+        {forecast.lanes.map((lane) => (
+          <p key={lane.position}>{laneTitle(lane, nameOf)}</p>
+        ))}
+      </Help>
     </section>
   );
 }

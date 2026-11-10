@@ -6,6 +6,7 @@ import app from "../src/server/index";
 import { rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
 import { api, requestId, setupGroup, unique } from "./helpers";
+import headersFile from "../public/_headers?raw";
 
 // 검토 L5(CSRF: Origin·Content-Type), L6(본문 크기), L7(비싼 GET 요청 수), L8(로그의 토큰).
 
@@ -203,6 +204,9 @@ describe("보안 헤더(2026-11-07)", () => {
       expect(csp).toContain(part);
     }
     expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
+    // 챔피언 초상화(Data Dragon)만 그림 출처로 더했다. 정적 화면 헤더(public/_headers)도 같은 값이어야 한다.
+    expect(csp).toContain("img-src 'self' data: blob: https://ddragon.leagueoflegends.com;");
+    expect(headersFile).toContain(`Content-Security-Policy: ${csp}`);
   });
 
   it("운영(DEPLOY_ENV=production)에서는 HSTS도 붙는다(설정 오류 503 응답에도)", async () => {

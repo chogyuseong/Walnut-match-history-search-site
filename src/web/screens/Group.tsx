@@ -6,11 +6,13 @@ import { nameKey } from "../../shared/names";
 import { formatDate, formatRange, formatTime, nameMap, viewLink } from "../format";
 import { rotationContext, supportCounts } from "../../shared/rotation";
 import { SupportCountEditor } from "../supportCountEditor";
-import { CopyButton, Dialog, ErrorNote, Help } from "../ui";
+import { Help } from "../screenKit";
+import { CopyButton, Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { TitleSettings } from "./TitleSettings";
 import { NewGroupFromBackup, RestoreSection } from "./Restore";
-import { CreateGroupButton, LocalAccountSettings } from "../account";
+import { CreateGroupButton } from "../account";
+import { LocalAccountSettings } from "../localAccountSettings";
 import { CoOperatorSelfSection, CoOperatorsSection } from "./CoOperators";
 import { GroupSwitcher, MembershipList } from "../groupSwitcher";
 import { RequestRow } from "./Member";
@@ -175,6 +177,8 @@ export function Group() {
           </p>
           <div className="button-row">
             <CopyButton label="조회 링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
+            {/* 편성 화면(/live)은 다음 경기가 시작되면 같은 링크에서 바뀐다. 경기 전에 미리 단톡방에 올려 둘 수 있게 여기에도 둔다. */}
+            <CopyButton label="참가자 편성 링크 복사" text={() => viewLink(snapshot.group.viewToken!, "live")} />
             <button
               type="button"
               className="link"

@@ -16,7 +16,7 @@ import {
   teamName,
   teamRoster,
 } from "./format";
-import { PosLabel } from "./ui";
+import { PosLabel } from "./screenKit";
 
 /**
  * 경기 카드. 기록 목록·홈·개인 통계·비교가 함께 쓴다.

@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
 import { mergeHooks } from "../src/server/merge";
-import { mergeStandings } from "../src/shared/merge";
+import { mergeStandings } from "../src/shared/mergeStandings";
 import { standings, titleBandsOf } from "../src/shared/titles";
 import type { ParticipantView, RosterEntry, Snapshot } from "../src/shared/types";
 import {

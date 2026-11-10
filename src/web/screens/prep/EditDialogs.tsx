@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { Draft, DraftPerson } from "../../../shared/draft";
 import { normalizePriority, priorityLabel, type Priority } from "../../../shared/priority";
 import type { TeamCandidate } from "../../../shared/recommend";
+import { matchesName } from "../../../shared/search";
 import type { Team } from "../../../shared/types";
 import { TEAM_MARK } from "../../format";
 import { Dialog } from "../../ui";
@@ -130,6 +132,42 @@ export function ReplaceDialog(props: { selectedKey: string; others: DraftPerson[
           </li>
         ))}
       </ul>
+    </Dialog>
+  );
+}
+
+/**
+ * 늦게 온 사람 창: 교체 목록과 같은 사람들(편성·쉬는 사람에 없는 활성 참가자)을 이름으로 찾는다.
+ * 고른 사람은 쉬는 사람 끝에 들어간다. 아직 없는 새 이름은 참가자 고르기에서 넣는다(여기서 참가자를 만들지 않는다).
+ */
+export function LateDialog(props: { others: DraftPerson[]; onPick: (person: DraftPerson) => void; onClose: () => void }) {
+  const [query, setQuery] = useState("");
+  // 공백·대소문자를 무시하고 초성("ㄱㅅ")으로도 찾는다(전적 검색과 같은 규칙).
+  const shown = props.others
+    .filter((p) => matchesName(p.name, query))
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  return (
+    <Dialog title="늦게 온 사람" onClose={props.onClose}>
+      <label>
+        이름 찾기
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+      </label>
+      {shown.length === 0 ? (
+        <p className="hint">
+          {query.trim() === "" ? "넣을 수 있는 다른 참가자가 없어요." : "일치하는 이름이 없어요."} 처음 온 사람은 참가자 고르기에서
+          이름을 넣어 주세요.
+        </p>
+      ) : (
+        <ul className="list" aria-label="늦게 온 사람 후보">
+          {shown.map((p) => (
+            <li key={p.key}>
+              <button type="button" className="list-row" onClick={() => props.onPick(p)}>
+                {p.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Dialog>
   );
 }

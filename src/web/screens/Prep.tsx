@@ -1,25 +1,31 @@
 import { useMemo, useState } from "react";
-import { historyOf, isCompleteDraft, type Draft, type DraftPerson } from "../../shared/draft";
+import { historyOf, isCompleteDraft, type DraftPerson } from "../../shared/draft";
 import { draftForecast } from "../../shared/forecast";
+import type { NightDraft } from "../../shared/nightPool";
+import { draftDelta, type DeltaLine } from "../../shared/prepDelta";
 import { draftBalance } from "../../shared/prepTools";
 import { computeRatings, ratingOptionsOf } from "../../shared/rating";
+import { diversityFor } from "../../shared/recommend";
 import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
 import { DEFAULT_SETTINGS } from "../../shared/types";
-import { draftRosterText } from "../format";
-import { BackLink, CopyButton, ErrorNote, StickyAction } from "../ui";
+import { draftRosterText, josa, POSITION_LABEL } from "../format";
+import { BackLink, StickyAction } from "../screenKit";
+import { CopyButton, ErrorNote } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 import { BenchSection } from "./prep/BenchSection";
 import { ConstraintsSection } from "./prep/ConstraintsSection";
 import { DraftImageDialog } from "./prep/DraftImage";
+import { DeltaNote } from "./prep/DeltaNote";
 import { DrawSummary } from "./prep/DrawSummary";
 import { ForecastSection } from "./prep/ForecastSection";
-import { RecommendDialog, ReplaceDialog } from "./prep/EditDialogs";
+import { LateDialog, RecommendDialog, ReplaceDialog } from "./prep/EditDialogs";
 import { SeriesSection } from "./prep/SeriesSection";
 import { ShuffleSection, SideSection } from "./prep/ShuffleSection";
 import { StartAskDialog } from "./prep/StartAskDialog";
 import { supportCountLabel, SupportCountSection } from "./prep/SupportCountSection";
 import { SelectionBar, TeamBoards } from "./prep/TeamBoards";
+import { useNightPool } from "./prep/useNightPool";
 import { usePrepEditing } from "./prep/usePrepEditing";
 import { usePrepStart, type PrepStatus } from "./prep/usePrepStart";
 
@@ -47,7 +53,7 @@ export function Prep() {
 }
 
 /** 작성 중인 편성이 있을 때의 준비 화면. draft가 늘 있으므로 안쪽에서 null 확인을 반복하지 않는다. */
-function PrepEditor(props: { app: AppValue; draft: Draft }) {
+function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
   const { app, draft } = props;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -55,6 +61,7 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
   // 서포터 횟수 판: 버튼(섞기 기준 줄)으로 여닫는다. 기본은 접어 둔다(펼치면 폰에서 섞기 버튼이 편성 판에서 멀어진다).
   // 한 팀이 모두 배정받아 초기화가 필요하면 접힌 버튼에 "초기화 필요" 배지로 알린다(2026-11-08 화면 점검).
   const [supportOpen, setSupportOpen] = useState(false);
+  const [lateOpen, setLateOpen] = useState(false);
   const status: PrepStatus = { busy, setBusy, error, setError };
 
   const ctx = useMemo(
@@ -68,6 +75,7 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
   const edit = usePrepEditing(app, draft, ctx, setError);
   const start = usePrepStart(app, draft, status);
   const { update, nameOf, bench } = edit;
+  const night = useNightPool(app, draft, update);
 
   const baseChanged =
     draft.baseLiveVersion !== null &&
@@ -81,6 +89,9 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
           .filter((m) => m.state !== "canceled" && m.source === "live")
           .sort((a, b) => b.matchNo - a.matchNo)[0] ?? null)
       : null;
+
+  // 쉬던 사람을 넣어 만든 초안의 원래 경기("같은 10명으로"가 다시 만들 10명).
+  const rotatedFrom = app.snapshot?.matches.find((m) => m.id === draft.sourceMatchId) ?? null;
 
   // 다른 사람으로 교체 목록: 편성과 대기자에 없는 활성 참가자(대기자는 아래 "대기자" 구역에서 바로 바꾼다).
   const others: DraftPerson[] = (app.snapshot?.participants ?? [])
@@ -99,9 +110,13 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
     app.snapshot.role === "operator" &&
     app.snapshot.participants.length > 0 &&
     draft.people.some((p) => p.participantId !== null);
-  const balance =
-    showBalance && app.snapshot
-      ? draftBalance(draft, edit.priorityMap(), app.snapshot.group.settings.groupWeights ?? DEFAULT_SETTINGS.groupWeights)
+  const groupWeights = app.snapshot?.group.settings.groupWeights ?? DEFAULT_SETTINGS.groupWeights;
+  const balance = showBalance ? draftBalance(draft, edit.priorityMap(), groupWeights) : null;
+  // 직전 자리의 티어 점수: 예상 승률 판의 접힌 "티어 점수 보기" 안에만 쓴다(직전 편성 대비 줄에는 넣지 않는다).
+  const previousBalance =
+    // 되돌린 직후에는 previousSlots가 두 단계 전 자리라 "직전"이 아니다(DeltaNote도 이때는 줄을 숨긴다).
+    balance && draft.previousSlots && !draft.redoSlots
+      ? draftBalance({ ...draft, slots: draft.previousSlots }, edit.priorityMap(), groupWeights)
       : null;
   // 예상 승률 판: MMR은 스냅숏이 바뀔 때만 다시 계산하고(경기 전체를 훑는다), 편성 쪽은 매번 가볍게 계산한다.
   // MMR·라인 전적·맞대결은 공개 전적에서 나오므로 조회자에게도 보이고, 티어(balance)만 위 조건으로 숨긴다.
@@ -111,6 +126,21 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
     [app.snapshot],
   );
   const forecast = app.snapshot && ratings ? draftForecast(draft, ratings, app.snapshot.matches, ratingOptions) : null;
+  // 직전 편성 대비 줄의 "같은 팀 반복": 추천 창과 같은 최근 경기 수·같은 설정(꺼져 있으면 항목이 없다).
+  const diversity = useMemo(
+    () =>
+      app.snapshot
+        ? diversityFor({ matches: app.snapshot.matches, settings: app.snapshot.group.settings }, draft.people)
+        : undefined,
+    [app.snapshot, draft.people],
+  );
+  let delta: DeltaLine[] = [];
+  try {
+    // 되돌린 직후(redoSlots 있음)에는 그리지 않는다. 그때 previousSlots는 한 단계 더 앞의 자리라 "방금 변경"이 아니다.
+    if (!draft.redoSlots) delta = draftDelta(draft, { avoid: edit.avoidMap, ctx, diversity, ratings, ratingOptions });
+  } catch {
+    // 참고용 한 줄이라 계산이 실패해도 편성 조작과 시작 버튼을 막지 않는다(설계 5절 실패 처리). 줄만 그리지 않는다.
+  }
   const undoSteps = historyOf(draft).length;
   const complete = isCompleteDraft(draft);
   const needsReset = resetCountsReady(draft, ctx);
@@ -145,16 +175,30 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
           </button>
         </p>
       )}
-      {draft.origin === "same-teams" && sourceMatch && (
+      {draft.night && draft.night.swaps.length > 0 && rotatedFrom ? (
         <p className="note" role="status">
-          지난 경기와 같은 팀이에요. 포지션은 새로 뽑았어요.{" "}
-          <button type="button" className="link" onClick={() => edit.keepPositions(sourceMatch)}>
-            포지션 유지
+          {nightLine(draft.night, night.pool?.people.length)}
+          {nightExtra(draft)}{" "}
+          <button type="button" className="link" onClick={() => night.sameTen(rotatedFrom)}>
+            같은 10명으로
           </button>{" "}
           <button type="button" className="link" onClick={edit.showRecommendations}>
             팀 다시 짜기
           </button>
         </p>
+      ) : (
+        draft.origin === "same-teams" &&
+        sourceMatch && (
+          <p className="note" role="status">
+            지난 경기와 같은 팀이에요. 포지션은 새로 뽑았어요.{nightExtra(draft)}{" "}
+            <button type="button" className="link" onClick={() => edit.keepPositions(sourceMatch)}>
+              포지션 유지
+            </button>{" "}
+            <button type="button" className="link" onClick={edit.showRecommendations}>
+              팀 다시 짜기
+            </button>
+          </p>
+        )
       )}
 
       {/* 순서(2026-11-08): 편성 판 바로 아래에 섞기·진영을 두어 섞은 결과를 보면서 다시 누를 수 있다.
@@ -163,6 +207,8 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
         <div className="prep-boards">
           <TeamBoards draft={draft} ctx={ctx} edit={edit} />
           <SelectionBar draft={draft} edit={edit} canReplace={others.length > 0} />
+          <DeltaNote lines={delta} onUndo={() => edit.stepHistory("undo")} />
+          <BenchSection edit={edit} night={night} onAddLate={() => setLateOpen(true)} />
           {edit.drawNote && (
             <DrawSummary
               result={edit.drawNote}
@@ -200,8 +246,16 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
             }
           />
           <SideSection edit={edit} />
-          <BenchSection edit={edit} />
-          {forecast && <ForecastSection forecast={forecast} nameOf={nameOf} balance={balance} placementGames={ratingOptions.placementGames} start={ratingOptions.start} />}
+          {forecast && (
+            <ForecastSection
+              forecast={forecast}
+              nameOf={nameOf}
+              balance={balance}
+              previousBalance={previousBalance}
+              placementGames={ratingOptions.placementGames}
+              start={ratingOptions.start}
+            />
+          )}
           <ConstraintsSection draft={draft} edit={edit} />
           <SeriesSection draft={draft} snapshot={app.snapshot} update={update} />
         </div>
@@ -259,6 +313,17 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
       {edit.replacing && edit.selectedKey && (
         <ReplaceDialog selectedKey={edit.selectedKey} others={others} edit={edit} />
       )}
+      {lateOpen && (
+        <LateDialog
+          others={others}
+          onClose={() => setLateOpen(false)}
+          onPick={(person) => {
+            night.addLate(person);
+            setLateOpen(false);
+            app.setNotice(`${person.name} 님을 쉬는 사람 끝에 넣었어요. 다음 판에 들어와요.`);
+          }}
+        />
+      )}
       {imageOpen && <DraftImageDialog draft={draft} snapshot={app.snapshot} onClose={() => setImageOpen(false)} />}
 
       {start.needLogin && (
@@ -275,4 +340,24 @@ function PrepEditor(props: { app: AppValue; draft: Draft }) {
       {start.ask && <StartAskDialog draft={draft} ask={start.ask} start={start} busy={busy} error={error} />}
     </div>
   );
+}
+
+/** 쉬던 사람이 들어간 초안의 안내 줄 첫 문장. "3경기 · 오늘 온 12명 중 10명이에요. 쉬던 호두알·잣송이가 도토리(블루 미드)·… 자리에 들어갔어요." */
+function nightLine(note: NonNullable<NightDraft["night"]>, poolSize: number | undefined): string {
+  const ins = note.swaps.map((s) => s.inName).join("·");
+  const outs = note.swaps
+    .map((s) => `${s.outName}(${s.team === "A" ? "블루" : "레드"} ${POSITION_LABEL[s.position]})`)
+    .join("·");
+  const last = note.swaps[note.swaps.length - 1]!.inName;
+  return `${note.matchNo}경기 · 오늘 온 ${poolSize ?? note.poolSize}명 중 10명이에요. 쉬던 ${ins}${josa(last, ["이", "가"])} ${outs} 자리에 들어갔어요.`;
+}
+
+/** 안내 줄 끝에 붙는 문장: 다른 기기에서 넣은 사람을 명단에 더한 것, 지난 경기의 팀 조건을 이어 온 것. */
+function nightExtra(draft: NightDraft): string {
+  const note = draft.night;
+  if (!note) return "";
+  let text = "";
+  if (note.addedNames.length > 0) text += ` 다른 기기에서 넣은 ${note.addedNames.join("·")} 님을 오늘 명단에 더했어요.`;
+  if (note.carried > 0) text += ` 지난 경기의 팀 조건 ${note.carried}개를 이어 왔어요.`;
+  return text;
 }

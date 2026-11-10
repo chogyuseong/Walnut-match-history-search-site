@@ -5,7 +5,9 @@
  * - 키는 Riot 데이터의 고정 식별자를 그대로 쓴다(예: "MonkeyKing"은 오공, "Nunu"는 누누와 윌럼프). DB에 이 키가 저장되므로
  *   한 번 넣은 키는 바꾸거나 지우지 않는다. 바꾸면 그 키로 저장된 예전 기록이 화면에 키 글자 그대로 보이고, 고쳐 저장할 때 거절된다.
  * - 셋째 칸부터는 검색용 별칭(줄임말·영어 이름)이다. 없으면 생략한다. 한글 이름 안에 이미 들어 있는 말(예: "문도")은 넣지 않아도 찾힌다.
- * 이미지는 쓰지 않는다(글자만). 외부 데이터(Data Dragon)도 받지 않는다.
+ * - 키는 Data Dragon의 챔피언 id와 같아서 초상화 주소(src/web/portraits.ts)에 그대로 쓴다. 16.22.1 자료로 전체를
+ *   대조했고 다른 것이 없었다. 새 챔피언의 id가 이름과 달라도(오공 = MonkeyKing) Data Dragon의 id를 키로 쓰면 된다.
+ * - 한글 이름은 Data Dragon ko_KR 자료(champion.json의 name)와 같게 둔다. 실행 중에는 그 자료를 받지 않는다.
  */
 
 export interface Champion {
@@ -89,6 +91,7 @@ const CHAMPION_ROWS: readonly (readonly [string, string, ...string[]])[] = [
   ["Leona", "레오나"],
   ["Lillia", "릴리아"],
   ["Lissandra", "리산드라"],
+  ["Locke", "로크"],
   ["Lucian", "루시안"],
   ["Lulu", "룰루"],
   ["Lux", "럭스"],
@@ -180,6 +183,7 @@ const CHAMPION_ROWS: readonly (readonly [string, string, ...string[]])[] = [
   ["Yunara", "유나라"],
   ["Yuumi", "유미"],
   ["Zac", "자크"],
+  ["Zaahen", "자헨"],
   ["Zed", "제드"],
   ["Zeri", "제리"],
   ["Ziggs", "직스"],
@@ -266,6 +270,18 @@ function matchRank(champion: Champion, queries: readonly string[]): 0 | 1 | null
     }
   }
   return best;
+}
+
+/** 초성 줄(챔피언 티어 화면의 왼쪽 격자)의 묶음 순서. 된소리는 예사소리 묶음에 넣는다(까 → ㄱ). */
+export const INITIAL_GROUPS = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ", "ㅅ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"] as const;
+const PLAIN_OF_TENSE: Record<string, string> = { "ㄲ": "ㄱ", "ㄸ": "ㄷ", "ㅃ": "ㅂ", "ㅆ": "ㅅ", "ㅉ": "ㅈ" };
+
+/** 이름 첫 글자의 초성 묶음. 한글로 시작하지 않으면 null(지금 목록에는 없다). */
+export function championInitial(name: string): string | null {
+  const code = name.charCodeAt(0);
+  if (!isSyllable(code)) return null;
+  const initial = INITIALS[Math.floor((code - HANGUL_FIRST) / 588)]!;
+  return PLAIN_OF_TENSE[initial] ?? initial;
 }
 
 export interface ChampionOption {

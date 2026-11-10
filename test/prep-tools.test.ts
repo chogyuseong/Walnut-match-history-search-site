@@ -3,20 +3,18 @@ import {
   applyTeams,
   createDraft,
   draftFromMatch,
-  HISTORY_MAX,
   historyOf,
   keepMatchPositions,
-  parseStoredDraft,
   redoDraft,
   replacePerson,
   rerollPositions,
   swapPeople,
-  swapSides,
   toggleLock,
   undoDraft,
   type Draft,
   type DraftPerson,
 } from "../src/shared/draft";
+import { HISTORY_MAX, parseStoredDraft, swapSides } from "../src/shared/storedDraft";
 import { remapDraft } from "../src/shared/merge";
 import {
   balanceText,

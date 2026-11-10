@@ -10,7 +10,8 @@ import { matchYears, ratePercent, type Scope } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { formatDate, formatRange, nameMap, POSITION_LABEL } from "../format";
 import { drawSeasonImage, ShareImageDialog } from "../shareImage";
-import { BackLink, CopyButton, Help, RoleIcon } from "../ui";
+import { BackLink, Help, RoleIcon, ScreenHead } from "../screenKit";
+import { CopyButton } from "../ui";
 
 // 주소 읽고 쓰기는 ../seasonRoute.ts에 있다(첫 화면 묶음이 이 화면 코드 없이 쓰도록). 기존 import를 위해 다시 내보낸다.
 import { seasonRoutePart, seasonScopeFromRoute } from "../seasonRoute";
@@ -156,18 +157,18 @@ export function SeasonSummaryScreen(props: {
   const otherAwards = given.filter((a) => !MAIN_KEYS.includes(a.key) && a.position === undefined);
   const showBusiest = summary.busiestDays.length > 0 && summary.busiestDays.length <= BUSIEST_MAX;
   return (
-    <div className="screen season-summary">
-      <header className="screen-head">
-        <BackLink label="← 기록" fallback={props.back} />
-        <h1>{summary.label} 요약</h1>
-        <span className={summary.ongoing ? "badge" : "badge ok"}>{summary.ongoing ? "진행 중" : "종료"}</span>
-      </header>
-      <p className="hint season-period">
-        <span className="season-dates">
-          {formatRange(summary.startsOn, summary.endsOn, tz)}
-        </span>
-        {summary.ongoing ? " · 진행 중이라 숫자가 바뀔 수 있어요." : ""}
-      </p>
+    <div className="screen page-wide season-summary">
+      <ScreenHead
+        back={<BackLink label="← 기록" fallback={props.back} />}
+        title={`${summary.label} 요약`}
+        badge={<span className={summary.ongoing ? "badge" : "badge ok"}>{summary.ongoing ? "진행 중" : "종료"}</span>}
+        desc={
+          <span className="season-period">
+            <span className="season-dates">{formatRange(summary.startsOn, summary.endsOn, tz)}</span>
+            {summary.ongoing ? " · 진행 중이라 숫자가 바뀔 수 있어요." : ""}
+          </span>
+        }
+      />
       <div className="season-tools">
         {picker}
         <div className="button-row">

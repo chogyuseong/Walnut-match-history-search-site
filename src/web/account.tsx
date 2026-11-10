@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { PASSWORD_RULE, passwordProblem } from "../shared/account";
-import { call } from "./api";
-import { LoginDialog, PasswordField, RecoveryCodeStep } from "./screens/Login";
-import { ROLE_LABEL } from "./groupSwitcher";
+import { LoginDialog, prefetchLogin } from "./lazyScreens";
 import { ErrorNote } from "./ui";
 import { go, useAppValue } from "./useApp";
 
@@ -22,13 +19,18 @@ export const LOGIN_ONLY: Record<string, string> = {
   mine: "참가 중인 모임",
 };
 
+/** 운영자 역할 이름. 상단 바의 모임 바꾸기 메뉴와 모임 탭(groupSwitcher.tsx)이 같이 쓴다. */
+export const ROLE_LABEL = { owner: "대표", co: "공동 운영자" } as const;
+
 /**
  * 로그인 창. 상단 바 안(넓은 화면에서 흐림 효과가 걸린 고정 바)에 그리면 창이 바 안에 갇히므로
- * 문서 맨 끝에 그린다.
+ * 문서 맨 끝에 그린다. 창 코드는 지연 로딩이라(lazyScreens.ts) 받는 동안은 아무것도 그리지 않는다.
  */
 function LoginDialogOnBody(props: { reason: string; onClose: () => void }) {
   return createPortal(
-    <LoginDialog reason={props.reason} onDone={props.onClose} onClose={props.onClose} />,
+    <Suspense fallback={null}>
+      <LoginDialog reason={props.reason} onDone={props.onClose} onClose={props.onClose} />
+    </Suspense>,
     document.body,
   );
 }
@@ -78,7 +80,13 @@ export function AccountControl() {
     return (
       <>
         {/* 상단 바 버튼은 secondary: 화면마다 주 버튼(primary)은 본문의 하나뿐이다(2026-11-08 화면 점검). */}
-        <button type="button" className="secondary topbar-login" onClick={() => setLoginOpen(true)}>
+        <button
+          type="button"
+          className="secondary topbar-login"
+          onPointerEnter={prefetchLogin}
+          onFocus={prefetchLogin}
+          onClick={() => setLoginOpen(true)}
+        >
           로그인
         </button>
         {loginOpen && (
@@ -206,7 +214,13 @@ export function LoginRequired(props: { title: string }) {
       <p className="note">이 화면은 로그인이 필요해요. 로그인하면 이 화면이 바로 열려요.</p>
       <p className="hint">팀 짜기와 명단 복사는 로그인 없이 됩니다.</p>
       <div className="button-row">
-        <button type="button" className="primary" onClick={() => setOpen(true)}>
+        <button
+          type="button"
+          className="primary"
+          onPointerEnter={prefetchLogin}
+          onFocus={prefetchLogin}
+          onClick={() => setOpen(true)}
+        >
           로그인하고 계속
         </button>
         <button type="button" className="secondary" onClick={() => go("/")}>
@@ -214,131 +228,15 @@ export function LoginRequired(props: { title: string }) {
         </button>
       </div>
       {open && (
-        <LoginDialog
-          reason={`'${props.title}' 화면은 모임을 운영하는 계정으로 로그인해야 열려요.`}
-          onDone={() => setOpen(false)}
-          onClose={() => setOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <LoginDialog
+            reason={`'${props.title}' 화면은 모임을 운영하는 계정으로 로그인해야 열려요.`}
+            onDone={() => setOpen(false)}
+            onClose={() => setOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
-  );
-}
-
-/**
- * 아이디로 가입한 계정의 관리: 비밀번호 바꾸기, 복구 코드 새로 받기. 다른 로그인 수단이면 그리지 않는다.
- * 둘 다 지금 비밀번호를 확인한다(세션 쿠키만 가진 사람이 계정을 가로채지 못하게).
- */
-export function LocalAccountSettings() {
-  const app = useAppValue();
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [tried, setTried] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const [codePassword, setCodePassword] = useState("");
-  const [codeBusy, setCodeBusy] = useState(false);
-  const [codeError, setCodeError] = useState<unknown>(null);
-  const [code, setCode] = useState<string | null>(null);
-  const [askSkip, setAskSkip] = useState(false);
-  if (app.me?.loginMethod !== "local") return null;
-
-  // 새 비밀번호 조건(아이디와 같은지는 서버가 본다: 화면은 아이디를 모른다).
-  const nextProblem = passwordProblem(next, "");
-
-  return (
-    <>
-      <section aria-label="비밀번호 바꾸기">
-        <h2>비밀번호 바꾸기</h2>
-        <p className="hint">바꾸면 다른 기기에서는 다시 로그인해야 해요. 이 기기는 그대로예요.</p>
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            setTried(true);
-            if (current === "" || nextProblem) return;
-            setBusy(true);
-            setError(null);
-            void call("POST", "/api/account/password", { currentPassword: current, newPassword: next })
-              .then(() => {
-                setCurrent("");
-                setNext("");
-                setTried(false);
-                app.setNotice("비밀번호를 바꿨어요. 다른 기기에서는 다시 로그인해야 해요.");
-              })
-              .catch(setError)
-              .finally(() => setBusy(false));
-          }}
-        >
-          <PasswordField
-            id="change-current"
-            label="지금 비밀번호"
-            autoComplete="current-password"
-            value={current}
-            onChange={setCurrent}
-            problem={tried && current === "" ? "지금 비밀번호를 입력해 주세요." : null}
-          />
-          <PasswordField
-            id="change-next"
-            label="새 비밀번호"
-            autoComplete="new-password"
-            value={next}
-            onChange={setNext}
-            rule={PASSWORD_RULE}
-            problem={tried ? nextProblem : null}
-          />
-          <ErrorNote error={error} />
-          <button type="submit" className="secondary" disabled={busy}>
-            {busy ? "바꾸는 중…" : "비밀번호 바꾸기"}
-          </button>
-        </form>
-      </section>
-      <section aria-label="복구 코드">
-        <h2>복구 코드</h2>
-        <p className="hint">
-          비밀번호를 잊었을 때 쓰는 코드예요. 잃어버렸다면 새로 받으세요. 새로 받으면 이전 코드는 바로 못 써요.
-        </p>
-        {code ? (
-          <RecoveryCodeStep
-            code={code}
-            askSkip={askSkip}
-            setAskSkip={setAskSkip}
-            onDone={() => {
-              setCode(null);
-              setAskSkip(false);
-            }}
-          />
-        ) : (
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (codePassword === "") return;
-              setCodeBusy(true);
-              setCodeError(null);
-              void call<{ recoveryCode: string }>("POST", "/api/account/recovery-code", { password: codePassword })
-                .then((result) => {
-                  setCodePassword("");
-                  setCode(result.recoveryCode);
-                })
-                .catch(setCodeError)
-                .finally(() => setCodeBusy(false));
-            }}
-          >
-            <PasswordField
-              id="code-password"
-              label="지금 비밀번호"
-              autoComplete="current-password"
-              value={codePassword}
-              onChange={setCodePassword}
-            />
-            <ErrorNote error={codeError} />
-            <button type="submit" className="secondary" disabled={codeBusy || codePassword === ""}>
-              {codeBusy ? "만드는 중…" : "복구 코드 새로 받기"}
-            </button>
-          </form>
-        )}
-      </section>
-    </>
   );
 }
 
