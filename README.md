@@ -45,7 +45,7 @@
 | 서버 | Cloudflare Workers + [Hono](https://hono.dev) 4, D1(SQLite), R2(자동 백업), Cron Trigger | 무료 요금제 기준으로 설계(요청당 CPU 10ms, D1 하루 쓰기 10만 행) |
 | 화면 | React 19 + Vite 8, TypeScript 7 | UI 라이브러리 없음. 디자인 토큰(CSS 변수) + 직접 만든 부품, 테마 3종(다크·바이올렛·라이트) |
 | 공용 로직 | `src/shared` 순수 함수 | 서버와 화면이 같은 계산(통계·편성·칭호·MMR)을 씀 |
-| 테스트 | Vitest 5(단위·통합, Workers 런타임), Playwright(브라우저 흐름) | 2026-11-10 기준 vitest 1,072개, e2e 124개 |
+| 테스트 | Vitest 5(단위·통합, Workers 런타임), Playwright(브라우저 흐름) | 2026-11-10 기준 vitest 1,079개, e2e 124개 |
 | 검사 | ESLint(typescript-eslint + react-hooks), `check:bundle`(JS 크기 상한) | GitHub Actions `.github/workflows/ci.yml` |
 | 배포 | wrangler 4, 환경 `staging` / `production` | 운영 배포는 아직 없음 |
 

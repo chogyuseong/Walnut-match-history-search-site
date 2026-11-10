@@ -51,7 +51,7 @@ test.describe("회원가입 (390px)", () => {
     await expect(dialog.getByLabel("비밀번호", { exact: true })).toHaveAttribute("autocomplete", "new-password");
     // 조건은 칸 아래에 미리 보인다.
     await expect(dialog.getByText("3~20자, 영문·숫자·밑줄(_)")).toBeVisible();
-    await expect(dialog.getByText("8자 이상, 아이디와 다르게")).toBeVisible();
+    await expect(dialog.getByText("8자 이상, 아이디가 들어가거나 흔한 비밀번호는 안 돼요")).toBeVisible();
 
     // 틀리면 무엇이 틀렸는지 알려준다.
     await dialog.getByLabel("아이디").fill("가나");
@@ -59,6 +59,9 @@ test.describe("회원가입 (390px)", () => {
     await dialog.getByRole("button", { name: "가입하고 시작하기" }).click();
     await expect(dialog.getByText("아이디는 3자 이상이어야 해요.")).toBeVisible();
     await expect(dialog.getByText("비밀번호는 8자 이상이어야 해요.")).toBeVisible();
+    // 흔한 비밀번호는 보내기 전에 화면에서 이유를 알려준다(서버도 같은 규칙으로 거절한다).
+    await dialog.getByLabel("비밀번호", { exact: true }).fill("qwer1234");
+    await expect(dialog.getByText("너무 흔한 비밀번호예요.", { exact: false })).toBeVisible();
 
     // 비밀번호 보기 전환.
     await dialog.getByLabel("비밀번호", { exact: true }).fill(password);

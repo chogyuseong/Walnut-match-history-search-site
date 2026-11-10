@@ -5,7 +5,9 @@
  * - 무료 요금제에서 쓸 수 있는지 공식 문서에 적혀 있지 않고,
  * - 위치(데이터센터)별로 따로 세는 "대략적인" 제한이며(문서: approximate, eventually consistent),
  * - 창 길이가 10초·60초로 고정이라 "창이 지난 뒤 다시 허용"을 로컬 테스트로 확인하기 어렵다.
- * D1 카운터는 정확하고 로컬·테스트에서 그대로 돈다. 대가로 제한 대상 요청 한 번에 D1 쓰기 1행이 든다.
+ * D1 카운터는 정확하고 로컬·테스트에서 그대로 돈다. 대가로 한도 안의 요청 한 번에 D1 쓰기 1행이 든다.
+ * 한도를 넘긴 창에서는 더 쓰지 않는다(hit 주석). 거절된 요청까지 쓰기를 쓰면, 로그인 없는 사람 하나가
+ * 한 IP에서 계속 보내기만 해도 D1 하루 쓰기 한도를 다 써 사이트 전체가 멈춘다(2026-11-10 보안 감사).
  *
  * IP는 원문을 저장하지 않는다. 서명 키로 HMAC한 앞 16자만 키로 쓰고, 지난 창의 행은 바로 지운다.
  */
@@ -108,8 +110,19 @@ export function windowSecondsOf(env: Env): number {
   return positiveInt(env.RATE_WINDOW_SECONDS, DEFAULT_WINDOW_SECONDS);
 }
 
-/** 요청한 쪽의 IP. Cloudflare가 붙이는 CF-Connecting-IP를 쓴다. 로컬에는 없을 수 있다. */
+/**
+ * 요청한 쪽의 IP. Cloudflare가 붙이는 CF-Connecting-IP를 쓴다. 로컬에는 없을 수 있다.
+ *
+ * 다른 Worker가 fetch()로 보낸 요청은 IP 대신 그 Worker의 출처 하나로 센다(2026-11-10 보안 감사).
+ * Cloudflare 문서(fundamentals/reference/http-headers, 2026-11-10 확인): CF-Worker는 Worker의 모든 하위 요청에
+ * 붙고 값은 그 Worker를 가진 zone 이름이다. 같은 zone의 하위 요청이면 CF-Connecting-IP가 Worker 코드가 바꿀 수 있는
+ * x-real-ip 값을 따른다. workers.dev끼리가 같은 zone으로 취급되는지는 확인하지 못했으므로, 그렇다고 보고 막는다:
+ * x-real-ip를 매번 바꿔 보내도 한 버킷에 모인다. CF-Worker는 Cloudflare가 하위 요청을 내보낼 때 붙이는 값이라
+ * Worker 코드가 빼고 보낼 수 없다고 보았다(문서에 명시는 없다. staging 확인 항목, docs/배포안내.md).
+ */
 export function clientIp(req: Request): string {
+  const worker = req.headers.get("CF-Worker");
+  if (worker) return `worker:${worker.trim().toLowerCase()}`;
   return req.headers.get("CF-Connecting-IP") ?? "local";
 }
 
@@ -213,6 +226,13 @@ async function bucketKey(env: Env, bucket: Bucket, subject: string): Promise<str
  * 한 번 세고, 한도를 넘었으면 429를 던진다.
  * 같은 창 안의 카운트 증가는 한 문장(UPSERT ... RETURNING)이라 동시에 와도 빠짐없이 센다.
  * windowSeconds를 주지 않으면 RATE_WINDOW_SECONDS(기본 60초) 창을 쓴다.
+ *
+ * 카운트는 limit + 1에서 멈춘다. DO UPDATE에 WHERE를 걸면 SQLite는 조건이 거짓일 때 행을 바꾸지 않고
+ * RETURNING도 아무 행을 돌려주지 않는다(DO NOTHING과 같다). 그래서
+ * - 처음 넘는 요청(count가 limit + 1이 됨)만 쓰고, 한도에 걸린 횟수(rate_limit_hits)도 그때 한 번 더한다.
+ * - 그 뒤 같은 창의 요청은 결과가 비어 쓰기 없이 429다. 지난 창 정리(cleanupStatement)도 지울 행이 없으니 쓰지 않는다
+ *   (이 창의 첫 요청이 이미 지웠다).
+ * 따라서 현황 화면의 "한도 걸림"은 걸린 요청 수가 아니라 (버킷 키, 창)마다 1이다.
  */
 export async function hit(
   env: Env,
@@ -228,14 +248,15 @@ export async function hit(
   const [counted] = await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, 1)
-       ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1
+       ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 WHERE rate_limits.count <= ?3
        RETURNING count`,
-    ).bind(key, windowStart),
+    ).bind(key, windowStart, limit),
     cleanupStatement(env, bucket, windowStart),
   ]);
-  const count = (counted?.results?.[0] as { count?: number } | undefined)?.count ?? 0;
-  if (count > limit) {
-    await countLimited(env, bucket, now);
+  const row = counted?.results?.[0] as { count: number } | undefined;
+  // 행이 없으면 이 창은 이미 한도를 넘겼다(위 WHERE가 거짓이라 바꾸지 않음).
+  if (!row || row.count > limit) {
+    if (row) await countLimited(env, bucket, now);
     const retryAfter = Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000));
     throw new ApiError(
       429,
@@ -319,7 +340,7 @@ export const RATE_HIT_KEEP_DAYS = 30;
 
 /**
  * 한도에 걸린 횟수를 날짜(UTC)·종류별로 더한다(사이트 운영자 현황 화면, migrations/0018). 누가 걸렸는지는 남기지 않는다.
- * 걸린 요청에서만 쓰므로 정상 요청에는 비용이 없다. 실패해도 429 응답은 그대로다.
+ * 창마다 처음 걸린 요청에서만 쓰므로(hit) 정상 요청과 그 뒤의 거절에는 비용이 없다. 실패해도 429 응답은 그대로다.
  */
 async function countLimited(env: Env, bucket: Bucket, now: number): Promise<void> {
   const day = new Date(now).toISOString().slice(0, 10);

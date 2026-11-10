@@ -136,4 +136,47 @@ describe("요청 수 제한", () => {
       .first<{ n: number }>();
     expect(after!.n).toBe(0);
   });
+  it("한도를 넘긴 창의 추가 요청은 쓰기 없이 429다: 카운트는 limit + 1에서 멈추고 걸린 횟수는 창마다 1이다", async () => {
+    // 다른 테스트의 창과 섞이지 않게 37분 뒤 창을 쓴다(카운트 행을 창으로 찾는다).
+    const windowStart = Math.floor(Date.now() / 60_000) * 60_000 + 37 * 60_000;
+    let now = windowStart + 1000;
+    rateClock.now = () => now;
+    const day = new Date(now).toISOString().slice(0, 10);
+    const hitsNow = async () =>
+      (await env.DB.prepare("SELECT count FROM rate_limit_hits WHERE day = ?1 AND bucket = 'view-ip'")
+        .bind(day)
+        .first<{ count: number }>())?.count ?? 0;
+    const hitsBefore = await hitsNow();
+    const ip = unique("ip");
+    const view = () => direct(LIMITS, "GET", `/api/view/${unique("nope")}`, { headers: { "CF-Connecting-IP": ip } });
+
+    for (let i = 0; i < 3; i++) expect((await view()).status).toBe(404);
+    for (let i = 0; i < 5; i++) expect((await view()).status).toBe(429);
+    const counted = await env.DB.prepare("SELECT count FROM rate_limits WHERE window_start = ?1")
+      .bind(windowStart)
+      .all<{ count: number }>();
+    expect(counted.results.map((r) => r.count)).toEqual([4]);
+    expect(await hitsNow()).toBe(hitsBefore + 1);
+
+    // 다음 창에서 다시 넘기면 그 창의 몫으로 1을 더 센다.
+    now += 60_000;
+    for (let i = 0; i < 3; i++) expect((await view()).status).toBe(404);
+    expect((await view()).status).toBe(429);
+    expect((await view()).status).toBe(429);
+    expect(await hitsNow()).toBe(hitsBefore + 2);
+  });
+
+  it("다른 Worker가 보낸 요청(CF-Worker)은 CF-Connecting-IP가 달라도 zone 하나로 센다", async () => {
+    fixClock();
+    const zone = `${unique("zone")}.example`;
+    const view = (headers: Record<string, string>) =>
+      direct(LIMITS, "GET", `/api/view/${unique("nope")}`, { headers });
+    for (let i = 0; i < 3; i++) {
+      expect((await view({ "CF-Worker": zone, "CF-Connecting-IP": unique("ip") })).status).toBe(404);
+    }
+    // 대소문자·앞뒤 공백만 다른 값도 같은 zone이다.
+    expect((await view({ "CF-Worker": ` ${zone.toUpperCase()} `, "CF-Connecting-IP": unique("ip") })).status).toBe(429);
+    // CF-Worker가 없는 보통 요청은 IP로 따로 센다.
+    expect((await view({ "CF-Connecting-IP": unique("ip") })).status).toBe(404);
+  });
 });

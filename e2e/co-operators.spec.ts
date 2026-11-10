@@ -94,6 +94,13 @@ test("초대 링크로 공동 운영자가 되어 경기 결과를 저장하고,
   await section.getByRole("button", { name: "내보내기" }).click();
   await owner.getByRole("dialog", { name: "공동 운영자 내보내기" }).getByRole("button", { name: "내보내기" }).click();
   await expect(section.getByText("아직 공동 운영자가 없어요.")).toBeVisible();
+  // 내보낸 사람도 조회·신청 링크는 알고 있으니 다시 만들라고 안내하고, 조회 링크 칸으로 데려간다.
+  const hint = section.getByRole("status", { name: "링크 다시 만들기 안내" });
+  await expect(hint).toContainText("조회 링크와 참가 신청 링크는 그대로 열 수 있어요");
+  await hint.getByRole("button", { name: "조회 링크 다시 만들기" }).click();
+  await expect(owner.getByRole("region", { name: "조회 링크", exact: true }).getByRole("button", { name: "링크 다시 만들기" })).toBeInViewport();
+  await hint.getByRole("button", { name: "닫기" }).click();
+  await expect(hint).toHaveCount(0);
 
   // 내보낸 계정의 다음 요청은 바로 거절된다.
   expect((await co.request.get(`/api/groups/${gid}/snapshot`)).status()).toBe(404);

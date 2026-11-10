@@ -170,7 +170,7 @@ export function Group() {
         ))}
       </nav>
       <GroupBlock id="often" title="자주 쓰는 것" defaultOpen>
-        <section aria-label="조회 링크">
+        <section aria-label="조회 링크" id="group-view-link">
           <h2>조회 링크</h2>
           <p className="hint">
             이 링크를 받은 사람은 로그인 없이 명단과 기록을 볼 수 있습니다. 수정은 할 수 없습니다.

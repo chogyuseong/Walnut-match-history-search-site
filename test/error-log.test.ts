@@ -200,6 +200,37 @@ describe("보관 한도", () => {
     expect(all.at(-1)!.message).toBe("새 오류");
     expect(all.some((r) => r.message === "채움 0")).toBe(false);
   });
+
+  it("건수 한도는 출처마다 따로다: 화면 오류가 아무리 쌓여도 서버 오류 기록은 지워지지 않는다", async () => {
+    const now = new Date().toISOString();
+    await env.DB.prepare("DELETE FROM error_logs").run();
+    await env.DB.batch(
+      Array.from({ length: 3 }, (_, i) =>
+        env.DB.prepare(
+          "INSERT INTO error_logs (created_at, source, kind, message) VALUES (?1, 'server', 'error', ?2)",
+        ).bind(now, `서버 ${i}`),
+      ),
+    );
+    // 로그인 없이 보낼 수 있는 화면 오류로 한도를 넘게 채운 뒤, 화면 오류를 하나 더 넣는다.
+    await env.DB.batch(
+      Array.from({ length: ERROR_LOG_MAX_ROWS + 20 }, (_, i) =>
+        env.DB.prepare(
+          "INSERT INTO error_logs (created_at, source, kind, message) VALUES (?1, 'client', 'error', ?2)",
+        ).bind(now, `화면 ${i}`),
+      ),
+    );
+    const entry = { kind: "error", stack: null, path: null, appVersion: null, browser: null } as const;
+    await recordError(env as unknown as Env, { ...entry, source: "client", message: "화면 새 오류" });
+    const count = async (source: string) =>
+      (await env.DB.prepare("SELECT COUNT(*) AS n FROM error_logs WHERE source = ?1").bind(source).first<{ n: number }>())!.n;
+    expect(await count("client")).toBe(ERROR_LOG_MAX_ROWS);
+    expect(await count("server")).toBe(3);
+
+    // 서버 오류를 넣을 때도 화면 오류 수와 상관없이 서버 몫만 본다.
+    await recordError(env as unknown as Env, { ...entry, source: "server", message: "서버 새 오류" });
+    expect(await count("server")).toBe(4);
+    expect(await count("client")).toBe(ERROR_LOG_MAX_ROWS);
+  });
 });
 
 /** 특정 SQL만 실패시키는 DB(나머지는 진짜 DB로 넘긴다). */

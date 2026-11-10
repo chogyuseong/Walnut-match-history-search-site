@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiFailure, call } from "../api";
 import { formatDate, formatTime } from "../format";
 import { CopyButton, Dialog, ErrorNote } from "../ui";
-import { useAppValue } from "../useApp";
+import { go, useAppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 
 /** 서버의 공동 운영자 목록 한 줄(src/server/coOperators.ts CoOperatorView). */
@@ -27,6 +27,13 @@ function accountLabel(row: CoOperatorRow): string {
   return `${PROVIDER_LABEL[row.provider] ?? "다른 계정"} · ${formatDate(row.accountCreatedAt)} 가입`;
 }
 
+/** 모임 탭의 조회 링크 칸(Group.tsx). 접혀 있는 "자주 쓰는 것" 묶음을 펼친 뒤 그 칸으로 내려간다. */
+function showViewLinkSection() {
+  const block = document.getElementById("group-block-often") as HTMLDetailsElement | null;
+  if (block && !block.open) block.open = true;
+  document.getElementById("group-view-link")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 /** 모임 탭(대표 운영자): 공동 운영자 목록, 초대 링크 만들기, 내보내기. */
 export function CoOperatorsSection(props: { gid: string }) {
   const app = useAppValue();
@@ -37,6 +44,8 @@ export function CoOperatorsSection(props: { gid: string }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [removing, setRemoving] = useState<CoOperatorRow | null>(null);
+  // 내보낸 뒤 링크를 다시 만들라는 안내. 닫거나 화면을 떠날 때까지 둔다(잠깐 뜨는 알림으로는 놓치기 쉽다).
+  const [removedHint, setRemovedHint] = useState(false);
 
   async function load() {
     try {
@@ -83,6 +92,27 @@ export function CoOperatorsSection(props: { gid: string }) {
             </li>
           ))}
         </ul>
+      )}
+      {removedHint && (
+        // 내보낸 사람도 조회 링크·참가 신청 링크 주소는 그대로 알고 있다(링크에는 계정 확인이 없다).
+        // 자동으로 바꾸면 참가자들이 가진 링크까지 끊기므로, 바꿀지는 운영자가 정하게 길만 알려 준다(2026-11-10 보안 감사).
+        <div role="status" aria-label="링크 다시 만들기 안내" className="card">
+          <p>
+            내보낸 사람도 조회 링크와 참가 신청 링크는 그대로 열 수 있어요. 막으려면 두 링크를 다시 만들어 참가자에게 새로
+            보내 주세요.
+          </p>
+          <div className="button-row">
+            <button type="button" className="secondary" onClick={showViewLinkSection}>
+              조회 링크 다시 만들기
+            </button>
+            <button type="button" className="secondary" onClick={() => go("/pick")}>
+              참가 신청 링크 다시 만들기
+            </button>
+            <button type="button" className="link" onClick={() => setRemovedHint(false)}>
+              닫기
+            </button>
+          </div>
+        </div>
       )}
       <ErrorNote error={error} />
       <button
@@ -161,6 +191,7 @@ export function CoOperatorsSection(props: { gid: string }) {
                   await call("DELETE", `/api/groups/${props.gid}/co-operators/${removing.accountId}`);
                   setRemoving(null);
                   app.setNotice("공동 운영자를 내보냈어요.");
+                  setRemovedHint(true);
                   await load();
                 } catch (e) {
                   setError(e);

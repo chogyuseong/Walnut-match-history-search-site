@@ -167,6 +167,8 @@ export function SiteAdmin() {
             {data.rateLimited.length === 0 ? (
               <p className="hint">최근 30일 동안 없어요.</p>
             ) : (
+              <>
+              <p className="hint">한 사람(계정·IP)이 한 번의 제한 시간(보통 1분) 안에 몇 번 걸려도 1로 세요.</p>
               <div className="table-scroll">
                 <table className="privacy-table">
                   <thead>
@@ -187,6 +189,7 @@ export function SiteAdmin() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </section>
 
@@ -221,7 +224,7 @@ export function SiteAdmin() {
               </p>
             )}
             {data.errors.groups.length === 0 ? (
-              <p className="hint">기록된 오류가 없어요. 화면·서버 오류는 최근 1000건, 30일까지 남아요.</p>
+              <p className="hint">기록된 오류가 없어요. 화면·서버 오류는 각각 최근 1000건, 30일까지 남아요.</p>
             ) : (
               <ul className="list error-log">
                 {data.errors.groups.map((g, i) => (

@@ -17,7 +17,11 @@ import { APP_VERSION } from "../shared/version";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, pathForLog, readJsonBody } from "./http";
 
-/** 보관 한도: 최근 이만큼만 남긴다. */
+/**
+ * 보관 한도: 출처(client·server)마다 최근 이만큼만 남긴다(합쳐 최대 2배).
+ * 출처를 합쳐 세면 로그인 없이 보내는 화면 오류(IP당 분당 10건)로 한도를 채워 서버 오류 기록을 밀어낼 수 있었다
+ * (2026-11-10 보안 감사).
+ */
 export const ERROR_LOG_MAX_ROWS = 1000;
 /** 보관 한도: 이 날수보다 오래된 기록은 지운다. */
 export const ERROR_LOG_MAX_DAYS = 30;
@@ -40,7 +44,7 @@ export interface ErrorEntry {
 /** 시계. 보관 기간 정리를 시험할 때 바꿔 끼운다. */
 export const errorLogClock = { now: (): number => Date.now() };
 
-/** 한 건 넣고, 보관 한도를 넘은 오래된 기록을 지운다(한 batch). */
+/** 한 건 넣고, 보관 한도를 넘은 오래된 기록을 지운다(한 batch). 건수 한도는 넣은 기록과 같은 출처만 본다. */
 export async function recordError(env: Env, entry: ErrorEntry): Promise<void> {
   const now = errorLogClock.now();
   const cutoff = new Date(now - ERROR_LOG_MAX_DAYS * 24 * 3600_000).toISOString();
@@ -60,8 +64,9 @@ export async function recordError(env: Env, entry: ErrorEntry): Promise<void> {
     ),
     env.DB.prepare("DELETE FROM error_logs WHERE created_at < ?1").bind(cutoff),
     env.DB.prepare(
-      `DELETE FROM error_logs WHERE id NOT IN (SELECT id FROM error_logs ORDER BY id DESC LIMIT ?1)`,
-    ).bind(ERROR_LOG_MAX_ROWS),
+      `DELETE FROM error_logs WHERE source = ?2
+         AND id NOT IN (SELECT id FROM error_logs WHERE source = ?2 ORDER BY id DESC LIMIT ?1)`,
+    ).bind(ERROR_LOG_MAX_ROWS, entry.source),
   ]);
 }
 

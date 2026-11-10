@@ -121,9 +121,13 @@
       "triggers": { "crons": ["*/5 18-20 * * *"] },
       // Workers Logs: console.log·console.error와 요청 기록을 Cloudflare 대시보드에서 본다(무료 요금제 하루 20만 줄, 3일 보관).
       // 형식은 공식 문서(https://developers.cloudflare.com/workers/observability/logs/workers-logs/)에서 2026-11-06에 확인.
+      // 실행 기록(invocation logs)은 끈다(2026-11-10 보안 감사, 키 이름은 같은 문서에서 확인). 실행 기록에는 요청 주소가
+      // 그대로 남아 조회 링크·참가 신청 링크의 권한 토큰이 대시보드에 평문으로 쌓인다. 우리 console 로그는 토큰을 가린다
+      // (src/server/http.ts pathForLog). staging은 배포 뒤 요청별 CPU 시간을 봐야 해서 켜 둔다.
       "observability": {
         "enabled": true,
-        "head_sampling_rate": 1
+        "head_sampling_rate": 1,
+        "logs": { "invocation_logs": false }
       }
       // 비밀값(wrangler secret put ... --env production): SESSION_SECRET,
       // KAKAO_CLIENT_ID, KAKAO_CLIENT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
@@ -141,7 +145,7 @@
           "binding": "DB",
           "database_name": "naejeon-staging",
           // [채워야 함] `npx wrangler d1 create naejeon-staging`가 알려주는 database_id.
-          "database_id": "REPLACE-WITH-STAGING-D1-ID",
+          "database_id": "f1e678df-725f-4a4a-8039-21e314b687e9",
           "migrations_dir": "migrations"
         }
       ],
@@ -149,7 +153,7 @@
         "AUTH_MODE": "oauth",
         "DEPLOY_ENV": "production",
         // [채워야 함] staging 주소(https). 예: https://naejeon-v2-staging.<계정>.workers.dev
-        "PUBLIC_ORIGIN": "https://REPLACE-WITH-STAGING-ORIGIN",
+        "PUBLIC_ORIGIN": "https://naejeon-v2-staging.guseong-family.workers.dev",
         "SESSION_TTL_HOURS": "720",
         "RATE_WINDOW_SECONDS": "60",
         "RATE_WRITE_PER_ACCOUNT": "60",

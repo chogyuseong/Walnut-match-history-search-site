@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
-import { normalizePassword } from "../src/shared/account";
+import { normalizePassword, passwordProblem } from "../src/shared/account";
 import { toBase64Url } from "../src/server/auth";
 import { FAILURE_LIMITS, FAILURE_TOTAL_LIMIT, hashPassword, INVALID_LOGIN_MESSAGE } from "../src/server/local";
 import { rateClock } from "../src/server/ratelimit";
@@ -100,8 +100,9 @@ describe("가입", () => {
       [`${base}-a`, PASSWORD, 400, "영문·숫자·밑줄"],
       [`${base}sp ace`, PASSWORD, 400, "영문·숫자·밑줄"],
       [newName(), "1234567", 400, "8자 이상"],
-      [newName(), "12345678", 200],
-      [newName(), "가".repeat(128), 200],
+      // 8자 경계. 12345678처럼 흔한 비밀번호는 길이와 상관없이 거절하므로(아래) 흔하지 않은 값으로 본다.
+      [newName(), "k7#mq2zx", 200],
+      [newName(), "가나".repeat(64), 200],
       [newName(), "a".repeat(129), 400, "128자까지"],
     ];
     for (const [username, password, status, message] of cases) {
@@ -141,6 +142,77 @@ describe("가입", () => {
       .bind(t.username)
       .first<{ password_hash: string }>();
     expect(other!.password_hash).not.toBe(row!.password_hash);
+  });
+});
+
+describe("짐작하기 쉬운 비밀번호(2026-11-10 보안 감사)", () => {
+  it("공용 규칙: 흔한 비밀번호, 아이디가 들어간 비밀번호, 한 글자 반복을 거절한다", () => {
+    for (const weak of ["12345678", "password", "Password1", "QWER1234", "1q2w3e4r", "ｐａｓｓｗｏｒｄ"]) {
+      expect(passwordProblem(weak, "someone"), weak).toContain("너무 흔한 비밀번호");
+    }
+    expect(passwordProblem("walnut2026", "walnut")).toContain("아이디를 넣을 수 없어요");
+    expect(passwordProblem("My-WALNUT!", "walnut")).toContain("아이디를 넣을 수 없어요");
+    expect(passwordProblem("walnut__", "walnut__")).toContain("아이디와 같은 비밀번호");
+    expect(passwordProblem("aaaaaaaa", "someone")).toContain("한 글자만 되풀이한");
+    expect(passwordProblem("가가가가가가가가", "someone")).toContain("한 글자만 되풀이한");
+    // 아이디를 모르는 화면(비밀번호 바꾸기)에서는 아이디 검사만 건너뛴다.
+    expect(passwordProblem("walnut2026", "")).toBeNull();
+    expect(passwordProblem("aaaaaaab", "someone")).toBeNull();
+    expect(passwordProblem(PASSWORD, "someone")).toBeNull();
+  });
+
+  it("가입에서 거절하고 이유를 알려준다", async () => {
+    const name = newName();
+    for (const [password, message] of [
+      ["qwer1234", "너무 흔한 비밀번호"],
+      [`${name}!!`, "아이디를 넣을 수 없어요"],
+      ["11111111", "한 글자만 되풀이한"],
+    ]) {
+      const result = await signup(name, password);
+      expect(result.status, password).toBe(400);
+      expect(result.body.error.code).toBe("INVALID_CREDENTIALS_FORMAT");
+      expect(result.body.error.message).toContain(message);
+      expect(result.cookie).toBeNull();
+    }
+    expect((await signup(name)).status).toBe(200);
+  });
+
+  it("비밀번호 바꾸기·복구 코드로 다시 정하기에서도 거절한다. 서버는 아이디를 알므로 아이디가 들어간 값도 막는다", async () => {
+    const s = await signup();
+    for (const [newPassword, message] of [
+      ["password1", "너무 흔한 비밀번호"],
+      [`x${s.username.toUpperCase()}`, "아이디를 넣을 수 없어요"],
+      ["zzzzzzzzzz", "한 글자만 되풀이한"],
+    ]) {
+      const changed = await call("POST", "/api/account/password", { currentPassword: PASSWORD, newPassword }, { cookie: s.cookie });
+      expect(changed.status, newPassword).toBe(400);
+      expect(changed.body.error.message).toContain(message);
+      const recovered = await call("POST", "/api/auth/recover", {
+        username: s.username,
+        recoveryCode: s.body.recoveryCode,
+        newPassword,
+      });
+      expect(recovered.status, newPassword).toBe(400);
+      expect(recovered.body.error.message).toContain(message);
+    }
+    // 거절된 시도로 비밀번호도 복구 코드도 바뀌지 않았다.
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(200);
+    const done = await call("POST", "/api/auth/recover", {
+      username: s.username,
+      recoveryCode: s.body.recoveryCode,
+      newPassword: "after recovery",
+    });
+    expect(done.status).toBe(200);
+  });
+
+  it("규칙 전에 정한 흔한 비밀번호로도 로그인은 된다(새로 정할 때만 본다)", async () => {
+    const s = await signup();
+    await env.DB.prepare(
+      "UPDATE local_credentials SET password_hash = ?2 WHERE account_id = (SELECT id FROM accounts WHERE provider = 'local' AND subject = ?1)",
+    )
+      .bind(s.username, await hashPassword(env as unknown as Env, "12345678"))
+      .run();
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: "12345678" })).status).toBe(200);
   });
 });
 
