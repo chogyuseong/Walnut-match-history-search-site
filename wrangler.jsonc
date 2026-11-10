@@ -130,9 +130,10 @@
         // 자동 백업: 예정 작업 한 번에 백업할 모임 수, 보관 날수(src/server/backupCron.ts).
         "BACKUP_GROUPS_PER_RUN": "5",
         "BACKUP_KEEP_DAYS": "30",
-        // [채워야 함] 사이트 운영자(현황 화면 #/admin)의 계정 ID. 쉼표로 여러 명. 비어 있으면 아무도 못 본다.
+        // 사이트 운영자(현황 화면 #/admin)의 계정 ID. 쉼표로 여러 명. 비어 있으면 아무도 못 본다.
         // 내 계정 ID는 로그인한 뒤 주소창에 /api/me 를 열면 accountId로 보인다(docs/배포안내.md).
-        "SITE_ADMIN_ACCOUNT_IDS": ""
+        // 2026-11-11: 조규성 자체 계정.
+        "SITE_ADMIN_ACCOUNT_IDS": "9f8f33e2-540a-4baa-9623-d20549fefee5"
       },
       // [만들어야 함] npx wrangler r2 bucket create naejeon-prod-backups (docs/배포안내.md 13-4절)
       "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "naejeon-prod-backups" }],

@@ -35,9 +35,8 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
    그래서 토큰 링크 경로(조회·참가 신청 등)에서는 console 로그를 남기지 않게 고쳤다(ad94dae).
    대시보드에 보였던 "SESSION_SECRET 없음" 오류는 비밀값 등록 전 기록이라 무시한다.
 
-2. 사이트 운영자 계정 지정 (직접 + Claude)
-   운영 주소에서 내 계정을 가입하고, 로그인한 채로 주소창에 /api/me 를 열어 accountId를 복사해 Claude에게 준다.
-   Claude가 wrangler.jsonc env.production SITE_ADMIN_ACCOUNT_IDS에 넣고 다시 배포한다.
+2. 사이트 운영자 계정 지정 (2026-11-11 완료)
+   조규성 계정을 SITE_ADMIN_ACCOUNT_IDS에 넣고 운영에 다시 배포했다. 현황 화면은 #/admin.
 
 3. 기존 522경기 옮기기 (직접)
    운영 사이트에서 모임을 만들고 '기존 사이트 기록 가져오기' 화면에 기존 사이트 연결 주소를 넣는다.
