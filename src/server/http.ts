@@ -172,6 +172,15 @@ export function pathForLog(path: string): string {
   return path.replace(/^\/api\/(view|transfer|co-invite|join|claim)\/[^/]+/, "/api/$1/[token]");
 }
 
+/**
+ * 이 요청에서 console 로그를 남겨도 되는지. Workers Logs는 invocation_logs를 꺼도 console 로그마다
+ * 요청 주소 원문($workers.event.request.url)을 붙인다(2026-11-11 운영 대시보드에서 확인). 토큰 경로에서 찍으면
+ * pathForLog로 가린 것과 무관하게 토큰이 대시보드에 평문으로 남는다. 그런 요청의 오류는 D1 오류 기록(가린 값)에만 남긴다.
+ */
+export function canConsoleLog(path: string): boolean {
+  return pathForLog(path) === path;
+}
+
 /** 허용한 필드만 있는지 확인한다. */
 export function assertOnlyKeys(body: Record<string, unknown>, allowed: readonly string[]): void {
   for (const key of Object.keys(body)) {

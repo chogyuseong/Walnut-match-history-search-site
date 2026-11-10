@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../src/server/env";
-import { ApiError, CONTENT_SECURITY_POLICY, PERMISSIONS_POLICY, pathForLog, readJsonBody } from "../src/server/http";
+import { ApiError, CONTENT_SECURITY_POLICY, PERMISSIONS_POLICY, canConsoleLog, pathForLog, readJsonBody } from "../src/server/http";
 import app from "../src/server/index";
 import { rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
@@ -225,7 +225,7 @@ describe("로그에 토큰을 남기지 않는다(검토 L8)", () => {
     expect(pathForLog("/api/groups/g1/snapshot")).toBe("/api/groups/g1/snapshot");
   });
 
-  it("500 오류 로그 문자열에 토큰이 없다", async () => {
+  it("토큰 경로의 500은 console에 남기지 않는다(Workers Logs가 요청 주소 원문을 붙이므로)", async () => {
     const lines: string[] = [];
     vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
       lines.push(args.map(String).join(" "));
@@ -243,8 +243,12 @@ describe("로그에 토큰을 남기지 않는다(검토 L8)", () => {
     expect(res.status).toBe(500);
     const transfer = await raw("GET", `/api/transfer/${token}`, {}, { DB: broken });
     expect(transfer.status).toBe(500);
-    expect(lines.length).toBeGreaterThan(0);
-    for (const line of lines) expect(line).not.toContain(token);
-    expect(lines.join("\n")).toContain("/api/view/[token]");
+    expect(lines).toEqual([]);
+  });
+
+  it("토큰이 없는 경로의 500은 console에 남긴다", () => {
+    expect(canConsoleLog("/api/groups/g1/snapshot")).toBe(true);
+    expect(canConsoleLog("/api/view/AbCdEf123_-x")).toBe(false);
+    expect(canConsoleLog("/api/join/AbCdEf/cancel")).toBe(false);
   });
 });

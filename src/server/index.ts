@@ -43,8 +43,8 @@ import {
   ApiError,
   assertOnlyKeys,
   assertSameOrigin,
+  canConsoleLog,
   nowIso,
-  pathForLog,
   readJsonBody,
   readOptionalJsonBody,
   requireString,
@@ -144,7 +144,9 @@ app.onError(async (error, c) => {
     );
   }
   // 예상하지 못한 오류: 내부 내용을 응답에 싣지 않는다.
-  console.error(JSON.stringify({ at: nowIso(), path: pathForLog(c.req.path), error: String(error) }));
+  if (canConsoleLog(c.req.path)) {
+    console.error(JSON.stringify({ at: nowIso(), path: c.req.path, error: String(error) }));
+  }
   // 오류 기록 표에도 넣는다(가린 값만, src/server/errorLog.ts). 넣다가 실패해도 응답은 그대로다.
   // 사용자 실수(ApiError: 4xx·점검 503)는 위에서 돌아가므로 여기 오지 않는다.
   // 응답을 늦추지 않게 Workers의 waitUntil로 넘긴다(실행 문맥이 없는 직접 호출·테스트에서는 기다린다).
@@ -204,7 +206,7 @@ async function confirmOwnerPassword(env: Env, req: Request, password: unknown): 
 app.use("/api/*", async (c, next) => {
   const problem = productionConfigProblem(c.env);
   if (problem) {
-    console.error(JSON.stringify({ at: nowIso(), config: problem }));
+    if (canConsoleLog(c.req.path)) console.error(JSON.stringify({ at: nowIso(), config: problem }));
     throw new ApiError(503, "CONFIG_ERROR", "서비스 설정을 확인하는 중입니다. 잠시 뒤 다시 시도해 주세요.");
   }
   await next();
