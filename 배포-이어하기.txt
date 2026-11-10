@@ -1,0 +1,64 @@
+배포 이어하기 (2026-11-10 기준)
+
+집에서 이어서 할 때 이 파일부터 보면 된다. 자세한 명령과 이유는 docs/배포안내.md에 있다.
+Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된다.
+
+
+[여기까지 끝남]
+
+1. 보안 최종점검
+   - 배포를 막을 치명·높음 등급 문제는 없었다.
+   - 지적된 6건(중간 1, 낮음 5)은 모두 고쳐 커밋했다(9690142).
+     - 한도에 걸린 요청이 D1 쓰기를 써서 하루 한도를 바닥낼 수 있던 문제
+     - 흔한 비밀번호 거절
+     - 운영 실행 기록 끄기(링크 토큰 평문 방지)
+     - 공동 운영자를 내보낸 뒤 링크를 다시 만들라는 안내
+     - 오류 기록 보관 한도를 출처별로 분리
+     - CF-Worker 요청을 한 묶음으로 세기
+   - 테스트 1,079개 통과. e2e 124개 중 123개 통과(실패 1개는 다시 돌리니 통과, 원인 미확인).
+
+2. Cloudflare 준비
+   - R2 사용 시작. 백업 저장소 naejeon-staging-backups, naejeon-prod-backups 생성.
+   - staging D1(naejeon-staging) 생성. ID는 wrangler.jsonc에 들어 있다.
+
+3. staging 배포
+   - 주소: https://naejeon-v2-staging.guseong-family.workers.dev
+   - 마이그레이션 0001~0025 적용 완료.
+   - 확인 완료:
+     - 보안 헤더(CSP, 프레임 차단, HSTS, nosniff)
+     - 소스맵 비공개(.map 주소는 첫 화면이 나오고, JS에 소스맵 주석이 없음)
+   - 지금 API는 503(CONFIG_ERROR)이다. SESSION_SECRET을 아직 넣지 않아서 서버가 잠겨 있는 정상 상태다.
+
+
+[남은 일]
+
+1. staging 비밀값 등록 (직접 해야 함. Claude 자동 허용에서 막힘)
+   저장소 폴더의 Git Bash에서 실행한다(Claude Code 입력창이면 앞에 "! "를 붙인다).
+
+     S=$(node -e "process.stdout.write(require('crypto').randomBytes(48).toString('base64url'))") && echo "SESSION_SECRET=$S" && echo "$S" | npx wrangler secret put SESSION_SECRET --env staging
+
+   출력된 값은 비밀번호 관리자에 저장한다. 바뀌면 staging의 모든 비밀번호가 맞지 않게 된다.
+
+2. staging 확인 (Claude가 하면 됨. docs/배포안내.md 8-1절 3번)
+   - 가입·로그인·모임 만들기·경기 저장
+   - 로그인과 백업 복원의 CPU 시간이 10ms 안인지(Workers → naejeon-v2-staging → Logs)
+   - 조회 링크를 두 번째 열 때 304, 요청 수 제한 429
+   - CF-Worker 헤더 처리
+   - 직접 할 일: 휴대폰과 카카오톡 안 브라우저에서 열어 보기
+
+3. 운영 배포 준비 (직접 정해야 함)
+   - src/web/legal.ts의 [채워야 함]: 운영자 이름, 연락처, 개인정보 보호책임자, 시행일.
+     비어 있으면 운영 배포 전 점검이 멈춘다.
+   - 운영용 SESSION_SECRET 새로 만들어 등록(--env production). staging 값과 다르게 한다.
+   - 카카오·구글 로그인을 쓰려면 KAKAO_CLIENT_ID/SECRET, GOOGLE_CLIENT_ID/SECRET 등록.
+     자체 계정만 쓰면 건너뛴다.
+
+4. 운영 배포 (Claude가 하면 됨. docs/배포안내.md 8절)
+   - 운영 D1 생성 → wrangler.jsonc env.production에 ID 넣기 → 마이그레이션 → npm run deploy:production
+   - 대시보드에서 운영 실행 기록이 쌓이지 않는지 확인
+   - 기존 기록 522경기는 '기존 사이트 기록 가져오기' 화면으로 옮긴다(백업 복원 아님).
+
+
+[참고]
+- 흔한 비밀번호 목록(src/shared/account.ts)에 walnut12, faker123, leagueoflegends 같은
+  이 사이트에 맞춘 값도 넣었다. 빼고 싶으면 거기서 지운다.
