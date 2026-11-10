@@ -78,6 +78,10 @@ if (!section) {
   if (vars.DEPLOY_ENV !== "production") {
     problems.push(`wrangler.jsonc env.${envName}.vars.DEPLOY_ENV가 "production"이 아니에요(운영 안전장치): ${JSON.stringify(vars.DEPLOY_ENV)}`);
   }
+  // 비밀값은 vars(저장소에 남는 값)가 아니라 wrangler secret으로 넣는다. 로컬 전용 PASSWORD_PEPPER는 맨 위 vars에만 있다.
+  for (const secret of ["SESSION_SECRET", "PASSWORD_PEPPER"]) {
+    if (secret in vars) problems.push(`wrangler.jsonc env.${envName}.vars에 비밀값 ${secret}이 있어요. 지우고 wrangler secret put으로 넣어 주세요.`);
+  }
   if (!vars.SITE_ADMIN_ACCOUNT_IDS) {
     warnings.push(`env.${envName}.vars.SITE_ADMIN_ACCOUNT_IDS가 비어 있어 사이트 현황(#/admin)을 아무도 못 봐요(docs/배포안내.md 14-1절).`);
   }
@@ -123,3 +127,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 console.log(`배포 전 점검 통과(${envName}${skipBuild ? ", 빌드 확인은 건너뜀" : ""}).`);
+// 이 점검은 Cloudflare에 등록된 비밀값을 보지 못한다. 빠지면 배포 뒤 모든 API가 503(CONFIG_ERROR)이다.
+console.log(`확인: 비밀값 SESSION_SECRET·PASSWORD_PEPPER를 --env ${envName}에 등록했는지(docs/배포안내.md 6절).`);

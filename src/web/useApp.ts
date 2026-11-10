@@ -45,13 +45,33 @@ function putStash(draft: Draft): void {
   }
 }
 
-/** 모임을 지운 뒤 그 모임에 묶인 기기 저장값(맡겨 둔 편성, 고른 목록, 오늘 명단)을 지운다. */
+/** 모임을 지운 뒤(또는 로그아웃할 때) 그 모임에 묶인 기기 저장값(맡겨 둔 편성, 고른 목록, 오늘 명단, 최근 검색어)을 지운다. */
 export function forgetGroupStorage(groupId: string): void {
   try {
     localStorage.removeItem(stashKey(groupId));
     localStorage.removeItem(pickKey(groupId));
-    // 오늘 명단·이어 갈 팀 조건(src/web/nightPoolStore.ts). 첫 화면 묶음이라 그 파일을 부르지 않고 키만 적는다.
+    // 오늘 명단·이어 갈 팀 조건(src/web/nightPoolStore.ts), 최근 검색어(src/web/recentSearch.ts).
+    // 첫 화면 묶음이라 그 파일들을 부르지 않고 키만 적는다.
     for (const key of ["night", "constraints"]) localStorage.removeItem(`naejeon.${key}.v1.${groupId}`);
+    localStorage.removeItem(`naejeon.recentSearch.${groupId}`);
+  } catch {
+    // 무시
+  }
+}
+
+/**
+ * 로그아웃할 때 이 계정의 모임들에 묶인 기기 저장값을 지운다(같은 기기를 다음 사람이 쓸 수 있다).
+ * 마지막으로 연 모임, 모임별 저장값, 시트 열 맞춤(키에 시트 문서 ID가 들어 있다)을 지운다.
+ * 작성 중인 편성·테마·조회 화면의 "내 이름"은 로그인과 상관없이 쓰는 값이라 그대로 둔다.
+ */
+function forgetAccountStorage(groupIds: readonly string[]): void {
+  for (const id of groupIds) forgetGroupStorage(id);
+  try {
+    localStorage.removeItem(GROUP_KEY);
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("naejeon.sheetMapping.")) localStorage.removeItem(key);
+    }
   } catch {
     // 무시
   }
@@ -340,12 +360,13 @@ export function useApp(enabled: boolean): AppValue {
 
   const logout = useCallback(async () => {
     await call("POST", "/api/auth/logout");
+    forgetAccountStorage([...(me?.groups ?? []), ...(me?.memberships ?? [])].map((g) => g.id));
     groupRef.current = null;
     setGroupId(null);
     snapshotSeq.current++;
     setSnapshot(null);
     setMe((m) => (m ? { ...m, accountId: null, groups: [], memberships: [] } : m));
-  }, []);
+  }, [me]);
 
   const ensureGroup = useCallback(async () => {
     if (groupRef.current) return groupRef.current;

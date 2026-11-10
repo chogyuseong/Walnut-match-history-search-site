@@ -51,16 +51,16 @@ test.describe("회원가입 (390px)", () => {
     await expect(dialog.getByLabel("비밀번호", { exact: true })).toHaveAttribute("autocomplete", "new-password");
     // 조건은 칸 아래에 미리 보인다.
     await expect(dialog.getByText("3~20자, 영문·숫자·밑줄(_)")).toBeVisible();
-    await expect(dialog.getByText("8자 이상, 아이디가 들어가거나 흔한 비밀번호는 안 돼요")).toBeVisible();
+    await expect(dialog.getByText("10자 이상, 아이디가 들어가거나 흔한 비밀번호는 안 돼요")).toBeVisible();
 
     // 틀리면 무엇이 틀렸는지 알려준다.
     await dialog.getByLabel("아이디").fill("가나");
     await dialog.getByLabel("비밀번호", { exact: true }).fill("short");
     await dialog.getByRole("button", { name: "가입하고 시작하기" }).click();
     await expect(dialog.getByText("아이디는 3자 이상이어야 해요.")).toBeVisible();
-    await expect(dialog.getByText("비밀번호는 8자 이상이어야 해요.")).toBeVisible();
+    await expect(dialog.getByText("비밀번호는 10자 이상이어야 해요.")).toBeVisible();
     // 흔한 비밀번호는 보내기 전에 화면에서 이유를 알려준다(서버도 같은 규칙으로 거절한다).
-    await dialog.getByLabel("비밀번호", { exact: true }).fill("qwer1234");
+    await dialog.getByLabel("비밀번호", { exact: true }).fill("qwertyuiop");
     await expect(dialog.getByText("너무 흔한 비밀번호예요.", { exact: false })).toBeVisible();
 
     // 비밀번호 보기 전환.
@@ -163,6 +163,39 @@ test.describe("회원가입 (390px)", () => {
     await expect(banner(page).getByRole("button", { name: "로그인됨" })).toBeVisible();
     const login = await page.request.post("/api/auth/login", { data: { username, password: "third password" } });
     expect(login.ok()).toBe(true);
+  });
+
+  test("아이디로 가입한 대표 운영자는 모임을 지울 때 지금 비밀번호를 다시 넣는다", async ({ page }) => {
+    const password = "owner password 1";
+    await page.goto("/");
+    await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
+    await signUp(page, newName(), password);
+    const created = await page.request.post("/api/groups", {
+      data: { name: "재확인 모임", requestId: `e2e-reauth-${Date.now().toString(36)}` },
+    });
+    expect(created.ok()).toBe(true);
+    const gid = ((await created.json()) as { id: string }).id;
+    // 비밀번호 없이 보낸 요청은 서버가 거절한다(화면을 거치지 않아도).
+    const bare = await page.request.post(`/api/groups/${gid}/delete`, { data: { confirm: "삭제" } });
+    expect(bare.status()).toBe(400);
+    expect(((await bare.json()) as { error: { code: string } }).error.code).toBe("WRONG_PASSWORD");
+
+    // 주소의 # 뒤만 바뀌면 화면을 다시 읽지 않으므로, API로 만든 모임이 보이게 새로 고친다.
+    await page.goto("/#/delete");
+    await page.reload();
+    const box = page.getByRole("region", { name: /모임 삭제: 재확인 모임/ });
+    const run = box.getByRole("button", { name: "백업 내려받고 모임 삭제" });
+    await box.getByLabel("확인을 위해 '삭제'를 입력해 주세요").fill("삭제");
+    // 확인 문구만으로는 실행할 수 없다.
+    await expect(run).toBeDisabled();
+    await box.getByLabel("지금 비밀번호", { exact: true }).fill("not the password");
+    await run.click();
+    await expect(box.getByRole("alert")).toContainText("지금 비밀번호가 맞지 않아요");
+    expect((await page.request.get(`/api/groups/${gid}/snapshot`)).status()).toBe(200);
+    await box.getByLabel("지금 비밀번호", { exact: true }).fill(password);
+    await run.click();
+    await expect(page.getByRole("region", { name: /모임 삭제: 재확인 모임/ })).toHaveCount(0);
+    await expect.poll(async () => (await page.request.get(`/api/groups/${gid}/snapshot`)).status()).toBe(404);
   });
 });
 

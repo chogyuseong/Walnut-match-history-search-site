@@ -184,6 +184,8 @@ describe("보안 헤더(2026-11-07)", () => {
     "referrer-policy": "strict-origin-when-cross-origin",
     "permissions-policy": PERMISSIONS_POLICY,
     "x-frame-options": "DENY",
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-origin",
   };
 
   it("API 응답(정상·오류·없는 경로)에 CSP·nosniff·Referrer-Policy·Permissions-Policy가 붙는다", async () => {

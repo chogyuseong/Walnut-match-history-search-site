@@ -23,7 +23,7 @@ import type { Env } from "./env";
 import { parseAvoidField } from "./groups";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireString } from "./http";
 import { maintenanceError, maintenanceGuard, runMutation, sha256Hex } from "./mutation";
-import { buildSnapshot, loadEtagHead, loadMemberRequests, snapshotEtag } from "./snapshot";
+import { buildSnapshot, loadEtagHead, loadMemberRequests, snapshotEtag, type EtagHead } from "./snapshot";
 
 /** 한 계정이 연결할 수 있는 참가자 수(모임마다 하나이므로 곧 참가 중인 모임 수). */
 export const MAX_LINKS_PER_ACCOUNT = 20;
@@ -380,10 +380,13 @@ export async function memberSnapshot(env: Env, ctx: MemberContext): Promise<Snap
  * - 계정 ID: 같은 브라우저에서 다른 계정으로 바꿔 로그인했을 때 예전 계정의 본문을 304로 되살리지 않게.
  * 모임이 없으면 null.
  */
-export async function memberSnapshotEtag(env: Env, ctx: MemberContext): Promise<string | null> {
+export async function memberSnapshotEtag(
+  env: Env,
+  ctx: MemberContext,
+): Promise<{ etag: string; head: EtagHead } | null> {
   const head = await loadEtagHead(env, ctx.groupId, false);
   if (!head) return null;
-  return snapshotEtag(env, head, "viewer", ["member", ctx.accountId, ctx.participantId]);
+  return { etag: await snapshotEtag(env, head, "viewer", ["member", ctx.accountId, ctx.participantId]), head };
 }
 
 /** 이 연결이 그대로인지 batch 안에서 다시 확인하는 보호 문장(끊긴 직후의 요청을 막는다). */

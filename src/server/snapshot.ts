@@ -215,6 +215,8 @@ export interface EtagHead {
   generation: number;
   maintenance: number;
   data_version: number;
+  /** 다음 경기 번호. ETag 재료가 아니다: 하루 읽기 예산이 모임의 경기 수(이 값 - 1)를 어림하는 데 쓴다(ratelimit.ts snapshotCost). */
+  next_match_no: number;
   /**
    * 운영자만: 쓰지 않은 연결 링크 중 아직 만료되지 않은 것의 가장 이른 만료 시각(없으면 null).
    * 운영자 스냅숏의 memberClaims는 "지금 만료되지 않은 링크"만 싣기 때문에 시간이 지나기만 해도 내용이 바뀐다.
@@ -227,7 +229,7 @@ export interface EtagHead {
 }
 
 const ETAG_HEAD_COLUMNS =
-  "id, name, timezone, live_version, settings_version_id, view_token, generation, maintenance, data_version";
+  "id, name, timezone, live_version, settings_version_id, view_token, generation, maintenance, data_version, next_match_no";
 
 /**
  * 스냅숏의 ETag용 모임 행. 없으면 null.

@@ -5,8 +5,14 @@ export interface Env {
    * "oauth": 카카오·Google 로그인만 쓴다. 그 밖의 값도 "oauth"로 다룬다(가짜 로그인은 닫힌다).
    */
   AUTH_MODE: string;
-  /** 세션 쿠키 서명 키. 저장소에 넣지 않는다(.dev.vars 또는 wrangler secret). */
+  /** 세션 쿠키 서명 키(요청 수 제한의 IP 해시도 이 값으로 만든다). 저장소에 넣지 않는다(.dev.vars 또는 wrangler secret). */
   SESSION_SECRET: string;
+  /**
+   * 비밀번호 페퍼(자체 계정의 비밀번호 해시와 틀린 시도 횟수의 아이디 해시, src/server/local.ts). SESSION_SECRET과 다른 값.
+   * 세션 키가 새어 바꿔야 할 때 비밀번호까지 무효가 되지 않게 나눴다(2026-11-10). 이 값을 바꾸면 모든 비밀번호가 맞지 않게 된다.
+   * 운영·staging은 wrangler secret, 로컬은 wrangler.jsonc 맨 위 vars의 로컬 전용 값.
+   */
+  PASSWORD_PEPPER: string;
   /**
    * "production"이면 운영 환경, "local"이면 로컬 개발·테스트다. "local"이 아니면(값이 없어도) AUTH_MODE가 fake이거나
    * 필수 값이 비어 있을 때 모든 API가 설정 오류로 거절된다(실수로 가짜 로그인이 열린 채 배포되는 것을 막는다).
@@ -51,6 +57,12 @@ export interface Env {
    */
   RATE_BULK_ROWS_PER_ACCOUNT?: string;
   RATE_BULK_ROWS_PER_IP?: string;
+  /** IP 하루 벌점 한도(분 단위 한도에 걸린 창의 수). 닿으면 그 IP는 UTC 하루가 끝날 때까지 429. 기본 20. */
+  RATE_STRIKES_PER_IP_DAY?: string;
+  /** 스냅숏 200의 하루 읽기 예산(읽은 행 수 추정, ratelimit.ts snapshotCost). 기본 계정 300만, IP·조회 링크 400만. */
+  RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY?: string;
+  RATE_SNAPSHOT_ROWS_PER_IP_DAY?: string;
+  RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY?: string;
 
   /**
    * 사이트 운영자(이 서비스의 주인. 모임 운영자와 다르다). 쉼표로 구분한 계정 ID 목록.

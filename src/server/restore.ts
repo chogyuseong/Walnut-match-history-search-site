@@ -1492,10 +1492,13 @@ export async function applyRestore(
   groupId: string,
   req: Request,
   actor: BulkActor,
+  /** 본문의 password로 지금 비밀번호를 확인한다(index.ts confirmOwnerPassword). 틀리면 던진다. */
+  confirmPassword: (password: unknown) => Promise<void>,
 ): Promise<Record<string, unknown>> {
   // 요청 해시는 원문으로 계산한다(runMutation payloadText: 수 MB 백업을 다시 직렬화하지 않는다).
   const { body, text } = await readJsonBodyWithText(req, MAX_RESTORE_BODY_BYTES);
-  assertOnlyKeys(body, ["requestId", "confirm", "baseGeneration", "backup"]);
+  assertOnlyKeys(body, ["requestId", "confirm", "baseGeneration", "backup", "password"]);
+  await confirmPassword(body.password);
   const { requestId, backup } = parseApplyBody(body);
   const baseGeneration = requireInt(body.baseGeneration, "baseGeneration");
   const result = validateBackup(backup);

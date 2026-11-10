@@ -30,13 +30,18 @@ export type Bucket =
   | "recover-ip"
   | "client-error-ip"
   | "bulk-rows-account"
-  | "bulk-rows-ip";
+  | "bulk-rows-ip"
+  | "day-strike-ip"
+  | "day-snapshot-rows-account"
+  | "day-snapshot-rows-ip"
+  | "day-snapshot-rows-token";
 
 /**
- * 하루 창(UTC 0시 기준 86400초)으로 세는 예산 버킷. 요청 수가 아니라 넣은 경기 수를 센다(spendBulkRows).
- * 키 앞부분이 모두 "bulk-rows-"라서 지난 창 정리를 분 단위 버킷과 나눠 한다(cleanupStatement).
+ * 하루 창(UTC 0시 기준 86400초)으로 세는 버킷의 키 접두어. 요청 수가 아니라 양(경기 수·읽은 행 수·벌점)을 센다.
+ * 지난 창 정리를 분 단위 버킷과 나눠 한다(cleanupStatement): 분 단위 정리가 오늘 행을 지우면 예산이 초기화된다.
+ * 하루 창 버킷을 새로 만들 때는 이름을 "day-"로 시작한다.
  */
-const DAILY_PREFIX = "bulk-rows-";
+const DAILY_PREFIXES = ["bulk-rows-", "day-"] as const;
 export const BULK_WINDOW_SECONDS = 86_400;
 
 /** 기본 한도(창당 요청 수). wrangler 설정의 vars로 바꾼다. */
@@ -72,6 +77,18 @@ export const DEFAULT_LIMITS: Record<Bucket, number> = {
   // 다 쓰는 일을 막는다. 경기 하나가 대략 13행(경기·명단 10·이력·요청 기록)이라 3,000경기 ≈ 4만 행.
   "bulk-rows-account": 3000,
   "bulk-rows-ip": 6000,
+  // IP 하루 벌점(2026-11-10 보안 감사): 분 단위 창에서 한도에 걸릴 때마다 1. 이 값에 닿으면 그 IP의 "-ip" 버킷은
+  // UTC 하루가 끝날 때까지 쓰기 없이 429다(hit). PC방·같은 와이파이처럼 여럿이 한 IP를 나눠 쓰는 저녁에 몇 번 걸리는
+  // 것은 정상이라 넉넉히 둔다. 한도 아래로만 보내는 요청은 벌점이 쌓이지 않는다(그 비용은 분 단위 한도가 묶는다).
+  "day-strike-ip": 20,
+  // 스냅숏 200의 하루 읽기 예산(읽은 행 수 추정, snapshotCost). D1 무료 하루 읽기 500만 행을 한 계정·한 IP·한 조회 링크가
+  // 혼자 다 쓰지 못하게 한다. 정상 사용 추정(docs/개선-경험-설계-2026-11-10.md B-1): 저녁 6경기·보는 사람 10명에
+  // 100경기 모임 약 40만 행, 522경기 모임 약 200만 행. IP·조회 링크 400만은 100경기 모임에 10배, 522경기 모임에 2배다.
+  // 큰 모임에서 10배를 줄 수는 없다(정상 사용이 이미 하루 한도의 40%). 더 넓히려면 응답 본문 캐시가 먼저다(snapshot.ts snapshotBody).
+  // 계정은 운영자 한 사람의 몫(저장마다 다시 읽기 200, 저녁 약 100번 × 522경기 약 7천 행 = 70만 행)의 4배.
+  "day-snapshot-rows-account": 3_000_000,
+  "day-snapshot-rows-ip": 4_000_000,
+  "day-snapshot-rows-token": 4_000_000,
 };
 export const DEFAULT_WINDOW_SECONDS = 60;
 
@@ -92,6 +109,10 @@ const LIMIT_VARS: Record<Bucket, keyof Env> = {
   "client-error-ip": "RATE_CLIENT_ERROR_PER_IP",
   "bulk-rows-account": "RATE_BULK_ROWS_PER_ACCOUNT",
   "bulk-rows-ip": "RATE_BULK_ROWS_PER_IP",
+  "day-strike-ip": "RATE_STRIKES_PER_IP_DAY",
+  "day-snapshot-rows-account": "RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY",
+  "day-snapshot-rows-ip": "RATE_SNAPSHOT_ROWS_PER_IP_DAY",
+  "day-snapshot-rows-token": "RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY",
 };
 
 /** 시계. 테스트에서 창이 지난 상황을 만들 때 바꿔 끼운다. */
@@ -113,16 +134,17 @@ export function windowSecondsOf(env: Env): number {
 /**
  * 요청한 쪽의 IP. Cloudflare가 붙이는 CF-Connecting-IP를 쓴다. 로컬에는 없을 수 있다.
  *
- * 다른 Worker가 fetch()로 보낸 요청은 IP 대신 그 Worker의 출처 하나로 센다(2026-11-10 보안 감사).
- * Cloudflare 문서(fundamentals/reference/http-headers, 2026-11-10 확인): CF-Worker는 Worker의 모든 하위 요청에
- * 붙고 값은 그 Worker를 가진 zone 이름이다. 같은 zone의 하위 요청이면 CF-Connecting-IP가 Worker 코드가 바꿀 수 있는
- * x-real-ip 값을 따른다. workers.dev끼리가 같은 zone으로 취급되는지는 확인하지 못했으므로, 그렇다고 보고 막는다:
- * x-real-ip를 매번 바꿔 보내도 한 버킷에 모인다. CF-Worker는 Cloudflare가 하위 요청을 내보낼 때 붙이는 값이라
- * Worker 코드가 빼고 보낼 수 없다고 보았다(문서에 명시는 없다. staging 확인 항목, docs/배포안내.md).
+ * CF-Worker 헤더가 있는 요청(다른 Worker가 fetch()로 보낸 것)은 헤더 값과 상관없이 버킷 하나("worker")로 센다
+ * (2026-11-10 보안 감사). 값을 키에 넣으면, 누가 이 헤더를 마음대로 붙일 수 있는 경우 값을 바꿔 가며 한도를 피한다.
+ * 고정 버킷이면 헤더를 붙여도 공용 버킷 하나에 모일 뿐이다. 정상 사용자는 Worker를 거치지 않으므로 영향이 없다.
+ *
+ * staging 실측(2026-11-10): Worker의 하위 요청에서 Cloudflare가 cf-worker를 그 Worker의 zone
+ * (`<계정>.workers.dev`)으로 덮어쓰고 x-real-ip도 덮어썼다. 보내는 쪽이 요청마다 cf-worker 값을 바꿔도 한도(30)를 넘는
+ * 31번째부터 429였다. 같은 계정의 workers.dev끼리 fetch는 기본 설정에서 오류 1042로 막히고 보내는 Worker에
+ * global_fetch_strictly_public 호환 플래그가 있어야 나갔다.
  */
 export function clientIp(req: Request): string {
-  const worker = req.headers.get("CF-Worker");
-  if (worker) return `worker:${worker.trim().toLowerCase()}`;
+  if (req.headers.get("CF-Worker")) return "worker";
   return req.headers.get("CF-Connecting-IP") ?? "local";
 }
 
@@ -198,28 +220,35 @@ export async function ipKey(env: Env, ip: string): Promise<string> {
     .join("");
 }
 
+/** 하루 창 버킷의 키를 고르는 SQL 조건. 범위 비교("day-" 이상 "day." 미만)는 접두어 비교와 같다('.'은 '-' 다음 글자). */
+const DAILY_KEY_SQL = DAILY_PREFIXES.map((p) => `(key >= '${p}' AND key < '${p.slice(0, -1)}.')`).join(" OR ");
+
 /**
- * 지난 창의 기록은 남겨 둘 이유가 없다. 다만 창 길이가 다른 버킷(하루 예산)끼리는 따로 지운다:
- * 분 단위 버킷의 정리가 오늘 하루 예산 행(window_start = 오늘 0시)을 지우면 예산이 초기화된다.
- * 키 범위 비교("bulk-rows-" 이상 "bulk-rows." 미만)는 접두어 비교와 같다('.'은 '-' 다음 글자).
+ * 지난 창의 기록은 남겨 둘 이유가 없다. 다만 분 단위 버킷과 하루 창 버킷은 따로 지운다:
+ * 분 단위 버킷의 정리가 오늘 하루 창 행(window_start = 오늘 0시)을 지우면 예산·벌점이 초기화된다.
  */
-function cleanupStatement(env: Env, bucket: Bucket, windowStart: number): D1PreparedStatement {
-  return bucket.startsWith(DAILY_PREFIX)
-    ? env.DB.prepare("DELETE FROM rate_limits WHERE key >= ?2 AND key < ?3 AND window_start < ?1").bind(
-        windowStart,
-        DAILY_PREFIX,
-        `${DAILY_PREFIX.slice(0, -1)}.`,
-      )
-    : env.DB.prepare("DELETE FROM rate_limits WHERE window_start < ?1 AND NOT (key >= ?2 AND key < ?3)").bind(
-        windowStart,
-        DAILY_PREFIX,
-        `${DAILY_PREFIX.slice(0, -1)}.`,
-      );
+function cleanupStatement(env: Env, kind: "minute" | "daily", windowStart: number): D1PreparedStatement {
+  return env.DB.prepare(
+    `DELETE FROM rate_limits WHERE window_start < ?1 AND ${kind === "daily" ? "" : "NOT "}(${DAILY_KEY_SQL})`,
+  ).bind(windowStart);
 }
 
 async function bucketKey(env: Env, bucket: Bucket, subject: string): Promise<string> {
   const id = bucket.endsWith("-ip") ? await ipKey(env, subject) : subject;
   return `${bucket}:${id}`;
+}
+
+/** UTC 하루 창의 시작과, 창이 끝날 때까지 남은 초. */
+function dayWindow(now: number): { start: number; retryAfter: number } {
+  const windowMs = BULK_WINDOW_SECONDS * 1000;
+  const start = Math.floor(now / windowMs) * windowMs;
+  return { start, retryAfter: Math.max(1, Math.ceil((start + windowMs - now) / 1000)) };
+}
+
+/** 하루 창이 다시 열리는 때를 한국 시각으로 적은 말. UTC 0시 = 한국 오전 9시. */
+export function dayResetPhrase(now: number): string {
+  const kstHour = new Date(now + 9 * 3600_000).getUTCHours();
+  return `${kstHour < 9 ? "오늘" : "내일"} 오전 9시(한국 시각)`;
 }
 
 /**
@@ -233,6 +262,10 @@ async function bucketKey(env: Env, bucket: Bucket, subject: string): Promise<str
  * - 그 뒤 같은 창의 요청은 결과가 비어 쓰기 없이 429다. 지난 창 정리(cleanupStatement)도 지울 행이 없으니 쓰지 않는다
  *   (이 창의 첫 요청이 이미 지웠다).
  * 따라서 현황 화면의 "한도 걸림"은 걸린 요청 수가 아니라 (버킷 키, 창)마다 1이다.
+ *
+ * IP 버킷("-ip")은 하루 벌점도 본다(day-strike-ip, 2026-11-10 보안 감사). 창에서 처음 한도를 넘을 때마다 그 IP의
+ * 벌점 행(UTC 하루 창)에 1을 더하고, 벌점이 한도에 닿은 IP는 그날 남은 시간 동안 세지도 쓰지도 않고 429다
+ * (같은 batch 안에서 벌점 행을 읽어 확인한다: 왕복은 그대로 1회, 읽기 1행이 는다).
  */
 export async function hit(
   env: Env,
@@ -245,18 +278,49 @@ export async function hit(
   const now = rateClock.now();
   const windowStart = Math.floor(now / windowMs) * windowMs;
   const key = await bucketKey(env, bucket, subject);
-  const [counted] = await env.DB.batch([
-    env.DB.prepare(
-      `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, 1)
-       ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 WHERE rate_limits.count <= ?3
-       RETURNING count`,
-    ).bind(key, windowStart, limit),
-    cleanupStatement(env, bucket, windowStart),
+  const day = dayWindow(now);
+  const strike = bucket.endsWith("-ip")
+    ? { key: await bucketKey(env, "day-strike-ip", subject), limit: limitOf(env, "day-strike-ip") }
+    : null;
+  const results = await env.DB.batch([
+    strike
+      ? env.DB.prepare(
+          `INSERT INTO rate_limits (key, window_start, count)
+           SELECT ?1, ?2, 1 WHERE NOT EXISTS (
+             SELECT 1 FROM rate_limits WHERE key = ?4 AND window_start = ?5 AND count >= ?6
+           )
+           ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 WHERE rate_limits.count <= ?3
+           RETURNING count`,
+        ).bind(key, windowStart, limit, strike.key, day.start, strike.limit)
+      : env.DB.prepare(
+          `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, 1)
+           ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 WHERE rate_limits.count <= ?3
+           RETURNING count`,
+        ).bind(key, windowStart, limit),
+    cleanupStatement(env, "minute", windowStart),
+    ...(strike
+      ? [env.DB.prepare("SELECT count FROM rate_limits WHERE key = ?1 AND window_start = ?2").bind(strike.key, day.start)]
+      : []),
   ]);
-  const row = counted?.results?.[0] as { count: number } | undefined;
+  if (strike) {
+    const strikes = (results[2]?.results?.[0] as { count: number } | undefined)?.count ?? 0;
+    if (strikes >= strike.limit) {
+      throw new ApiError(
+        429,
+        "RATE_LIMITED",
+        `오늘 이 인터넷 주소에서 요청 한도에 너무 여러 번 걸렸어요. ${dayResetPhrase(now)} 이후에 다시 시도해 주세요.`,
+        { retryAfter: day.retryAfter, daily: true },
+      );
+    }
+  }
+  const row = results[0]?.results?.[0] as { count: number } | undefined;
   // 행이 없으면 이 창은 이미 한도를 넘겼다(위 WHERE가 거짓이라 바꾸지 않음).
   if (!row || row.count > limit) {
-    if (row) await countLimited(env, bucket, now);
+    if (row) {
+      const strikes = await countLimited(env, bucket, now, strike ? { key: strike.key, dayStart: day.start } : null);
+      // 이 벌점으로 그 IP가 오늘 막히기 시작했다. 현황 화면에서 보이게 한 번 센다(막힌 뒤의 요청은 쓰기가 없어 세지 않는다).
+      if (strike && strikes === strike.limit) await countLimited(env, "day-strike-ip", now, null);
+    }
     const retryAfter = Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000));
     throw new ApiError(
       429,
@@ -282,27 +346,67 @@ export const BULK_LIMIT_MESSAGE = "오늘 넣을 수 있는 경기 수를 넘었
  * 부르는 쪽은 입력 검증을 끝낸 뒤, 쓰기 직전에 부른다. 같은 요청 ID의 재시도(runMutation 재생)에서는 부르지 않는다.
  */
 export async function spendBulkRows(env: Env, actor: BulkActor, rows: number): Promise<void> {
-  if (!Number.isInteger(rows) || rows <= 0) return;
-  const windowMs = BULK_WINDOW_SECONDS * 1000;
+  await spendDaily(
+    env,
+    [
+      ["bulk-rows-account", actor.accountId],
+      ["bulk-rows-ip", actor.ip],
+    ],
+    rows,
+    (_now, retryAfter) =>
+      `${BULK_LIMIT_MESSAGE} 약 ${Math.max(1, Math.ceil(retryAfter / 3600))}시간 뒤(한국 시각 오전 9시)에 다시 시도해 주세요. 입력한 내용은 그대로 있어요.`,
+  );
+}
+
+/** 스냅숏 하나를 만들 때 D1에서 읽는 행 수 추정: 경기당 약 13행(경기·명단 10·이력), 나머지(참가자·시즌 등)는 고정 300. */
+export function snapshotCost(matchCount: number): number {
+  return 300 + 13 * Math.max(0, matchCount);
+}
+
+export const SNAPSHOT_BUDGET_MESSAGE = "오늘 이 모임 기록을 받아 갈 수 있는 양을 넘었어요.";
+
+/**
+ * 스냅숏 200 응답의 하루 읽기 예산(2026-11-10 보안 감사). 본문을 만들기 직전에 부른다(304는 부르지 않는다).
+ * 누가 쓰는지: 운영자·멤버 스냅숏은 계정과 IP, 조회 링크는 IP와 그 모임(조회 링크 버킷. 토큰 대신 모임 ID로 세어
+ * 토큰 원문을 키에 남기지 않고, 링크를 다시 만들어도 그날 예산이 이어진다).
+ */
+export async function spendSnapshotRows(
+  env: Env,
+  who: { accountId?: string; ip: string; viewGroupId?: string },
+  matchCount: number,
+): Promise<void> {
+  const spends: [Bucket, string][] = [["day-snapshot-rows-ip", who.ip]];
+  if (who.accountId) spends.push(["day-snapshot-rows-account", who.accountId]);
+  if (who.viewGroupId) spends.push(["day-snapshot-rows-token", who.viewGroupId]);
+  await spendDaily(
+    env,
+    spends,
+    snapshotCost(matchCount),
+    (now) => `${SNAPSHOT_BUDGET_MESSAGE} ${dayResetPhrase(now)} 이후에 다시 열 수 있어요.`,
+  );
+}
+
+/**
+ * 하루 창 버킷 여러 개에서 amount를 한꺼번에 쓴다. 하나라도 넘으면 429이고 아무것도 쓰지 않는다
+ * (확인하는 보호 문장과 더하기가 한 batch).
+ */
+async function spendDaily(
+  env: Env,
+  spends: [Bucket, string][],
+  amount: number,
+  message: (now: number, retryAfter: number) => string,
+): Promise<void> {
+  if (!Number.isInteger(amount) || amount <= 0) return;
   const now = rateClock.now();
-  const windowStart = Math.floor(now / windowMs) * windowMs;
-  const buckets: [Bucket, string][] = [
-    ["bulk-rows-account", await bucketKey(env, "bulk-rows-account", actor.accountId)],
-    ["bulk-rows-ip", await bucketKey(env, "bulk-rows-ip", actor.ip)],
-  ];
+  const { start: windowStart, retryAfter } = dayWindow(now);
+  const buckets: [Bucket, string][] = [];
+  for (const [bucket, subject] of spends) buckets.push([bucket, await bucketKey(env, bucket, subject)]);
   const over = async (bucket: Bucket): Promise<never> => {
-    await countLimited(env, bucket, now);
-    const retryAfter = Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000));
-    const hours = Math.max(1, Math.ceil(retryAfter / 3600));
-    throw new ApiError(
-      429,
-      "RATE_LIMITED",
-      `${BULK_LIMIT_MESSAGE} 약 ${hours}시간 뒤(한국 시각 오전 9시)에 다시 시도해 주세요. 입력한 내용은 그대로 있어요.`,
-      { retryAfter },
-    );
+    await countLimited(env, bucket, now, null);
+    throw new ApiError(429, "RATE_LIMITED", message(now, retryAfter), { retryAfter, daily: true });
   };
   // 한 번에 하루 한도보다 많으면 볼 것도 없이 거절한다.
-  const tooBig = buckets.find(([bucket]) => rows > limitOf(env, bucket));
+  const tooBig = buckets.find(([bucket]) => amount > limitOf(env, bucket));
   if (tooBig) return over(tooBig[0]);
   try {
     await env.DB.batch([
@@ -311,27 +415,29 @@ export async function spendBulkRows(env: Env, actor: BulkActor, rows: number): P
         env.DB.prepare(
           `INSERT INTO guard (state_conflict)
            SELECT 1 FROM rate_limits WHERE key = ?1 AND window_start = ?2 AND count + ?3 > ?4`,
-        ).bind(key, windowStart, rows, limitOf(env, bucket)),
+        ).bind(key, windowStart, amount, limitOf(env, bucket)),
       ),
       ...buckets.map(([, key]) =>
         env.DB.prepare(
           `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, ?3)
            ON CONFLICT (key, window_start) DO UPDATE SET count = count + ?3`,
-        ).bind(key, windowStart, rows),
+        ).bind(key, windowStart, amount),
       ),
-      cleanupStatement(env, "bulk-rows-account", windowStart),
+      cleanupStatement(env, "daily", windowStart),
     ]);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.includes("guard_state_conflict")) throw error;
+    const text = error instanceof Error ? error.message : String(error);
+    if (!text.includes("guard_state_conflict")) throw error;
     // 어느 쪽이 넘었는지는 현황 화면 기록(rate_limit_hits)에만 쓴다. 거절할 때만 한 번 더 읽는다.
-    const counts = await env.DB.prepare("SELECT key, count FROM rate_limits WHERE key IN (?1, ?2) AND window_start = ?3")
-      .bind(buckets[0]![1], buckets[1]![1], windowStart)
+    const counts = await env.DB.prepare(
+      "SELECT key, count FROM rate_limits WHERE key IN (SELECT value FROM json_each(?1)) AND window_start = ?2",
+    )
+      .bind(JSON.stringify(buckets.map(([, key]) => key)), windowStart)
       .all<{ key: string; count: number }>();
     const exceeded = buckets.find(
-      ([bucket, key]) => (counts.results.find((r) => r.key === key)?.count ?? 0) + rows > limitOf(env, bucket),
+      ([bucket, key]) => (counts.results.find((r) => r.key === key)?.count ?? 0) + amount > limitOf(env, bucket),
     );
-    return over(exceeded?.[0] ?? "bulk-rows-account");
+    return over(exceeded?.[0] ?? buckets[0]![0]);
   }
 }
 
@@ -341,19 +447,37 @@ export const RATE_HIT_KEEP_DAYS = 30;
 /**
  * 한도에 걸린 횟수를 날짜(UTC)·종류별로 더한다(사이트 운영자 현황 화면, migrations/0018). 누가 걸렸는지는 남기지 않는다.
  * 창마다 처음 걸린 요청에서만 쓰므로(hit) 정상 요청과 그 뒤의 거절에는 비용이 없다. 실패해도 429 응답은 그대로다.
+ * strike가 있으면(IP 버킷) 그 IP의 하루 벌점도 같은 batch에서 1 올리고, 올린 뒤의 벌점을 돌려준다(없거나 실패하면 null).
  */
-async function countLimited(env: Env, bucket: Bucket, now: number): Promise<void> {
+async function countLimited(
+  env: Env,
+  bucket: Bucket,
+  now: number,
+  strike: { key: string; dayStart: number } | null,
+): Promise<number | null> {
   const day = new Date(now).toISOString().slice(0, 10);
   const oldest = new Date(now - RATE_HIT_KEEP_DAYS * 24 * 3600_000).toISOString().slice(0, 10);
   try {
-    await env.DB.batch([
+    const results = await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO rate_limit_hits (day, bucket, count) VALUES (?1, ?2, 1)
          ON CONFLICT (day, bucket) DO UPDATE SET count = count + 1`,
       ).bind(day, bucket),
       env.DB.prepare("DELETE FROM rate_limit_hits WHERE day < ?1").bind(oldest),
+      ...(strike
+        ? [
+            env.DB.prepare(
+              `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, 1)
+               ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1
+               RETURNING count`,
+            ).bind(strike.key, strike.dayStart),
+            cleanupStatement(env, "daily", strike.dayStart),
+          ]
+        : []),
     ]);
+    return (results[2]?.results?.[0] as { count: number } | undefined)?.count ?? null;
   } catch {
     // 세지 못해도 제한은 그대로 건다.
+    return null;
   }
 }

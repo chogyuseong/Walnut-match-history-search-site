@@ -104,7 +104,7 @@ import {
   isProvider,
   LoginError,
 } from "./oauth";
-import { clientIp, hit } from "./ratelimit";
+import { clientIp, hit, spendSnapshotRows } from "./ratelimit";
 import {
   changePassword,
   confirmCurrentPassword,
@@ -172,15 +172,31 @@ app.use("/api/*", async (c, next) => {
 
 /** 조건부 요청(ETag) 경로의 캐시 헤더: 브라우저가 저장하되 매번 If-None-Match로 확인한다. 공용 캐시는 저장하지 않는다. */
 const REVALIDATE = "private, no-cache";
+/**
+ * 로그아웃·탈퇴 응답에 붙인다. 위 REVALIDATE 때문에 브라우저 캐시에 스냅숏 본문(참가자 이름·조회 토큰)이 남는데,
+ * 같은 기기를 다음 사람이 쓸 수 있으므로 이 사이트의 HTTP 캐시를 비우게 한다. 기기 저장소는 화면이 지운다(useApp.ts logout).
+ */
+const CLEAR_CACHE = '"cache"';
 
 /**
  * 운영자·멤버 스냅숏의 요청 수 제한(2026-11-09, ratelimit.ts "snapshot-*"). 본문을 만드는 200일 때만 부른다:
  * 304는 모임 행 1행 읽기뿐이라 세지 않는다(조회 링크와 같은 방식). ETag 헤더를 붙이기 전에 불러야 한다
  * (429 응답에 ETag·private가 붙어 브라우저가 저장하면 다음 304가 그 429 본문을 되살릴 수 있다).
  */
-async function countSnapshot(env: Env, req: Request, accountId: string): Promise<void> {
+async function countSnapshot(env: Env, req: Request, accountId: string, head: { next_match_no: number }): Promise<void> {
   await hit(env, "snapshot-ip", clientIp(req));
   await hit(env, "snapshot-account", accountId);
+  // 하루 읽기 예산(모임 크기에 비례). 분 단위 한도만으로는 큰 모임 하나로 D1 하루 읽기를 십여 분에 다 쓸 수 있었다.
+  await spendSnapshotRows(env, { accountId, ip: clientIp(req) }, head.next_match_no - 1);
+}
+
+/**
+ * 대표 운영자의 되돌리기 어려운 작업(모임 삭제·넘기기·복원) 앞에서 지금 비밀번호를 한 번 더 확인한다(2026-11-10 보안 감사):
+ * 세션 쿠키만 훔친 사람이 모임을 지우거나 가져가지 못하게. 비밀번호가 없는 계정(카카오·Google·개발용)은 건너뛴다.
+ */
+async function confirmOwnerPassword(env: Env, req: Request, password: unknown): Promise<void> {
+  const session = await readSession(env, req);
+  if (session?.provider === LOCAL_PROVIDER) await confirmCurrentPassword(env, session.id, password);
 }
 
 // 운영 환경 안전장치: 로컬(DEPLOY_ENV=local)이 아닌 곳에서 가짜 로그인이 켜져 있거나 필수 값이 없으면
@@ -238,11 +254,17 @@ app.use("/api/*", async (c, next) => {
     // 화면 오류 보고(로그인 없음): 자기 한도만 센다. 쓰기 한도를 쓰면 오류가 잦은 화면에서 저장까지 막힌다.
     await hit(c.env, "client-error-ip", ip);
   } else if (method !== "OPTIONS") {
-    // 참가 신청(로그인 없음, 토큰이 권한)은 조회 토큰 한도도 함께 센다.
-    if (path.startsWith("/api/join/")) await hit(c.env, "view-ip", ip);
-    await hit(c.env, "write-ip", ip);
     const session = await readSession(c.env, c.req.raw);
-    if (session) await hit(c.env, "write-account", session.id);
+    const join = path.startsWith("/api/join/");
+    // 세션 없는 쓰기는 세지 않는다(2026-11-10 보안 감사). 참가 신청(토큰이 권한) 말고는 모두 로그인이 필요해 DB를
+    // 건드리기 전에 401·404로 끝나는데, 세면 그 요청마다 D1 쓰기 1행이 들어 로그인 없는 한 사람이 하루 쓰기 한도를 축낸다.
+    // 로그인 없이 쓰는 경로를 새로 만들면 여기에 더한다(로그인·가입은 위의 auth-ip, 오류 보고는 client-error-ip).
+    if (session || join) {
+      // 참가 신청(로그인 없음, 토큰이 권한)은 조회 토큰 한도도 함께 센다.
+      if (join) await hit(c.env, "view-ip", ip);
+      await hit(c.env, "write-ip", ip);
+      if (session) await hit(c.env, "write-account", session.id);
+    }
   }
   await next();
 });
@@ -330,7 +352,8 @@ app.get("/api/auth/:provider/callback", async (c) => {
 app.post("/api/auth/logout", async (c) => {
   const session = await readSession(c.env, c.req.raw);
   if (session) await revokeSessions(c.env, session.id);
-  c.header("Set-Cookie", clearSessionCookie());
+  c.header("Set-Cookie", clearSessionCookie(c.env));
+  c.header("Clear-Site-Data", CLEAR_CACHE);
   return c.json({ ok: true });
 });
 
@@ -444,7 +467,7 @@ app.get("/api/groups/:gid/snapshot", async (c) => {
   if (!head) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
   const etag = await snapshotEtag(c.env, head, "operator");
   const notModified = etagMatches(c.req.header("If-None-Match"), etag);
-  if (!notModified) await countSnapshot(c.env, c.req.raw, accountId);
+  if (!notModified) await countSnapshot(c.env, c.req.raw, accountId, head);
   c.header("ETag", etag);
   c.header("Cache-Control", REVALIDATE);
   if (notModified) return c.body(null, 304);
@@ -534,7 +557,11 @@ app.post("/api/groups/:gid/restore/preview", async (c) => {
 app.post("/api/groups/:gid/restore", async (c) => {
   const gid = c.req.param("gid");
   const accountId = await requireOwner(c.env, c.req.raw, gid);
-  return c.json(await applyRestore(c.env, gid, c.req.raw, { accountId, ip: clientIp(c.req.raw) }));
+  return c.json(
+    await applyRestore(c.env, gid, c.req.raw, { accountId, ip: clientIp(c.req.raw) }, (password) =>
+      confirmOwnerPassword(c.env, c.req.raw, password),
+    ),
+  );
 });
 
 // 다른 모임(또는 빈 환경)의 백업을 새 모임으로 가져온다.
@@ -549,7 +576,9 @@ app.post("/api/restore/new-group", async (c) => {
 app.post("/api/groups/:gid/delete", async (c) => {
   const gid = c.req.param("gid");
   await requireOwner(c.env, c.req.raw, gid);
-  return c.json(await deleteGroup(c.env, gid, await readJsonBody(c.req.raw)));
+  const { password, ...body } = await readJsonBody(c.req.raw);
+  await confirmOwnerPassword(c.env, c.req.raw, password);
+  return c.json(await deleteGroup(c.env, gid, body));
 });
 
 // 계정 삭제(탈퇴). 운영 중인 모임이 있으면 거절한다. 성공하면 세션 쿠키를 지운다.
@@ -564,7 +593,8 @@ app.post("/api/account/delete", async (c) => {
   }
   delete body.password;
   await deleteAccount(c.env, accountId, body);
-  c.header("Set-Cookie", clearSessionCookie());
+  c.header("Set-Cookie", clearSessionCookie(c.env));
+  c.header("Clear-Site-Data", CLEAR_CACHE);
   return c.json({ ok: true });
 });
 
@@ -674,6 +704,10 @@ app.post("/api/groups/:gid/imports/:bid", async (c) => {
 app.post("/api/groups/:gid/transfer", async (c) => {
   const gid = c.req.param("gid");
   await requireOwner(c.env, c.req.raw, gid);
+  // 본문: { password }(자체 계정만 필요). 본문 없이 보내던 예전 요청은 비밀번호 없는 계정에서 그대로 된다.
+  const body = await readOptionalJsonBody(c.req.raw);
+  assertOnlyKeys(body, ["password"]);
+  await confirmOwnerPassword(c.env, c.req.raw, body.password);
   return c.json(await createTransfer(c.env, gid));
 });
 
@@ -841,10 +875,11 @@ app.post("/api/claim/:token/accept", async (c) => {
 // 요청 수 제한(200만 셈). 본문이 계정마다 다르므로 Vary: Cookie를 붙인다(참가 신청 공개 조회와 같다).
 app.get("/api/member/:gid/snapshot", async (c) => {
   const ctx = await requireMember(c.env, c.req.raw, c.req.param("gid"));
-  const etag = await memberSnapshotEtag(c.env, ctx);
-  if (!etag) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  const found = await memberSnapshotEtag(c.env, ctx);
+  if (!found) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
+  const { etag, head } = found;
   const notModified = etagMatches(c.req.header("If-None-Match"), etag);
-  if (!notModified) await countSnapshot(c.env, c.req.raw, ctx.accountId);
+  if (!notModified) await countSnapshot(c.env, c.req.raw, ctx.accountId, head);
   c.header("ETag", etag);
   c.header("Cache-Control", REVALIDATE);
   c.header("Vary", "Cookie");
@@ -955,7 +990,10 @@ app.get("/api/view/:token", async (c) => {
   const notModified = etagMatches(c.req.header("If-None-Match"), etag);
   // 세기(429일 수 있음)를 ETag 헤더보다 먼저 한다: 429 응답에 ETag·private가 붙어 브라우저가 저장하면
   // 다음 304가 그 429 본문을 되살릴 수 있다.
-  if (!notModified) await count();
+  if (!notModified) {
+    await count();
+    await spendSnapshotRows(c.env, { ip: clientIp(c.req.raw), viewGroupId: head.id }, head.next_match_no - 1);
+  }
   c.header("ETag", etag);
   c.header("Cache-Control", REVALIDATE);
   if (notModified) return c.body(null, 304);

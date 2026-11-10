@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
 import { normalizePassword, passwordProblem } from "../src/shared/account";
 import { toBase64Url } from "../src/server/auth";
-import { FAILURE_LIMITS, FAILURE_TOTAL_LIMIT, hashPassword, INVALID_LOGIN_MESSAGE } from "../src/server/local";
+import {
+  FAILURE_DAILY_LIMIT,
+  FAILURE_LIMITS,
+  FAILURE_TOTAL_LIMIT,
+  FAILURE_TOTAL_LIMIT_THROTTLED,
+  hashPassword,
+  INVALID_LOGIN_MESSAGE,
+} from "../src/server/local";
 import { rateClock } from "../src/server/ratelimit";
 import { cookieFrom, direct } from "./direct";
 import { unique } from "./helpers";
@@ -99,9 +106,9 @@ describe("가입", () => {
       [`${base}한글`, PASSWORD, 400, "영문·숫자·밑줄"],
       [`${base}-a`, PASSWORD, 400, "영문·숫자·밑줄"],
       [`${base}sp ace`, PASSWORD, 400, "영문·숫자·밑줄"],
-      [newName(), "1234567", 400, "8자 이상"],
-      // 8자 경계. 12345678처럼 흔한 비밀번호는 길이와 상관없이 거절하므로(아래) 흔하지 않은 값으로 본다.
-      [newName(), "k7#mq2zx", 200],
+      [newName(), "123456789", 400, "10자 이상"],
+      // 10자 경계. 1234567890처럼 흔한 비밀번호는 길이와 상관없이 거절하므로(아래) 흔하지 않은 값으로 본다.
+      [newName(), "k7#mq2zxw9", 200],
       [newName(), "가나".repeat(64), 200],
       [newName(), "a".repeat(129), 400, "128자까지"],
     ];
@@ -147,26 +154,29 @@ describe("가입", () => {
 
 describe("짐작하기 쉬운 비밀번호(2026-11-10 보안 감사)", () => {
   it("공용 규칙: 흔한 비밀번호, 아이디가 들어간 비밀번호, 한 글자 반복을 거절한다", () => {
-    for (const weak of ["12345678", "password", "Password1", "QWER1234", "1q2w3e4r", "ｐａｓｓｗｏｒｄ"]) {
+    const fullwidth = [..."password12"].map((ch) => String.fromCharCode(ch.charCodeAt(0) + 0xfee0)).join("");
+    for (const weak of ["1234567890", "qwertyuiop", "Password12", "PASSWORD123", "1q2w3e4r5t", fullwidth]) {
       expect(passwordProblem(weak, "someone"), weak).toContain("너무 흔한 비밀번호");
     }
     expect(passwordProblem("walnut2026", "walnut")).toContain("아이디를 넣을 수 없어요");
     expect(passwordProblem("My-WALNUT!", "walnut")).toContain("아이디를 넣을 수 없어요");
-    expect(passwordProblem("walnut__", "walnut__")).toContain("아이디와 같은 비밀번호");
-    expect(passwordProblem("aaaaaaaa", "someone")).toContain("한 글자만 되풀이한");
-    expect(passwordProblem("가가가가가가가가", "someone")).toContain("한 글자만 되풀이한");
+    expect(passwordProblem("walnut____", "walnut____")).toContain("아이디와 같은 비밀번호");
+    expect(passwordProblem("aaaaaaaaaa", "someone")).toContain("한 글자만 되풀이한");
+    expect(passwordProblem("가가가가가가가가가가", "someone")).toContain("한 글자만 되풀이한");
     // 아이디를 모르는 화면(비밀번호 바꾸기)에서는 아이디 검사만 건너뛴다.
     expect(passwordProblem("walnut2026", "")).toBeNull();
-    expect(passwordProblem("aaaaaaab", "someone")).toBeNull();
+    expect(passwordProblem("aaaaaaaaab", "someone")).toBeNull();
+    // 최소 길이(10자)는 흔한 비밀번호 검사보다 먼저 본다.
+    expect(passwordProblem("k7#mq2zxw", "someone")).toContain("10자 이상");
     expect(passwordProblem(PASSWORD, "someone")).toBeNull();
   });
 
   it("가입에서 거절하고 이유를 알려준다", async () => {
     const name = newName();
     for (const [password, message] of [
-      ["qwer1234", "너무 흔한 비밀번호"],
+      ["qwertyuiop", "너무 흔한 비밀번호"],
       [`${name}!!`, "아이디를 넣을 수 없어요"],
-      ["11111111", "한 글자만 되풀이한"],
+      ["1111111111", "한 글자만 되풀이한"],
     ]) {
       const result = await signup(name, password);
       expect(result.status, password).toBe(400);
@@ -180,7 +190,7 @@ describe("짐작하기 쉬운 비밀번호(2026-11-10 보안 감사)", () => {
   it("비밀번호 바꾸기·복구 코드로 다시 정하기에서도 거절한다. 서버는 아이디를 알므로 아이디가 들어간 값도 막는다", async () => {
     const s = await signup();
     for (const [newPassword, message] of [
-      ["password1", "너무 흔한 비밀번호"],
+      ["password12", "너무 흔한 비밀번호"],
       [`x${s.username.toUpperCase()}`, "아이디를 넣을 수 없어요"],
       ["zzzzzzzzzz", "한 글자만 되풀이한"],
     ]) {
@@ -360,11 +370,50 @@ describe("페퍼·반복 횟수(2026-11-07)", () => {
     expect(await storedHash(legacyUser)).toMatch(/^pbkdf2p-sha256\$20000\$/);
   });
 
-  it("서버 비밀값(SESSION_SECRET)이 다르면 새 형식 비밀번호가 맞지 않는다(페퍼가 실제로 쓰인다)", async () => {
+  it("비밀번호 페퍼(PASSWORD_PEPPER)가 다르면 비밀번호가 맞지 않고, 세션 키(SESSION_SECRET)만 달라서는 그대로 맞는다", async () => {
     const s = await signup();
-    const other = { SESSION_SECRET: "another-secret-for-pepper-check-0123456789" } as Partial<Env>;
-    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD }, { overrides: other })).status).toBe(400);
+    const otherPepper = { PASSWORD_PEPPER: "another-pepper-for-pepper-check-0123456789" } as Partial<Env>;
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD }, { overrides: otherPepper })).status).toBe(400);
+    // 세션 키를 바꿔도(유출 뒤 교체) 비밀번호는 그대로다. 2026-11-10 전에는 세션 키가 페퍼여서 함께 무효가 됐다.
+    const otherSession = { SESSION_SECRET: "another-secret-for-session-check-0123456789" } as Partial<Env>;
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD }, { overrides: otherSession })).status).toBe(200);
     expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(200);
+  });
+
+  it("아이디별 하루 누적 실패가 200번에 닿으면 그날은 15분에 5번만 받는다. 로그인에 성공해도 누적은 남는다", async () => {
+    const dayStart = Math.floor(Date.now() / 86_400_000) * 86_400_000 + 3 * 86_400_000;
+    let now = dayStart + 1000;
+    rateClock.now = () => now;
+    const s = await signup();
+    const fail = () => call("POST", "/api/auth/login", { username: s.username, password: "nope nope" });
+    const dayRow = () =>
+      env.DB.prepare("SELECT key, count FROM auth_failures WHERE key >= 'day:login:' AND key < 'day:login;' AND window_start = ?1")
+        .bind(dayStart)
+        .all<{ key: string; count: number }>();
+    expect((await fail()).status).toBe(400);
+    const first = await dayRow();
+    expect(first.results.map((r) => r.count)).toEqual([1]);
+    // 200번을 실제로 틀리는 대신 누적 행을 한도 직전으로 올린다.
+    await env.DB.prepare("UPDATE auth_failures SET count = ?2 WHERE key = ?1 AND window_start = ?3")
+      .bind(first.results[0]!.key, FAILURE_DAILY_LIMIT - 1, dayStart)
+      .run();
+    // 199번째까지는 보통 한도(15분에 100번)다. 이번 실패로 200이 된다.
+    expect((await fail()).status).toBe(400);
+    // 다음 15분 창: 누적이 찼으므로 5번만 받고 6번째는 IP가 달라도, 맞는 비밀번호여도 거절한다.
+    now += 900_000;
+    for (let i = 0; i < FAILURE_TOTAL_LIMIT_THROTTLED; i++) expect((await fail()).status).toBe(400);
+    expect((await fail()).status).toBe(429);
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(429);
+    // 다음 창에서 주인이 로그인에 성공해도 하루 누적은 지워지지 않는다(추측하는 쪽의 한도가 되살아나지 않게).
+    now += 900_000;
+    expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(200);
+    expect((await dayRow()).results[0]!.count).toBeGreaterThanOrEqual(FAILURE_DAILY_LIMIT);
+    for (let i = 0; i < FAILURE_TOTAL_LIMIT_THROTTLED; i++) expect((await fail()).status).toBe(400);
+    expect((await fail()).status).toBe(429);
+    // 날이 바뀌면 보통 한도로 돌아가고, 지난 날의 누적 행은 다음 실패 때 지워진다.
+    now = dayStart + 86_400_000 + 1000;
+    for (let i = 0; i < FAILURE_TOTAL_LIMIT_THROTTLED + 1; i++) expect((await fail()).status).toBe(400);
+    expect((await dayRow()).results).toEqual([]);
   });
 
   it("[측정] 해시 한 번 계산 시간(20000회·100000회). 로컬 workerd 기준이며 운영 CPU 시간과 다를 수 있다", async () => {
@@ -429,7 +478,7 @@ describe("비밀번호 바꾸기·복구 코드", () => {
     expect(wrong.body.error.code).toBe("WRONG_PASSWORD");
     const weak = await call("POST", "/api/account/password", { currentPassword: PASSWORD, newPassword: "short" }, { cookie: s.cookie });
     expect(weak.status).toBe(400);
-    expect(weak.body.error.message).toContain("8자 이상");
+    expect(weak.body.error.message).toContain("10자 이상");
 
     const changed = await call("POST", "/api/account/password", { currentPassword: PASSWORD, newPassword: "brand new pw" }, { cookie: s.cookie });
     expect(changed.status).toBe(200);

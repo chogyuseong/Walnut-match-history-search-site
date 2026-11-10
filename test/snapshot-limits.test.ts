@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
-import { rateClock } from "../src/server/ratelimit";
+import { rateClock, SNAPSHOT_BUDGET_MESSAGE, snapshotCost } from "../src/server/ratelimit";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
-import { api, login, setupGroup, unique, type TestGroup } from "./helpers";
+import { api, login, playConfirmed, rosterOf, setupGroup, unique, type TestGroup } from "./helpers";
 
 // 2026-11-09 서버 후속(docs/개선-서버-2026-11-09.md): 운영자·멤버 스냅숏의 요청 수 제한(200만 셈, 304는 세지 않음)과
 // 멤버 스냅숏의 조건부 요청(ETag·304).
@@ -85,6 +85,109 @@ describe("스냅숏 요청 수 제한(200만 셈)", () => {
     expect(over.status).toBe(429);
     expect(over.headers.get("ETag")).toBeNull();
     expect((await get(etag)).status).toBe(304);
+  });
+});
+
+describe("스냅숏 하루 읽기 예산(2026-11-10 보안 감사)", () => {
+  const BIG = "1000000000";
+  /** 하루 창 한가운데로 시계를 고정한다. 다른 테스트의 오늘 예산과 섞이지 않게 며칠 뒤의 날을 쓴다. */
+  function fixDay(daysAhead: number): { nextDay: () => void } {
+    const dayStart = Math.floor(Date.now() / 86_400_000) * 86_400_000 + daysAhead * 86_400_000;
+    let now = dayStart + 12 * 3600_000;
+    rateClock.now = () => now;
+    return { nextDay: () => (now += 86_400_000) };
+  }
+
+  it("비용은 모임의 경기 수에 비례한다", () => {
+    expect(snapshotCost(0)).toBe(300);
+    expect(snapshotCost(522)).toBe(300 + 13 * 522);
+  });
+
+  it("운영자 스냅숏: 계정의 하루 예산을 넘는 200은 429(사유·다음 오전 9시 안내), 304는 예산을 쓰지 않고, 날이 바뀌면 다시 된다", async () => {
+    const g = await setupGroup(2);
+    const clock = fixDay(7);
+    // 경기 0개 모임의 비용은 300. 예산 700이면 두 번까지.
+    const limits: Partial<Env> = {
+      RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY: "700",
+      RATE_SNAPSHOT_ROWS_PER_IP_DAY: BIG,
+    };
+    const get = getter(limits, `/api/groups/${g.gid}/snapshot`, g.cookie);
+    const first = await get();
+    expect(first.status).toBe(200);
+    const etag = first.headers.get("ETag")!;
+    for (let i = 0; i < 5; i++) expect((await get(etag)).status).toBe(304);
+    expect((await get()).status).toBe(200);
+    const over = await get();
+    expect(over.status).toBe(429);
+    const error = ((await over.json()) as { error: { code: string; message: string } }).error;
+    expect(error.code).toBe("RATE_LIMITED");
+    expect(error.message).toContain(SNAPSHOT_BUDGET_MESSAGE);
+    expect(error.message).toContain("오전 9시(한국 시각)");
+    expect(Number(over.headers.get("Retry-After"))).toBeGreaterThan(3600);
+    expect(over.headers.get("ETag")).toBeNull();
+    // 걸린 뒤에도 바뀐 것이 없으면 304로 계속 본다. 거절된 요청은 예산을 깎지 않는다(IP를 바꿔도 계정 예산은 그대로).
+    expect((await get(etag)).status).toBe(304);
+    expect((await getter(limits, `/api/groups/${g.gid}/snapshot`, g.cookie)()).status).toBe(429);
+    clock.nextDay();
+    expect((await get()).status).toBe(200);
+  });
+
+  it("경기가 있는 모임은 더 많이 쓴다", async () => {
+    const g = await setupGroup(10);
+    await playConfirmed(g, rosterOf(g.people));
+    fixDay(8);
+    // 경기 1개: 313. 예산 320이면 한 번만.
+    const limits: Partial<Env> = { RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY: "320", RATE_SNAPSHOT_ROWS_PER_IP_DAY: BIG };
+    const get = getter(limits, `/api/groups/${g.gid}/snapshot`, g.cookie);
+    expect((await get()).status).toBe(200);
+    expect((await get()).status).toBe(429);
+  });
+
+  it("조회 링크: 모임(링크)별 예산은 IP가 달라도, 링크를 다시 만들어도 합쳐 센다. IP별 예산은 모임이 달라도 합쳐 센다", async () => {
+    const a = await setupGroup(2);
+    const b = await setupGroup(2);
+    const tokenOf = async (g: TestGroup) =>
+      (await api<Snapshot>(g.cookie, "GET", `/api/groups/${g.gid}/snapshot`)).body.group.viewToken!;
+    const tokenA = await tokenOf(a);
+    const tokenB = await tokenOf(b);
+    fixDay(9);
+    const view = (limits: Partial<Env>, token: string, ip = unique("ip"), etag?: string) =>
+      direct(limits, "GET", `/api/view/${token}`, {
+        headers: { "CF-Connecting-IP": ip, ...(etag ? { "If-None-Match": etag } : {}) },
+      });
+
+    const perToken: Partial<Env> = { RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY: "700", RATE_SNAPSHOT_ROWS_PER_IP_DAY: BIG };
+    const first = await view(perToken, tokenA);
+    expect(first.status).toBe(200);
+    expect((await view(perToken, tokenA, unique("ip"), first.headers.get("ETag")!)).status).toBe(304);
+    expect((await view(perToken, tokenA)).status).toBe(200);
+    const over = await view(perToken, tokenA);
+    expect(over.status).toBe(429);
+    expect(((await over.json()) as { error: { message: string } }).error.message).toContain(SNAPSHOT_BUDGET_MESSAGE);
+    // 링크를 다시 만들어도 그 모임의 오늘 예산은 그대로다. 다른 모임의 링크는 영향이 없다.
+    const renewed = (await api(a.cookie, "POST", `/api/groups/${a.gid}/view-token`)).body.viewToken as string;
+    expect((await view(perToken, renewed)).status).toBe(429);
+    expect((await view(perToken, tokenB)).status).toBe(200);
+
+    // IP별: 같은 IP에서 두 모임을 번갈아 받아도 합쳐 센다.
+    const perIp: Partial<Env> = { RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY: BIG, RATE_SNAPSHOT_ROWS_PER_IP_DAY: "700" };
+    const ip = unique("ip");
+    expect((await view(perIp, renewed, ip)).status).toBe(200);
+    expect((await view(perIp, tokenB, ip)).status).toBe(200);
+    expect((await view(perIp, tokenB, ip)).status).toBe(429);
+    expect((await view(perIp, tokenB)).status).toBe(200);
+  });
+
+  it("멤버 스냅숏도 계정 예산을 쓴다", async () => {
+    const g = await setupGroup(2);
+    const member = await link(g, g.people[0]!.id);
+    fixDay(10);
+    const limits: Partial<Env> = { RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY: "500", RATE_SNAPSHOT_ROWS_PER_IP_DAY: BIG };
+    const get = getter(limits, `/api/member/${g.gid}/snapshot`, member);
+    expect((await get()).status).toBe(200);
+    const over = await get();
+    expect(over.status).toBe(429);
+    expect(over.headers.get("ETag")).toBeNull();
   });
 });
 

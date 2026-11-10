@@ -53,6 +53,8 @@ export function RestoreSection() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState("");
+  // 아이디로 가입한 계정은 이 모임을 되돌릴 때 비밀번호를 한 번 더 확인한다(서버가 확인한다). 새 모임으로 가져오기는 묻지 않는다.
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [step, setStep] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export function RestoreSection() {
     setPreview(null);
     setReadError(null);
     setConfirm("");
+    setPassword("");
     setError(null);
     setStep(null);
     requestId.current = newRequestId();
@@ -93,6 +96,8 @@ export function RestoreSection() {
     }
   }
 
+  const needsPassword = app.me?.loginMethod === "local" && preview?.sameGroup === true;
+
   async function runRestore() {
     if (!preview) return;
     setBusy(true);
@@ -112,6 +117,7 @@ export function RestoreSection() {
           confirm,
           baseGeneration: preview.generation,
           backup,
+          ...(needsPassword ? { password } : {}),
         });
         await app.refreshAfterOwnChange();
         app.setNotice(`복원했어요. 경기 ${result.matches}개, 참가자 ${result.participants}명입니다.`);
@@ -142,7 +148,8 @@ export function RestoreSection() {
   }
 
   const file = preview?.file;
-  const ready = preview?.ok === true && confirm.trim() === preview.confirmText;
+  const ready =
+    preview?.ok === true && confirm.trim() === preview.confirmText && (!needsPassword || password !== "");
 
   return (
     <section aria-label="백업에서 복원" className="restore">
@@ -246,6 +253,18 @@ export function RestoreSection() {
               maxLength={10}
             />
           </label>
+          {needsPassword && (
+            <label>
+              지금 비밀번호
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                maxLength={128}
+              />
+            </label>
+          )}
           {step && (
             <p className="hint" role="status">
               {step}…

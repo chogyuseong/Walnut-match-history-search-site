@@ -9,6 +9,8 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
   Strict-Transport-Security: max-age=31536000
 
 # 빌드 결과의 /assets/ 아래 파일은 이름에 내용 해시가 붙는다(vite 기본 assets/[name]-[hash].*). 내용이 바뀌면 이름도 바뀌므로

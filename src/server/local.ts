@@ -47,6 +47,15 @@ export const FAILURE_WINDOW_MS = 15 * 60_000;
 export const FAILURE_LIMITS = { login: 10, recover: 5, password: 10 } as const;
 /** 로그인·복구의 아이디 전체(모든 IP 합계) 실패 한도(15분 창). (아이디, IP)별 한도는 FAILURE_LIMITS. */
 export const FAILURE_TOTAL_LIMIT = 100;
+/**
+ * 아이디별 하루(UTC) 누적 실패 한도(2026-11-10 보안 감사). 15분에 100번이면 하루 9,600번을 추측할 수 있었다.
+ * 로그인·복구 각각 하루 실패가 이 값에 닿으면 그날은 15분 창의 한도가 FAILURE_TOTAL_LIMIT_THROTTLED로 줄어든다
+ * (하루 최대 약 200 + 96 × 5 = 680번). 로그인에 성공해도 하루 누적은 지우지 않는다: 주인이 로그인할 때마다
+ * 추측하는 쪽의 한도가 되살아나면 안 된다. 대가: 누적이 찬 날은 주인도 창당 5번 실패 뒤에는 기다려야 한다.
+ */
+export const FAILURE_DAILY_LIMIT = 200;
+export const FAILURE_TOTAL_LIMIT_THROTTLED = 5;
+const DAY_MS = 86_400_000;
 type FailureKind = keyof typeof FAILURE_LIMITS;
 
 export const INVALID_LOGIN_MESSAGE = "아이디 또는 비밀번호가 맞지 않아요.";
@@ -76,14 +85,15 @@ const SCHEME_PLAIN = "pbkdf2-sha256";
 const SCHEME_PEPPERED = "pbkdf2p-sha256";
 
 /**
- * 페퍼: PBKDF2에 넣기 전에 SESSION_SECRET(접두어 "password-pepper:"로 다른 용도와 구분)으로 HMAC-SHA-256을 씌운다.
+ * 페퍼: PBKDF2에 넣기 전에 PASSWORD_PEPPER(접두어 "password-pepper:"로 아이디 해시와 구분)로 HMAC-SHA-256을 씌운다.
  * DB만 새어 나가면(서버 비밀값은 그대로) 반복 횟수를 낮춘 운영(20,000회)에서도 비밀번호를 오프라인으로 추측할 수 없다.
- * 주의: SESSION_SECRET을 바꾸면 이 형식의 비밀번호는 모두 맞지 않게 된다(복구 코드로만 다시 정할 수 있다. docs/배포안내.md).
+ * 세션 서명 키(SESSION_SECRET)와 다른 비밀값이다(2026-11-10): 세션 키는 비밀번호에 영향 없이 바꿀 수 있다.
+ * 주의: PASSWORD_PEPPER를 바꾸면 이 형식의 비밀번호는 모두 맞지 않게 된다(복구 코드로만 다시 정할 수 있다. docs/배포안내.md).
  */
 async function pepper(env: Env, password: string): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(`password-pepper:${env.SESSION_SECRET}`),
+    new TextEncoder().encode(`password-pepper:${env.PASSWORD_PEPPER}`),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -192,11 +202,11 @@ async function recoveryMatches(input: string, stored: string): Promise<boolean> 
 
 /* ------------------------------ 실패 횟수 ------------------------------ */
 
-/** 아이디는 원문 대신 서명 키로 만든 HMAC 앞 16자로 센다(요청 수 제한의 IP와 같은 방식). */
+/** 아이디는 원문 대신 비밀값(PASSWORD_PEPPER)으로 만든 HMAC 앞 16자로 센다(요청 수 제한의 IP와 같은 방식). */
 async function nameKey(env: Env, username: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(`auth-failures:${env.SESSION_SECRET}`),
+    new TextEncoder().encode(`auth-failures:${env.PASSWORD_PEPPER}`),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -213,7 +223,7 @@ async function nameKey(env: Env, username: string): Promise<string> {
  */
 export async function failureKeysFor(env: Env, username: string, accountId: string): Promise<string[]> {
   const hashed = await nameKey(env, username);
-  return [`login:${hashed}`, `recover:${hashed}`, `password:${accountId}`];
+  return [`login:${hashed}`, `recover:${hashed}`, `password:${accountId}`, `day:login:${hashed}`, `day:recover:${hashed}`];
 }
 
 /** 키 자체와 "키:…"를 고르는 SQL 조건(?1 = 키). 범위 비교라 LIKE 와일드카드 걱정이 없다(';'는 ':' 다음 글자). */
@@ -231,19 +241,26 @@ async function failureKeys(
   kind: FailureKind,
   subject: string,
   ip: string,
-): Promise<{ key: string; limit: number }[]> {
-  if (kind === "password") return [{ key: `password:${subject}`, limit: FAILURE_LIMITS.password }];
+): Promise<{ windowed: { key: string; limit: number }[]; daily: string | null }> {
+  if (kind === "password") return { windowed: [{ key: `password:${subject}`, limit: FAILURE_LIMITS.password }], daily: null };
   const total = `${kind}:${await nameKey(env, subject)}`;
-  return [
-    { key: `${total}:${await ipKey(env, ip)}`, limit: FAILURE_LIMITS[kind] },
-    { key: total, limit: FAILURE_TOTAL_LIMIT },
-  ];
+  return {
+    windowed: [
+      { key: `${total}:${await ipKey(env, ip)}`, limit: FAILURE_LIMITS[kind] },
+      { key: total, limit: FAILURE_TOTAL_LIMIT },
+    ],
+    daily: `day:${total}`,
+  };
 }
 
-function failureWindow(): { start: number; retryAfter: number } {
+function failureWindow(): { start: number; retryAfter: number; dayStart: number } {
   const now = rateClock.now();
   const start = Math.floor(now / FAILURE_WINDOW_MS) * FAILURE_WINDOW_MS;
-  return { start, retryAfter: Math.max(1, Math.ceil((start + FAILURE_WINDOW_MS - now) / 1000)) };
+  return {
+    start,
+    retryAfter: Math.max(1, Math.ceil((start + FAILURE_WINDOW_MS - now) / 1000)),
+    dayStart: Math.floor(now / DAY_MS) * DAY_MS,
+  };
 }
 
 function tooManyFailures(retryAfter: number): ApiError {
@@ -258,28 +275,37 @@ function tooManyFailures(retryAfter: number): ApiError {
 
 /** 이 창에서 실패가 한도에 닿았으면(키 하나라도) 계산하기 전에 거절한다. */
 async function assertNotLocked(env: Env, kind: FailureKind, subject: string, ip: string): Promise<void> {
-  const keys = await failureKeys(env, kind, subject, ip);
-  const { start, retryAfter } = failureWindow();
+  const { windowed, daily } = await failureKeys(env, kind, subject, ip);
+  const { start, retryAfter, dayStart } = failureWindow();
   const rows = await env.DB.prepare(
-    "SELECT key, count FROM auth_failures WHERE key IN (SELECT value FROM json_each(?1)) AND window_start = ?2",
+    `SELECT key, count FROM auth_failures
+     WHERE (key IN (SELECT value FROM json_each(?1)) AND window_start = ?2) OR (key = ?3 AND window_start = ?4)`,
   )
-    .bind(JSON.stringify(keys.map((k) => k.key)), start)
+    .bind(JSON.stringify(windowed.map((k) => k.key)), start, daily ?? "", dayStart)
     .all<{ key: string; count: number }>();
-  const locked = keys.some(({ key, limit }) => (rows.results.find((r) => r.key === key)?.count ?? 0) >= limit);
+  const countOf = (key: string) => rows.results.find((r) => r.key === key)?.count ?? 0;
+  // 오늘 이 아이디의 실패가 이미 많으면 아이디 전체 한도(창당)를 좁힌다. (아이디, IP)별 한도는 원래 더 작거나 같다.
+  const throttled = daily !== null && countOf(daily) >= FAILURE_DAILY_LIMIT;
+  const locked = windowed.some(
+    ({ key, limit }) => countOf(key) >= (throttled ? Math.min(limit, FAILURE_TOTAL_LIMIT_THROTTLED) : limit),
+  );
   if (locked) throw tooManyFailures(retryAfter);
 }
 
 async function recordFailure(env: Env, kind: FailureKind, subject: string, ip: string): Promise<void> {
-  const keys = await failureKeys(env, kind, subject, ip);
-  const { start } = failureWindow();
+  const { windowed, daily } = await failureKeys(env, kind, subject, ip);
+  const { start, dayStart } = failureWindow();
+  const add = (key: string, windowStart: number) =>
+    env.DB.prepare(
+      `INSERT INTO auth_failures (key, window_start, count) VALUES (?1, ?2, 1)
+       ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1`,
+    ).bind(key, windowStart);
   await env.DB.batch([
-    ...keys.map(({ key }) =>
-      env.DB.prepare(
-        `INSERT INTO auth_failures (key, window_start, count) VALUES (?1, ?2, 1)
-         ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1`,
-      ).bind(key, start),
-    ),
-    env.DB.prepare("DELETE FROM auth_failures WHERE window_start < ?1").bind(start),
+    ...windowed.map(({ key }) => add(key, start)),
+    ...(daily ? [add(daily, dayStart)] : []),
+    // 지난 창 정리. 하루 누적 행("day:…")은 15분 창 정리에서 빼고 날이 바뀌면 지운다(';'는 ':' 다음 글자).
+    env.DB.prepare("DELETE FROM auth_failures WHERE window_start < ?1 AND NOT (key >= 'day:' AND key < 'day;')").bind(start),
+    env.DB.prepare("DELETE FROM auth_failures WHERE window_start < ?1 AND key >= 'day:' AND key < 'day;'").bind(dayStart),
   ]);
 }
 

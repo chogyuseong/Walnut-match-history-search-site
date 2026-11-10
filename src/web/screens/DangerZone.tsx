@@ -31,7 +31,8 @@ export function DangerZone() {
   const isOwner = snapshot !== null && groups.some((g) => g.id === snapshot.group.id);
   const [groupConfirm, setGroupConfirm] = useState("");
   const [accountConfirm, setAccountConfirm] = useState("");
-  // 아이디로 가입한 계정은 탈퇴할 때 비밀번호를 한 번 더 확인한다.
+  // 아이디로 가입한 계정은 모임을 지울 때와 탈퇴할 때 비밀번호를 한 번 더 확인한다(서버가 확인한다).
+  const [groupPassword, setGroupPassword] = useState("");
   const [accountPassword, setAccountPassword] = useState("");
   const isLocal = app.me?.loginMethod === "local";
   const [busy, setBusy] = useState(false);
@@ -69,7 +70,11 @@ export function DangerZone() {
       // 2) 삭제. 응답을 못 받았으면 같은 요청을 다시 보내도 된다(이미 지워졌으면 "찾을 수 없음").
       setStep("모임을 지우는 중");
       try {
-        await call("POST", `/api/groups/${gid}/delete`, { confirm: groupConfirm.trim() });
+        await call(
+          "POST",
+          `/api/groups/${gid}/delete`,
+          isLocal ? { confirm: groupConfirm.trim(), password: groupPassword } : { confirm: groupConfirm.trim() },
+        );
       } catch (e) {
         if (!(e instanceof ApiFailure && e.status === 404 && backedUp.current)) throw e;
       }
@@ -107,7 +112,7 @@ export function DangerZone() {
     }
   }
 
-  const groupReady = groupConfirm.trim() === GROUP_CONFIRM;
+  const groupReady = groupConfirm.trim() === GROUP_CONFIRM && (!isLocal || groupPassword !== "");
   const accountReady =
     accountConfirm.trim() === ACCOUNT_CONFIRM && groups.length === 0 && (!isLocal || accountPassword !== "");
 
@@ -147,6 +152,18 @@ export function DangerZone() {
               maxLength={10}
             />
           </label>
+          {isLocal && (
+            <label>
+              지금 비밀번호
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={groupPassword}
+                onChange={(e) => setGroupPassword(e.target.value)}
+                maxLength={128}
+              />
+            </label>
+          )}
           {step && (
             <p className="hint" role="status">
               {step}…

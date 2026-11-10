@@ -251,6 +251,7 @@ export async function deleteAccount(env: Env, accountId: string, body: Body): Pr
       ).bind(accountId),
       env.DB.prepare("DELETE FROM rate_limits WHERE key = ?1").bind(`write-account:${accountId}`),
       env.DB.prepare("DELETE FROM rate_limits WHERE key = ?1").bind(`bulk-rows-account:${accountId}`),
+      env.DB.prepare("DELETE FROM rate_limits WHERE key = ?1").bind(`day-snapshot-rows-account:${accountId}`),
       // 아이디 전체 키와 (아이디, IP)별 키("키:IP")를 함께 지운다.
       ...failureKeys.map((key) => env.DB.prepare(`DELETE FROM auth_failures WHERE ${FAILURE_KEY_MATCH}`).bind(key)),
       env.DB.prepare("DELETE FROM local_credentials WHERE account_id = ?1").bind(accountId),

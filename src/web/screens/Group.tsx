@@ -41,6 +41,9 @@ export function Group() {
   const [seasonForm, setSeasonForm] = useState({ name: "", startsOn: "", endsOn: "" });
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferLink, setTransferLink] = useState<string | null>(null);
+  // 아이디로 가입한 계정은 인수 링크를 만들 때 비밀번호를 한 번 더 확인한다(서버가 확인한다).
+  const [transferPassword, setTransferPassword] = useState("");
+  const transferNeedsPassword = app.me?.loginMethod === "local";
   // 묶음 복구에서 이미 기록에 있는 경기와 겹친 경우: 겹치지 않는 경기만 복구할지 고르게 한다.
   const [restoreOverlap, setRestoreOverlap] = useState<{ batchId: string; overlapping: number; restorable: number } | null>(
     null,
@@ -854,6 +857,7 @@ export function Group() {
           onClose={() => {
             setTransferOpen(false);
             setTransferLink(null);
+            setTransferPassword("");
           }}
         >
           {transferLink === null ? (
@@ -862,12 +866,24 @@ export function Group() {
                 인수 링크는 한 번만 쓸 수 있고 24시간 뒤 만료됩니다. 링크를 받은 사람이 수락하는
                 순간 이 계정은 이 모임을 수정할 수 없게 됩니다.
               </p>
+              {transferNeedsPassword && (
+                <label>
+                  지금 비밀번호
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={transferPassword}
+                    onChange={(e) => setTransferPassword(e.target.value)}
+                    maxLength={128}
+                  />
+                </label>
+              )}
               <ErrorNote error={error} />
               <div className="button-row">
                 <button
                   type="button"
                   className="danger"
-                  disabled={busy}
+                  disabled={busy || (transferNeedsPassword && transferPassword === "")}
                   onClick={async () => {
                     setBusy(true);
                     setError(null);
@@ -875,7 +891,9 @@ export function Group() {
                       const created = await call<{ token: string }>(
                         "POST",
                         `/api/groups/${gid}/transfer`,
+                        transferNeedsPassword ? { password: transferPassword } : undefined,
                       );
+                      setTransferPassword("");
                       setTransferLink(`${location.origin}/#/transfer/${created.token}`);
                     } catch (e) {
                       setError(e);

@@ -9,13 +9,13 @@
  */
 export const PRIVACY = {
   /** 서비스 운영자(개인정보 처리자) 이름 또는 상호. */
-  operatorName: "[채워야 함]",
+  operatorName: "조규성",
   /** 문의·삭제 요청을 받을 연락처(이메일 등). */
-  contact: "[채워야 함]",
+  contact: "rbtjd6895@gmail.com · 010-6437-6895",
   /** 개인정보 보호책임자. 개인 운영이면 운영자 본인. */
-  privacyOfficer: "[채워야 함]",
+  privacyOfficer: "조규성",
   /** 시행일(YYYY-MM-DD). */
-  effectiveDate: "[채워야 함]",
+  effectiveDate: "2026-11-10",
 };
 
 export const PRIVACY_IS_DRAFT = Object.values(PRIVACY).some((v) => v.includes("[채워야 함]"));

@@ -132,6 +132,9 @@ export function securityHeaders(deployEnv: string | undefined): Record<string, s
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": PERMISSIONS_POLICY,
     "X-Frame-Options": "DENY",
+    // 다른 출처의 창이 이 화면의 window를 쥐지 못하게, 다른 출처의 페이지가 이 사이트의 응답을 자원으로 불러 쓰지 못하게 한다.
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
   };
   if (deployEnv === "production") headers["Strict-Transport-Security"] = "max-age=31536000";
   return headers;
@@ -143,10 +146,15 @@ export function securityHeaders(deployEnv: string | undefined): Record<string, s
  *   브라우저는 다른 사이트에서 보내는 POST·PUT·PATCH·DELETE에 항상 Origin을 붙인다.
  * - 있으면 서비스 주소와 같아야 한다: PUBLIC_ORIGIN이 있으면 그 값, 없으면(로컬 개발) 요청 자신의 주소.
  *   "null"(샌드박스·개인정보 리디렉션)도 거절한다.
+ * - Sec-Fetch-Site가 "cross-site"여도 거절한다(세 번째 방어, 2026-11-10). 브라우저가 붙이고 페이지 스크립트는 바꿀 수 없는
+ *   값이다. 없으면(오래된 브라우저·서버 간 호출) 통과한다. "same-site"는 Origin 확인에 맡긴다.
  */
 export function assertSameOrigin(req: Request, publicOrigin: string | undefined): void {
   const method = req.method.toUpperCase();
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return;
+  if (req.headers.get("Sec-Fetch-Site")?.trim().toLowerCase() === "cross-site") {
+    throw new ApiError(403, "BAD_ORIGIN", "다른 사이트에서 보낸 요청은 받지 않습니다.");
+  }
   const origin = req.headers.get("Origin");
   if (origin === null) return;
   const expected = publicOrigin?.replace(/\/+$/, "") || new URL(req.url).origin;

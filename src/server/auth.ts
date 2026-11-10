@@ -1,8 +1,16 @@
 import type { Env } from "./env";
 import { ApiError } from "./http";
 
-const COOKIE_NAME = "sid";
 const DEFAULT_SESSION_HOURS = 720;
+
+/**
+ * 세션 쿠키 이름. "__Host-" 접두어가 붙은 쿠키는 브라우저가 Secure·Path=/·Domain 없음일 때만 받는다. 그래서 같은
+ * 계정의 다른 workers.dev Worker(staging 등, 브라우저가 같은 사이트로 본다)가 Domain= 쿠키로 덮어 심지 못한다.
+ * 로컬(DEPLOY_ENV=local)만 예전 이름을 쓴다: 로컬 개발 서버는 http라 브라우저가 "__Host-" 쿠키를 받지 않는다.
+ */
+export function sessionCookieName(env: Env): string {
+  return env.DEPLOY_ENV === "local" ? "sid" : "__Host-sid";
+}
 
 export function toBase64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -90,11 +98,11 @@ export async function createSessionValue(
 
 export function sessionCookie(env: Env, value: string): string {
   const maxAge = Math.floor(sessionTtlMs(env) / 1000);
-  return `${COOKIE_NAME}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+  return `${sessionCookieName(env)}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
-export function clearSessionCookie(): string {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+export function clearSessionCookie(env: Env): string {
+  return `${sessionCookieName(env)}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
 /**
@@ -135,7 +143,7 @@ export function fakeLoginEnabled(env: Env, req?: Request): boolean {
 const sessionCache = new WeakMap<Request, Promise<SessionAccount | null>>();
 
 async function loadSession(env: Env, req: Request): Promise<SessionAccount | null> {
-  const value = readCookie(req, COOKIE_NAME);
+  const value = readCookie(req, sessionCookieName(env));
   if (!value) return null;
   const payload = await verifyValue(env, value);
   if (!payload) return null;
@@ -304,6 +312,9 @@ export function productionConfigProblem(env: Env): string | null {
   if (env.DEPLOY_ENV === "local") return null;
   if (env.AUTH_MODE === "fake") return "운영 환경에서 AUTH_MODE=fake";
   if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) return "SESSION_SECRET 없음 또는 32자 미만";
+  if (!env.PASSWORD_PEPPER || env.PASSWORD_PEPPER.length < 32) return "PASSWORD_PEPPER 없음 또는 32자 미만";
+  // 같은 값이면 나눈 뜻이 없다(세션 키를 바꿀 때 비밀번호도 함께 무효가 된다).
+  if (env.PASSWORD_PEPPER === env.SESSION_SECRET) return "PASSWORD_PEPPER가 SESSION_SECRET과 같음";
   if (
     !env.PUBLIC_ORIGIN ||
     !env.PUBLIC_ORIGIN.startsWith("https://") ||

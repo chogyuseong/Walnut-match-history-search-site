@@ -45,7 +45,7 @@
 | 서버 | Cloudflare Workers + [Hono](https://hono.dev) 4, D1(SQLite), R2(자동 백업), Cron Trigger | 무료 요금제 기준으로 설계(요청당 CPU 10ms, D1 하루 쓰기 10만 행) |
 | 화면 | React 19 + Vite 8, TypeScript 7 | UI 라이브러리 없음. 디자인 토큰(CSS 변수) + 직접 만든 부품, 테마 3종(다크·바이올렛·라이트) |
 | 공용 로직 | `src/shared` 순수 함수 | 서버와 화면이 같은 계산(통계·편성·칭호·MMR)을 씀 |
-| 테스트 | Vitest 5(단위·통합, Workers 런타임), Playwright(브라우저 흐름) | 2026-11-10 기준 vitest 1,079개, e2e 124개 |
+| 테스트 | Vitest 5(단위·통합, Workers 런타임), Playwright(브라우저 흐름) | 2026-11-10 기준 vitest 1,099개, e2e 125개 |
 | 검사 | ESLint(typescript-eslint + react-hooks), `check:bundle`(JS 크기 상한) | GitHub Actions `.github/workflows/ci.yml` |
 | 배포 | wrangler 4, 환경 `staging` / `production` | 운영 배포는 아직 없음 |
 
@@ -64,7 +64,7 @@ npm run dev          # 화면 빌드 → 로컬 D1 마이그레이션 → http:/
 npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 120개 넣기
 ```
 
-- `.dev.vars`의 `SESSION_SECRET`은 로컬 전용 값입니다(32자 이상, git 제외). 로컬 로그인은 개발용 가짜 로그인이라(`AUTH_MODE=fake`) 아무 이름으로 들어갈 수 있고, `e2e-site-admin`은 사이트 운영자(#/admin)입니다.
+- `.dev.vars`의 `SESSION_SECRET`은 로컬 전용 값입니다(32자 이상, git 제외). 비밀번호 페퍼(`PASSWORD_PEPPER`)는 `wrangler.jsonc` 맨 위 vars에 로컬 전용 값이 들어 있어 따로 넣지 않습니다(운영·staging은 `wrangler secret`으로 넣습니다. `docs/배포안내.md` 6절). 로컬 로그인은 개발용 가짜 로그인이라(`AUTH_MODE=fake`) 아무 이름으로 들어갈 수 있고, `e2e-site-admin`은 사이트 운영자(#/admin)입니다.
 - 로컬 DB(`.wrangler/`)·빌드 결과(`dist/`)·비밀값은 git에 올라가지 않습니다. 새 PC에서는 데이터가 비어 있으니 `npm run seed`나 "백업에서 복원"을 씁니다.
 - 화면 코드를 고친 뒤에는 `npm run build`를 다시 해야 `wrangler dev`가 새 화면을 줍니다(`npm run dev`가 둘을 함께 합니다).
 

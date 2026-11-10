@@ -328,6 +328,10 @@ function LegalFooter(props: { privacyHref?: string }) {
           도형입니다.
         </p>
       )}
+      <p>
+        무료 요금제로 운영하는 사이트라 하루 이용량이 한도를 넘으면 그날 한국 시각 오전 9시까지 멈출 수
+        있습니다. 그때는 잠시 뒤 다시 열어 주세요.
+      </p>
       <p className="legal-links">
         <a href={props.privacyHref ?? "#/privacy"}>개인정보 처리방침</a>
       </p>
