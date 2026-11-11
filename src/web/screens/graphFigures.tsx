@@ -318,7 +318,8 @@ export function LineShapeChart(props: { entries: ShapeEntry[]; mode: "rate" | "g
             // 값이 0~1 밖이면 잘라 그린다.
             const corners = e.axes.map((axis, i) => ({ axis, at: polar(i, RADAR_R * Math.max(0, Math.min(1, axis.value))) }));
             return (
-              <g key={e.key} className={`radar-shape cat-${e.slot}`}>
+              // 한 사람(또는 모임 전체)만 그릴 때는 범주가 하나라 범주색 대신 중립색(solo)이다. 범주색은 둘을 견줄 때만(CLAUDE.md 5절).
+              <g key={e.key} className={entries.length > 1 ? `radar-shape cat-${e.slot}` : "radar-shape solo"}>
                 <polygon className="radar-area" points={corners.map((c) => c.at.map((v) => v.toFixed(1)).join(",")).join(" ")} />
                 {corners.map(({ axis, at: [px, py] }, i) => {
                   const faded = axis.weak && mode === "rate";

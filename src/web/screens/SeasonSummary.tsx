@@ -179,7 +179,7 @@ export function SeasonSummaryScreen(props: {
         </div>
       </div>
 
-      <section aria-label="요약">
+      <section className="graph-summary" aria-label="요약">
         <h2>요약</h2>
         {summary.games === 0 ? (
           <p className="hint">이 범위에는 확정된 경기가 없어요.</p>

@@ -5787,7 +5787,7 @@ label:has(> select) {
   margin: 0;
   max-width: none;
 }
-/* 분석 요약 타일 4칸은 숫자 크기를 같게(1.5rem/600). 진영 칸도 다른 칸과 같은 크기. */
+/* 요약 칸(그래프 분석·시즌 요약 셋)은 숫자 크기를 같게(1.5rem/600). 진영 칸도 다른 칸과 같은 크기. */
 .graph-summary .season-tiles dd.season-sides {
   font-size: var(--text-screen);
   font-weight: 600;
@@ -6127,6 +6127,9 @@ label:has(> select) {
   stroke: var(--cat);
   stroke-width: 2;
   stroke-linejoin: round;
+}
+.radar-shape.solo {
+  --cat: var(--ih-text);
 }
 /* 두 번째 사람은 점선(색만으로 구분하지 않게). */
 .radar-shape.cat-2 .radar-area {
