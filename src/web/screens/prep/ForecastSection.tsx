@@ -17,7 +17,7 @@ import { shownRating } from "../../../shared/rating";
 import { ratePercent } from "../../../shared/stats";
 import type { Team } from "../../../shared/types";
 import { POSITION_LABEL } from "../../format";
-import { Help, PosLabel } from "../../screenKit";
+import { Help, InfoTip, PosLabel } from "../../screenKit";
 import { prepTeamName } from "./common";
 
 /** 팀 상자(.team.side-blue/red)와 같은 색을 쓰도록 styles.css .fc-tone-A/B가 변수를 잡는다. */
@@ -49,7 +49,13 @@ export function ForecastSection(props: {
 
   return (
     <section className="prep-tools forecast" aria-label="예상 승률">
-      <h2>예상 승률</h2>
+      <h2>
+        예상 승률{" "}
+        <InfoTip label="예상 승률">
+          지난 경기 기록으로 계산한 라인별 MMR로 낸 추정이에요. 팀을 나눌 때는 쓰지 않고(팀은 티어로 나눠요), 짠 팀이
+          얼마나 비슷한지 확인할 때 봐요.
+        </InfoTip>
+      </h2>
       <p className={`forecast-summary${fav ? ` ${TONE[fav]}` : ""}`}>
         <strong>{forecastSummaryText(forecast, names)}</strong>
       </p>

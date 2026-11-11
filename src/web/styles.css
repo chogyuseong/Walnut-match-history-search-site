@@ -434,6 +434,48 @@ legend {
   line-height: 1.45;
   max-width: 68ch;
 }
+/* 제목·꼬리표 옆 i 버튼(screenKit InfoTip). 버튼은 터치 기준 44px이고 보이는 원(.info-tip-dot)만 작게 그린다.
+   음수 여백으로 44px 칸이 제목 줄 높이를 늘리지 않게 한다. */
+.info-tip {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: -12px -10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.info-tip-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--ih-border-strong);
+  border-radius: 50%;
+  color: var(--ih-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+}
+.info-tip[aria-expanded="true"] .info-tip-dot {
+  border-color: var(--ih-brand-primary);
+  color: var(--ih-brand-primary);
+}
+.info-tip-body {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.45;
+  max-width: 68ch;
+}
 /* 버튼 줄 위의 짧은 꼬리표. 긴 설명은 .help(도움말)로. */
 .row-label {
   margin: 6px 0 -2px;

@@ -2,7 +2,7 @@
 // 라인 표시, 기간 고르기 등. 통계·칭호·날짜 형식 계산을 부르므로 첫 화면 껍데기(App.tsx 쪽)에서는 부르지 않는다.
 // 껍데기도 쓰는 대화 상자·오류 문구·복사 버튼·키보드 감지는 ui.tsx에 있다.
 import { canGoBack } from "./nav";
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   fractionPercent,
   isCounted,
@@ -394,6 +394,37 @@ export function Help(props: { label?: string; children: ReactNode }) {
       <summary>{props.label ?? "도움말"}</summary>
       <div className="help-body">{props.children}</div>
     </details>
+  );
+}
+
+/**
+ * 제목·꼬리표 옆의 작은 i 버튼. 누르면 바로 아래에 짧은 설명이 펼쳐진다.
+ * Help(접힌 "도움말")와 달리 "이 숫자는 무엇으로 정하나" 같은 한두 문장짜리에 쓴다.
+ * 터치 화면에서는 title 풍선이 뜨지 않아 누르는 방식으로 했다.
+ */
+export function InfoTip(props: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <>
+      <button
+        type="button"
+        className="info-tip"
+        aria-label={`${props.label} 설명`}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="info-tip-dot" aria-hidden="true">
+          i
+        </span>
+      </button>
+      {open && (
+        <span id={id} className="info-tip-body" role="note">
+          {props.children}
+        </span>
+      )}
+    </>
   );
 }
 

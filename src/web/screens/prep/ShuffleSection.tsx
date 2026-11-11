@@ -1,4 +1,4 @@
-import { Help } from "../../screenKit";
+import { Help, InfoTip } from "../../screenKit";
 import type { ReactNode } from "react";
 import type { RotationContext } from "../../../shared/rotation";
 import { TEAMS } from "../../../shared/types";
@@ -109,7 +109,13 @@ export function ShuffleSection(props: {
       {/* 안내문은 줄마다 짧은 꼬리표(.row-label)만 남기고 설명은 맨 아래 도움말 하나에 모았다(2026-11-08 위계 정리).
           순서(2026-11-08 화면 점검): 자주 누르는 섞기 줄을 위에, 가끔 바꾸는 "섞기 기준" 줄을 그 아래에 둔다.
           "섞기 기준" 버튼은 다른 섞기 버튼과 같은 크기다. 이름은 그대로라 브라우저 테스트의 선택자가 바뀌지 않는다. */}
-      <p className="row-label">섞기 기준</p>
+      <p className="row-label">
+        섞기 기준{" "}
+        <InfoTip label="섞기 기준">
+          팀은 MMR이 아니라 티어로 나눠요. 같은 티어끼리 양 팀에 갈라지고, 균형 팀 추천은 티어 점수 합이 가장 비슷한
+          편성을 골라요. 티어 미정인 사람은 정한 사람들의 중간 티어로 쳐요. MMR은 아래 예상 승률에만 써요.
+        </InfoTip>
+      </p>
       <div className="button-row">
         <button
           type="button"
