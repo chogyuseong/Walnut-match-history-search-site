@@ -635,12 +635,13 @@ export async function saveMemo(env: Env, groupId: string, matchId: string, body:
       return {
         stored: { matchId },
         statements: [
-          // 확인과 저장 사이에 메모·상태가 바뀌었으면 batch 전체를 실패시킨다.
+          // 확인과 저장 사이에 메모·상태가 바뀌었거나 경기가 지워졌으면 batch 전체를 실패시킨다. 메모는 경기 버전을 올리지
+          // 않아 삭제와의 겹침을 버전으로 막지 못하므로 deleted_at을 직접 본다(지운 경기의 메모가 바뀌지 않게).
           env.DB.prepare(
             `INSERT INTO guard (version_conflict)
              SELECT 1 WHERE NOT EXISTS (
                SELECT 1 FROM matches WHERE id = ?1 AND group_id = ?2 AND memo IS ?3
-                 AND state IN ('in_progress', 'awaiting_result', 'confirmed')
+                 AND state IN ('in_progress', 'awaiting_result', 'confirmed') AND deleted_at IS NULL
              )`,
           ).bind(matchId, groupId, baseMemo),
           env.DB.prepare("UPDATE matches SET memo = ?1 WHERE id = ?2 AND group_id = ?3").bind(memo, matchId, groupId),

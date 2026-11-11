@@ -206,6 +206,157 @@ describe("경기 삭제", () => {
   });
 });
 
+describe("지운 경기가 새지 않는 곳", () => {
+  it("조회 링크 응답에는 지운 경기의 경기·명단·메모·정정 줄이 없고 삭제 줄만 있다", async () => {
+    const { g, second } = await twoGames();
+    const memo = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/${second.id}/memo`, {
+      requestId: requestId(),
+      memo: "지운경기비밀메모",
+      baseMemo: null,
+    });
+    expect(memo.status).toBe(200);
+    const corrected = await matchAction(g, second, "correct", { field: "side", winnerSide: "red" });
+    expect(corrected.status).toBe(200);
+    expect((await remove(g, corrected.body.match)).status).toBe(200);
+
+    const view = await viewOf(g);
+    expect(view.body.matches.some((m) => m.id === second.id)).toBe(false);
+    expect(view.text).not.toContain("지운경기비밀메모");
+    // 경기 ID는 삭제 줄의 matchId 한 번만 나온다(명단·시리즈·정정 줄 어디에도 없다).
+    // 예외: 서포터 차례 기록(rotation.events)은 지울 때 그대로 두는 것으로 정해서(matches.ts deleteMatch 주석) 그 경기의
+    // 서포터 차례 사용 줄(경기 ID·서포터 ID)이 남는다. 승패·명단·메모는 거기에 없다.
+    const { rotation, ...rest } = view.body;
+    expect(JSON.stringify(rest).split(second.id).length - 1).toBe(1);
+    expect(rotation!.events.filter((e) => e.matchId === second.id).every((e) => Object.keys(e).join() === "matchId,participantId,kind")).toBe(true);
+    const lines = view.body.revisions.filter((r) => r.matchId === second.id);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.changes).toEqual({ deleted: { from: false, to: true }, by: { from: null, to: "owner" } });
+    // 운영자 스냅숏도 같은 범위(되살리기 정보만 더 있다).
+    const op = await snapshot(g);
+    expect(op.revisions.filter((r) => r.matchId === second.id).map((r) => Object.keys(r.changes))).toEqual([["deleted", "by"]]);
+  });
+
+  it("참가자 본인 스냅숏에도 지운 경기가 없다", async () => {
+    const { g, first, second } = await twoGames();
+    const claim = await api(g.cookie, "POST", `/api/groups/${g.gid}/participants/${g.people[0]!.id}/claim-link`);
+    const member = await login();
+    expect((await api(member, "POST", `/api/claim/${claim.body.token}/accept`)).status).toBe(200);
+    expect((await remove(g, second)).status).toBe(200);
+    const mine = await api<Snapshot>(member, "GET", `/api/member/${g.gid}/snapshot`);
+    expect(mine.status).toBe(200);
+    expect(mine.body.matches.map((m) => m.id)).toEqual([first.id]);
+  });
+
+  it("지운 경기에 챔피언·메모·시리즈 넣기·날짜 일괄 정정을 보내면 404로 거절한다", async () => {
+    const { g, first, second } = await twoGames();
+    const deleted = (await remove(g, second)).body.match as MatchView;
+    const champions = await matchAction(g, deleted, "champions", { champions: { [g.people[0]!.id]: "Ahri" } });
+    expect(champions.status).toBe(404);
+    const memo = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/${second.id}/memo`, {
+      requestId: requestId(),
+      memo: "몰래",
+      baseMemo: null,
+    });
+    expect(memo.status).toBe(404);
+    const series = await api(g.cookie, "POST", `/api/groups/${g.gid}/series`, {
+      requestId: requestId(),
+      format: "bo3",
+      matchIds: [first.id],
+    });
+    expect(series.status).toBe(200);
+    const add = await api(g.cookie, "POST", `/api/groups/${g.gid}/series/${series.body.series.id}/add`, {
+      requestId: requestId(),
+      matchId: second.id,
+    });
+    expect(add.status).toBe(404);
+    const createWith = await api(g.cookie, "POST", `/api/groups/${g.gid}/series`, {
+      requestId: requestId(),
+      format: "bo3",
+      matchIds: [second.id],
+    });
+    expect(createWith.status).toBe(404);
+    const shift = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/shift-dates`, {
+      requestId: requestId(),
+      matchIds: [first.id, second.id],
+      years: -1,
+    });
+    expect(shift.status).toBe(404);
+    // 거절된 요청은 아무것도 바꾸지 않았다.
+    const row = await env.DB.prepare("SELECT memo, played_at, version FROM matches WHERE id = ?1").bind(second.id).first();
+    expect(row).toMatchObject({ memo: null, played_at: second.playedAt, version: deleted.version });
+    const champ = await env.DB.prepare("SELECT COUNT(*) AS n FROM match_roster WHERE match_id = ?1 AND champion IS NOT NULL")
+      .bind(second.id)
+      .first<{ n: number }>();
+    expect(champ!.n).toBe(0);
+  });
+
+  it("묶음(일괄 입력) 제외·복구는 지운 경기를 건드리지 않는다", async () => {
+    const g = await setupGroup(12);
+    const batchId = unique("batch");
+    const imported = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/import`, {
+      requestId: requestId(),
+      batchId,
+      matches: [0, 1].map((i) => ({
+        playedAt: new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString(),
+        roster: rosterOf(g.people),
+        winnerTeam: "A",
+        winnerSide: "unknown",
+      })),
+    });
+    const [keep, gone] = imported.body.matchIds as string[];
+    const goneRow = (await snapshot(g)).matches.find((m) => m.id === gone)!;
+    expect((await remove(g, goneRow)).status).toBe(200);
+    const before = await env.DB.prepare("SELECT state, prev_state, version FROM matches WHERE id = ?1").bind(gone).first();
+
+    const excluded = await api(g.cookie, "POST", `/api/groups/${g.gid}/imports/${batchId}`, { requestId: requestId(), exclude: true });
+    expect(excluded.body).toEqual({ changed: 1 });
+    const restored = await api(g.cookie, "POST", `/api/groups/${g.gid}/imports/${batchId}`, { requestId: requestId(), exclude: false });
+    expect(restored.body).toEqual({ changed: 1 });
+    expect(await env.DB.prepare("SELECT state, prev_state, version FROM matches WHERE id = ?1").bind(gone).first()).toEqual(before);
+    expect((await snapshot(g)).matches.map((m) => [m.id, m.state])).toEqual([[keep, "confirmed"]]);
+    // 묶음 요약 수에도 지운 경기는 없다.
+    expect((await snapshot(g)).importBatches!.find((b) => b.id === batchId)!.count).toBe(1);
+  });
+
+  it("지운 경기가 있을 때 참가자 합치기 → 되돌리기 뒤 되살리면 원래 참가자로 돌아와 있다", async () => {
+    const g = await setupGroup(12);
+    const dup = (await api(g.cookie, "POST", `/api/groups/${g.gid}/participants`, { names: ["참가자1 부캐"] })).body
+      .participants[0] as { id: string };
+    // 부캐가 참가자1 자리에 뛴 경기(지울 것)와, 참가자1이 뛴 살아 있는 경기.
+    const withDup = rosterOf(g.people).map((r, i) => (i === 0 ? { ...r, participantId: dup.id } : r));
+    const dupGame = await play(g, withDup, "A");
+    await play(g, rosterOf(g.people), "B");
+    expect((await remove(g, dupGame)).status).toBe(200);
+
+    const merged = await api(g.cookie, "POST", `/api/groups/${g.gid}/merges`, {
+      requestId: requestId(),
+      sourceId: dup.id,
+      targetId: g.people[0]!.id,
+    });
+    expect(merged.status, JSON.stringify(merged.body)).toBe(200);
+    const rosterOfDeleted = async () =>
+      (
+        await env.DB.prepare("SELECT participant_id FROM match_roster WHERE match_id = ?1").bind(dupGame.id).all<{
+          participant_id: string;
+        }>()
+      ).results.map((r) => r.participant_id);
+    // 합치기는 지운 경기의 명단도 옮긴다(되돌리기 목록에 들어가 함께 돌아오게).
+    expect(await rosterOfDeleted()).toContain(g.people[0]!.id);
+    expect(await rosterOfDeleted()).not.toContain(dup.id);
+    // 지운 경기의 합치기 정정 줄은 화면에 나가지 않는다.
+    expect((await snapshot(g)).revisions.filter((r) => r.matchId === dupGame.id && !r.changes.deleted)).toEqual([]);
+
+    const mergeId = (await snapshot(g)).merges![0]!.id;
+    expect((await api(g.cookie, "POST", `/api/groups/${g.gid}/merges/${mergeId}/undo`, { requestId: requestId() })).status).toBe(200);
+    expect(await rosterOfDeleted()).toContain(dup.id);
+    expect(await rosterOfDeleted()).not.toContain(g.people[0]!.id);
+
+    expect((await undelete(g, dupGame.id)).status).toBe(200);
+    const back = (await snapshot(g)).matches.find((m) => m.id === dupGame.id)!;
+    expect(back.roster.map((r) => r.participantId).sort()).toEqual(withDup.map((r) => r.participantId).sort());
+  });
+});
+
 describe("변경 내역 상한", () => {
   it("지운 뒤 정정이 200줄 넘게 쌓여도 삭제 줄과 되살리기 정보가 남아 되살릴 수 있다", async () => {
     const { g, second } = await twoGames();

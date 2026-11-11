@@ -10,3 +10,11 @@
 -- changes.deleted({from: false, to: true} 또는 그 반대)로 남긴다.
 -- 칸만 더하므로 이 마이그레이션을 먼저 적용해도 예전 코드는 이 칸을 모른 채 그대로 돈다.
 ALTER TABLE matches ADD COLUMN deleted_at TEXT;
+
+-- 지금 지워진 경기의 가장 최근 삭제 줄을 읽는 스냅숏 질의(src/server/snapshot.ts revisionStatements, DELETED_MATCH_LINES)용
+-- 부분 색인. 이 색인이 없으면 지운 경기가 하나도 없어도 스냅숏마다 그 모임의 정정 줄 전부와 그만큼의 경기 행을 읽는다
+-- (D1 무료 한도에서 가장 빠듯한 것이 행 읽기다). 삭제·되살리기 줄만 들어가므로 색인 크기는 그 줄 수만큼이다.
+-- 주의: 계획기는 질의의 WHERE가 아래 조건(kind = 'correction' AND json_type(changes, '$.deleted') IS NOT NULL)을
+-- 글자 그대로 포함할 때만 이 부분 색인을 쓴다. 삭제 줄 질의의 조건을 바꾸면 이 색인 조건도 같이 바꿔야 한다.
+CREATE INDEX idx_revisions_deleted_lines ON match_revisions (group_id, match_id)
+  WHERE kind = 'correction' AND json_type(changes, '$.deleted') IS NOT NULL;

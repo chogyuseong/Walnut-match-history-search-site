@@ -821,8 +821,9 @@ function revisionStatements(env: Env, groupId: string): D1PreparedStatement[] {
        WHERE ref IS NOT NULL GROUP BY ref ORDER BY id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_MERGES),
     // 지금 지워진 경기마다 가장 최근 삭제·되살리기 줄 하나(DELETED_MATCH_LINES). 지워진 경기의 마지막 그런 줄은 늘 삭제 줄이다.
-    // MAX(r.id)와 함께 고른 나머지 열은 SQLite 규칙상 그 최댓값의 행에서 온다. 위 "변경 내역" 질의처럼
-    // idx_revisions_group_kind로 정정 줄만 읽는다. 앞 질의와 겹치는 줄은 parseRevisions가 id로 하나로 합친다.
+    // MAX(r.id)와 함께 고른 나머지 열은 SQLite 규칙상 그 최댓값의 행에서 온다. 앞 질의와 겹치는 줄은 parseRevisions가
+    // id로 하나로 합친다. 부분 색인 idx_revisions_deleted_lines(migrations/0026)로 삭제·되살리기 줄만 읽는다: 그 색인은
+    // kind = 'correction' AND json_type(changes, '$.deleted') IS NOT NULL이 글자 그대로 있어야 쓰이므로 조건을 바꾸면 색인도 바꾼다.
     env.DB.prepare(
       `SELECT MAX(r.id) AS id, r.match_id, m.match_no, r.kind, r.changes, r.created_at,
          m.version AS match_version, 1 AS match_deleted
