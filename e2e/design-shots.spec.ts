@@ -91,7 +91,7 @@ async function openScreen(page: Page, hash: string) {
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
 }
 
-test("디자인 비교 사진: 첫 화면·예시 모임·로그인·고르기·준비·경기·모임 설정", async ({ page }) => {
+test("디자인 비교 사진: 첫 화면·예시 모임·로그인·빈 오늘·고르기·준비·팀 추천·경기·모임 설정·칭호 창", async ({ page }) => {
   test.setTimeout(900000);
   mkdirSync(SHOTS_DIR!, { recursive: true });
   await page.clock.setFixedTime(FIXED_NOW);
@@ -142,6 +142,12 @@ test("디자인 비교 사진: 첫 화면·예시 모임·로그인·고르기·
   });
   expect(added.ok()).toBe(true);
 
+  // 경기를 하나도 저장하지 않은 운영자의 오늘 화면(빈 안내가 하나인지).
+  await page.goto("/#/");
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: "디자인 사진 모임" })).toBeVisible();
+  await capture(page, "09b-today-empty");
+
   await page.goto("/#/pick");
   await page.reload();
   const all = page.getByRole("region", { name: "전체 참가자" });
@@ -151,6 +157,11 @@ test("디자인 비교 사진: 첫 화면·예시 모임·로그인·고르기·
   await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
   await capture(page, "11-prep");
+
+  await page.getByRole("button", { name: "팀 추천" }).click();
+  await expect(page.getByRole("dialog", { name: "팀 추천" })).toBeVisible();
+  await capture(page, "11b-prep-recommend");
+  await page.keyboard.press("Escape");
 
   await page.getByRole("button", { name: "이 팀으로 시작" }).click();
   const confirm = page.getByRole("dialog", { name: "시작 전에 확인해 주세요" });
@@ -168,6 +179,10 @@ test("디자인 비교 사진: 첫 화면·예시 모임·로그인·고르기·
 
   await openScreen(page, "#/group");
   await capture(page, "14-group");
+
+  await page.getByRole("region", { name: "칭호" }).getByRole("button", { name: "칭호 바꾸기" }).click();
+  await expect(page.getByRole("dialog", { name: "칭호 바꾸기" })).toBeVisible();
+  await capture(page, "15-title-dialog");
 
   writeFileSync(join(SHOTS_DIR!, "layout.json"), JSON.stringify(layout, null, 2));
 });
