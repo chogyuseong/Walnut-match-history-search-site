@@ -9,7 +9,7 @@ export interface TableColumn<T> {
   /** 숫자 열: 오른쪽 정렬, 고정폭 숫자. */
   num?: boolean;
   sortable?: boolean;
-  /** 좁은 화면(720px 미만)에서 숨길 열. 가로 스크롤 대신 중요한 열만 남긴다. */
+  /** 좁은 화면(768px 미만)에서 숨길 열. 가로 스크롤 대신 중요한 열만 남긴다. */
   wideOnly?: boolean;
   className?: string;
   cell: (row: T) => ReactNode;

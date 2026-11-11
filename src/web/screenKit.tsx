@@ -781,7 +781,7 @@ export function SortArrow(props: { active: boolean; dir: SortDir }) {
  * 끼고, 기존 화면·테스트가 "줄 = listitem"에 기대기 때문이다. 표 의미(aria-sort)가 필요한 새 화면은 DataTable을 쓴다.
  * 칸 배치는 머리 줄과 줄이 같은 grid-template-columns를 쓰도록 화면 CSS가 정한다(cls가 칸 이름).
  * 정렬 열은 버튼이고 지금 정렬은 aria-pressed로 알린다. 버튼 이름은 열 이름 그대로다(화살표는 읽지 않는다).
- * 좁은 화면(720px 미만)에서는 정렬 버튼만 칩 한 줄로 남고 나머지 머리 칸은 숨는다(styles.css .dt-head).
+ * 좁은 화면(768px 미만)에서는 정렬 버튼만 칩 한 줄로 남고 나머지 머리 칸은 숨는다(styles.css .dt-head).
  */
 export function SortHead<K extends string>(props: {
   label: string;

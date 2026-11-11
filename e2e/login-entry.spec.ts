@@ -33,8 +33,10 @@ test.describe("상단 바 로그인 (390px)", () => {
     // 로그인 전: 상단에 [로그인], 주 메뉴에 모임 탭이 없다.
     await expect(banner(page).getByRole("button", { name: "로그인", exact: true })).toBeVisible();
     await expect(menu(page).getByRole("button", { name: "모임" })).toHaveCount(0);
-    // 홈의 안내 문구도 상단 버튼과 같은 말을 쓴다.
-    await expect(page.getByText(/맨 위 \[로그인\]을 누르거나/)).toBeVisible();
+    // 처음 온 사람의 첫 화면은 소개라 본문의 로그인 길은 소개 안의 텍스트 링크다("맨 위 [로그인]" 안내는 재방문자용).
+    await expect(
+      page.getByRole("region", { name: "이 사이트 소개" }).getByRole("button", { name: "로그인하고 모임 만들기" }),
+    ).toBeVisible();
 
     await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
     await fakeLogin(page, uniqueUser());
@@ -145,11 +147,11 @@ test.describe("상단 바 로그인 (390px)", () => {
 });
 
 test.describe("상단 바 배치", () => {
-  /** 상단 바 안의 조작이 서로·주 메뉴와 겹치지 않고, 한 줄(56px)에 들어가며, 44px 이상인지. */
+  /** 상단 바 안의 조작이 서로·주 메뉴와 겹치지 않고, 한 줄(64px)에 들어가며, 44px 이상인지. */
   async function checkTopBar(page: Page, width: number) {
     await noHorizontalOverflow(page);
     const bar = await page.locator(".topbar-inner").boundingBox();
-    expect(bar!.height).toBeLessThanOrEqual(57);
+    expect(bar!.height).toBeLessThanOrEqual(64);
     const controls = await banner(page)
       .locator("a, button, select")
       .evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect()).map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })));
@@ -159,13 +161,10 @@ test.describe("상단 바 배치", () => {
       expect(c.x + c.w).toBeLessThanOrEqual(width);
     }
     for (let i = 1; i < controls.length; i++) expect(controls[i]!.x).toBeGreaterThanOrEqual(controls[i - 1]!.x + controls[i - 1]!.w);
-    if (width >= 720) {
-      // 넓은 화면에서는 주 메뉴가 상단 바에 겹쳐 놓인다: 로고와 오른쪽 조작 사이에 있어야 한다.
+    if (width >= 768) {
+      // 넓은 화면에서는 주 메뉴가 상단 바 아래 한 줄이다(디자인 3단계 전에는 상단 바에 겹쳐 놓였다).
       const tabs = await menu(page).boundingBox();
-      const brand = controls[0]!;
-      const firstAction = controls[1]!;
-      expect(tabs!.x).toBeGreaterThanOrEqual(brand.x + brand.w);
-      expect(tabs!.x + tabs!.width).toBeLessThanOrEqual(firstAction.x);
+      expect(tabs!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height);
     }
   }
 

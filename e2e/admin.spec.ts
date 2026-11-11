@@ -117,7 +117,7 @@ test("운영자를 넘기면 받은 사람만 수정할 수 있다", async ({ br
 test("같은 팀·다른 팀 조건이 팀 추천에 적용된다", async ({ page }) => {
   const names = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차"].map((n) => `${n}선수`);
   await page.goto("/");
-  await page.getByRole("button", { name: "이름 넣고 팀 짜기" }).click();
+  await page.getByRole("button", { name: "로그인 없이 팀 짜기" }).click();
   await page.getByLabel("이름 검색 또는 새 이름 입력").fill(names.join("\n"));
   await page.getByRole("button", { name: "추가", exact: true }).click();
   await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();

@@ -38,7 +38,7 @@ import { go } from "../useApp";
  * 전적 사이트의 챔피언 티어 화면 구조(왼쪽 초성별 챔피언 격자 + 오른쪽 정렬 표)를 따르되, 이 모임은 운영자가 손으로 넣은
  * 기록만 있으므로 머리에 입력률("챔피언 기록 34 / 111경기")을 늘 보여 주고 운영자에게는 빠진 경기로 가는 길을 둔다.
  * 틀: 화면 머리 → 필터 줄(범위·라인·검색) → 요약 카드 → [왼쪽 격자 | 오른쪽 표 + 기록 부족 표].
- * 폰(720px 미만)은 한 단이고 격자는 접어 둔다(검색 칸이 같은 일을 한다).
+ * 1200px 미만은 한 단이고 격자는 접어 둔다(검색 칸이 같은 일을 한다). 두 단 기준은 styles.css .ct-body와 같이 바꾼다.
  */
 
 const LANES: readonly { value: LaneFilter; label: string }[] = [
@@ -68,7 +68,7 @@ export function ChampionTier(props: {
   const [sort, setSort] = useState<SortState<ChampionSortKey>>(DEFAULT_SORT);
   // 펼친 줄. 격자에서 누른 챔피언도 여기로 온다. 한 번에 하나만 펼친다.
   const [open, setOpen] = useState<string | null>(null);
-  const narrow = useMediaQuery("(max-width: 719px)");
+  const narrow = useMediaQuery("(max-width: 1199px)");
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const result = useMemo(() => championTiers(snapshot, { scope, lane }), [snapshot, scope, lane]);
   const missing = useMemo(

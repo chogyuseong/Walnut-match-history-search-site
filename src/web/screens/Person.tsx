@@ -446,7 +446,7 @@ export function Person(props: {
             </div>
           </dl>
         )}
-        {/* ─ 추이 두 장: 넓은 화면(720px~)은 승률·MMR을 반씩 한 줄에 나란히, 좁으면 하나씩 쌓인다(.trend-pair) ─ */}
+        {/* ─ 추이 두 장: 넓은 화면(768px~)은 승률·MMR을 반씩 한 줄에 나란히, 좁으면 하나씩 쌓인다(.trend-pair) ─ */}
         {(trend.length >= 2 || detail.summary.games > 0 || (rating && rating.games >= 2)) && (
           <div className="trend-pair">
             {trend.length >= 2 ? (

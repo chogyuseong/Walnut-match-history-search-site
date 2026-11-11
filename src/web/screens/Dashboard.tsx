@@ -43,7 +43,7 @@ const TOP_PEOPLE = 5;
  * 운영자 홈과 조회 링크의 요약 화면이 같이 쓴다. 확정 경기가 없으면 안내 한 줄만 낸다.
  * 요약 탭(headline)에서는 가장 최근 확정 경기를 전광판(MatchScoreboard)으로 크게 올리고 나머지를 "이전 경기"로 둔다.
  * 운영자 홈은 위에 오늘의 결과가 따로 있어 전광판을 두지 않는다.
- * PC(1024px 이상)는 2단: 왼쪽 넓은 단(.dash-main)에 전광판과 이전 경기 표(한 경기 한 줄), 오른쪽 좁은 단(.dash-grid)에
+ * PC(1200px 이상)는 2단: 왼쪽 넓은 단(.dash-main)에 전광판과 이전 경기 표(한 경기 한 줄), 오른쪽 좁은 단(.dash-grid)에
  * 랭킹 상위·요즘 흐름. 좁은 화면은 한 단으로 쌓고 이전 경기는 경기 카드 모양이다(표의 다섯 명 칸이 들어갈 폭이 없다).
  */
 export function Dashboard(props: {
@@ -86,7 +86,7 @@ export function Dashboard(props: {
   );
   const forms = useMemo(() => personForms(snapshot.matches), [snapshot]);
   const flow = useMemo(() => trends(snapshot.matches, nameOf), [snapshot, nameOf]);
-  const wide = useMediaQuery("(min-width: 1024px)");
+  const wide = useMediaQuery("(min-width: 1200px)");
 
   if (counted.length === 0) return <DashboardEmpty />;
 

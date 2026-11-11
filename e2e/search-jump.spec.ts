@@ -278,7 +278,9 @@ test.describe("1440×900", () => {
     await page.getByRole("button", { name: "전체", exact: true }).click();
     const ranking = page.getByRole("region", { name: "소환사 랭킹" });
     const search = ranking.getByLabel("이름 검색");
-    await search.scrollIntoViewIfNeeded();
+    // 검색 칸을 화면 위쪽(200px)에 둔다. 처음 자리 그대로 두면 상단 바 아래 메뉴 줄(디자인 3단계) 몫만큼 결과가
+    // 화면 아래 절반에서 시작해, "이미 보이는" 경우가 아니게 된다(ui.tsx RESULT_SEEN_SHARE).
+    await search.evaluate((el) => window.scrollBy(0, el.getBoundingClientRect().top - 200));
     await search.fill("선수0");
     const before = await scrollY(page);
     await search.press("Enter");
