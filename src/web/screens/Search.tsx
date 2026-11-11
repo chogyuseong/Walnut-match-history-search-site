@@ -72,6 +72,10 @@ export function Search(props: {
   );
   const blank = query.trim() === "";
   const found = blank ? [] : searchByName(people, query);
+  // onSubmit → choose가 화면을 바꾸는 경우: 한 명만 맞고, 비교 중이 아니거나 그 사람이 비교의 두 번째 사람일 때.
+  const leavesOnSubmit =
+    found.length === 1 &&
+    (!comparing || (picked.length === 1 && picked[0] !== found[0]!.id && props.openCompare !== undefined));
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "";
 
   // 경기 검색: 날짜 꼴이면 그날 경기, 아니면 메모. 미진행 취소는 기록 화면처럼 뺀다.
@@ -191,7 +195,13 @@ export function Search(props: {
             enterKeyHint="search"
             autoComplete="off"
             placeholder="이름 일부만 넣어도 찾아요"
-            onKeyDown={resultJump.onSearchKey}
+            onKeyDown={(event) => {
+              // 제출이 개인 통계(또는 두 사람 비교)로 바로 넘어가는 경우에는 옮기지 않는다.
+              // 옛 화면이 스크롤을 시작한 채 화면이 바뀌면 새 화면이 중간부터 열린다.
+              // 조합 중 Enter는 제출되지 않으니 그대로 옮긴다.
+              if (event.key === "Enter" && !event.nativeEvent.isComposing && leavesOnSubmit) return;
+              resultJump.onSearchKey(event);
+            }}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);

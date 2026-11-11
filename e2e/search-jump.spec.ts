@@ -3,6 +3,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from "@
 // 검색 칸에서 검색 키(Enter)를 누르면 입력 칸 초점이 풀리고(휴대폰 키보드가 내려가고) 결과 첫머리가 보이는 자리로
 // 옮겨지는지 본다(ui.tsx useSearchJump). 글자만 칠 때는 화면이 움직이지 않아야 한다.
 // 화면 키보드 자체는 Playwright에서 띄울 수 없어, 키보드가 내려간 뒤의 화면(390×844)을 기준으로 잰다.
+// 390 폭은 터치 기기(hasTouch → pointer: coarse)로 띄운다. 초점을 결과로 옮겨 키보드를 내리는 것은 터치 기기에서만이다.
 // 모임·경기는 API로 만들고(rating.spec.ts와 같은 방식), 확인할 흐름만 화면으로 한다.
 
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
@@ -116,8 +117,58 @@ async function expectBlurred(page: Page, input: Locator) {
 
 const scrollY = (page: Page) => page.evaluate(() => window.scrollY);
 
-test.describe("390×844", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+test.describe("390×844 터치", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test("결과가 화면 아래에 조금만 걸쳐 있어도 Enter면 위로 올린다", async ({ page }) => {
+    await setup(page);
+    await page.goto("/#/records");
+    await page.getByRole("button", { name: "전체", exact: true }).click();
+    const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+    const search = ranking.getByLabel("이름 검색");
+    await search.fill("선수");
+    // 결과 머리와 첫 줄 정도만 하단 탭 위에 걸치게 내려 둔다(예전 기준에서는 움직이지 않던 자리).
+    const results = ranking.locator(".search-results");
+    await results.evaluate((el) => window.scrollBy(0, el.getBoundingClientRect().top - 600));
+    await search.focus();
+    const startTop = await results.evaluate((el) => el.getBoundingClientRect().top);
+    expect(Math.abs(startTop - 600)).toBeLessThanOrEqual(1);
+    await search.press("Enter");
+    await scrollSettled(page);
+    await expectBlurred(page, search);
+    const first = ranking.getByRole("listitem").first();
+    await expectRevealed(first, "기록 랭킹 첫 줄");
+    expect(await first.evaluate((el) => el.getBoundingClientRect().top)).toBeLessThan(844 / 3);
+  });
+
+  test("한 명만 맞으면 그 사람 화면이 맨 위에서 열린다", async ({ page }) => {
+    await setup(page);
+    await page.goto("/#/search");
+    const nameSearch = page.getByLabel("플레이어 이름");
+    await nameSearch.fill("선수01");
+    await nameSearch.press("Enter");
+    await expect(page.getByRole("heading", { level: 1, name: /선수01/ })).toBeVisible();
+    await scrollSettled(page);
+    expect(await scrollY(page)).toBeLessThanOrEqual(1);
+  });
+
+  test("초점은 결과 묶음으로 가고 다음 Tab은 결과 안 첫 버튼으로", async ({ page }) => {
+    await setup(page);
+    await page.goto("/#/records");
+    await page.getByRole("button", { name: "전체", exact: true }).click();
+    const search = page.getByRole("region", { name: "소환사 랭킹" }).getByLabel("이름 검색");
+    await search.fill("선수0");
+    await search.press("Enter");
+    await scrollSettled(page);
+    expect(await page.evaluate(() => document.activeElement?.classList.contains("search-results"))).toBe(true);
+    await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(() => {
+        const active = document.activeElement;
+        return active?.tagName === "BUTTON" && active.closest(".search-results") !== null;
+      }),
+    ).toBe(true);
+  });
 
   test("기록 소환사 랭킹: 글자만 치면 그대로, Enter면 결과 첫 줄로·없으면 안내로", async ({ page }) => {
     await setup(page);
@@ -232,10 +283,8 @@ test.describe("1440×900", () => {
     const before = await scrollY(page);
     await search.press("Enter");
     await scrollSettled(page);
-    await expectBlurred(page, search);
     expect(Math.abs((await scrollY(page)) - before)).toBeLessThanOrEqual(1);
-    // 초점은 결과 자리로 옮겨 가고, 다음 Tab은 결과 안의 첫 버튼(정렬 머리)으로 간다.
-    await page.keyboard.press("Tab");
-    expect(await page.evaluate(() => document.activeElement?.closest(".search-results") !== null)).toBe(true);
+    // 마우스·실물 키보드 환경: 초점은 검색 칸에 남아 바로 검색어를 고칠 수 있다.
+    expect(await search.evaluate((el) => document.activeElement === el)).toBe(true);
   });
 });
