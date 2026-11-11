@@ -6324,7 +6324,7 @@ label:has(> select) {
 .story-card .tile-label {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   color: var(--story, var(--ih-text-secondary));
 }
 .story-card[class*="kind-"] .tile-label::before {
