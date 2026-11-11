@@ -86,11 +86,6 @@
   --grade-7: #84cf8f;
   --grade-8: #abb4c2;
 
-  /* 모서리: 작은 이름표 4px, 카드·버튼·입력 칸 6px(2026-11-10 차콜에서 8·10px → 6px로 통일). */
-  --ih-radius-sm: 4px;
-  --ih-radius-md: 6px;
-  --ih-radius-lg: 6px;
-  --ih-radius-pill: 9999px;
   --ih-font-sans: "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, system-ui,
     "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 
@@ -190,6 +185,15 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 64px;
+
+  /* 모서리(CLAUDE.md 3절): 배지·작은 라벨 4, 버튼·입력·선택 상자 6, 패널·카드·대화상자 8. 8을 넘기지 않는다.
+     값이 아니라 쓰임으로 고른다(작은 버튼도 control). 막대·칸 같은 데이터 그림은 토큰 없이 4px, 원(상태 점·아바타)만 50%.
+     예외는 카카오 로그인 버튼 12px 하나(브랜드 가이드). */
+  --radius-badge: 4px;
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  /* 호버·선택 때 색이 바뀌는 시간(6절). transition은 background-color·border-color·color에만 이 값으로 건다. */
+  --motion: 120ms;
 
   /* 글자 크기 척도(CLAUDE.md 4절). font-size는 이 여섯 값만 쓴다. rem이라 사용자가 키운 기본 글자를 따라간다.
      meta는 비핵심 보조 정보(날짜·배지·범례)에만 쓴다. 기록·경고·입력 내용을 meta로 줄이지 않는다. */
@@ -323,7 +327,7 @@ textarea {
 button {
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--ih-control-border);
   background: var(--ih-panel);
   cursor: pointer;
@@ -380,7 +384,7 @@ textarea,
 select {
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--ih-control-border);
   background: var(--ih-panel);
   width: 100%;
@@ -411,7 +415,7 @@ textarea {
 }
 fieldset {
   border: 1px solid var(--ih-line);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: var(--space-2) var(--space-3) var(--space-3);
   margin: 0 0 var(--space-3);
   min-width: 0;
@@ -505,7 +509,7 @@ details.help > .help-body {
   gap: var(--space-2);
   margin: var(--space-1) 0 var(--space-1);
   padding: var(--space-1) 0 var(--space-1) var(--space-3);
-  border-left: 2px solid var(--ih-line);
+  border-left: 1px solid var(--ih-line);
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
   line-height: 1.45;
@@ -528,8 +532,7 @@ details.help > .help-body p {
 .note {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-left: 3px solid var(--ih-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: var(--space-2) var(--space-3);
 }
 .note.warn {
@@ -538,7 +541,7 @@ details.help > .help-body p {
 }
 .badge {
   border: 1px solid var(--ih-line);
-  border-radius: 4px;
+  border-radius: var(--radius-badge);
   /* 위아래 여백 없이 줄 높이로 이름표 높이를 낸다(예전 위아래 2px를 더한 높이와 같게). */
   padding: 0 var(--space-2);
   line-height: 1.85;
@@ -551,7 +554,7 @@ details.help > .help-body p {
 }
 .tag {
   border: 1px solid var(--ih-line);
-  border-radius: 4px;
+  border-radius: var(--radius-badge);
   padding: 0 var(--space-2);
   margin-left: var(--space-2);
   white-space: nowrap;
@@ -559,7 +562,7 @@ details.help > .help-body p {
 .card {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
@@ -568,7 +571,7 @@ details.help > .help-body p {
 .saved {
   background: var(--ok-bg);
   color: var(--ok-text);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: var(--space-3);
   margin-bottom: var(--space-3);
 }
@@ -587,7 +590,7 @@ details.help > .help-body p {
 .team {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   padding: var(--space-3);
   min-width: 0;
 }
@@ -609,7 +612,7 @@ details.help > .help-body p {
   min-height: 44px;
   padding: var(--space-2) var(--space-2);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: none;
   text-align: left;
 }
@@ -621,8 +624,10 @@ button.row {
   background: var(--ih-selected);
   border: 1px solid var(--ih-accent);
 }
+/* 내 이름 줄(경기 상세·실시간 명단): 선택 바탕 + 1px 강조 테두리 + 굵기. 줄이 버튼이 아니라 .picked와 겹칠 일은 없다. */
 .row.me {
   background: var(--ih-selected);
+  border-color: var(--ih-accent);
   font-weight: 500;
 }
 .row.empty {
@@ -662,7 +667,7 @@ button.row {
   padding: var(--space-2) var(--space-3);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   text-align: left;
 }
 .list-row.selected {
@@ -689,7 +694,7 @@ button.row {
   gap: var(--space-2);
 }
 .chip {
-  border-radius: 4px;
+  border-radius: var(--radius-badge);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -703,7 +708,7 @@ button.row {
   min-height: 44px;
   padding: var(--space-3);
   border: 1px solid var(--ih-control-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   margin-top: var(--space-2);
   cursor: pointer;
   /* 요약·선택 창에서는 긴 이름도 줄바꿈해 전체를 보여준다. */
@@ -744,7 +749,7 @@ button.row {
 details {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: var(--space-1) var(--space-3) var(--space-2);
 }
 summary {
@@ -830,7 +835,7 @@ details > *:not(summary) {
   max-width: 560px;
   max-height: 92dvh;
   overflow-y: auto;
-  border-radius: 10px 10px 0 0;
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   padding: var(--space-3) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -846,7 +851,7 @@ details > *:not(summary) {
 }
 .candidate {
   border: 1px solid var(--ih-line);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: var(--space-3);
   background: var(--ih-panel);
   overflow-wrap: anywhere;
@@ -866,7 +871,7 @@ details > *:not(summary) {
   background: var(--ih-panel);
   color: var(--ih-text);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-lg);
+  border-radius: var(--radius-panel);
   padding: var(--space-3) var(--space-4);
   text-align: center;
   z-index: 20;
@@ -878,7 +883,7 @@ details > *:not(summary) {
     align-items: center;
   }
   .dialog {
-    border-radius: 10px;
+    border-radius: var(--radius-panel);
   }
   .screen,
   .card {
@@ -961,7 +966,7 @@ input[type="search"] {
 .chart-card {
   background: var(--viz-surface);
   border: 1px solid var(--ih-line);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
@@ -987,7 +992,7 @@ input[type="search"] {
   min-height: 44px;
   padding: var(--space-2) var(--space-1);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: none;
   text-align: left;
 }
@@ -1034,13 +1039,13 @@ button.bar-row:hover {
   display: block;
   height: 6px;
   background: var(--viz-track);
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 4px 4px 0;
 }
 /* 기준선(왼쪽)은 각지게, 값 쪽 끝만 둥글게. */
 .bar-fill {
   display: block;
   height: 100%;
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 4px 4px 0;
   background: var(--viz-series);
 }
 .bar-fill.tone-blue {
@@ -1077,7 +1082,7 @@ button.bar-row:hover {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  border-radius: 4px;
   border: 1px solid var(--ih-line);
 }
 .band-none,
@@ -1126,11 +1131,10 @@ button.bar-row:hover {
 .matrix tr.picked th[scope="row"] {
   font-weight: 500;
 }
-/* 표 칸(2026-11-08 재설계): 옅은 바탕(막대 색 22%) + 왼쪽 3px 진한 띠(막대 색 그대로). 색이 탁해지지 않고 글자 대비도 지킨다.
+/* 표 칸(2026-11-08 재설계): 옅은 바탕(막대 색 22%). 색이 탁해지지 않고 글자 대비도 지킨다.
    승률은 굵게, 경기 수는 작고 흐리게. */
 .matrix td[class*="heat-"] {
   background: color-mix(in oklab, var(--heat-bar) 22%, var(--viz-surface));
-  box-shadow: inset 3px 0 0 var(--heat-bar);
 }
 .matrix td {
   display: table-cell;
@@ -1187,11 +1191,14 @@ button.bar-row:hover {
   color: var(--ih-accent);
   text-decoration: underline;
 }
-/* 플레이어 필터로 고른 사람의 행 */
+/* 플레이어 필터로 고른 사람의 행: 칸마다 1px 강조 선(칸 바탕은 승률 색이라 비워 둔다), 이름 칸만 선택 바탕. */
 .matrix tr.picked > th,
 .matrix tr.picked > td {
-  outline: 2px solid var(--ih-accent);
-  outline-offset: -2px;
+  outline: 1px solid var(--ih-accent);
+  outline-offset: -1px;
+}
+.matrix tr.picked > th {
+  background: var(--ih-selected);
 }
 /* 5경기 미만 묶음(접힘) */
 .matrix-few {
@@ -1219,13 +1226,7 @@ button.bar-row:hover {
   position: relative;
   width: 30px;
   height: 12px;
-  border-radius: 2px;
-}
-.legend-bands .swatch:first-child {
-  border-radius: 6px 2px 2px 6px;
-}
-.legend-bands .swatch:last-child {
-  border-radius: 2px 6px 6px 2px;
+  border-radius: 4px;
 }
 .legend-tick {
   position: absolute;
@@ -1445,15 +1446,16 @@ button.row .tag {
 }
 ::-webkit-scrollbar-thumb {
   background: var(--ih-line);
-  border-radius: 9999px;
+  border-radius: 4px;
 }
 
 /* 버튼·입력 */
 button {
   font-weight: 500;
   transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease;
+    background-color var(--motion),
+    border-color var(--motion),
+    color var(--motion);
 }
 button:not(:disabled):hover {
   border-color: var(--ih-text-secondary);
@@ -1497,19 +1499,16 @@ textarea::placeholder {
 }
 fieldset {
   border-color: var(--ih-line);
-  border-radius: var(--ih-radius-md);
   background: var(--ih-panel);
 }
 
-/* 표면 */
-/* 표면: 옅은 테두리 1px, 모서리 10px, 그림자 없음. */
+/* 표면: 옅은 테두리 1px, 그림자 없음. */
 .card,
 .team,
 .chart-card,
 details,
 .candidate {
   border-color: var(--ih-line);
-  border-radius: var(--ih-radius-lg);
   box-shadow: none;
 }
 /* 카드 안의 카드: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다. 명시도는 :where()로 낮춘다. */
@@ -1522,8 +1521,6 @@ details,
 .note {
   background: var(--ih-panel);
   border-color: var(--ih-line);
-  border-left-color: var(--ih-accent);
-  border-radius: var(--ih-radius-md);
 }
 .note.warn {
   background: var(--warn-bg);
@@ -1531,14 +1528,12 @@ details,
 }
 .saved {
   border: 1px solid var(--ih-ok-text);
-  border-radius: var(--ih-radius-md);
 }
 /* 작은 이름표(.badge·.tag): 알약 대신 모서리 4px 네모, 옅은 테두리, 바탕 없음. 뜻 색은 글자와 테두리에만. */
 .badge {
   font-size: var(--text-meta);
   font-weight: 600;
   border-color: var(--ih-line);
-  border-radius: var(--ih-radius-sm);
   background: transparent;
   color: var(--ih-text-secondary);
 }
@@ -1558,7 +1553,6 @@ details,
   font-size: var(--text-meta);
   font-weight: 600;
   border-color: var(--ih-line);
-  border-radius: var(--ih-radius-sm);
   background: transparent;
   color: var(--ih-text-secondary);
 }
@@ -1570,7 +1564,6 @@ details,
 .list-row {
   background: var(--ih-panel);
   border-color: var(--ih-line);
-  border-radius: var(--ih-radius-md);
   font-weight: 500;
 }
 /* 카드 안의 목록 줄: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다("기록지"의 줄 칸).
@@ -1595,7 +1588,7 @@ button.list-row:not(:disabled):hover {
   overflow: hidden;
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-lg);
+  border-radius: var(--radius-panel);
 }
 .list-card :where(.list-row) {
   padding: var(--space-3) var(--space-3);
@@ -1628,7 +1621,7 @@ button.list-row:not(:disabled):hover {
 .card .list-row.selected {
   border-width: 1px;
   border-color: var(--ih-accent);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
   background: var(--ih-selected);
 }
 .row-main,
@@ -1638,11 +1631,10 @@ button.list-row:not(:disabled):hover {
   font-weight: 500;
 }
 
-/* 경기 줄: 왼쪽 4px 색 띠만 색을 쓰고 바탕은 카드 바탕 그대로다(2026-11-08 색 예산 정리: 예전에는 카드 전체를
-   진영 색으로 물들여 화면이 알록달록했다). 전체 목록에서는 이긴 팀의 진영(블루·레드), 개인 화면에서는 그 사람의 승·패.
-   같은 내용이 글자로도 적혀 있어 색만으로 구분하지 않는다. 손을 올리면 옅은 틴트가 든다. */
+/* 경기 줄: 왼쪽 1px 선만 색을 쓰고 바탕은 카드 바탕 그대로다. 전체 목록에서는 이긴 팀의 진영(블루·레드), 개인 화면에서는
+   그 사람의 승·패. 선이 가늘어 색은 보조이고, 뜻은 줄 안의 "승/패"·진영 글자가 전한다(두꺼운 띠는 3절에서 금지).
+   손을 올리면 옅은 틴트가 든다. */
 .match-row {
-  border-left-width: 4px;
   border-left-color: var(--ih-line);
 }
 .match-row.tone-blue,
@@ -1680,10 +1672,9 @@ li.match-row.tone-red:hover {
   font-weight: 500;
 }
 
-/* 팀 상자: 진영이 정해진 경기(준비 화면은 항상)는 위쪽 3px 진영 색 띠, 제목은 "블루팀"/"레드팀"(format.ts teamName).
-   진영을 모르면 중립 표면에 "팀 A"/"팀 B".
-   2026-11-10: 2px 색 테두리 + 틴트 바탕이 무거워, 1px 진한 테두리 + 위쪽 띠 + 바탕 없음으로 바꿨다. 진영 색은 띠와
-   팀 이름에만 쓴다. 경기 상세·준비 화면·결과 입력 버튼(.result-pick-btn)이 같은 모양이다. */
+/* 팀 상자: 진영이 정해진 경기(준비 화면은 항상)는 1px 진영 색 테두리, 제목은 "● 블루팀"/"■ 레드팀"(format.ts teamName).
+   진영을 모르면 중립 표면에 "팀 A"/"팀 B". 바탕은 칠하지 않는다. 진영 색은 테두리와 팀 이름에만 쓰고, 어느 팀인지는
+   제목의 기호·글자가 전한다. 경기 상세·준비 화면·결과 입력 버튼(.result-pick-btn)이 같은 모양이다. */
 .team {
   padding: var(--space-3);
 }
@@ -1698,14 +1689,13 @@ li.match-row.tone-red:hover {
 .team.side-blue,
 .team.side-red {
   background: var(--ih-panel);
-  border-color: var(--ih-line);
   box-shadow: none;
 }
 .team.side-blue {
-  border-top: 3px solid var(--ih-win-accent);
+  border-color: var(--ih-win-accent);
 }
 .team.side-red {
-  border-top: 3px solid var(--ih-loss-accent);
+  border-color: var(--ih-loss-accent);
 }
 .team.side-blue h3,
 .team.side-blue .result-pick-title {
@@ -1724,9 +1714,6 @@ button.row {
 button.row.picked:hover {
   background: var(--ih-selected);
   border-color: var(--ih-accent);
-}
-.row.me {
-  box-shadow: inset 3px 0 0 var(--ih-accent);
 }
 
 /* 라인별 색(2026-11-09): 탑 주황, 정글 초록, 미드 노랑, 원딜 파랑, 서폿 자홍. 다섯 라인이 글자·아이콘 모두 같은 색이라
@@ -1849,7 +1836,6 @@ button.row.picked:hover {
 .choice {
   background: var(--ih-panel);
   border-color: var(--ih-control-border);
-  border-radius: var(--ih-radius-md);
 }
 .choice.chosen {
   background: var(--ih-selected);
@@ -1860,7 +1846,7 @@ button.row.picked:hover {
   padding: var(--space-1);
   background: var(--ih-panel);
   border: 1px solid var(--ih-control-border);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-control);
 }
 .segmented button,
 .segmented select {
@@ -1998,7 +1984,7 @@ table {
   padding: var(--space-3) var(--space-4);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
@@ -2066,7 +2052,7 @@ table {
 .brand:focus-visible {
   outline: 2px solid var(--ih-accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 /* 로고 마크: 상자 없이 포인트 색 단색 선. */
 .brand em {
@@ -2107,7 +2093,7 @@ table {
   color: var(--ih-accent);
   font-weight: 500;
   text-decoration: none;
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
 }
 @media (max-width: 719px) {
   .tabs button,
@@ -2127,7 +2113,7 @@ table {
   min-height: 44px;
   padding-left: var(--space-3);
   padding-right: var(--space-3);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
   text-decoration: none;
 }
 .viewer-nav button.link:not([aria-current="page"]) {
@@ -2214,7 +2200,7 @@ table {
     min-width: 76px;
     min-height: 44px;
     padding: var(--space-2) var(--space-4);
-    border-radius: var(--ih-radius-sm);
+    border-radius: var(--radius-control);
     font-size: var(--text-label);
   }
   .tabs button:not(:disabled):not([aria-current="page"]):hover {
@@ -2259,7 +2245,7 @@ table {
   max-width: 100%;
   padding: 0 var(--space-2);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-badge);
   background: transparent;
   color: var(--ih-text);
   font-size: var(--text-label);
@@ -2596,7 +2582,7 @@ table {
   padding: 0 var(--space-2) var(--space-2) var(--space-3);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   min-width: 0;
 }
 .mc-head {
@@ -2651,7 +2637,7 @@ table {
   min-width: 1.75em;
   height: 1.75em;
   border: 1px solid currentColor;
-  border-radius: 6px;
+  border-radius: var(--radius-badge);
   font-size: var(--text-label);
 }
 .mc-action {
@@ -2716,7 +2702,7 @@ table {
   min-height: 44px;
   padding: 0 var(--space-1);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
@@ -2773,7 +2759,7 @@ table {
 .mc-name.is-me:not(:disabled):hover {
   color: var(--ih-text);
   background: var(--ih-selected);
-  box-shadow: inset 0 -3px 0 var(--ih-accent);
+  border: 1px solid var(--ih-accent);
 }
 @media (min-width: 720px) {
   .mc-name,
@@ -2934,7 +2920,7 @@ table {
   padding: 0 var(--space-1) 0 var(--space-3);
   background: var(--ih-subtle);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   font-size: var(--text-label);
   overflow-wrap: anywhere;
 }
@@ -2981,7 +2967,7 @@ table {
   padding: var(--space-2) var(--space-3);
   background: var(--ih-subtle);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 .ps-tiles dd {
   display: flex;
@@ -3076,7 +3062,7 @@ table {
   display: block;
   width: 100%;
   height: 72px;
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
 }
 /* 눈금 틀: 왼쪽 세로 눈금(위·가운데·아래) + 그림 + 아래 가로 구간(처음·중간·끝). 눈금 글자는 흐린 색, 작은 숫자. */
 .trend-plot {
@@ -3154,7 +3140,7 @@ table {
   height: 5px;
   min-width: 0;
   background: var(--viz-track);
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 4px 4px 0;
 }
 .meter-sm {
   height: 4px;
@@ -3162,7 +3148,7 @@ table {
 .meter-fill {
   display: block;
   height: 100%;
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 4px 4px 0;
   background: var(--viz-series);
 }
 .meter-fill.tone-blue {
@@ -3199,7 +3185,7 @@ table {
   display: flex;
   height: 5px;
   min-width: 0;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .wl-win,
@@ -3338,7 +3324,7 @@ table {
 .mmr-tier {
   display: inline-block;
   padding: 0 var(--space-2);
-  border-radius: 4px;
+  border-radius: var(--radius-badge);
   background: color-mix(in srgb, var(--tier-fill) 10%, transparent);
   color: var(--tier-fill);
   font-size: var(--text-label);
@@ -3444,22 +3430,6 @@ table {
     height: 16px;
   }
 }
-/* 등장 효과: 위에서 차례로(--enter 순번 × 30ms). 움직임 줄이기 설정이면 끈다. */
-@keyframes mmr-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-.mmr-enter {
-  animation: mmr-enter 0.3s ease-out both;
-  animation-delay: calc(var(--enter, 0) * 30ms);
-}
-@media (prefers-reduced-motion: reduce) {
-  .mmr-enter {
-    animation: none;
-  }
-}
 
 /* 홈 요약 */
 .dashboard {
@@ -3523,7 +3493,7 @@ table {
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   vertical-align: 0.05em;
 }
 .cmp-col-a::before,
@@ -3556,9 +3526,9 @@ table {
   min-width: 0;
   padding: var(--space-3);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   background: var(--ih-panel);
-  box-shadow: inset 0 3px 0 var(--cmp-tone);
+  border-top-color: var(--cmp-tone);
 }
 .cmp-card.cmp-b {
   --cmp-tone: var(--cmp-b);
@@ -3676,7 +3646,7 @@ table {
   width: 30px;
   height: 30px;
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-pill);
+  border-radius: var(--radius-badge);
   background: var(--ih-subtle);
   color: var(--ih-text-secondary);
   font-size: var(--text-meta);
@@ -3935,7 +3905,7 @@ table {
   gap: var(--space-1);
   height: 10px;
   overflow: hidden;
-  border-radius: var(--ih-radius-pill);
+  border-radius: 4px;
   background: var(--ih-subtle);
 }
 .cmp-bar > span {
@@ -3953,10 +3923,10 @@ table {
 }
 .cmp-together-bar .meter {
   height: 10px;
-  border-radius: var(--ih-radius-pill);
+  border-radius: 4px;
 }
 .cmp-together-bar .meter-fill {
-  border-radius: var(--ih-radius-pill);
+  border-radius: 4px;
 }
 .cmp-synergy {
   margin: 0;
@@ -4014,7 +3984,7 @@ table {
   row-gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   background: var(--ih-subtle);
 }
 .cmp-duel-side {
@@ -4051,7 +4021,7 @@ table {
   background: var(--cmp-b);
 }
 .cmp-duel-bar > span {
-  border-radius: var(--ih-radius-pill);
+  border-radius: 4px;
 }
 /* 앞선 쪽만 승 색, 뒤진 쪽은 흐리게. 같으면 둘 다 본문 색. */
 .cmp-lane-duels .lead-a .cmp-duel-b,
@@ -4093,7 +4063,7 @@ table {
 @media (min-width: 720px) {
   /* 여러 열: 칸마다 위쪽 구분선을 두고, 카드 자체의 위 테두리는 없앤다. 첫 줄 칸들의 선이 카드 위 테두리를 대신해
      선이 두 겹(2px)으로 보이지 않는다. 참가자가 열 수보다 적으면 위 테두리가 그 칸까지만 그어진다.
-     고른 칸은 안쪽 1px 그림자로 포인트 테두리를 그린다. */
+     고른 칸은 안쪽 1px 외곽선(outline-offset -1px)으로 포인트 테두리를 그린다. 테두리를 쓰면 이웃 칸 선과 겹쳐 두 겹이 된다. */
   .pick-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -4108,7 +4078,8 @@ table {
   .pick-grid.list-card .list-row.pick-item.selected,
   .pick-grid.list-card button.list-row.pick-item.selected:not(:disabled):hover {
     border-color: transparent;
-    box-shadow: inset 0 0 0 1px var(--ih-accent);
+    outline: 1px solid var(--ih-accent);
+    outline-offset: -1px;
   }
 }
 
@@ -4121,7 +4092,7 @@ table {
   object-fit: contain;
   background: var(--ih-bg);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 
 /* ---------- D: 합치기·삭제 ---------- */
@@ -4148,7 +4119,7 @@ table {
 }
 .danger-box {
   border: 1px solid var(--ih-danger);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   padding: var(--space-3);
   margin: var(--space-3) 0;
 }
@@ -4208,12 +4179,13 @@ table {
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-2) var(--space-1);
-  border-bottom: 3px solid var(--ih-line);
+  border-bottom: 1px solid var(--ih-line);
   color: var(--ih-text-secondary);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 .sheet-steps li.current {
+  background: var(--ih-selected);
   border-bottom-color: var(--ih-accent);
   color: var(--ih-text);
   font-weight: 500;
@@ -4225,7 +4197,7 @@ table {
   flex: none;
   width: 1.5em;
   height: 1.5em;
-  border-radius: var(--ih-radius-pill);
+  border-radius: var(--radius-badge);
   border: 1px solid currentColor;
 }
 .sheet-options {
@@ -4251,7 +4223,7 @@ table {
 }
 .sheet-col {
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   padding: var(--space-2);
   min-width: 0;
 }
@@ -4276,7 +4248,7 @@ table {
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   -webkit-overflow-scrolling: touch;
 }
 .sheet-table {
@@ -4372,7 +4344,7 @@ table {
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: var(--ih-radius-pill);
+  border-radius: 50%;
   background: var(--ih-ok-text);
 }
 .account-menu {
@@ -4387,7 +4359,7 @@ table {
   background: var(--ih-panel);
   color: var(--ih-text);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
   font-size: var(--text-label);
 }
@@ -4520,7 +4492,7 @@ table {
   margin-top: var(--space-2);
   padding: var(--space-3);
   border: 1px dashed var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 .recovery-step {
   display: grid;
@@ -4530,7 +4502,7 @@ table {
   margin: 0;
   padding: var(--space-3);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   background: var(--ih-subtle);
   color: var(--ih-text);
   text-align: center;
@@ -4669,7 +4641,7 @@ table {
   overflow: hidden;
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   --sb-row: 52px;
 }
 .sb-stripe {
@@ -4763,7 +4735,7 @@ table {
   padding: 0 var(--space-3);
   line-height: 1.7;
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-badge);
   color: var(--ih-text-secondary);
   font-size: var(--text-meta);
   font-weight: 500;
@@ -4940,7 +4912,7 @@ table {
   white-space: nowrap;
   padding: 0 var(--space-2);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-badge);
   background: transparent;
   color: var(--ih-text);
   font-size: var(--text-label);
@@ -5047,7 +5019,7 @@ table {
   gap: var(--space-1);
   height: 6px;
   overflow: hidden;
-  border-radius: var(--ih-radius-pill);
+  border-radius: 4px;
   background: var(--ih-subtle);
 }
 .side-bar > span {
@@ -5106,7 +5078,7 @@ table {
   min-width: 0;
   padding: var(--space-3) var(--space-3);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   background: var(--ih-panel);
 }
 .award-k-bestRate {
@@ -5334,7 +5306,7 @@ table {
   min-width: 0;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   background: var(--ih-subtle);
   overflow-wrap: anywhere;
 }
@@ -5389,7 +5361,7 @@ table {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background: var(--ih-subtle);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-badge);
 }
 .error-summary {
   display: flex;
@@ -5473,8 +5445,8 @@ table {
   overflow-wrap: anywhere;
 }
 .result-pick-btn[aria-pressed="true"] {
-  border: 3px solid var(--ih-accent);
-  box-shadow: none;
+  border-color: var(--ih-accent);
+  background: var(--ih-selected);
 }
 .result-side {
   margin: var(--space-2) 0 var(--space-3);
@@ -5545,7 +5517,7 @@ table {
   overscroll-behavior: contain;
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
 }
 .champ-option {
   display: flex;
@@ -5595,7 +5567,7 @@ table {
   overflow-wrap: anywhere;
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: var(--space-2) var(--space-3);
   margin: 0;
   font: inherit;
@@ -5704,7 +5676,7 @@ table {
     padding: var(--space-3);
     background: var(--ih-panel);
     border: 1px solid var(--ih-line);
-    border-radius: var(--ih-radius-md);
+    border-radius: var(--radius-panel);
   }
 }
 .priority-counts {
@@ -5723,7 +5695,7 @@ table {
   min-height: 36px;
   padding: var(--space-2) var(--space-2);
   border: 1px solid transparent;
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
   background: none;
   color: var(--ih-text);
   font: inherit;
@@ -5768,7 +5740,7 @@ button.row.swap-target:hover {
   margin-bottom: 0;
   background: transparent;
   border-color: transparent;
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
 }
 .team li + li > button.row,
 .team li.row + li.row,
@@ -5823,7 +5795,7 @@ button.row.swap-target:hover {
   padding: var(--space-3);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 .support-panel h2 {
   margin-top: 0;
@@ -5857,7 +5829,7 @@ button.row.swap-target:hover {
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
   background: var(--ih-panel);
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
@@ -6003,7 +5975,7 @@ label:has(> select) {
   min-width: 0;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   background: var(--ih-panel);
 }
 .rival-tile .tile-label {
@@ -6083,7 +6055,7 @@ label:has(> select) {
   padding: var(--space-3) var(--space-4);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 .graph-tools > .filter-row {
   flex: 1 1 auto;
@@ -6177,7 +6149,8 @@ label:has(> select) {
 /* 위에서 고른 플레이어의 막대 줄. */
 .bar-row.picked {
   background: var(--ih-selected);
-  box-shadow: inset 3px 0 0 var(--ih-accent);
+  outline: 1px solid var(--ih-accent);
+  outline-offset: -1px;
 }
 
 /* 막대 그래프에서 기록 없는 줄: 값 자리에 "—", 막대는 빈 트랙(높이는 다른 줄과 같다). */
@@ -6293,7 +6266,7 @@ label:has(> select) {
   white-space: normal;
   background: var(--ih-subtle);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   color: var(--ih-text);
 }
 .story-card:hover {
@@ -6335,7 +6308,7 @@ label:has(> select) {
 }
 .story-card.picked {
   background: var(--ih-selected);
-  box-shadow: inset 3px 0 0 var(--ih-accent);
+  border-color: var(--ih-accent);
 }
 
 /* 순위 변동(graphFigures RankRaceChart): 기본 회색 얇은 선, 상위 5명 .cat-n 색 2px, 고른 사람 3.5px.
@@ -6371,9 +6344,6 @@ label:has(> select) {
   stroke-opacity: 0.45;
   stroke-linejoin: round;
   stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  animation: viz-draw 0.4s ease-out;
   pointer-events: none;
 }
 .race-series {
@@ -6478,7 +6448,6 @@ label:has(> select) {
   stroke: var(--cat);
   stroke-width: 2;
   stroke-linejoin: round;
-  animation: viz-fade 0.4s ease-out;
 }
 /* 두 번째 사람은 점선(색만으로 구분하지 않게). */
 .radar-shape.cat-2 .radar-area {
@@ -6533,7 +6502,7 @@ label:has(> select) {
   display: inline-block;
   width: 10px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: 4px;
   background: var(--cat);
 }
 .radar-legend {
@@ -6554,7 +6523,6 @@ label:has(> select) {
 }
 .cal-cell {
   fill: var(--viz-track);
-  animation: viz-fade 0.4s ease-out;
 }
 .cal-l1 {
   fill: color-mix(in oklab, var(--viz-series) 35%, var(--viz-track));
@@ -6589,8 +6557,7 @@ label:has(> select) {
   padding: var(--space-4);
   background: var(--viz-surface);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-lg);
-  box-shadow: inset 3px 0 0 var(--ih-accent);
+  border-radius: var(--radius-panel);
 }
 /* 묶음 안 왼쪽 항목은 개인 통계보다 한 단계 크게(사용자 피드백: 오각형을 키우니 왼쪽이 작아 보임).
    고리 104px, 전적 줄 20px, 안내 줄 16px로 키운다. */
@@ -6630,7 +6597,7 @@ label:has(> select) {
   padding: var(--space-4) var(--space-4);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-lg);
+  border-radius: var(--radius-panel);
 }
 .commentary h2 {
   margin: 0;
@@ -6729,31 +6696,6 @@ label:has(> select) {
     max-width: 420px;
   }
 }
-/* 등장 효과(0.4초): 선은 그려지듯(pathLength=1이라 dashoffset 1→0), 면·칸은 opacity. 움직임 줄이기 설정이면 끈다. */
-@keyframes viz-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-@keyframes viz-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .race-line,
-  .radar-area,
-  .cal-cell,
-  .fair-seg {
-    animation: none;
-  }
-}
 
 /* ---------- 섞기 공정성(모임 전체) 묶음(2026-11-09 디자인 수정, 그래프 분석) ----------
    머리(큰 비율 + 판정) → 분포 띠(균형/조금/많이) → 보조 타일 3칸(미터). 판정 색: good 초록, ok 본문, poor 주황.
@@ -6764,9 +6706,10 @@ label:has(> select) {
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--ih-radius-lg);
+  border-radius: var(--radius-panel);
   background: var(--ih-panel);
-  border-left: 4px solid var(--fair-color);
+  border: 1px solid var(--ih-line);
+  border-left-color: var(--fair-color);
 }
 .fair-good {
   --fair-color: var(--sig-good);
@@ -6808,7 +6751,7 @@ label:has(> select) {
   gap: var(--space-1);
   height: 12px;
   margin-top: var(--space-2);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .fair-seg {
@@ -6821,7 +6764,6 @@ label:has(> select) {
   line-height: 1;
   font-weight: 500;
   color: var(--on-sig);
-  animation: viz-fade 0.4s ease-out;
 }
 .fair-seg-balanced {
   background: var(--sig-good);
@@ -6850,7 +6792,7 @@ label:has(> select) {
 .fair-legend i {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 /* 보조 타일은 폰·PC 모두 3칸. 미터는 타일 바닥에 붙인다. */
 .fair-tiles,
@@ -6902,7 +6844,7 @@ label:has(> select) {
   align-items: baseline;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  border-radius: 4px;
+  border-radius: var(--radius-badge);
   background: var(--ih-subtle);
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
@@ -6921,12 +6863,12 @@ label:has(> select) {
 }
 .cand-team {
   padding: var(--space-2) var(--space-3);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: var(--ih-subtle);
-  border-top: 3px solid var(--viz-blue);
+  border: 1px solid var(--viz-blue);
 }
 .cand-team-red {
-  border-top-color: var(--viz-red);
+  border-color: var(--viz-red);
 }
 .cand-team h4 {
   margin: 0 0 var(--space-2);
@@ -6963,7 +6905,7 @@ label:has(> select) {
 .cand-tier {
   flex: none;
   padding: 0 var(--space-2);
-  border-radius: 4px;
+  border-radius: var(--radius-badge);
   font-size: var(--text-meta);
   font-weight: 500;
   line-height: 1.65;
@@ -7097,7 +7039,7 @@ label:has(> select) {
   justify-self: end;
   padding: 0 var(--space-2);
   line-height: 1.85;
-  border-radius: 4px;
+  border-radius: var(--radius-badge);
   border: 1px solid var(--ih-line);
   font-size: var(--text-label);
   white-space: nowrap;
@@ -7377,7 +7319,7 @@ input[type="search"].filter-search {
   padding: var(--space-3) var(--space-4);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 .stat-card-title {
   color: var(--ih-text-secondary);
@@ -7476,7 +7418,7 @@ input[type="search"].filter-search {
   gap: var(--space-2);
   padding: var(--space-4);
   border: 1px dashed var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 
 /* ---------- 표 ----------
@@ -7492,7 +7434,7 @@ input[type="search"].filter-search {
   background: var(--ih-subtle);
   border: 1px solid var(--ih-line);
   border-bottom: 0;
-  border-radius: var(--ih-radius-md) var(--ih-radius-md) 0 0;
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
   font-weight: 600;
@@ -7519,7 +7461,7 @@ input[type="search"].filter-search {
   min-height: 32px;
   padding: var(--space-1) 0;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: 1px solid transparent;
   border-radius: 0;
   background: none;
   color: inherit;
@@ -7570,7 +7512,7 @@ input[type="search"].filter-search {
     min-height: 40px;
     padding: var(--space-1) var(--space-3);
     border: 1px solid var(--ih-line);
-    border-radius: var(--ih-radius-sm);
+    border-radius: var(--radius-control);
     background: var(--ih-panel);
   }
   .dt-head .dt-sort.is-active {
@@ -7587,7 +7529,7 @@ input[type="search"].filter-search {
   overflow: hidden;
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
   font-size: var(--text-label);
 }
 .data-table th {
@@ -8071,7 +8013,7 @@ input[type="search"].filter-search {
   display: block;
   object-fit: cover;
   background: var(--ih-subtle);
-  border-radius: var(--ih-radius-sm);
+  border-radius: 4px;
 }
 .champ-option-name {
   display: inline-flex;
@@ -8133,7 +8075,7 @@ input[type="search"].filter-search {
   padding: var(--space-3);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-md);
+  border-radius: var(--radius-panel);
 }
 .ct-board-fold > summary {
   min-height: 44px;
@@ -8156,7 +8098,7 @@ input[type="search"].filter-search {
   background: none;
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-control);
 }
 .ct-initials button[aria-pressed="true"] {
   background: var(--ih-selected);
@@ -8200,7 +8142,7 @@ input[type="search"].filter-search {
   background: none;
   color: var(--ih-text-secondary);
   font-size: var(--text-meta);
-  border-radius: var(--ih-radius-sm);
+  border-radius: 4px;
 }
 .ct-cell > span {
   max-width: 100%;
@@ -8273,7 +8215,7 @@ input[type="search"].filter-search {
   width: 24px;
   height: 24px;
   border: 1px solid transparent;
-  border-radius: var(--ih-radius-sm);
+  border-radius: var(--radius-badge);
   font-size: var(--text-label);
   font-weight: 500;
   font-variant-numeric: tabular-nums;

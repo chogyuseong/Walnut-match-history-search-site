@@ -20,7 +20,8 @@ const EXCEPTIONS = [
   // 1절: 데이터 좌표를 옮기는 translate는 정렬 보정이 아니다. 레이더 축 글자, MMR 기준선 글자.
   { rule: "translate", selector: ".radar-label", why: "레이더 좌표에 글자 중심 맞춤(데이터 좌표)" },
   { rule: "translate", selector: ".mmr-axis-start", why: "기준선 위치(--at)에 맞춘 글자(데이터 좌표)" },
-  // 1절: 폭은 간격 척도 대상이 아니다. 머리 칸 눈금을 아래 줄의 막대 칸에 맞추려고 옆 칸 폭(순위 2rem, 펼치기 44px)만큼 띄운다.
+  // 6절: 키보드 포커스 표시는 2px outline이 규칙 값이다.
+  { rule: "thick-line", selector: ":focus-visible", why: "키보드 포커스 2px outline(6절)" },  // 1절: 폭은 간격 척도 대상이 아니다. 머리 칸 눈금을 아래 줄의 막대 칸에 맞추려고 옆 칸 폭(순위 2rem, 펼치기 44px)만큼 띄운다.
   { rule: "spacing", selector: ".mmr-head .c-bar", why: "줄의 순위·펼치기 칸 폭 + 틈에 맞춘 눈금 위치(칸 폭)" },
 ];
 // 50% 반경은 원(아바타·상태 점·원형 그래프)에만 허용된다(3절). 원인지는 기계가 못 가리므로 50%는 통과시키고
@@ -31,8 +32,9 @@ const SPACE_OK = new Set(["0", "4px", "8px", "12px", "16px", "24px", "32px", "48
 const FONT_SIZE_OK = new Set(["0.75rem", "0.875rem", "1rem", "1.25rem", "1.5rem", "2rem", "inherit"]);
 const FONT_WEIGHT_OK = new Set(["400", "500", "600", "normal", "inherit"]);
 const RADIUS_OK = new Set(["0", "4px", "6px", "8px", "50%", "inherit"]);
-// 옛 반경 토큰 중 허용 값(4·6px)을 가리키는 것. --ih-radius-pill(9999px)은 위반이다.
-const RADIUS_VAR_OK = /^var\(--(radius-[\w-]+|ih-radius-(sm|md|lg))\)$/;
+const RADIUS_VAR_OK = /^var\(--radius-(badge|control|panel)\)$/;
+// transition은 색 바꿈에만 건다(6절). transform·opacity 같은 속성이 끼면 위반이다.
+const TRANSITION_PROP_OK = new Set(["background-color", "border-color", "color"]);
 const DIALOG_SHADOW = "0 8px 24px rgb(0 0 0 / 0.12)";
 
 /** 주석을 같은 길이의 공백으로 바꾼다(줄 번호를 그대로 두려고). */
@@ -145,11 +147,24 @@ for (const d of decls) {
     if (value !== "none") hit("backdrop-filter", `${prop}: ${value}`, line);
   } else if (prop === "transition" || prop === "transition-duration") {
     if (value === "none") continue;
-    for (const dur of durationsOf(value)) if (!isMotionOk(dur) && value !== "var(--motion)") hit("transition", dur, line);
+    for (const dur of durationsOf(value)) if (!isMotionOk(dur)) hit("transition", dur, line);
+    if (prop === "transition")
+      for (const part of value.split(",")) {
+        const name = part.trim().split(/\s+/)[0];
+        if (!TRANSITION_PROP_OK.has(name)) hit("transition", name, line);
+      }
+  } else if (prop === "animation" || prop === "animation-name") {
+    // 자동 재생 장식 애니메이션 금지(6절). 상태를 알리는 로딩 표시가 생기면 EXCEPTIONS에 이유와 함께 넣는다.
+    if (value !== "none") hit("animation", value, line);
   } else if (prop === "transform" && /translate/.test(value)) {
     // @keyframes 안의 translate는 자동 애니메이션 쪽 문제라 여기서 세지 않는다(2단계에서 애니메이션째 지운다).
     if (/^(from|to|\d+%)/.test(d.selector)) continue;
     if (!excuse("translate", d)) hit("translate", value, line);
+  }
+  // 기본 테두리는 1px(3절). SVG stroke-width는 데이터 선이라 보지 않는다.
+  if (/^(border|outline)(-(top|right|bottom|left|width|block|inline))*$/.test(prop)) {
+    const thick = words(value).find((w) => /^([2-9]|\d{2,})(\.\d+)?px$/.test(w) || w === "thick" || w === "medium");
+    if (thick && !excuse("thick-line", d)) hit("thick-line", `${prop}: ${thick}`, line);
   }
   if (/(linear|radial|conic)-gradient\(/.test(value)) hit("gradient", value.match(/[\w-]*gradient/)[0], line);
 }
@@ -165,7 +180,9 @@ const ORDER = [
   ["box-shadow", "box-shadow"],
   ["text-shadow", "text-shadow"],
   ["backdrop-filter", "backdrop-filter"],
-  ["transition", "transition 시간"],
+  ["transition", "transition(시간·속성)"],
+  ["animation", "animation"],
+  ["thick-line", "2px 이상 테두리·외곽선"],
   ["translate", "translate 보정"],
 ];
 
