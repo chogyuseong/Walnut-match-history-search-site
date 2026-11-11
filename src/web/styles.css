@@ -194,6 +194,9 @@
   --radius-panel: 8px;
   /* 호버·선택 때 색이 바뀌는 시간(6절). transition은 background-color·border-color·color에만 이 값으로 건다. */
   --motion: 120ms;
+  /* 누르는 것의 최소 크기(7절). 버튼·입력 높이이자 작은 글자 링크·정렬 머리의 최소 폭·높이다.
+     보이는 모양을 작게 두고 싶은 곳도 누르는 영역은 이 값 아래로 줄이지 않는다. */
+  --control-height: 44px;
 
   /* 글자 크기 척도(CLAUDE.md 4절). font-size는 이 여섯 값만 쓴다. rem이라 사용자가 키운 기본 글자를 따라간다.
      meta는 비핵심 보조 정보(날짜·배지·범례)에만 쓴다. 기록·경고·입력 내용을 meta로 줄이지 않는다. */
@@ -316,7 +319,8 @@ h3 {
   font-size: var(--text-section);
 }
 
-/* 버튼: 터치 대상 44px 이상 */
+/* 버튼·입력 치수(7절): 높이 44, 버튼 좌우 16·글자 14/500, 입력 안쪽 8·12·글자 16.
+   버튼의 위아래 여백은 0이고 높이는 min-height가 낸다. 두 줄짜리 내용을 담는 줄 버튼(.row 등)은 각자 여백을 준다. */
 button,
 select,
 input,
@@ -325,12 +329,18 @@ textarea {
   color: inherit;
 }
 button {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
   border-radius: var(--radius-control);
   border: 1px solid var(--ih-control-border);
   background: var(--ih-panel);
+  font-size: var(--text-label);
+  font-weight: 500;
   cursor: pointer;
+  transition:
+    background-color var(--motion),
+    border-color var(--motion),
+    color var(--motion);
 }
 button:disabled {
   opacity: 0.5;
@@ -357,17 +367,24 @@ summary:focus-visible,
   border-color: var(--ih-primary-hover);
 }
 .danger {
-  border-color: var(--ih-danger);
+  border-color: var(--ih-loss-border);
   color: var(--ih-danger);
-  background: var(--ih-panel);
+  background: var(--ih-loss-bg);
+}
+/* 글자 링크 모양 버튼. "닫기"·"수정"처럼 글자가 짧아도 누르는 칸은 44×44를 지킨다(min-width).
+   줄 안에서 링크를 작게 보이고 싶어도 min-height·min-width를 내리지 않는다. */
+.link,
+.link:not(:disabled):hover {
+  border-color: transparent;
+  background: none;
+  color: var(--ih-accent);
 }
 .link {
   border: none;
-  background: none;
   padding: var(--space-2) var(--space-1);
-  color: var(--ih-accent);
   text-decoration: underline;
-  min-height: 44px;
+  min-height: var(--control-height);
+  min-width: var(--control-height);
 }
 .wide {
   width: 100%;
@@ -382,12 +399,23 @@ summary:focus-visible,
 input,
 textarea,
 select {
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-control);
   border: 1px solid var(--ih-control-border);
   background: var(--ih-panel);
+  font-size: var(--text-body);
   width: 100%;
+}
+/* 평소 컨트롤 경계, 초점이 오면 테두리가 강조색(초점 고리와 함께). */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--ih-accent);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--ih-text-secondary);
 }
 select {
   width: auto;
@@ -416,6 +444,7 @@ textarea {
 fieldset {
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-panel);
+  background: var(--ih-panel);
   padding: var(--space-2) var(--space-3) var(--space-3);
   margin: 0 0 var(--space-3);
   min-width: 0;
@@ -539,6 +568,7 @@ details.help > .help-body p {
   background: var(--warn-bg);
   border-color: var(--warn-line);
 }
+/* 작은 이름표(.badge·.tag): 12px/500, 모서리 4, 옅은 테두리, 바탕 없음. 뜻 색은 글자와 테두리에만. */
 .badge {
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-badge);
@@ -546,11 +576,22 @@ details.help > .help-body p {
   padding: 0 var(--space-2);
   line-height: 1.85;
   white-space: nowrap;
+  font-size: var(--text-meta);
+  font-weight: 500;
+  background: transparent;
+  color: var(--ih-text-secondary);
 }
 .badge.ok {
-  background: var(--ok-bg);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--ok-text) 45%, transparent);
   color: var(--ok-text);
-  border-color: transparent;
+}
+/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). */
+.badge.warn-badge {
+  margin-left: var(--space-2);
+  background: transparent;
+  border-color: var(--warn-line);
+  color: var(--warn-line);
 }
 .tag {
   border: 1px solid var(--ih-line);
@@ -558,6 +599,10 @@ details.help > .help-body p {
   padding: 0 var(--space-2);
   margin-left: var(--space-2);
   white-space: nowrap;
+  font-size: var(--text-meta);
+  font-weight: 500;
+  background: transparent;
+  color: var(--ih-text-secondary);
 }
 .card {
   background: var(--ih-panel);
@@ -836,10 +881,10 @@ details > *:not(summary) {
   max-height: 92dvh;
   overflow-y: auto;
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;
-  padding: var(--space-3) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-4);
 }
 .dialog-head {
   display: flex;
@@ -874,6 +919,8 @@ details > *:not(summary) {
   border-radius: var(--radius-panel);
   padding: var(--space-3) var(--space-4);
   text-align: center;
+  font-size: var(--text-label);
+  font-weight: 500;
   z-index: 20;
 }
 
@@ -884,6 +931,7 @@ details > *:not(summary) {
   }
   .dialog {
     border-radius: var(--radius-panel);
+    padding: var(--space-5);
   }
   .screen,
   .card {
@@ -896,13 +944,12 @@ details > *:not(summary) {
   display: inline-block;
   min-width: 1.6em;
   color: var(--ih-text-secondary);
-  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 .stat {
   flex: none;
   max-width: 62%;
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 .segmented select {
   flex: 1;
@@ -1449,68 +1496,20 @@ button.row .tag {
   border-radius: 4px;
 }
 
-/* 버튼·입력 */
-button {
-  font-weight: 500;
-  transition:
-    background-color var(--motion),
-    border-color var(--motion),
-    color var(--motion);
-}
+/* 버튼 호버: 테두리만 한 단계 진하게. 클래스 없는 기본 버튼과 secondary는 바탕도 한 단계 밝아진다. 다른 버튼은 각자 규칙을 따른다. */
 button:not(:disabled):hover {
   border-color: var(--ih-text-secondary);
 }
-/* 기본 버튼(클래스 없음)과 secondary는 손을 올리면 바탕이 한 단계 밝아진다. 다른 버튼은 각자 규칙을 따른다. */
 button:not([class]):not(:disabled):hover,
 .secondary:not(:disabled):hover {
   background: var(--ih-subtle);
 }
-/* 버튼 단계: primary(화면당 하나, 포인트 색 채움) > secondary(조용한 바탕, 또렷한 테두리) > link(글자). 그림자 없음. */
+/* 버튼 단계: primary(화면당 하나, 강조색 채움) > secondary(조용한 바탕, 또렷한 테두리) > link(글자). 그림자 없음. */
 .secondary {
   background: var(--ih-panel);
   border-color: var(--ih-control-border);
-  font-weight: 600;
-}
-.danger {
-  background: var(--ih-loss-bg);
-  border-color: var(--ih-loss-border);
-}
-.link,
-.link:not(:disabled):hover {
-  color: var(--ih-accent);
-  background: none;
-  border-color: transparent;
-  font-weight: 600;
-}
-input,
-textarea,
-select {
-  background: var(--ih-panel);
-}
-/* 입력 칸: 평소 옅은 테두리, 초점이 오면 테두리가 포인트 색(초점 고리와 함께). */
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: var(--ih-accent);
-}
-input::placeholder,
-textarea::placeholder {
-  color: var(--ih-text-secondary);
-}
-fieldset {
-  border-color: var(--ih-line);
-  background: var(--ih-panel);
 }
 
-/* 표면: 옅은 테두리 1px, 그림자 없음. */
-.card,
-.team,
-.chart-card,
-details,
-.candidate {
-  border-color: var(--ih-line);
-  box-shadow: none;
-}
 /* 카드 안의 카드: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다. 명시도는 :where()로 낮춘다. */
 .card :where(.card) {
   border-width: 1px 0 0;
@@ -1528,33 +1527,6 @@ details,
 }
 .saved {
   border: 1px solid var(--ih-ok-text);
-}
-/* 작은 이름표(.badge·.tag): 알약 대신 모서리 4px 네모, 옅은 테두리, 바탕 없음. 뜻 색은 글자와 테두리에만. */
-.badge {
-  font-size: var(--text-meta);
-  font-weight: 600;
-  border-color: var(--ih-line);
-  background: transparent;
-  color: var(--ih-text-secondary);
-}
-.badge.ok {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--ok-text) 45%, transparent);
-  color: var(--ok-text);
-}
-/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). */
-.badge.warn-badge {
-  margin-left: var(--space-2);
-  background: transparent;
-  border-color: var(--warn-line);
-  color: var(--warn-line);
-}
-.tag {
-  font-size: var(--text-meta);
-  font-weight: 600;
-  border-color: var(--ih-line);
-  background: transparent;
-  color: var(--ih-text-secondary);
 }
 
 /* 목록 줄 */
@@ -1894,9 +1866,6 @@ table {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
-.rank {
-  font-weight: 500;
-}
 /* 순위 숫자 색(format.ts rankClass): 1위 포인트 색 · 2위 은 · 3위 동 · 4~10위 본문 · 11위~ 흐림. 색 띠는 쓰지 않는다. */
 .rank.rank-1 {
   color: var(--ih-accent);
@@ -2209,12 +2178,6 @@ table {
   }
 }
 
-/* 알림 글자(크기·굵기는 2단계에서 척도로 정리) */
-.toast {
-  font-size: var(--text-label);
-  font-weight: 500;
-}
-
 /* 푸터: 라이엇 게임즈와 무관함을 알리는 문구 */
 .legal {
   margin: var(--space-6) var(--space-4) 0;
@@ -2248,9 +2211,9 @@ table {
   border-radius: var(--radius-badge);
   background: transparent;
   color: var(--ih-text);
-  font-size: var(--text-label);
-  font-weight: 600;
-  line-height: 1.6;
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1.85;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2297,8 +2260,6 @@ table {
   gap: var(--space-1);
   padding: 0;
   border: 0;
-  font-size: var(--text-meta);
-  font-weight: 600;
 }
 .title-chip.compact .title-emblem {
   width: 13px;
@@ -2729,7 +2690,8 @@ table {
 @media (max-width: 419px) {
   .mc-roles,
   .mc-team {
-    grid-template-columns: 1.6rem repeat(5, minmax(0, 1fr));
+    /* 진영 칸은 "블루"·"레드"(14px 두 글자)가 한 줄로 들어가는 최소 폭. 1.6rem에서는 칸 밖으로 비어져 나왔다. */
+    grid-template-columns: 2rem repeat(5, minmax(0, 1fr));
   }
   .match-card {
     padding: 0 var(--space-1) var(--space-2) var(--space-2);
@@ -3543,7 +3505,6 @@ table {
 .cmp-name:not(:disabled):hover {
   display: block;
   max-width: 100%;
-  min-height: 32px;
   padding: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5692,7 +5653,7 @@ table {
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  min-height: 36px;
+  min-height: var(--control-height);
   padding: var(--space-2) var(--space-2);
   border: 1px solid transparent;
   border-radius: var(--radius-control);
@@ -5851,7 +5812,6 @@ button.row.swap-target:hover {
   }
   .match-cards .mc-name,
   .match-cards .mc-name:not(:disabled):hover {
-    min-height: 34px;
     font-size: var(--text-body);
   }
   .match-cards .mc-roles {
@@ -6745,11 +6705,11 @@ label:has(> select) {
   color: var(--ih-text);
 }
 /* 분포 띠: 구간 폭 = flex-grow(경기 수). 둥근 모서리는 띠 전체에만.
-   높이 12px(2026-11-10: 22px에서 낮춤). 경기 수는 범례에 없어 띠 안 숫자를 남기고 글자를 띠 높이에 맞췄다. */
+   경기 수는 범례에 없어 띠 안 숫자(12px)를 남긴다. 높이 16px은 그 숫자가 띠 위아래 끝에 닿지 않는 가장 낮은 값이다. */
 .fair-dist {
   display: flex;
   gap: var(--space-1);
-  height: 12px;
+  height: 16px;
   margin-top: var(--space-2);
   border-radius: 4px;
   overflow: hidden;
@@ -7212,7 +7172,6 @@ label:has(> select) {
   line-height: 1.45;
 }
 .page-desc .inline-link {
-  min-height: 0;
   padding: 0;
 }
 .page-actions {
@@ -7323,8 +7282,8 @@ input[type="search"].filter-search {
 }
 .stat-card-title {
   color: var(--ih-text-secondary);
-  font-size: var(--text-label);
-  font-weight: 600;
+  font-size: var(--text-meta);
+  font-weight: 500;
 }
 .stat-card-lead {
   min-width: 0;
@@ -7334,9 +7293,9 @@ input[type="search"].filter-search {
   font-weight: 500;
 }
 .stat-card-value {
-  font-size: var(--text-screen);
+  font-size: var(--text-hero);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   font-variant-numeric: tabular-nums;
 }
 .stat-card-unit {
@@ -7385,7 +7344,6 @@ input[type="search"].filter-search {
 }
 .stat-card.is-lead .stat-card-name,
 .stat-card.is-lead .stat-card-name:not(:disabled):hover {
-  min-height: 32px;
   padding: 0;
   color: inherit;
   font-size: var(--text-section);
@@ -7437,7 +7395,7 @@ input[type="search"].filter-search {
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
-  font-weight: 600;
+  font-weight: 500;
 }
 /* 순위표 줄은 패널색이 아니라 화면 배경색으로 내린다. 옆의 경기 카드(패널색)와 같은 면으로 보이면 줄이 눈에 안 들어온다.
    머리 줄·묶음 소제목(--ih-subtle)과 명암 차가 나야 하므로 줄 바탕을 패널색으로 되돌리지 않는다. */
@@ -7458,7 +7416,8 @@ input[type="search"].filter-search {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 32px;
+  min-height: var(--control-height);
+  min-width: var(--control-height);
   padding: var(--space-1) 0;
   border: 0;
   border-bottom: 1px solid transparent;
@@ -7466,7 +7425,10 @@ input[type="search"].filter-search {
   background: none;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+}
+/* 숫자 열 머리: 44px 칸 안에서도 글자가 숫자와 같은 오른쪽 끝에 붙게. */
+.num > .dt-sort {
+  justify-content: flex-end;
 }
 .dt-sort:not(:disabled):hover {
   color: var(--ih-text);
@@ -7509,7 +7471,6 @@ input[type="search"].filter-search {
   }
   .dt-head .dt-sort,
   .dt-head .dt-sort:not(:disabled):hover {
-    min-height: 40px;
     padding: var(--space-1) var(--space-3);
     border: 1px solid var(--ih-line);
     border-radius: var(--radius-control);
@@ -7546,9 +7507,22 @@ input[type="search"].filter-search {
   border-top: 1px solid var(--ih-line);
   vertical-align: middle;
 }
+/* 줄 높이 최소 48(7절). 표 줄에서 height는 최소값처럼 동작해 긴 이름·펼친 내용이 있으면 더 높아진다. */
+.data-table tr {
+  height: 48px;
+}
 .data-table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+/* 정렬 머리 칸은 칸 좌우 여백을 버튼 안으로 옮긴다. 짧은 머리("판")도 칸을 넓히지 않고 44px 누르는 폭을 얻는다.
+   칸 여백을 바꾸는 표(.ct-table)는 버튼 여백도 같이 바꿔야 머리 글자가 숫자 끝과 맞는다. */
+.data-table th:has(> .dt-sort) {
+  padding: 0;
+}
+.data-table th > .dt-sort,
+.data-table th > .dt-sort:not(:disabled):hover {
+  padding: 0 var(--space-3);
 }
 .data-table tr.is-clickable {
   cursor: pointer;
@@ -7703,8 +7677,8 @@ input[type="search"].filter-search {
 }
 .mmr-toggle,
 .mmr-toggle:not(:disabled):hover {
-  width: 36px;
-  min-height: 40px;
+  width: var(--control-height);
+  min-height: var(--control-height);
   padding: 0;
   border: none;
   background: none;
@@ -7747,7 +7721,7 @@ input[type="search"].filter-search {
 }
 @media (min-width: 720px) {
   .mmr-grid {
-    grid-template-columns: 2.5rem minmax(6rem, 1.2fr) minmax(5rem, 1fr) 4rem 4.25rem 3.25rem 3.5rem 36px;
+    grid-template-columns: 2.5rem minmax(6rem, 1.2fr) minmax(5rem, 1fr) 4rem 4.25rem 3.25rem 3.5rem var(--control-height);
     grid-template-areas: none;
     gap: 0 var(--space-2);
   }
@@ -7926,7 +7900,6 @@ input[type="search"].filter-search {
 }
 .recent-table .rm-open,
 .recent-table .rm-open:not(:disabled):hover {
-  min-height: 32px;
   padding: 0;
   color: var(--ih-text);
   font-weight: 500;
@@ -7979,7 +7952,6 @@ input[type="search"].filter-search {
 }
 .rm-name,
 .rm-name:not(:disabled):hover {
-  min-height: 28px;
   padding: 0;
   color: inherit;
   font-size: var(--text-label);
@@ -8091,8 +8063,8 @@ input[type="search"].filter-search {
   gap: var(--space-1);
 }
 .ct-initials button {
-  min-width: 32px;
-  min-height: 32px;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-2);
   border: 0;
   background: none;
@@ -8171,7 +8143,9 @@ input[type="search"].filter-search {
 /* 칸이 일곱 개라 공통 표 여백(좌우 12px)을 쓰면 720~1023px에서 옆 모음판과 나란히 놓일 때 표가 화면 밖으로 넘친다.
    모든 너비에서 좌우 8px로 줄인다. */
 .ct-table th,
-.ct-table td {
+.ct-table td,
+.ct-table th > .dt-sort,
+.ct-table th > .dt-sort:not(:disabled):hover {
   padding-left: var(--space-2);
   padding-right: var(--space-2);
 }
@@ -8182,13 +8156,14 @@ input[type="search"].filter-search {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
+  min-width: var(--control-height);
   padding: 0;
   border: 0;
   background: none;
   color: var(--ih-text);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   text-align: left;
 }
 .ct-name:not(:disabled):hover {

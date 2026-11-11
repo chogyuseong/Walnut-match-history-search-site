@@ -163,10 +163,10 @@ export function SeasonSummaryScreen(props: {
         title={`${summary.label} 요약`}
         badge={<span className={summary.ongoing ? "badge" : "badge ok"}>{summary.ongoing ? "진행 중" : "종료"}</span>}
         desc={
-          <span className="season-period">
+          <>
             <span className="season-dates">{formatRange(summary.startsOn, summary.endsOn, tz)}</span>
             {summary.ongoing ? " · 진행 중이라 숫자가 바뀔 수 있어요." : ""}
-          </span>
+          </>
         }
       />
       <div className="season-tools">
