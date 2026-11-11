@@ -13,7 +13,7 @@ import { RoleIcon } from "../screenKit";
 /**
  * 그래프 분석 화면(Graphs.tsx)의 그림 부품(2026-11-09): 이야기 띠 · 순위 변동 · 라인 모양 · 활동 달력 · 승·패 띠.
  * 계산은 하지 않는다. 값은 모두 src/shared/graphs.ts가 스냅숏에서 만든 결과를 Graphs.tsx가 넘겨준다.
- * 색은 styles.css의 .viz-root 변수(--viz-*, --cat)만 쓴다(테마 3종이 같은 코드로 바뀐다).
+ * 색은 styles.css의 테마 토큰(--ih-*)과 .viz-root 변수(--viz-cat-*, --viz-track, --cat)만 쓴다(다크·라이트가 같은 코드로 바뀐다).
  * 글자는 늘 본문 색이고 색 표시는 곁의 선·점이 맡는다. 색만으로 구분하지 않게 이름표·굵기·점선을 함께 쓴다.
  */
 

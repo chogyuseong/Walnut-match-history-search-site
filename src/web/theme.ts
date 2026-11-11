@@ -8,13 +8,15 @@ export const THEMES: readonly { value: Theme; label: string }[] = [
 
 const THEME_KEY = "naejeon.theme";
 const DEFAULT_THEME: Theme = "dark";
+/** 없앤 바이올렛 테마의 저장값(violet, 그 전 이름 deeplol). 남아 있으면 다크로 고쳐 쓴다.
+ *  고쳐 쓴 뒤에는 바이올렛이 있던 판으로 되돌려 배포해도 그 기기는 다크로 열린다. */
+const RETIRED_THEMES: readonly string[] = ["violet", "deeplol"];
 
 export function readTheme(): Theme {
   try {
     const stored = localStorage.getItem(THEME_KEY);
     if (THEMES.some((t) => t.value === stored)) return stored as Theme;
-    // 2026-11-11에 없앤 바이올렛 테마(violet, 그 전 이름 deeplol)를 고른 기기는 다크로 연다. 저장값은 고쳐 쓰지 않아서
-    // 디자인 단계를 되돌려 배포해도 바이올렛이 그대로 돌아온다. 저장값 정리는 디자인 6단계에서 한다.
+    if (stored !== null && RETIRED_THEMES.includes(stored)) localStorage.setItem(THEME_KEY, DEFAULT_THEME);
   } catch {
     // 보관소를 읽지 못하면 기본 테마를 쓴다.
   }

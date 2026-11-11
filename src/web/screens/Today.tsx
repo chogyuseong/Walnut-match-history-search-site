@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { sessionSummary, sessionSummaryText } from "../../shared/sessionSummary";
-import { personRecords, searchByName, todayMatches, placementGamesOf } from "../../shared/stats";
+import { isCounted, personRecords, searchByName, todayMatches, placementGamesOf } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
 import { formatDate, formatTime, nameMap, rateText, rateTier, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
@@ -8,7 +8,7 @@ import { useSeriesBadges } from "../seriesPanel";
 import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
 import { KpiStrip, ScreenHead, StandingNote } from "../screenKit";
 import { CopyButton, Dialog, ErrorNote } from "../ui";
-import { Dashboard, DashboardEmpty } from "./Dashboard";
+import { Dashboard } from "./Dashboard";
 import { go, useAppValue } from "../useApp";
 import { Intro, isFirstVisit } from "./Intro";
 import { LoginDialog } from "./Login";
@@ -46,6 +46,10 @@ export function Today() {
   const todayIds = useMemo(() => new Set(today.map((m) => m.id)), [today]);
   const confirmedToday = today.filter((m) => m.state === "confirmed");
   const hasAnyMatch = (snapshot?.matches.length ?? 0) > 0;
+  // 결과를 저장한 경기(통계에 드는 경기)가 하나라도 있는지. 없으면 전적 검색·요약 대신 "지금 할 일" 안내 하나만 둔다
+  // (CLAUDE.md 8절: 빈 통계 패널 여러 개를 보여 주지 않는다). 그래프·기록 화면의 빈 안내와 같은 모양(.empty-state)이다.
+  const hasRecord = (snapshot?.matches ?? []).some(isCounted);
+  const nothingYet = !current && !app.draft && !hasAnyMatch;
   // 전적 검색은 범위 없이 전체 누적 기록에서 찾는다.
   const [query, setQuery] = useState("");
   const allTime = useMemo(() => personRecords(snapshot?.matches ?? []), [snapshot]);
@@ -109,7 +113,7 @@ export function Today() {
       )}
 
       {!introOnly && (
-        <section className="card" aria-label="지금 할 일">
+        <section className={nothingYet ? "empty-state" : "card"} aria-label="지금 할 일">
           {current ? (
             <>
               <p>
@@ -154,7 +158,7 @@ export function Today() {
             </>
           ) : (
             <>
-              <p>아직 경기가 없어요.</p>
+              <p>아직 경기가 없어요. 경기 결과를 저장하면 오늘의 결과, 전적 검색, 최근 경기와 랭킹이 여기에 쌓여요.</p>
               <button type="button" className="primary wide" onClick={() => go("/pick")}>
                 이름 넣고 팀 짜기
               </button>
@@ -179,55 +183,42 @@ export function Today() {
         </p>
       )}
 
-      {!introOnly && (
+      {!introOnly && allTime.size > 0 && (
         <section aria-label="전적 검색">
           <h2>전적 검색</h2>
-          {allTime.size === 0 ? (
-            <p className="hint">경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
-          ) : (
-            <>
-              <input
-                type="search"
-                aria-label="플레이어 이름으로 전적 검색"
-                placeholder="플레이어 이름"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {query.trim() !== "" &&
-                (found.length === 0 ? (
-                  <p className="hint">일치하는 이름이 없어요.</p>
-                ) : (
-                  <ul className="list list-card">
-                    {found.slice(0, 8).map((r) => (
-                      <li key={r.participantId}>
-                        <button
-                          type="button"
-                          className="list-row"
-                          onClick={() => go(`/p/${r.participantId}`)}
-                        >
-                          <span className="name">{r.name}</span>
-                          <span className="stat">
-                            <span className={rateTier(r.wins, r.games)}>
-                              {rateText(r.wins, r.games)}
-                            </span>{" "}
-                            · {r.wins}승 {r.losses}패 (
-                            {r.games}경기)
-                            <br />
-                            <span className="hint">
-                              <StandingNote
-                                standing={standing?.get(r.participantId)}
-                                placementGames={placementGames}
-                                compact
-                              />
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+          <input
+            type="search"
+            aria-label="플레이어 이름으로 전적 검색"
+            placeholder="플레이어 이름"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query.trim() !== "" &&
+            (found.length === 0 ? (
+              <p className="hint">일치하는 이름이 없어요.</p>
+            ) : (
+              <ul className="list list-card">
+                {found.slice(0, 8).map((r) => (
+                  <li key={r.participantId}>
+                    <button type="button" className="list-row" onClick={() => go(`/p/${r.participantId}`)}>
+                      <span className="name">{r.name}</span>
+                      <span className="stat">
+                        <span className={rateTier(r.wins, r.games)}>{rateText(r.wins, r.games)}</span> · {r.wins}승{" "}
+                        {r.losses}패 ({r.games}경기)
+                        <br />
+                        <span className="hint">
+                          <StandingNote
+                            standing={standing?.get(r.participantId)}
+                            placementGames={placementGames}
+                            compact
+                          />
+                        </span>
+                      </span>
+                    </button>
+                  </li>
                 ))}
-            </>
-          )}
+              </ul>
+            ))}
         </section>
       )}
 
@@ -307,7 +298,7 @@ export function Today() {
       )}
       <ErrorNote error={error} />
 
-      {snapshot ? (
+      {snapshot && hasRecord && (
         <Dashboard
           snapshot={snapshot}
           skipIds={todayIds}
@@ -315,8 +306,6 @@ export function Today() {
           openPerson={(id) => go(`/p/${id}`)}
           openRanking={() => go("/records")}
         />
-      ) : (
-        app.ready && !introOnly && <DashboardEmpty />
       )}
 
       {app.ready && !app.me?.accountId && !introOnly && (
