@@ -2,7 +2,12 @@
 //   npm run audit:design            항목별 개수 + 값별 줄 번호
 //   npm run audit:design -- --brief 항목별 개수만
 // 배포 전 점검(scripts/predeploy-check.mjs)과 CI(check 작업)가 이 스크립트를 부른다. 규칙 밖 값을 꼭 써야 하면
-// 값을 숨기지 말고 CLAUDE.md에 예외를 먼저 적은 뒤 아래 EXCEPTIONS에 이유와 함께 더한다.
+// 값을 숨기지 말고 CLAUDE.md에 예외를 먼저 적는다. 그다음 선언 단위 검사(간격·글자·반경·효과·translate·font-family)는
+// 아래 EXCEPTIONS에 선택자와 이유를, @media 폭은 MEDIA_WIDTH_OK에 폭과 이유를 더한다. !important와
+// @font-face·@import는 예외 경로가 없다(허용하려면 검사 자체를 고치고 이유를 적는다).
+// 움직임 줄이기(prefers-reduced-motion) 초기화를 넣을 때도 !important 없이 명시도와 순서로 덮는다.
+// 통과가 곧 규칙을 다 지킨 것은 아니다. em·rem·소수 폭이나 범위 문법(width >= …)의 @media, font: 줄여 쓴 속성 안의
+// 크기·굵기·글꼴, 토큰(--text-*·--space-* 등) 값 자체를 바꾼 것은 세지 못한다.
 // 색은 여기서 보지 않는다. 대비는 test/theme-contrast.test.ts가 보고, 장식색인지는 사람이 판단한다.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -41,8 +46,8 @@ const TRANSITION_PROP_OK = new Set(["background-color", "border-color", "color"]
 const DIALOG_SHADOW = "0 8px 24px rgb(0 0 0 / 0.12)";
 // 반응형 기준(2절)은 768·1200 둘이다(max-width는 그 1px 아래 767·1199). 나머지는 좁은 폰에서 팀 상자·경기 카드·순위 줄이
 // 넘치지 않게 남긴 부품 보정 값이라, 여기 없는 폭을 새로 쓰려면 먼저 768·1200으로 풀 수 없는지 본다.
-// @container 폭은 부품 자신의 폭이라 세지 않는다.
-const MEDIA_WIDTH_OK = new Set([767, 768, 1199, 1200, 359, 419, 479, 480, 481, 599]);
+// @container 폭(예: 600px)은 부품 자신의 폭이라 세지 않는다.
+const MEDIA_WIDTH_OK = new Set([767, 768, 1199, 1200, 359, 419, 479, 480, 481]);
 // 글꼴은 Pretendard + 시스템 대체 글꼴 하나(4절, :root의 --ih-font-sans).
 const FONT_FAMILY_OK = new Set(["var(--ih-font-sans)", "inherit"]);
 

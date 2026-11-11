@@ -338,3 +338,20 @@ test("자료 적음 막대는 라이트·다크 모두 속 빈 테두리 막대"
     expect(look, theme).toEqual({ bg: "rgba(0, 0, 0, 0)", border: "1px" });
   }
 });
+
+// 붙은 탭의 고른 칸(클래스 없는 aria-pressed 버튼)은 마우스를 올려도 옅은 강조 바탕 그대로다. styles.css에서
+// 고른 칸 호버 규칙이 기본 버튼 호버(button:not([class]):not(:disabled):hover)와 명시도가 같아 순서가 바뀌면 보조 면 색이 된다.
+test("붙은 탭의 고른 칸은 마우스를 올려도 고른 바탕을 유지한다", async ({ page }) => {
+  await page.goto("/#/demo/graphs");
+  const picked = page.getByRole("group", { name: "분석 보기" }).getByRole("button", { name: "개인별 승률" });
+  await expect(picked).toHaveAttribute("aria-pressed", "true");
+  for (const theme of ["dark", "light"]) {
+    await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(200);
+    const resting = await picked.evaluate((el) => getComputedStyle(el).backgroundColor);
+    await picked.hover();
+    await page.waitForTimeout(200);
+    expect(await picked.evaluate((el) => getComputedStyle(el).backgroundColor), theme).toBe(resting);
+  }
+});

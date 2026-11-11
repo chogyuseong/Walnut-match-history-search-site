@@ -899,8 +899,7 @@ button.row.picked:hover {
   background: none;
   color: var(--ih-text-secondary);
 }
-.segmented button[aria-pressed="true"],
-.segmented button[aria-pressed="true"]:hover {
+.segmented button[aria-pressed="true"] {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
   color: var(--ih-text);
@@ -1555,6 +1554,13 @@ button:not(:disabled):hover {
 button:not([class]):not(:disabled):hover,
 .secondary:not(:disabled):hover {
   background: var(--ih-subtle);
+}
+/* 붙은 탭의 고른 칸은 마우스를 올려도 고른 모양 그대로. 탭 칸은 클래스 없는 버튼이 많고, 바로 위 기본 버튼 호버
+   (button:not([class]):not(:disabled):hover)와 명시도가 같아(0,3,1) 이 규칙이 그보다 뒤에 있어야 이긴다. */
+.segmented button[aria-pressed="true"]:hover {
+  border: 1px solid var(--ih-accent);
+  background: var(--ih-selected);
+  color: var(--ih-text);
 }
 
 /* 카드 안의 목록 줄: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다("기록지"의 줄 칸).
