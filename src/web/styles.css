@@ -7461,7 +7461,10 @@ input[type="search"].filter-search {
   font-size: 0.875rem;
   font-weight: 600;
 }
+/* 순위표 줄은 패널색이 아니라 화면 배경색으로 내린다. 옆의 경기 카드(패널색)와 같은 면으로 보이면 줄이 눈에 안 들어온다.
+   머리 줄·묶음 소제목(--ih-subtle)과 명암 차가 나야 하므로 줄 바탕을 패널색으로 되돌리지 않는다. */
 .dt-list > .list-card {
+  background: var(--ih-bg);
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
