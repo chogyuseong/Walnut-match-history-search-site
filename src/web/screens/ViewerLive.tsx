@@ -60,7 +60,7 @@ export function ViewerLive(props: { token: string }) {
     return (
       <div className="screen">
         <h1>링크를 열 수 없어요</h1>
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           이 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.
         </p>
       </div>
@@ -71,7 +71,7 @@ export function ViewerLive(props: { token: string }) {
     return (
       <div className="screen">
         {status.failures > 0 ? (
-          <p className="note warn" role="alert">
+          <p className="note error" role="alert">
             불러오지 못했어요.{" "}
             <button type="button" className="link" onClick={checkNow}>
               다시 불러오기

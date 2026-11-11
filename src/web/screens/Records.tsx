@@ -1307,7 +1307,7 @@ export function MatchDetail(props: {
                 </ul>
               ))}
               {picked.length === 2 && !sameTeam && (
-                <p className="note warn">같은 팀의 두 사람을 골라 주세요.</p>
+                <p className="note error">같은 팀의 두 사람을 골라 주세요.</p>
               )}
               <ErrorNote error={error} />
               <button

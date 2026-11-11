@@ -106,7 +106,7 @@ export function TitleSettings(props: {
       {rows && (
         <Dialog title="칭호 바꾸기" onClose={() => setRows(null)}>
           <p className="hint">
-            위에서부터 높은 구간입니다. 경계는 "이상"이라 정확히 65%면 65% 이상 구간입니다. 이름은{" "}
+            줄마다 왼쪽 칸에 칭호 이름, 오른쪽 칸에 경계(% 이상)를 적습니다. 위에서부터 높은 구간입니다. 경계는 "이상"이라 정확히 65%면 65% 이상 구간입니다. 이름은{" "}
             {MAX_TITLE_NAME_LENGTH}자까지 쓸 수 있습니다. 색과 엠블럼은 구간 순서에 따라 정해집니다.
           </p>
           <ul className="list">
@@ -181,7 +181,7 @@ export function TitleSettings(props: {
             </button>
           </div>
           {message && (
-            <p className="note warn" role="alert">
+            <p className="note error" role="alert">
               {message}
             </p>
           )}

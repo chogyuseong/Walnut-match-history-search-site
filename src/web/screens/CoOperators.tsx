@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiFailure, call } from "../api";
 import { formatDate, formatTime } from "../format";
-import { CopyButton, Dialog, ErrorNote } from "../ui";
+import { CopyButton, Dialog, ErrorNote, scrollBehavior } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 
@@ -31,7 +31,7 @@ function accountLabel(row: CoOperatorRow): string {
 function showViewLinkSection() {
   const block = document.getElementById("group-block-often") as HTMLDetailsElement | null;
   if (block && !block.open) block.open = true;
-  document.getElementById("group-view-link")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("group-view-link")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
 }
 
 /** 모임 탭(대표 운영자): 공동 운영자 목록, 초대 링크 만들기, 내보내기. */
@@ -303,7 +303,7 @@ export function CoInvite(props: { token: string }) {
     <div className="screen">
       <h1>공동 운영자 초대</h1>
       {invalid ? (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           이 초대 링크는 이미 썼거나 만료됐어요. 대표 운영자에게 새 링크를 요청해 주세요.
         </p>
       ) : !info ? (

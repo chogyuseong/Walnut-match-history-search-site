@@ -30,7 +30,7 @@ import {
   useMediaQuery,
   type SortState,
 } from "../screenKit";
-import { useSearchJump } from "../ui";
+import { scrollBehavior, useSearchJump } from "../ui";
 import { go } from "../useApp";
 
 /**
@@ -150,7 +150,7 @@ export function ChampionTier(props: {
   function reveal(key: string) {
     setOpen(key);
     requestAnimationFrame(() => {
-      document.querySelector(`.ct-row-${key}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+      document.querySelector(`.ct-row-${key}`)?.scrollIntoView({ block: "center", behavior: scrollBehavior() });
     });
   }
 

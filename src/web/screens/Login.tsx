@@ -141,7 +141,7 @@ export function LoginDialog(props: { reason: string; onDone: () => void; onClose
       )}
       {fake && <FakeLogin onDone={props.onDone} />}
       {!fake && !local && !oauth && (
-        <p className="note warn">로그인 수단이 아직 설정되지 않았습니다. 서비스 운영자에게 알려 주세요.</p>
+        <p className="note error">로그인 수단이 아직 설정되지 않았습니다. 서비스 운영자에게 알려 주세요.</p>
       )}
     </Dialog>
   );
@@ -497,7 +497,7 @@ export function LoginFailed(props: { reason: string }) {
   return (
     <div className="screen">
       <h1>로그인하지 못했어요</h1>
-      <p className="note warn" role="alert">
+      <p className="note error" role="alert">
         {text.title}
       </p>
       <p>{text.next}</p>

@@ -281,12 +281,9 @@ export function LegacyImport() {
               }}
             />
           </label>
-          <p className="hint">
-            기존 사이트의 '공용 저장 연결'에 넣어 쓰던 주소예요. script.google.com/macros/s/…/exec 모양이고, 구글 시트
-            주소(docs.google.com)와는 달라요. 모임 암호는 필요 없고, 기존 사이트의 기록은 읽기만 하고 바꾸지 않아요.
-          </p>
+          {/* 주소 문제는 칸 바로 아래(설명 문단보다 위)에 둔다. */}
           {isSheetUrl ? (
-            <div className="note warn" role="alert">
+            <div className="note error" role="alert">
               <p>구글 시트 주소예요. 시트의 표를 가져오려면 시트에서 가져오기를 쓰세요.</p>
               <button type="button" className="secondary" onClick={() => go("/sheet-import")}>
                 구글 시트에서 가져오기로
@@ -295,11 +292,15 @@ export function LegacyImport() {
           ) : (
             urlCheck &&
             !urlCheck.ok && (
-              <p className="note warn" role="alert">
+              <p className="note error" role="alert">
                 {LEGACY_URL_MESSAGES[urlCheck.problem]}
               </p>
             )
           )}
+          <p className="hint">
+            기존 사이트의 '공용 저장 연결'에 넣어 쓰던 주소예요. script.google.com/macros/s/…/exec 모양이고, 구글 시트
+            주소(docs.google.com)와는 달라요. 모임 암호는 필요 없고, 기존 사이트의 기록은 읽기만 하고 바꾸지 않아요.
+          </p>
           <button type="button" className="primary wide" disabled={busy || !urlCheck?.ok} onClick={() => void readLegacy()}>
             {busy ? "기존 기록 읽는 중…" : "기존 기록 읽기"}
           </button>

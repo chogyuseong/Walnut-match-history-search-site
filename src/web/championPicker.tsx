@@ -4,6 +4,7 @@ import { TEAMS, type MatchView } from "../shared/types";
 import { ChampionPortrait } from "./championPortrait";
 import { POSITION_LABEL, TEAM_MARK, teamName, teamRoster } from "./format";
 import { PosLabel } from "./screenKit";
+import { scrollBehavior } from "./ui";
 
 /**
  * 경기 명단 10명의 챔피언 고르기(2026-11-10, migrations/0025). 결과 입력 창(접힌 영역)과 경기 상세의 챔피언 수정이 함께 쓴다.
@@ -169,7 +170,7 @@ function ChampionCombobox(props: {
             setActive(0);
             // 폰에서는 화면 키보드가 올라온 뒤 이 칸을 창 위쪽으로 올려 목록이 키보드에 가리지 않게 한다.
             if (window.matchMedia("(max-width: 599px)").matches) {
-              setTimeout(() => row.current?.scrollIntoView({ block: "start", behavior: "smooth" }), 300);
+              setTimeout(() => row.current?.scrollIntoView({ block: "start", behavior: scrollBehavior() }), 300);
             }
           }}
           onBlur={() => setQuery(null)}

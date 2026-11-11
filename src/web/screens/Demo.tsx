@@ -38,7 +38,7 @@ export function Demo(props: { rest: string[] }) {
         // 불러오는 동안 자리를 잡아 두어 아래 푸터가 크게 튀지 않게 한다.
         <div className="screen demo-loading">
           {failed ? (
-            <p className="note warn" role="alert">
+            <p className="note error" role="alert">
               예시를 불러오지 못했어요. 새로 고쳐 주세요.
             </p>
           ) : (

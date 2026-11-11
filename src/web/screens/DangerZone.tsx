@@ -197,7 +197,7 @@ export function DangerZone() {
           </p>
         )}
         {groups.length > 0 ? (
-          <div className="note warn" role="note">
+          <div className="note error" role="note">
             <p>운영 중인 모임이 있어 지금은 탈퇴할 수 없어요. 먼저 넘기거나 삭제해 주세요.</p>
             <ul className="problem-list">
               {groups.map((g) => (

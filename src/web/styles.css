@@ -48,11 +48,6 @@
   /* 승리 색으로 채운 작은 칸(최근 승패 점) 위의 글자. 패배 색 칸 위는 --ih-on-loss(예상 승률 막대). */
   --ih-on-win: #0f172a;
   --ih-on-loss: #0f172a;
-  /* 저장됨·주의 표시(5단계에서 중립색 + 아이콘으로 바꿀 예정). */
-  --ih-ok-bg: rgba(93, 184, 138, 0.14);
-  --ih-ok-text: #6cc595;
-  --ih-warn-bg: rgba(216, 167, 66, 0.12);
-  --ih-warn-line: #d8a742;
 }
 
 [data-theme="light"] {
@@ -82,19 +77,10 @@
   --ih-loss-bg-hover: #f6dcda;
   --ih-loss-border: #ecb8b5;
   --ih-loss-text: #a92f2b;
-  --ih-ok-bg: #eaf6ef;
-  --ih-ok-text: #1f7a4d;
-  --ih-warn-bg: #fdf6e6;
-  --ih-warn-line: #9a6c12;
 }
 
 /* 화면 규칙이 쓰는 이름. 값은 모두 위 토큰에서 온다. */
 :root {
-  --warn-bg: var(--ih-warn-bg);
-  --warn-line: var(--ih-warn-line);
-  --ok-bg: var(--ih-ok-bg);
-  --ok-text: var(--ih-ok-text);
-
   /* 화면 틀(CLAUDE.md 2절). 반응형 기준은 768px(하단 메뉴 ↔ 위 메뉴, 패널 여백 16 ↔ 24)과 1200px(두 단 배치) 둘이다.
      --page-gutter는 본문 좌우 안전 여백이라 아래 미디어 쿼리에서 16 → 24 → 32로 바뀐다. 상단 바·위 메뉴·본문(.screen)·
      법적 고지가 같은 값을 써야 왼쪽 정렬선이 맞는다. */
@@ -151,6 +137,19 @@
   :root {
     --page-gutter: var(--space-6);
   }
+}
+
+/* 상태 아이콘(CLAUDE.md 5절: 성공·주의는 색 대신 아이콘과 문구). ui.tsx LineIcon의 check·alert와 같은 20칸 그림을
+   CSS 가림판(mask)으로 그리고 색은 currentColor를 따른다. .note·.saved·배지는 백 곳 넘게 쓰이고 사진 스펙이 배지 글자를
+   통째로 바꿔 써서, 아이콘을 마크업이 아니라 클래스에 붙였다. 그림을 바꾸면 LineIcon도 같이 바꾼다.
+   -16은 16px로 그릴 때 쓰는 벌이다. 20칸을 16px로 줄이면 선이 1.2px가 되므로 선을 1.875로 그려 화면에서 1.5px를 맞춘다. */
+:root {
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
+  --icon-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
+  --icon-error: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
+  --icon-check-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
+  --icon-alert-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
+  --icon-error-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
 }
 
 * {
@@ -538,19 +537,99 @@ details.help > .help-body p {
 .nowrap {
   white-space: nowrap;
 }
-.warn-text {
-  color: var(--warn-line);
-  font-weight: 500;
-}
-.note {
+/* 안내 상자. 바탕·테두리는 중립색이고 뜻은 앞머리 아이콘과 문구가 전한다.
+   .warn(주의): 컨트롤 경계색 테두리 + 경고 아이콘. 주의를 골드·노랑으로 칠하면 강조색(주 버튼·고른 칸)과 헷갈려 쓰지 않는다.
+   .error(저장 실패·입력이 틀림): 오류 색 테두리 + 오류 아이콘. 색만으로 전하지 않게 아이콘과 문구를 같이 둔다.
+   .saved(저장됨): 중립 상자 + 체크 아이콘.
+   아이콘이 붙는 상자는 왼쪽 여백 32px(앞 8 + 아이콘 20 + 뒤 4)에 아이콘을 띄워 둔다. 글이 여러 줄이어도 아이콘 아래로 감기지 않는다. */
+.note,
+.saved {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-panel);
   padding: var(--space-2) var(--space-3);
 }
+.saved {
+  margin-bottom: var(--space-3);
+}
+.note.warn,
+.note.error,
+.saved {
+  position: relative;
+  padding-left: var(--space-6);
+}
 .note.warn {
-  background: var(--warn-bg);
-  border-color: var(--warn-line);
+  border-color: var(--ih-control-border);
+}
+.note.error {
+  border-color: var(--ih-danger);
+}
+/* top 10px: 위 여백 8 + (첫 줄 높이 24 - 아이콘 20) / 2. 아이콘을 첫 줄 가운데에 둔다. */
+.note.warn::before,
+.note.error::before,
+.saved::before {
+  content: "";
+  position: absolute;
+  left: var(--space-2);
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  mask: var(--icon-alert) center / contain no-repeat;
+}
+.note.error::before {
+  color: var(--ih-danger);
+  mask-image: var(--icon-error);
+}
+.saved::before {
+  mask-image: var(--icon-check);
+}
+/* 글줄·이름표 앞의 16px 아이콘: 확인(.badge.ok), 주의(.warn-badge·.warn-tag·.warn-text), 입력 칸 아래 오류(.field-problem). */
+.badge.ok,
+.badge.warn-badge,
+.tag.warn-tag,
+.warn-text,
+.field-problem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.badge.ok::before,
+.badge.warn-badge::before,
+.tag.warn-tag::before,
+.warn-text::before,
+.field-problem::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  mask: var(--icon-alert-16) center / contain no-repeat;
+}
+.badge.ok::before {
+  mask-image: var(--icon-check-16);
+}
+.field-problem::before {
+  mask-image: var(--icon-error-16);
+}
+/* 강제 색 모드(윈도 고대비)는 칠한 배경을 지워 mask 아이콘이 통째로 사라진다. 아이콘 칠만 글자 시스템 색으로 되살린다. */
+@media (forced-colors: active) {
+  .note.warn::before,
+  .note.error::before,
+  .saved::before,
+  .badge.ok::before,
+  .badge.warn-badge::before,
+  .tag.warn-tag::before,
+  .warn-text::before,
+  .field-problem::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+.warn-text {
+  display: flex;
+  color: var(--ih-text);
+  font-weight: 500;
 }
 /* 작은 이름표(.badge·.tag): 12px/500, 모서리 4, 옅은 테두리, 바탕 없음. 뜻 색은 글자와 테두리에만. */
 .badge {
@@ -566,16 +645,12 @@ details.help > .help-body p {
   color: var(--ih-text-secondary);
 }
 .badge.ok {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--ok-text) 45%, transparent);
-  color: var(--ok-text);
+  color: var(--ih-text);
 }
-/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). */
+/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). 아이콘은 위 규칙. */
 .badge.warn-badge {
   margin-left: var(--space-2);
-  background: transparent;
-  border-color: var(--warn-line);
-  color: var(--warn-line);
+  color: var(--ih-text);
 }
 .tag {
   border: 1px solid var(--ih-line);
@@ -596,13 +671,6 @@ details.help > .help-body p {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-.saved {
-  background: var(--ok-bg);
-  color: var(--ok-text);
-  border-radius: var(--radius-panel);
-  padding: var(--space-3);
-  margin-bottom: var(--space-3);
 }
 
 /* 두 팀: 기본은 좌우 2열, 360px 미만에서는 위아래로 쌓는다. */
@@ -1438,18 +1506,6 @@ button:not([class]):not(:disabled):hover,
   border-color: var(--ih-control-border);
 }
 
-.note {
-  background: var(--ih-panel);
-  border-color: var(--ih-line);
-}
-.note.warn {
-  background: var(--warn-bg);
-  border-color: var(--warn-line);
-}
-.saved {
-  border: 1px solid var(--ih-ok-text);
-}
-
 /* 목록 줄 */
 .list {
   gap: var(--space-2);
@@ -1614,8 +1670,6 @@ button.row.picked:hover {
    색을 바꾸려면 여기만 고친다(screenKit.tsx의 PosLabel이 data-pos, RoleIcon이 pos-라인 클래스(예: pos-top)를 단다).
    2단계(2026-11-09): 색상은 그대로 두고 채도를 15% 낮췄다. 카드·바탕 대비 글자 4.5:1 이상(라이트는 그래서 더 진해졌다,
    test/theme-contrast.test.ts가 검사).
-   신호 색(--sig-*): 섞기 공정성 분포 띠·판정, 분석 코멘트 점처럼 "좋음(초록)·조금(노랑)·나쁨(주황)" 뜻을 가진 칠.
-   칠 위 글자는 --on-sig.
    이야기 카드 색(--story-*): 그래프 분석 맨 위 카드 넷의 라벨 색(연두·분홍·청록·연보라). CLAUDE.md 5절의 명시 예외다.
    파랑(블루 진영)·빨강(레드·패)·골드(강조·고른 카드)와 겹치는 색상은 피했다. 값을 바꿀 때는 카드 바탕(--ih-subtle)과
    고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts). */
@@ -1626,10 +1680,6 @@ button.row.picked:hover {
   --pos-mid: #e6bd59;
   --pos-adc: #65a3e7;
   --pos-support: #d48edf;
-  --sig-good: #39a46b;
-  --sig-warn: #d5ad47;
-  --sig-bad: #da7c3d;
-  --on-sig: #1b1a17;
   --story-streak: #b4d66b;
   --story-upset: #f29dbb;
   --story-pair: #4fcfc4;
@@ -1645,9 +1695,6 @@ button.row.picked:hover {
   --pos-mid: #8a6a13;
   --pos-adc: #326fba;
   --pos-support: #9e4cb4;
-  --sig-good: #369d66;
-  --sig-warn: #ab8627;
-  --sig-bad: #d7702c;
 }
 /* 글자와 아이콘(currentColor) 모두에 라인 색. 표·비교 화면의 `.xxx .pos { color }` 규칙(명시도 0,2,0)을 이기도록
    선택자를 겹쳐 명시도를 0,3,0으로 올렸다. 라인 색을 끄고 싶은 곳은 같은 명시도 이상으로 덮는다. */
@@ -1918,6 +1965,18 @@ table {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* 16px: 20칸 그림을 0.8배로 줄이므로 선을 1.875로 두어 화면에서 1.5px를 맞춘다. */
+.line-icon.small {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.875;
+}
+/* 고른 사람 표시(고르기 화면의 칩·전체 목록 줄): 이름 앞 체크. 글자 줄 안에 놓여 아래 끝을 글자에 맞춘다. */
+.chip > .line-icon,
+.pick-item .name > .line-icon {
+  vertical-align: text-bottom;
+  margin-right: var(--space-1);
+}
 
 /* 주 메뉴(운영자 .tabs)와 조회·예시 메뉴(.viewer-nav > span)의 칸. 둘이 같은 모양이다.
    :not(:disabled):hover까지 함께 적는 것은 공통 버튼·.link의 호버 색을 덮으려는 것이다. */
@@ -2169,6 +2228,15 @@ table {
 .backfill-slot input {
   flex: 1 1 auto;
   min-width: 0;
+}
+/* 칸 번호(1~5): 이름 칸이 비어도 몇 번째 사람인지 보이는 꼬리표(placeholder를 라벨로 쓰지 않는다). */
+.backfill-no {
+  flex: none;
+  min-width: 1.5em;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .backfill-slot select {
   flex: none;
@@ -4022,12 +4090,10 @@ main:focus {
   color: var(--ih-text-secondary);
   text-decoration: line-through;
 }
-.sheet-row-error th,
-.sheet-row-error td {
-  background: var(--warn-bg);
-}
+/* 틀린 줄: 칸 바탕은 칠하지 않고(7절) 줄 번호 칸의 오류 색 글자 + ⚠ 기호(SheetImport)로 알린다. */
 .sheet-row-error th {
-  color: var(--ih-text);
+  color: var(--ih-danger);
+  font-weight: 500;
 }
 .check-line {
   display: flex;
@@ -4081,7 +4147,7 @@ main:focus {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ih-ok-text);
+  background: var(--ih-text-secondary);
 }
 .account-menu {
   position: absolute;
@@ -4119,7 +4185,7 @@ main:focus {
 }
 
 /* ---------- 자체 계정: 로그인·회원가입 창, 복구 코드 ---------- */
-/* 새 색 없이 키트 토큰만 쓴다. 틀린 이유는 경고 색(--warn-line) 글자 + 기호로 적는다(세 테마 4.5:1 이상). */
+/* 새 색 없이 키트 토큰만 쓴다. 틀린 이유는 칸 바로 아래에 오류 색 글자 + 오류 아이콘으로 적는다(.field-problem). */
 .local-login {
   display: grid;
   gap: var(--space-2);
@@ -4158,12 +4224,9 @@ main:focus {
 }
 .field-problem {
   margin: 0;
-  color: var(--warn-line);
+  color: var(--ih-danger);
   font-size: var(--text-label);
   font-weight: 500;
-}
-.field-problem::before {
-  content: "! ";
 }
 .password-row {
   display: flex;
@@ -5051,7 +5114,7 @@ main:focus {
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
   padding: var(--space-3) var(--bleed-inline);
-  background: var(--ih-warn-bg);
+  background: var(--ih-subtle);
   border-bottom: 1px solid var(--ih-line);
 }
 .demo-banner p {
@@ -5622,12 +5685,15 @@ label:has(> select) {
 
 /* 날짜 점검(DateCheck.tsx): 중복 가능성 표식 */
 .tag.warn-tag {
-  color: var(--warn-line);
-  border: 1px solid var(--warn-line);
-  background: var(--warn-bg);
+  color: var(--ih-text);
 }
 .same-time .button-row {
   flex: none;
+}
+/* 시각 + "열 명이 같아요" 꼬리표: 이름 칸의 한 줄 말줄임(.name)을 풀어 꼬리표 글이 잘리지 않고 다음 줄로 내려가게 한다. */
+.same-time .name {
+  white-space: normal;
+  overflow: visible;
 }
 /* 날짜 점검 "범위 직접 고르기": 경기 번호 칸은 숫자 몇 자리면 되므로 짧게 */
 .inline-label > input[type="number"] {
@@ -6314,12 +6380,14 @@ label:has(> select) {
   border-radius: 50%;
   background: var(--ih-text-secondary);
 }
-/* 점 색은 뜻(좋음 초록·주의 주황·보통 회색)이 있어 남기되 신호 색 토큰(채도 낮춤)을 쓴다. */
+/* 점은 색 대신 모양으로 가른다(5절: 단일 뜻을 여러 색으로 칠하지 않는다). 보통은 보조 글자색 점, 좋음은 본문 글자색 점,
+   주의는 속 빈 점. 뜻은 문장이 전하고 점은 훑어볼 때의 표시다. */
 .commentary-remarks .remark-good::before {
-  background: var(--sig-good);
+  background: var(--ih-text);
 }
 .commentary-remarks .remark-warn::before {
-  background: var(--sig-bad);
+  background: transparent;
+  border: 1px solid var(--ih-text);
 }
 .commentary .commentary-note {
   margin: 0;
@@ -6376,10 +6444,11 @@ label:has(> select) {
 }
 
 /* ---------- 섞기 공정성(모임 전체) 묶음(2026-11-09 디자인 수정, 그래프 분석) ----------
-   머리(큰 비율 + 판정) → 분포 띠(균형/조금/많이) → 보조 타일 3칸(미터). 판정 색: good 초록, ok 본문, poor 주황.
-   구간 색은 신호등 비유(초록·노랑·주황)로 신호 색 토큰(--sig-*, 채도 낮춤)을 쓰고, 띠 안 글자는 --on-sig. */
+   머리(큰 비율 + 판정) → 분포 띠(균형/조금/많이) → 보조 타일 3칸(미터).
+   큰 숫자는 중립색 하나이고 판정은 글(FAIR_VERDICT_TEXT)이 전한다. 띠의 세 구간은 명도와 채움으로 가른다(5절: 단일 지표를
+   여러 색 구간으로 칠하지 않는다): 균형은 본문 글자색 채움, 조금 치우침은 보조 글자색 채움, 많이 치우침은 1px 테두리만 있는
+   속 빈 칸. 범례 글자가 구간 이름을 직접 적는다. 세 칠은 패널 위 3:1 이상(본문·보조 글자 4.5:1 검사에 든다). */
 .fair-head {
-  --fair-color: var(--ih-text-secondary);
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -6387,13 +6456,6 @@ label:has(> select) {
   border-radius: var(--radius-panel);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-left-color: var(--fair-color);
-}
-.fair-good {
-  --fair-color: var(--sig-good);
-}
-.fair-poor {
-  --fair-color: var(--sig-bad);
 }
 .fair-big {
   display: flex;
@@ -6405,7 +6467,7 @@ label:has(> select) {
   font-size: var(--text-hero);
   font-weight: 600;
   line-height: 1.1;
-  color: var(--fair-color);
+  color: var(--ih-text);
   font-variant-numeric: tabular-nums;
 }
 .fair-big-label {
@@ -6441,16 +6503,18 @@ label:has(> select) {
   font-size: var(--text-meta);
   line-height: 1;
   font-weight: 500;
-  color: var(--on-sig);
+  color: var(--ih-bg);
 }
 .fair-seg-balanced {
-  background: var(--sig-good);
+  background: var(--ih-text);
 }
 .fair-seg-slight {
-  background: var(--sig-warn);
+  background: var(--ih-text-secondary);
 }
 .fair-seg-lopsided {
-  background: var(--sig-bad);
+  background: transparent;
+  border: 1px solid var(--ih-text);
+  color: var(--ih-text);
 }
 .fair-legend {
   display: flex;
@@ -6529,10 +6593,6 @@ label:has(> select) {
 }
 .cand-chips li strong {
   color: var(--ih-text);
-}
-/* "균형"·"반복 0번"처럼 좋은 값은 초록으로 띄운다. */
-.cand-chips li.chip-good strong {
-  color: var(--ok-text);
 }
 .cand-teams {
   display: grid;
@@ -6810,8 +6870,8 @@ label:has(> select) {
   color: var(--ih-danger);
 }
 .lane-chip.easy {
-  background: var(--ok-bg);
-  color: var(--ok-text);
+  background: var(--ih-subtle);
+  color: var(--ih-text);
 }
 .lane-rivals details {
   margin-top: var(--space-2);
@@ -7983,7 +8043,7 @@ input[type="search"].filter-search {
   color: var(--ih-accent);
 }
 .tag.tag-changed {
-  color: var(--warn-line);
+  color: var(--ih-text);
 }
 .live-check {
   margin-top: var(--space-3);

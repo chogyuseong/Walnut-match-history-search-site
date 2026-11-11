@@ -219,14 +219,17 @@ export function Backfill() {
         {TEAMS.map((team) => (
           <fieldset key={team} disabled={busy} className="backfill-team">
             <legend>
-              <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team}
+              <span aria-hidden="true">{TEAM_MARK[team]}</span> 팀 {team} · 이름과 포지션
             </legend>
             <ul className="list">
               {form.teams[team].map((slot, index) => (
                 <li key={index} className="backfill-slot">
+                  {/* 보이는 꼬리표: 칸이 비어도 몇 번째 사람 칸인지 보이게(예전엔 placeholder가 라벨 노릇을 했다). */}
+                  <span className="backfill-no" aria-hidden="true">
+                    {index + 1}
+                  </span>
                   <input
                     aria-label={`팀 ${team} ${index + 1}번 이름`}
-                    placeholder={`${index + 1}번 이름`}
                     list="backfill-people"
                     autoComplete="off"
                     maxLength={MAX_NAME_LENGTH + 10}
@@ -303,7 +306,7 @@ export function Backfill() {
         </fieldset>
 
         {tried && problems.length > 0 && (
-          <div className="note warn" role="alert">
+          <div className="note error" role="alert">
             <p>
               <strong>아직 저장할 수 없어요.</strong>
             </p>

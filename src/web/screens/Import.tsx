@@ -253,7 +253,7 @@ export function Import() {
             </details>
           )}
           {parsed.errors.length > 0 && (
-            <div className="note warn" role="alert">
+            <div className="note error" role="alert">
               <p>
                 <strong>틀린 줄이 {parsed.errors.length}개 있어요.</strong> 모두 고친 뒤에 넣을 수
                 있습니다. 일부만 넣지는 않습니다.

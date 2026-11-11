@@ -392,6 +392,12 @@ export function SheetImport() {
                   }}
                 />
               </label>
+              {/* 주소 오류는 칸 바로 아래(설명 문단보다 위)에 둔다. */}
+              {urlCheck && !urlCheck.ok && (
+                <p className="note error" role="alert">
+                  {SHEET_URL_MESSAGES[urlCheck.problem]}
+                </p>
+              )}
               <p className="hint">
                 가져올 탭을 연 상태에서 브라우저 주소창의 주소를 복사해 붙여 넣으세요. 시트의 공유 설정이
                 '링크가 있는 모든 사용자(보기)'여야 읽을 수 있어요. 다른 탭을 가져오려면 그 탭을 열고 주소를
@@ -414,11 +420,6 @@ export function SheetImport() {
                     기존 사이트 기록 가져오기로
                   </button>
                 </div>
-              )}
-              {urlCheck && !urlCheck.ok && (
-                <p className="note warn" role="alert">
-                  {SHEET_URL_MESSAGES[urlCheck.problem]}
-                </p>
               )}
               {urlCheck?.ok && urlCheck.ref.gid === null && (
                 <>
@@ -497,7 +498,7 @@ export function SheetImport() {
             </>
           )}
           {error instanceof Error && error.message === "empty" ? (
-            <p className="note warn" role="alert">
+            <p className="note error" role="alert">
               읽은 표가 비어 있어요. 가져올 탭의 주소가 맞는지 확인해 주세요.
             </p>
           ) : (
@@ -988,7 +989,7 @@ function MappingStep(props: {
       )}
 
       {problems.length > 0 ? (
-        <div className="note warn" role="alert">
+        <div className="note error" role="alert">
           {problems.map((p) => (
             <p key={p}>{p}</p>
           ))}

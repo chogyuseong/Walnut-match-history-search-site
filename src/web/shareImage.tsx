@@ -16,6 +16,11 @@ import { Dialog } from "./ui";
  */
 
 const WIDTH = 1080;
+/**
+ * 화면 1px에 해당하는 캔버스 굵기. 1080px 그림은 폰 화면 폭(약 360px)에 맞춰 보이므로 1:3이다.
+ * 팀 상자 테두리를 화면처럼 1px로 보이게 할 때 쓴다. 1.5로 그리면 메신저 썸네일로 줄었을 때 0.5px쯤이 되어 흐려진다.
+ */
+const SCREEN_PX = WIDTH / 360;
 const PAD = 56;
 
 interface Palette {
@@ -25,7 +30,6 @@ interface Palette {
   text: string;
   muted: string;
   line: string;
-  brand: string;
   winBg: string;
   winText: string;
   winAccent: string;
@@ -45,7 +49,6 @@ function palette(): Palette {
     text: v("--ih-text"),
     muted: v("--ih-text-secondary"),
     line: v("--ih-line"),
-    brand: v("--ih-accent"),
     winBg: v("--ih-win-bg"),
     winText: v("--ih-win-text"),
     winAccent: v("--ih-win-accent"),
@@ -147,9 +150,10 @@ function drawTeamBox(
     ctx.fillStyle = side === "blue" ? p.winBg : p.lossBg;
     ctx.fill();
   }
-  ctx.lineWidth = won ? 4 : 1.5;
-  // 이긴 팀은 강조색, 아니면 진영 색 테두리(진영을 모르면 중립).
-  ctx.strokeStyle = won ? p.brand : side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
+  // 테두리는 두 팀 모두 같은 굵기의 진영 색(진영을 모르면 중립)이다. 이긴 팀을 강조색 굵은 테두리로 칠하지 않고
+  // 머리의 "승리"·"패배" 글자와 이름 굵기로 가른다(CLAUDE.md 5절: 카드 테두리를 강조색으로 칠하지 않는다).
+  ctx.lineWidth = SCREEN_PX;
+  ctx.strokeStyle = side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
   ctx.stroke();
 
   setFont(ctx, p, 600, 32);
@@ -158,7 +162,7 @@ function drawTeamBox(
   if (won !== null) {
     ctx.textAlign = "right";
     setFont(ctx, p, 600, 30);
-    ctx.fillStyle = p.text;
+    ctx.fillStyle = won ? p.text : p.muted;
     ctx.fillText(won ? "승리" : "패배", x + w - 24, y + 40);
     ctx.textAlign = "left";
   }
@@ -730,7 +734,7 @@ export function ShareImageDialog(props: {
     <Dialog title={props.title} onClose={props.onClose}>
       {state.kind === "making" && <p role="status">이미지를 만드는 중…</p>}
       {state.kind === "failed" && (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           {state.message}
         </p>
       )}

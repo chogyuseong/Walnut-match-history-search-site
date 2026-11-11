@@ -18,7 +18,7 @@ function tokensOf(selectorPattern: RegExp): Map<string, string> {
   return out;
 }
 
-// 테마 토큰과 라인·신호 색은 같은 선택자(`:root, [data-theme="dark"]`)의 두 블록에 나뉘어 있다. 둘 다 모인다.
+// 테마 토큰과 라인·이야기 카드 색은 같은 선택자(`:root, [data-theme="dark"]`)의 두 블록에 나뉘어 있다. 둘 다 모인다.
 const dark = tokensOf(/^:root,\s*\[data-theme="dark"\]$/);
 const light = new Map([...dark, ...tokensOf(/^\[data-theme="light"\]$/)]);
 // 막대 바탕: .viz-root(다크)과 [data-theme="light"] .viz-root.
@@ -81,6 +81,11 @@ describe("테마 색 대비", () => {
     expect(css).not.toMatch(/--ih-accent-(medal-gold|silver|bronze)\s*:/);
   });
 
+  it("저장됨·주의·신호 전용 색 토큰이 없다(중립색 + 아이콘·명도로 표시)", () => {
+    expect(css).not.toMatch(/--(ih-)?(ok|warn)-(bg|text|line)\s*:/);
+    expect(css).not.toMatch(/--(sig-[a-z]+|on-sig)\s*:/);
+  });
+
   for (const { name, t, viz } of THEMES) {
     describe(name, () => {
       const get = (key: string) => {
@@ -112,8 +117,9 @@ describe("테마 색 대비", () => {
         for (const bg of ["--ih-panel", "--ih-bg"]) atLeast("--ih-control-border", bg, 3);
       });
 
-      it("승·패·오류·저장됨·주의 글자 vs 패널 4.5:1, 승패 색 칸 위 글자 4.5:1", () => {
-        for (const fg of ["--ih-win-text", "--ih-loss-text", "--ih-danger", "--ih-ok-text", "--ih-warn-line"])
+      // 저장됨·주의는 5단계부터 중립색 + 아이콘이라 따로 검사할 색이 없다(본문 글자 검사에 든다).
+      it("승·패·오류 글자 vs 패널 4.5:1, 승패 색 칸 위 글자 4.5:1", () => {
+        for (const fg of ["--ih-win-text", "--ih-loss-text", "--ih-danger"])
           atLeast(fg, "--ih-panel", 4.5);
         atLeast("--ih-on-win", "--ih-win-accent", 4.5);
         atLeast("--ih-on-loss", "--ih-loss-accent", 4.5);
@@ -124,11 +130,8 @@ describe("테마 색 대비", () => {
           for (const bg of ["--ih-bg", "--ih-panel"]) atLeast(`--pos-${pos}`, bg, 4.5);
       });
 
-      it("신호 색 칠 위 글자 4.5:1, 신호 색 vs 패널 3:1", () => {
-        for (const sig of ["--sig-good", "--sig-warn", "--sig-bad"]) {
-          atLeast("--on-sig", sig, 4.5);
-          atLeast(sig, "--ih-panel", 3);
-        }
+      it("섞기 공정성 띠: 채운 두 구간(본문·보조 글자색) 위 숫자(화면 배경색) 4.5:1", () => {
+        for (const fill of ["--ih-text", "--ih-text-secondary"]) atLeast("--ih-bg", fill, 4.5);
       });
 
       it("승률 3단 글자 vs 패널·표 칸 바탕(보조 면)·고른 사람 줄 바탕(선택 배경) 4.5:1, 세 단이 서로 다른 색", () => {

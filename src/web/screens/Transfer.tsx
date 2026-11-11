@@ -47,7 +47,7 @@ export function Transfer(props: { token: string }) {
     <div className="screen">
       <h1>운영자 넘겨받기</h1>
       {invalid ? (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           이 링크는 이미 썼거나 만료됐습니다. 현재 운영자에게 새 링크를 요청해 주세요.
         </p>
       ) : !info ? (

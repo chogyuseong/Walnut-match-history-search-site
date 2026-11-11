@@ -150,9 +150,10 @@ export function DateCheck() {
         </p>
         {preview(targets, run.years)}
         <div className="button-row">
+          {/* 묶음이 여럿이면 채운 버튼은 첫 묶음에만 둔다(화면에 주 버튼 하나). 위에서부터 고치는 순서다. */}
           <button
             type="button"
-            className="primary"
+            className={index === 0 ? "primary" : "secondary"}
             disabled={busy}
             onClick={() => setConfirm({ items: targets, years: run.years })}
           >

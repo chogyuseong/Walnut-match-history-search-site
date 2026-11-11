@@ -155,7 +155,7 @@ export function RestoreSection() {
     <section aria-label="백업에서 복원" className="restore">
       <h2>백업에서 복원</h2>
       {maintenance && (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           복원이 중간에 멈춰 이 모임은 점검 중이에요. 다른 저장은 막혀 있습니다. 같은 백업 파일로 복원을
           다시 실행하면 끝납니다.
         </p>
@@ -177,13 +177,13 @@ export function RestoreSection() {
       </label>
       {fileName && busy && !preview && <p className="hint">파일을 검사하는 중…</p>}
       {readError && (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           {readError}
         </p>
       )}
 
       {preview && !preview.ok && (
-        <div className="note warn" role="alert">
+        <div className="note error" role="alert">
           <p>
             <strong>이 파일로는 복원할 수 없어요.</strong> 아무것도 바꾸지 않았습니다.
           </p>
@@ -391,7 +391,7 @@ export function NewGroupFromBackup() {
         />
       </label>
       {readError && (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           {readError}
         </p>
       )}
@@ -407,7 +407,7 @@ export function NewGroupFromBackup() {
             <input value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" maxLength={10} />
           </label>
           {problems.length > 0 ? (
-            <div className="note warn" role="alert">
+            <div className="note error" role="alert">
               <p>
                 <strong>이 파일로는 가져올 수 없어요.</strong> 아무것도 만들지 않았습니다.
               </p>
