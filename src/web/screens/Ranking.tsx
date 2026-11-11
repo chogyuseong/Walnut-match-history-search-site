@@ -12,12 +12,17 @@ import {
 } from "../../shared/ranking";
 import {
   computeRatings,
+  expectedScore,
   RATING_RECENT_GAMES,
   RATING_TIER_HELP,
   ratingTrend,
   shownRating,
   signedDelta,
   ratingOptionsOf,
+  STREAK_K_MAX,
+  STREAK_K_START,
+  streakMultiplier,
+  type RatingOptions,
 } from "../../shared/rating";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rankClass, rateText, rateTier, standingsOf } from "../format";
@@ -26,6 +31,7 @@ import {
   FormDots,
   Glue,
   Help,
+  InfoTip,
   Meter,
   RatingTierBadge,
   RatingTrendLine,
@@ -45,6 +51,61 @@ import {
  * 그대로라, 몇 판 안 한 사람이 승률 100%로 맨 위에 오지 않는다. 순위 숫자는 MMR 순위 그대로다(검색할 때와 같은 규칙).
  * 데이터는 스냅숏의 경기에서 기기가 매번 계산한다(computeRatings · standingsOf · personForms). 범위 없이 모임 전체 누적이다.
  */
+
+/** 설명에 예시로 드는 팀 평균 MMR 차이(점). 차이가 예상 승률로 얼마인지 감을 주려는 값이라 바꿔도 계산과 무관하다. */
+const EXAMPLE_GAPS = [100, 200];
+
+/** "3연속 1.25배 · 4연속 1.375배 · 5연속부터 1.5배". rating.ts의 가중 상수를 바꾸면 설명도 따라 바뀌게 계산해서 적는다. */
+function streakStepsText(): string {
+  const steps: string[] = [];
+  for (let run = STREAK_K_START; ; run++) {
+    const weight = streakMultiplier(run);
+    if (weight >= STREAK_K_MAX) {
+      steps.push(`${run}연속부터 ${weight}배`);
+      return steps.join(" · ");
+    }
+    steps.push(`${run}연속 ${weight}배`);
+  }
+}
+
+/**
+ * 화면 제목 옆 i 버튼: MMR 한 경기 변화가 어떻게 정해지는지. 숫자는 모임 설정과 rating.ts 상수에서 가져온다.
+ * 계산 규칙(shared/rating.ts)을 바꾸면 이 설명의 문장도 같이 고친다. 식의 모양은 여기 글자로 적혀 있다.
+ */
+function RatingRuleTip(props: { options: RatingOptions }) {
+  const { start, placementGames, kPlacement, k } = props.options;
+  const gapExamples = EXAMPLE_GAPS.map(
+    (gap) => `${gap}점 높으면 약 ${Math.round(expectedScore(start + gap, start) * 100)}%`,
+  ).join(", ");
+  return (
+    <InfoTip label="MMR 계산 기준">
+      <span className="tip-line">
+        MMR은 상대 팀이 얼마나 강했는지를 감안해 승패마다 오르내리는 점수예요(체스에서 쓰는 Elo 방식). 모두 {start}점에서
+        시작하고, 보는 범위와 상관없이 모임 전체의 확정 경기를 경기 시각 순으로 계산합니다. 결과 미입력·진행 중·취소·전적
+        제외 경기는 세지 않아요.
+      </span>
+      <span className="tip-line">
+        예상 승률: 팀 MMR은 팀원 MMR의 평균이고, 예상 승률 = 1 ÷ (1 + 10^((상대 팀 − 우리 팀) ÷ 400))입니다. 두 팀 평균이
+        같으면 50%, 우리 팀이 {gapExamples}예요.
+      </span>
+      <span className="tip-line">
+        한 경기 변화 = K × 연속 가중 × (결과 − 예상 승률). 결과는 이기면 1, 지면 0이라 질 것 같던 경기를 이기면 많이
+        오르고 이길 것 같던 경기를 이기면 조금 오릅니다. 같은 팀은 예상 승률이 같아서 K와 연속 가중이 같은 사람끼리는
+        변화도 같아요.
+      </span>
+      <span className="tip-line">
+        K(변화 폭): 배치 중({placementGames}경기 미만)에는 {kPlacement}, 그 뒤에는 {k}입니다. 평균이 같은 팀끼리 붙으면 한
+        판에 배치 중 ±{kPlacement / 2}점, 그 뒤 ±{k / 2}점이에요.
+      </span>
+      <span className="tip-line">
+        연속 가중: 같은 결과가 이어지면 변화가 커집니다({streakStepsText()}). 승패가 바뀌면 다시 1배예요.
+      </span>
+      <span className="tip-line">
+        티어: {RATING_TIER_HELP} 배치 중에는 티어를 붙이지 않아요. 점수는 소수까지 계산하고 화면에는 반올림해 보여 줍니다.
+      </span>
+    </InfoTip>
+  );
+}
 
 type RankSortKey = "rating" | "delta" | "games" | "rate";
 /** 정렬은 큰 값부터 하나뿐이다. 작은 값부터는 표본이 적은 사람·배치 중인 사람이 위로 와 읽을 거리가 없다. */
@@ -117,7 +178,7 @@ export function Ranking(props: {
   if (ranking.ranked.length === 0) {
     return (
       <div className="screen page-wide mmr-ranking">
-        <ScreenHead title="MMR 랭킹" desc={desc} actions={championLink} />
+        <ScreenHead title="MMR 랭킹" badge={<RatingRuleTip options={ratingOptions} />} desc={desc} actions={championLink} />
         <div className="empty-state">
           <p>확정 경기가 쌓이면 보여요. 경기 결과를 하나 저장하면 바로 순위가 생깁니다.</p>
           {props.emptyAction}
@@ -131,7 +192,7 @@ export function Ranking(props: {
 
   return (
     <div className="screen page-wide mmr-ranking">
-      <ScreenHead title="MMR 랭킹" desc={desc} actions={championLink} />
+      <ScreenHead title="MMR 랭킹" badge={<RatingRuleTip options={ratingOptions} />} desc={desc} actions={championLink} />
 
       <FilterBar label="순위표 찾기" meta={`${ranking.ranked.length}명`}>
         <input
@@ -325,8 +386,8 @@ export function Ranking(props: {
             </ul>
           </div>
         )}
-        <Help label="MMR과 순서">
-          MMR은 상대 팀의 평균 MMR을 감안해 승패마다 오르내리는 점수예요(시작 {ratingOptions.start}). 3연승·3연패부터 변화 폭이 커져요(최대 1.5배). {RATING_TIER_HELP} 순서는{" "}
+        <Help label="순서와 막대 읽는 법">
+          순서는{" "}
           {RANKING_GROUP_LABEL[0]} → 배치 완료 → 배치 진행 중이고, 묶음 안에서는 MMR → 승률 → 경기 수 → 이름입니다.
           MMR·최근 변동·경기·승률 머리를 누르면 묶음은 그대로 둔 채 묶음 안에서 그 열의 큰 값부터 다시 세웁니다(순위 숫자는 MMR 순위 그대로).
           맨 위 1위 칸은 {RANKING_GROUP_LABEL[0]}인 사람의 1위이고, 그런 사람이 아직 없으면 배치를 마친 사람 중 1위예요. 막대는 시작 {ratingOptions.start}을 세로 기준선으로 두고
