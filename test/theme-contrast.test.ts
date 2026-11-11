@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import css from "../src/web/styles.css?raw";
 
-// 세 테마(dark·violet·light)의 색 토큰이 WCAG 대비 기준을 지키는지 styles.css를 직접 읽어 검사한다.
-// 글자는 바탕 대비 4.5:1, 승률 막대는 막대 바탕(--viz-track) 대비 3:1. 반투명(rgba) 테두리·틴트는 검사하지 않는다.
-// violet은 dark 토큰을 물려받고 바뀐 값만 덮어쓴다.
+// 두 테마(dark·light)의 색 토큰이 WCAG 대비 기준을 지키는지 styles.css를 직접 읽어 검사한다.
+// 기준은 저장소 맨 위 CLAUDE.md 5절: 글자 4.5:1, 컨트롤 경계와 승률 막대 3:1. 반투명(rgba) 틴트는 검사하지 않는다.
+// light는 dark 토큰(:root 블록)을 물려받고 바뀐 값만 덮어쓴다.
 
 /** 선택자 묶음(예: `:root,\n[data-theme="dark"]`)으로 시작하는 블록 안의 `--이름: #hex;` 선언을 모두 모은다. */
 function tokensOf(selectorPattern: RegExp): Map<string, string> {
@@ -17,13 +17,10 @@ function tokensOf(selectorPattern: RegExp): Map<string, string> {
   return out;
 }
 
-const darkSel = /^:root,\s*\[data-theme="dark"\]$/;
-// 라인 색·신호 색은 dark·violet이 함께 쓰는 블록(`:root, [data-theme="dark"], [data-theme="violet"]`)에 있다.
-const sharedDark = tokensOf(/^:root,\s*\[data-theme="dark"\],\s*\[data-theme="violet"\]$/);
-const dark = new Map([...tokensOf(darkSel), ...sharedDark]);
-const violet = new Map([...dark, ...tokensOf(/^\[data-theme="violet"\]$/)]);
+// 테마 토큰과 라인·신호 색은 같은 선택자(`:root, [data-theme="dark"]`)의 두 블록에 나뉘어 있다. 둘 다 모인다.
+const dark = tokensOf(/^:root,\s*\[data-theme="dark"\]$/);
 const light = new Map([...dark, ...tokensOf(/^\[data-theme="light"\]$/)]);
-// 막대 바탕: .viz-root(다크·바이올렛)과 [data-theme="light"] .viz-root.
+// 막대 바탕: .viz-root(다크)과 [data-theme="light"] .viz-root.
 const vizDark = tokensOf(/^\.viz-root$/);
 const vizLight = new Map([...vizDark, ...tokensOf(/^\[data-theme="light"\] \.viz-root$/)]);
 
@@ -42,17 +39,20 @@ function contrast(a: string, b: string): number {
 const HEAT = ["h4", "h3", "h2", "h1", "0", "0h", "0l", "l1", "l2", "l3", "l4"];
 const THEMES = [
   { name: "dark", t: dark, viz: vizDark },
-  { name: "violet", t: violet, viz: vizDark },
   { name: "light", t: light, viz: vizLight },
 ] as const;
 
 describe("테마 색 대비", () => {
   it("토큰을 읽었다", () => {
-    expect(dark.get("--ih-bg")).toBe("#16171a");
-    expect(violet.get("--ih-bg")).toBe("#131219");
-    expect(light.get("--ih-bg")).toBe("#f5f3ee");
+    expect(dark.get("--ih-bg")).toBe("#0f172a");
+    expect(light.get("--ih-bg")).toBe("#f8fafc");
+    expect(dark.get("--pos-top")).toMatch(/^#/);
     expect(vizDark.get("--viz-track")).toMatch(/^#/);
     expect(vizLight.get("--viz-track")).toMatch(/^#/);
+  });
+
+  it("바이올렛 테마는 없다", () => {
+    expect(css).not.toMatch(/data-theme="violet"/);
   });
 
   for (const { name, t, viz } of THEMES) {
@@ -62,42 +62,50 @@ describe("테마 색 대비", () => {
         if (!v) throw new Error(`${name}: ${key} 없음`);
         return v;
       };
-      /** 글자 대비가 기준 이상인지. 실패 메시지에 토큰 이름과 값을 남긴다. */
+      /** 대비가 기준 이상인지. 실패 메시지에 토큰 이름과 값을 남긴다. */
       const atLeast = (fg: string, bg: string, min: number) => {
         const ratio = contrast(get(fg), get(bg));
         expect(ratio, `${name}: ${fg} ${get(fg)} / ${bg} ${get(bg)} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(min);
       };
 
-      it("본문·보조 글자 vs 바탕·카드 4.5:1", () => {
+      it("본문·보조 글자 vs 화면 배경·패널·보조 면 4.5:1", () => {
         for (const fg of ["--ih-text", "--ih-text-secondary"])
-          for (const bg of ["--ih-bg", "--ih-panel"]) atLeast(fg, bg, 4.5);
+          for (const bg of ["--ih-bg", "--ih-panel", "--ih-subtle"]) atLeast(fg, bg, 4.5);
       });
 
-      it("링크·승·패·저장됨·주의 글자 vs 카드 4.5:1", () => {
-        for (const fg of ["--ih-link", "--ih-win-text", "--ih-loss-text", "--ih-ok-text", "--ih-warn-line"])
-          atLeast(fg, "--ih-panel", 4.5);
+      it("강조 글자(링크·고른 칸) vs 화면 배경·패널·선택 배경 4.5:1", () => {
+        for (const bg of ["--ih-bg", "--ih-panel", "--ih-selected"]) atLeast("--ih-accent", bg, 4.5);
       });
 
-      it("채운 버튼 글자 vs 채움 4.5:1, 승리 색 칸 글자 vs 승리 색 4.5:1", () => {
+      it("주 버튼 글자 vs 채움·호버 4.5:1", () => {
         atLeast("--ih-on-primary", "--ih-primary", 4.5);
         atLeast("--ih-on-primary", "--ih-primary-hover", 4.5);
+      });
+
+      it("컨트롤 경계 vs 패널·화면 배경 3:1", () => {
+        for (const bg of ["--ih-panel", "--ih-bg"]) atLeast("--ih-control-border", bg, 3);
+      });
+
+      it("승·패·오류·저장됨·주의 글자 vs 패널 4.5:1, 승패 색 칸 위 글자 4.5:1", () => {
+        for (const fg of ["--ih-win-text", "--ih-loss-text", "--ih-danger", "--ih-ok-text", "--ih-warn-line"])
+          atLeast(fg, "--ih-panel", 4.5);
         atLeast("--ih-on-win", "--ih-win-accent", 4.5);
         atLeast("--ih-on-loss", "--ih-loss-accent", 4.5);
       });
 
-      it("라인 색 글자 vs 바탕·카드 4.5:1", () => {
+      it("라인 색 글자 vs 바탕·패널 4.5:1", () => {
         for (const pos of ["top", "jungle", "mid", "adc", "support"])
           for (const bg of ["--ih-bg", "--ih-panel"]) atLeast(`--pos-${pos}`, bg, 4.5);
       });
 
-      it("신호 색 칠 위 글자 4.5:1, 신호 색 vs 카드 3:1", () => {
+      it("신호 색 칠 위 글자 4.5:1, 신호 색 vs 패널 3:1", () => {
         for (const sig of ["--sig-good", "--sig-warn", "--sig-bad"]) {
           atLeast("--on-sig", sig, 4.5);
           atLeast(sig, "--ih-panel", 3);
         }
       });
 
-      it("승률 글자 h1~h4·0·l1~l4 vs 카드 4.5:1", () => {
+      it("승률 글자 h1~h4·0·l1~l4 vs 패널 4.5:1", () => {
         for (const k of ["h4", "h3", "h2", "h1", "0", "l1", "l2", "l3", "l4"]) atLeast(`--heat-text-${k}`, "--ih-panel", 4.5);
       });
 
@@ -113,7 +121,7 @@ describe("테마 색 대비", () => {
         expect(new Set(bars).size).toBe(bars.length);
       });
 
-      it("칭호 등급 1~8 vs 카드 4.5:1", () => {
+      it("칭호 등급 1~8 vs 패널 4.5:1", () => {
         for (let g = 1; g <= 8; g++) atLeast(`--grade-${g}`, "--ih-panel", 4.5);
       });
     });

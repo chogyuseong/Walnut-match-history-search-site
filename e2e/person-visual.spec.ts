@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 // 랭킹의 "누적 50경기 이상 먼저" 규칙과 개인 통계의 그림(고리·막대), 참여 경기의 위치를 확인한다.
 // 경기는 API로 빠르게 만들고 화면은 읽는 쪽만 본다.
-// SHOTS_DIR 환경 변수를 주면 세 테마 × 390·1440px 개인 통계 스크린샷을 그 폴더에 남긴다.
+// SHOTS_DIR 환경 변수를 주면 두 테마 × 390·1440px 개인 통계 스크린샷을 그 폴더에 남긴다.
 
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
 
@@ -294,11 +294,11 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   await expect(page.getByRole("region", { name: "검색 결과" })).toBeVisible();
   await noHorizontalOverflow(page);
 
-  // 스크린샷(선택): 세 테마 × 390·1440px.
+  // 스크린샷(선택): 두 테마 × 390·1440px.
   const dir = process.env.SHOTS_DIR;
   if (dir) {
     mkdirSync(dir, { recursive: true });
-    for (const theme of ["dark", "violet", "light"]) {
+    for (const theme of ["dark", "light"]) {
       for (const width of [390, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(personUrl);

@@ -12,8 +12,7 @@ import { join } from "node:path";
 // 찍기 전에 마우스를 치우고, 끝이 있는 애니메이션·전환을 다 기다린다.
 
 const SHOTS_DIR = process.env.SHOTS_DIR;
-// 1B에서 violet을 지우면 여기서도 뺀다.
-const THEMES = ["dark", "violet", "light"];
+const THEMES = ["dark", "light"];
 const SIZES = [
   { width: 390, height: 844 },
   { width: 768, height: 1024 },
@@ -36,7 +35,7 @@ const BLANK_PNG = Buffer.from(
   "base64",
 );
 
-/** 화면 하나를 너비 셋 × 테마 셋으로 찍는다. 넘침·44px 목록은 너비마다 한 번(테마는 배치를 바꾸지 않는다). */
+/** 화면 하나를 너비 셋 × 테마 둘로 찍는다. 넘침·44px 목록은 너비마다 한 번(테마는 배치를 바꾸지 않는다). */
 async function capture(page: Page, name: string) {
   // 앞에서 누른 버튼 위에 마우스가 남아 있으면 호버 색이 찍힌다.
   await page.mouse.move(0, 0);

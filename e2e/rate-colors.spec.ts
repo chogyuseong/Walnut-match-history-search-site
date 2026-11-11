@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 // 승률 색 단계(45~55% 중립, 높을수록 붉게, 낮을수록 가라앉게)와 칭호 색·엠블럼을 확인한다.
 // 승률이 20%대~80%대로 고르게 퍼진 모임을 API로 만든다.
-// SHOTS_DIR 환경 변수를 주면 세 테마 × 390·1440px 스크린샷(개인 통계·분석·랭킹·검색·칭호 설정)을 그 폴더에 남긴다.
+// SHOTS_DIR 환경 변수를 주면 두 테마 × 390·1440px 스크린샷(개인 통계·분석·랭킹·검색·칭호 설정)을 그 폴더에 남긴다.
 
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
 /**
@@ -100,7 +100,7 @@ async function setTheme(page: Page, theme: string) {
 async function shots(page: Page, s: Setup, dir: string) {
   mkdirSync(dir, { recursive: true });
   const top = s.people[11]!; // 목표 72%
-  for (const theme of ["dark", "violet", "light"]) {
+  for (const theme of ["dark", "light"]) {
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/#/p/${top.id}`);
