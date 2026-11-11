@@ -91,7 +91,7 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 src/server/   Workers API(Hono). index.ts 라우팅, mutation.ts(모임 안 쓰기 공통 경로), snapshot.ts, auth.ts, matches.ts, groups.ts …
 src/shared/   서버·화면 공용 순수 로직. stats(통계) · draft/prepTools/rotation/priority/avoid(편성) · titles(칭호) · rating(MMR) · search · seasonAwards …
 src/web/      React 화면. App.tsx 라우팅, useApp.ts 상태, lazyScreens.ts 지연 로딩, screens/*(화면), screens/prep/*(준비 화면 조각), styles.css(토큰·스타일)
-migrations/   D1 마이그레이션 0001~0025(0004는 없음, 번호 건너뜀)
+migrations/   D1 마이그레이션 0001~0026(0004는 없음, 번호 건너뜀)
 test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서 · scripts/  seed, check-bundle
 ```
 
@@ -114,7 +114,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 
 ### 배포(요약)
 
-`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → `npm run deploy:staging`·마이그레이션 0001~0025·확인 → `npm run deploy:production`. 배포 명령은 먼저 `scripts/predeploy-check.mjs`로 자리 표시값(`REPLACE-WITH-…`)과 production의 `[채워야 함]`을 검사해 남아 있으면 멈춥니다. wrangler 명령을 손으로 칠 때는 **항상 `--env staging|production`**(빠뜨리면 로컬 설정 `AUTH_MODE=fake`·D1 ID `0000…`이 올라가려 함. 공개 주소에서 가짜 로그인은 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
+`docs/배포안내.md`가 기준입니다. 순서만 적으면: R2 버킷·staging D1 생성 → `wrangler secret put SESSION_SECRET --env staging|production` → `SITE_ADMIN_ACCOUNT_IDS`·`src/web/legal.ts`의 `[채워야 함]` 4개 → `npm run deploy:staging`·마이그레이션 0001~0026·확인 → `npm run deploy:production`. 배포 명령은 먼저 `scripts/predeploy-check.mjs`로 자리 표시값(`REPLACE-WITH-…`)과 production의 `[채워야 함]`을 검사해 남아 있으면 멈춥니다. wrangler 명령을 손으로 칠 때는 **항상 `--env staging|production`**(빠뜨리면 로컬 설정 `AUTH_MODE=fake`·D1 ID `0000…`이 올라가려 함. 공개 주소에서 가짜 로그인은 열리지 않게 막혀 있음). `SESSION_SECRET`을 바꾸면 자체 계정 비밀번호가 전부 무효가 됩니다(페퍼).
 
 ---
 
@@ -131,6 +131,7 @@ test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서
 - **오늘 명단 이어가기**(2026-11-10 실험): 11명 이상 고르고 팀을 짜면 그날 온 사람과 순서를 기기에 남긴다. 결과 저장 창에 "다음 판 쉬는 사람(제안)", "다음 경기 준비"는 쉬던 사람이 들어간 초안을 만든다(규칙: 쉬던 사람은 모두 들어오고, 연속으로 가장 오래 뛴 사람 → 오늘 경기가 많은 사람 → 명단 앞쪽 순으로 쉼). 편성 판 아래 "쉬는 사람" 구역에 오늘 판 수·연속 판 수, 빼기(되돌리기 있음), 늦게 온 사람 넣기, 오늘 명단 글 복사. "같은 10명으로"로 직전 경기 10명으로 돌아감. 시리즈로 이어갈 때와 정확히 10명인 밤은 예전과 같음
 - **다음 경기 준비가 팀 조건을 이어받음**(2026-11-10): 시작한 경기의 같은 팀·다른 팀 조건을 12시간 동안 남겨, 두 사람이 모두 있는 다음 초안에 넣고 안내 줄에 "지난 경기의 팀 조건 n개를 이어 왔어요."
 - **정정·메모·시리즈**: 승리 팀·진영·포지션·참가자·시각 정정, 전적 제외·복구, 변경 내역, 200자 메모, 3판 2선승·5판 3선승·자유 시리즈
+- **경기 삭제·되살리기**: 잘못 넣거나 두 번 넣은 경기를 경기 상세에서 지우면 목록·통계·조회 링크에서 빠지고(번호는 비워 둠), 기록 화면 변경 내역에서 되살린다(운영자·공동 운영자)
 
 ### 팀 편성 도구(운영자 기준)
 - **티어 배정**(1~5티어·미지정, 기록으로 제안받기, 티어 점검), **기피 라인**(최대 4개, 멤버가 자기 것 직접 정할 수 있음). 화면은 머리가 따라오고 PC에서는 측면 요약 판
