@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readTheme } from "../src/web/theme";
+
+// 화면 코드(src/web/theme.ts, DOM 타입을 쓴다)는 서버 타입 검사(tsconfig.json) 밖이라 동적으로 읽는다(format-date.test.ts와 같은 방법).
+const path = "../src/web/theme";
+const { readTheme } = (await import(/* @vite-ignore */ path)) as { readTheme: () => "dark" | "light" };
 
 // 테스트는 Workers 환경이라 localStorage가 없다. 저장값 정리만 보면 되므로 Map으로 흉내 낸다.
 function fakeStorage(initial: Record<string, string>) {
