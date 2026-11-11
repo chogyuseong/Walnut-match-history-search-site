@@ -1,6 +1,6 @@
 /* 모바일 기준 배치. 팀·진영·상태는 색만이 아니라 기호와 글자로도 구분한다.
    <html data-theme="dark | light"> 로 테마를 바꾼다(예전 violet·deeplol 저장값은 theme.ts가 dark로 고쳐 쓴다).
-   색 규칙은 저장소 맨 위 CLAUDE.md 5절(2026-11-11): 슬레이트 바탕 + 강조색 골드 하나. 파랑은 블루 진영·승리 표시에만 쓴다.
+   색 규칙은 저장소 맨 위 CLAUDE.md 5절: 슬레이트 바탕 + 강조색 골드 하나. 파랑은 블루 진영·승리 표시에만 쓴다.
    골드는 두 갈래다. --ih-accent는 글자·테두리·포커스(링크, 고른 칸 테두리), --ih-primary는 주 버튼 채움.
    테두리도 두 갈래다. --ih-line은 카드·구분선 같은 장식용 1px 선, --ih-control-border는 입력·버튼·선택 상자의 경계(3:1 이상).
    다크에서 컨트롤 경계는 --ih-subtle 위 2.18:1이라 입력·버튼 바탕은 --ih-panel이나 --ih-bg로 둔다. 같은 까닭으로
@@ -48,6 +48,22 @@
   /* 승리 색으로 채운 작은 칸(최근 승패 점) 위의 글자. 패배 색 칸 위는 --ih-on-loss(예상 승률 막대). */
   --ih-on-win: #0f172a;
   --ih-on-loss: #0f172a;
+
+  /* 라인별 색(CLAUDE.md 5절 예외): 탑 주황, 정글 초록, 미드 노랑, 원딜 파랑, 서폿 자홍. 글자·아이콘이 같은 색이라
+     준비 화면·명단·전적에서 라인이 한눈에 갈린다. 라인 이름이나 아이콘과 늘 함께 쓴다. 라이트는 흰 바탕 대비 때문에
+     한 단계 진하다. 바탕 대비 글자 4.5:1 이상(test/theme-contrast.test.ts). */
+  --pos-top: #e58a65;
+  --pos-jungle: #55b97f;
+  --pos-mid: #e6bd59;
+  --pos-adc: #65a3e7;
+  --pos-support: #d48edf;
+  /* 이야기 카드 색: 그래프 분석 맨 위 카드 넷의 라벨·점 색(연두·분홍·청록·연보라). CLAUDE.md 5절의 명시 예외다.
+     파랑(블루 진영)·빨강(레드·패)·골드(강조·고른 카드)와 겹치는 색상은 피했다. 값을 바꿀 때는 카드 바탕(--ih-subtle)과
+     고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts). */
+  --story-streak: #b4d66b;
+  --story-upset: #f29dbb;
+  --story-pair: #4fcfc4;
+  --story-attendance: #bdb5f5;
 }
 
 [data-theme="light"] {
@@ -77,9 +93,18 @@
   --ih-loss-bg-hover: #f6dcda;
   --ih-loss-border: #ecb8b5;
   --ih-loss-text: #a92f2b;
+  --pos-top: #b25228;
+  --pos-jungle: #237d4c;
+  --pos-mid: #8a6a13;
+  --pos-adc: #326fba;
+  --pos-support: #9e4cb4;
+  --story-streak: #55701a;
+  --story-upset: #a83a62;
+  --story-pair: #0f6b66;
+  --story-attendance: #5446b8;
 }
 
-/* 화면 규칙이 쓰는 이름. 값은 모두 위 토큰에서 온다. */
+/* 테마와 상관없는 척도·치수·아이콘. 테마마다 바꾸지 않는다(CLAUDE.md 5절: 테마별로 레이아웃·글자 크기·간격을 바꾸지 않음). */
 :root {
   /* 화면 틀(CLAUDE.md 2절). 반응형 기준은 768px(하단 메뉴 ↔ 위 메뉴, 패널 여백 16 ↔ 24)과 1200px(두 단 배치) 둘이다.
      --page-gutter는 본문 좌우 안전 여백이라 아래 미디어 쿼리에서 16 → 24 → 32로 바뀐다. 상단 바·위 메뉴·본문(.screen)·
@@ -97,7 +122,7 @@
   --tabs-height: 64px;
 
   /* 간격 척도(CLAUDE.md 1절). margin·padding·gap은 0, auto, 안전 영역 env()와 이 여덟 값만 쓴다.
-     scripts/design-audit.mjs가 이 밖의 값을 센다. 테마마다 바꾸지 않으므로 테마 블록이 아니라 여기에 둔다. */
+     scripts/design-audit.mjs가 이 밖의 값을 찾으면 실패한다(배포 전 검사에 걸려 있다). */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -127,6 +152,17 @@
   --text-section: 1.25rem;
   --text-screen: 1.5rem;
   --text-hero: 2rem;
+
+  /* 상태 아이콘(CLAUDE.md 5절: 성공·주의는 색 대신 아이콘과 문구). ui.tsx LineIcon의 check·alert와 같은 20칸 그림을
+     CSS 가림판(mask)으로 그리고 색은 currentColor를 따른다. .note·.saved·배지는 백 곳 넘게 쓰이고 사진 스펙이 배지 글자를
+     통째로 바꿔 써서, 아이콘을 마크업이 아니라 클래스에 붙였다. 그림을 바꾸면 LineIcon도 같이 바꾼다.
+     -16은 16px로 그릴 때 쓰는 벌이다. 20칸을 16px로 줄이면 선이 1.2px가 되므로 선을 1.875로 그려 화면에서 1.5px를 맞춘다. */
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
+  --icon-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
+  --icon-error: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
+  --icon-check-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
+  --icon-alert-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
+  --icon-error-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
 }
 @media (min-width: 768px) {
   :root {
@@ -137,19 +173,6 @@
   :root {
     --page-gutter: var(--space-6);
   }
-}
-
-/* 상태 아이콘(CLAUDE.md 5절: 성공·주의는 색 대신 아이콘과 문구). ui.tsx LineIcon의 check·alert와 같은 20칸 그림을
-   CSS 가림판(mask)으로 그리고 색은 currentColor를 따른다. .note·.saved·배지는 백 곳 넘게 쓰이고 사진 스펙이 배지 글자를
-   통째로 바꿔 써서, 아이콘을 마크업이 아니라 클래스에 붙였다. 그림을 바꾸면 LineIcon도 같이 바꾼다.
-   -16은 16px로 그릴 때 쓰는 벌이다. 20칸을 16px로 줄이면 선이 1.2px가 되므로 선을 1.875로 그려 화면에서 1.5px를 맞춘다. */
-:root {
-  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
-  --icon-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
-  --icon-error: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
-  --icon-check-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
-  --icon-alert-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
-  --icon-error-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
 }
 
 * {
@@ -268,8 +291,11 @@ h3 {
   align-items: center;
   gap: var(--space-2);
 }
+/* 긴 모임 이름·두 사람 이름(비교 화면 제목)도 머리 줄을 넘치지 않고 줄을 바꾼다. */
 .screen-head h1 {
   flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sticky-head {
   position: sticky;
@@ -380,8 +406,11 @@ input::placeholder,
 textarea::placeholder {
   color: var(--ih-text-secondary);
 }
+/* 사람·항목을 고르는 칸은 어느 화면 폭에서나 가장 긴 선택지에 딱 맞는 폭이다. 한 줄 가득 늘어난 칸은 내용에 비해
+   길어 보인다. 선택지 표(시트 가져오기 열 맞추기)·요청 양식처럼 칸이 표의 열이거나 입력 양식인 곳만 각자 100%로 둔다. */
 select {
   width: auto;
+  max-width: 100%;
 }
 input[type="radio"],
 input[type="checkbox"] {
@@ -400,6 +429,7 @@ label {
 }
 .input-row > :first-child {
   flex: 1 1 auto;
+  min-width: 0;
 }
 textarea {
   resize: vertical;
@@ -426,7 +456,7 @@ legend {
 }
 /* 제목·꼬리표 옆 i 버튼(screenKit InfoTip). 버튼은 터치 기준 44px이고 보이는 원(.info-tip-dot)만 작게 그린다.
    i 버튼을 품은 제목 줄은 글자와 버튼을 한 줄 flex로 세로 가운데에 맞춘다. 그래서 그 줄은 44px 높이가 된다
-   (예전엔 음수 여백으로 줄 높이를 눌렀는데, 간격 규칙상 음수 여백을 쓰지 않는다). 펼친 설명은 다음 줄 전체를 쓴다. */
+   (줄 높이를 음수 여백으로 누르지 않는다. 간격 규칙 위반). 펼친 설명은 다음 줄 전체를 쓴다. */
 :is(h2, h3, p):has(> .info-tip) {
   display: flex;
   flex-wrap: wrap;
@@ -509,7 +539,7 @@ details.help {
   box-shadow: none;
 }
 details.help > summary {
-  /* 누르기 쉬운 높이(44px, 2026-11-08 화면 점검: 32px였다). 글자는 작게 그대로. */
+  /* 누르기 쉬운 높이(44px). 글자는 작게 그대로. */
   min-height: 44px;
   padding: 0;
   font-size: var(--text-label);
@@ -635,7 +665,7 @@ details.help > .help-body p {
 .badge {
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-badge);
-  /* 위아래 여백 없이 줄 높이로 이름표 높이를 낸다(예전 위아래 2px를 더한 높이와 같게). */
+  /* 위아래 여백 없이 줄 높이로 이름표 높이를 낸다(간격 척도에 2px가 없다). */
   padding: 0 var(--space-2);
   line-height: 1.85;
   white-space: nowrap;
@@ -713,11 +743,17 @@ details.help > .help-body p {
   background: none;
   text-align: left;
 }
+/* 편성 줄(누를 수 있는 사람 줄). 표시(고정·차례 씀)가 이름을 밀어내지 않게, 자리가 모자라면 표시를 아랫줄로 내린다. */
 button.row {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+  background: var(--ih-panel);
   border-color: var(--ih-line);
+  font-weight: 600;
   margin-bottom: var(--space-1);
 }
-.row.picked {
+.row.picked,
+button.row.picked:hover {
   background: var(--ih-selected);
   border: 1px solid var(--ih-accent);
 }
@@ -730,11 +766,16 @@ button.row {
 .row.empty {
   color: var(--ih-text-secondary);
 }
+/* 라인 아이콘(키트의 자체 제작 도형)과 라인 이름. 라인 색은 아래 .pos[data-pos] 규칙. */
 .pos {
   flex: none;
-  width: 2.6em;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 3.7em;
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
+  font-weight: 500;
 }
 /* 긴 이름은 한 줄로 자르고 말줄임표. 전체 이름은 title과 확인 창에서 볼 수 있다. */
 .name {
@@ -752,7 +793,7 @@ button.row {
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 .list-row {
   display: flex;
@@ -765,25 +806,38 @@ button.row {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-panel);
+  font-weight: 500;
   text-align: left;
 }
-.list-row.selected {
+/* 고른 줄: 포인트 색 1px 테두리 + 옅은 포인트 바탕. 카드 안 줄 칸(위 선만 있는 줄)이어도 네 변을 다 두른다. */
+.list-row.selected,
+.card .list-row.selected {
   background: var(--ih-selected);
   border: 1px solid var(--ih-accent);
+  border-radius: var(--radius-control);
 }
 .list-row.static {
   cursor: default;
 }
+/* 줄 전체를 누를 수 있는 목록의 안쪽 버튼. 바깥 줄(.list-row.static)이 위아래 여백을 버리고 이 버튼이 갖는다.
+   글자가 두 줄이 되어도 테두리에 닿지 않는다. */
 .row-main {
   flex: 1 1 auto;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  min-height: 44px;
   border: none;
   background: none;
-  padding: 0;
+  padding: var(--space-2) 0;
+  font-weight: 500;
   text-align: left;
   min-width: 0;
+}
+.row-main:not(:disabled):hover {
+  border: none;
+  background: none;
 }
 .chips {
   display: flex;
@@ -804,6 +858,7 @@ button.row {
   gap: var(--space-2);
   min-height: 44px;
   padding: var(--space-3);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-control-border);
   border-radius: var(--radius-control);
   margin-top: var(--space-2);
@@ -830,16 +885,24 @@ button.row {
   gap: var(--space-2);
   min-height: 44px;
 }
+/* 붙은 탭(한 상자 안의 칸 여럿). 칸 모양(테두리 없음·보조 글자)은 아래 키트 구역의 .segmented button, .segmented select. */
 .segmented {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-control-border);
+  border-radius: var(--radius-control);
 }
 .segmented button {
   flex: 1;
 }
-.segmented button[aria-pressed="true"] {
+/* 고른 칸: 포인트 색 1px 테두리 + 옅은 포인트 바탕 + 본문 글자(채운 버튼처럼 보이지 않게). */
+.segmented button[aria-pressed="true"],
+.segmented button[aria-pressed="true"]:hover {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
+  color: var(--ih-text);
   font-weight: 500;
 }
 
@@ -978,7 +1041,7 @@ details > *:not(summary) {
    select 기본값(16px 입력 글자, 왼쪽 정렬)을 그대로 두면 탭 안에서 select 칸만 글자가 크고 왼쪽에 붙는다.
    그래서 버튼과 같은 14px/500, 가운데 정렬로 맞춘다. 화살표 자리 때문에 글자가 화살표 폭의 절반쯤 왼쪽에 놓이는 것은
    브라우저 기본 화살표를 그대로 쓰는 대가로 둔다(appearance를 끄면 화살표를 직접 그려야 한다).
-   text-align-last는 text-align만으로는 가운데로 가지 않는 브라우저(예전 Chromium·Safari)를 위한 것이다. */
+   text-align-last는 text-align만으로는 가운데로 가지 않는 브라우저(구버전 Chromium·Safari)를 위한 것이다. */
 .segmented select {
   flex: 1;
   font-size: var(--text-label);
@@ -997,6 +1060,7 @@ details > *:not(summary) {
 .segmented select.chosen {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
+  color: var(--ih-text);
 }
 input[type="search"] {
   margin-bottom: var(--space-2);
@@ -1032,10 +1096,22 @@ input[type="search"] {
    승률 막대 세 색과 단일 값 막대는 이 바탕 대비 3:1 이상(test/theme-contrast.test.ts). */
 .viz-root {
   --viz-track: #0f172a;
+  /* 범주색 다섯 칸(순위 변동 상위 5명, 라인 모양 두 사람)은 dataviz 기본 팔레트의 1·2·3·5·7번(파랑·주황·청록·자홍·보라).
+     라이트는 흰 카드 대비 선 3:1이 되게 조금 진하다. */
+  --viz-cat-1: #4688d8;
+  --viz-cat-2: #cc5f33;
+  --viz-cat-3: #23946d;
+  --viz-cat-4: #cb5b84;
+  --viz-cat-5: #968de2;
 }
 /* 그래프 색은 기기 설정이 아니라 고른 테마를 따른다. */
 [data-theme="light"] .viz-root {
   --viz-track: #f1f5f9;
+  --viz-cat-1: #3779c9;
+  --viz-cat-2: #dd6c40;
+  --viz-cat-3: #259e72;
+  --viz-cat-4: #d96792;
+  --viz-cat-5: #695acc;
 }
 .filter-row {
   display: flex;
@@ -1043,13 +1119,14 @@ input[type="search"] {
   gap: var(--space-2);
 }
 .filter-row label {
-  flex: 1 1 30%;
+  flex: 0 1 auto;
   min-width: 0;
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .filter-row select {
-  width: 100%;
+  width: auto;
+  min-width: 0;
   color: var(--ih-text);
 }
 .chart-card {
@@ -1098,7 +1175,7 @@ button.bar-row:hover {
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
 }
-/* 값이 "승률 · N승 M패 (G경기)"로 길어져(2026-11-08 통일) 좁은 화면에서는 값을 다음 줄 오른쪽으로 내린다.
+/* 값이 "승률 · N승 M패 (G경기)"로 길어 좁은 화면에서는 값을 다음 줄 오른쪽으로 내린다.
    이름·칭호를 "…"로 자르지 않는다. */
 @media (max-width: 767px) {
   .bar-head {
@@ -1122,7 +1199,7 @@ button.bar-row:hover {
   font-variant-numeric: tabular-nums;
   font-size: var(--text-label);
 }
-/* 막대 두께 6px(2026-11-10: 10px에서 가늘게). */
+/* 막대 두께 6px. */
 .bar-track {
   position: relative;
   display: block;
@@ -1199,7 +1276,12 @@ button.bar-row:hover {
   color: var(--ih-text);
   line-height: 1.25;
 }
+/* 머리 행은 화면을 내려도 상단 바 아래에 붙어 있다. 바탕은 다른 표 머리와 같은 보조 면. */
 .matrix thead th {
+  position: sticky;
+  top: var(--topbar-height);
+  z-index: 1;
+  background: var(--ih-subtle);
   color: var(--ih-text-secondary);
   font-weight: 400;
 }
@@ -1245,13 +1327,6 @@ button.bar-row:hover {
   color: var(--ih-text-secondary);
   font-size: var(--text-meta);
   line-height: 1.2;
-}
-/* 머리 행은 화면을 내려도 붙어 있다. 상단 바 아래. 바탕은 다른 표 머리와 같은 올린 면. */
-.matrix thead th {
-  position: sticky;
-  top: var(--topbar-height);
-  z-index: 1;
-  background: var(--ih-subtle);
 }
 .matrix thead th .pos {
   justify-content: flex-end;
@@ -1313,24 +1388,15 @@ button.bar-row:hover {
 .segmented button {
   white-space: nowrap;
 }
-.input-row > :first-child {
-  min-width: 0;
-}
 .input-row > button {
   flex: none;
 }
 
-/* 목록 줄: 내용은 세로 가운데, 오른쪽 보조 글자(시각 등)는 한 줄로 둔다. */
-/* 줄 전체를 누를 수 있는 목록: 바깥 줄의 위아래 여백을 없애고 안쪽 버튼이 여백을 갖는다.
-   글자가 두 줄이 되어도 테두리에 닿지 않는다. */
+/* 목록 줄: 내용은 세로 가운데, 오른쪽 보조 글자(시각 등)는 한 줄로 둔다. 안쪽 버튼(.row-main)이 있는 줄은 바깥 줄의
+   위아래 여백을 버린다. */
 .list-row.static:has(> .row-main) {
   padding-top: 0;
   padding-bottom: 0;
-}
-.row-main {
-  align-items: center;
-  min-height: 44px;
-  padding: var(--space-2) 0;
 }
 .row-main > :first-child,
 .list-row > :first-child {
@@ -1458,11 +1524,6 @@ body:has(.action-sticky) .toast {
   gap: var(--space-3);
 }
 
-/* 편성 줄: 표시(고정·차례 씀)가 이름을 밀어내지 않게, 자리가 모자라면 표시를 아랫줄로 내린다. */
-button.row {
-  flex-wrap: wrap;
-  row-gap: var(--space-1);
-}
 button.row .name {
   flex: 1 1 4em;
 }
@@ -1471,7 +1532,8 @@ button.row .tag {
 }
 
 /* ==========================================================================
-   디자인 키트 적용: 표면·버튼·목록·팀 상자·경기 줄·상단 바·푸터
+   표면·버튼 호버·카드 안 목록·경기 줄·팀 상자 색·상단 바·푸터
+   (기본 부품의 모양은 파일 앞쪽에 있고, 여기는 그 위에 겹치는 문맥 규칙이다)
    ========================================================================== */
 
 ::-webkit-scrollbar {
@@ -1500,18 +1562,8 @@ button:not([class]):not(:disabled):hover,
   border-color: var(--ih-control-border);
 }
 
-/* 목록 줄 */
-.list {
-  gap: var(--space-2);
-}
-.list-row {
-  background: var(--ih-panel);
-  border-color: var(--ih-line);
-  font-weight: 500;
-}
 /* 카드 안의 목록 줄: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다("기록지"의 줄 칸).
-   :where()로 명시도를 위 .list-row와 같게 두어, 고른 줄(.selected)·경기 줄 색 띠·랭킹 띠처럼 뒤에 오는
-   2단 규칙이 그대로 이긴다. */
+   :where()로 명시도를 .list-row와 같게 두어, 고른 줄(.selected)·경기 줄 색 띠·랭킹 띠 같은 2단 규칙이 명시도로 이긴다. */
 :is(.card, .chart-card, details) :where(.list) {
   gap: 0;
 }
@@ -1524,7 +1576,7 @@ button.list-row:not(:disabled):hover {
   background: var(--ih-subtle);
   border-color: var(--ih-control-border);
 }
-/* 카드 하나로 묶은 목록(2026-11-09 2단계): 카드 밖에 상자로 늘어놓던 줄을 카드 한 장 안의 줄 칸으로.
+/* 카드 하나로 묶은 목록: 줄을 상자로 늘어놓지 않고 카드 한 장 안의 줄 칸으로.
    줄 사이는 구분선 한 줄, 간격 0. 첫 줄은 카드 테두리와 겹치지 않게 위 선을 뺀다. 경기 카드 목록은 쓰지 않는다. */
 .list.list-card {
   gap: 0;
@@ -1558,20 +1610,6 @@ button.list-row:not(:disabled):hover {
 .list-card .list-row:focus-visible,
 .list-card .list-row :focus-visible {
   outline-offset: -2px;
-}
-/* 고른 줄: 포인트 색 1px 테두리 + 옅은 포인트 바탕(카드 안이어도 네 변을 다 두른다). */
-.list-row.selected,
-.card .list-row.selected {
-  border-width: 1px;
-  border-color: var(--ih-accent);
-  border-radius: var(--radius-control);
-  background: var(--ih-selected);
-}
-.row-main,
-.row-main:not(:disabled):hover {
-  border: none;
-  background: none;
-  font-weight: 500;
 }
 
 /* 경기 줄: 왼쪽 1px 선만 색을 쓰고 바탕은 카드 바탕 그대로다. 전체 목록에서는 이긴 팀의 진영(블루·레드), 개인 화면에서는
@@ -1617,10 +1655,7 @@ li.match-row.tone-red:hover {
 
 /* 팀 상자: 진영이 정해진 경기(준비 화면은 항상)는 1px 진영 색 테두리, 제목은 "● 블루팀"/"■ 레드팀"(format.ts teamName).
    진영을 모르면 중립 표면에 "팀 A"/"팀 B". 바탕은 칠하지 않는다. 진영 색은 테두리와 팀 이름에만 쓰고, 어느 팀인지는
-   제목의 기호·글자가 전한다. 경기 상세·준비 화면·결과 입력 버튼(.result-pick-btn)이 같은 모양이다. */
-.team {
-  padding: var(--space-3);
-}
+   제목의 기호·글자가 전한다. 경기 상세·준비 화면·결과 입력 버튼(.result-pick-btn)이 같은 모양이다. 상자 자체는 위 .team. */
 .team h3 {
   margin: 0 0 var(--space-2);
   padding-bottom: var(--space-2);
@@ -1648,49 +1683,9 @@ li.match-row.tone-red:hover {
 .team.side-red .result-pick-title {
   color: var(--ih-loss-text);
 }
-button.row {
-  background: var(--ih-panel);
-  border-color: var(--ih-line);
-  font-weight: 600;
-}
-.row.picked,
-button.row.picked:hover {
-  background: var(--ih-selected);
-  border-color: var(--ih-accent);
-}
 
-/* 라인별 색(2026-11-09): 탑 주황, 정글 초록, 미드 노랑, 원딜 파랑, 서폿 자홍. 다섯 라인이 글자·아이콘 모두 같은 색이라
-   준비 화면·명단·전적에서 라인이 한눈에 구분된다. 라이트 테마는 한 단계 진하게 해 흰 바탕에서도 대비를 지킨다.
-   색을 바꾸려면 여기만 고친다(screenKit.tsx의 PosLabel이 data-pos, RoleIcon이 pos-라인 클래스(예: pos-top)를 단다).
-   2단계(2026-11-09): 색상은 그대로 두고 채도를 15% 낮췄다. 카드·바탕 대비 글자 4.5:1 이상(라이트는 그래서 더 진해졌다,
-   test/theme-contrast.test.ts가 검사).
-   이야기 카드 색(--story-*): 그래프 분석 맨 위 카드 넷의 라벨 색(연두·분홍·청록·연보라). CLAUDE.md 5절의 명시 예외다.
-   파랑(블루 진영)·빨강(레드·패)·골드(강조·고른 카드)와 겹치는 색상은 피했다. 값을 바꿀 때는 카드 바탕(--ih-subtle)과
-   고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts). */
-:root,
-[data-theme="dark"] {
-  --pos-top: #e58a65;
-  --pos-jungle: #55b97f;
-  --pos-mid: #e6bd59;
-  --pos-adc: #65a3e7;
-  --pos-support: #d48edf;
-  --story-streak: #b4d66b;
-  --story-upset: #f29dbb;
-  --story-pair: #4fcfc4;
-  --story-attendance: #bdb5f5;
-}
-[data-theme="light"] {
-  --story-streak: #55701a;
-  --story-upset: #a83a62;
-  --story-pair: #0f6b66;
-  --story-attendance: #5446b8;
-  --pos-top: #b25228;
-  --pos-jungle: #237d4c;
-  --pos-mid: #8a6a13;
-  --pos-adc: #326fba;
-  --pos-support: #9e4cb4;
-}
-/* 글자와 아이콘(currentColor) 모두에 라인 색. 표·비교 화면의 `.xxx .pos { color }` 규칙(명시도 0,2,0)을 이기도록
+/* 라인별 색(토큰 --pos-*는 맨 위 테마 블록). screenKit.tsx의 PosLabel이 data-pos, RoleIcon이 pos-라인 클래스(예: pos-top)를 단다.
+   글자와 아이콘(currentColor) 모두에 라인 색. 표·비교 화면의 `.xxx .pos { color }` 규칙(명시도 0,2,0)을 이기도록
    선택자를 겹쳐 명시도를 0,3,0으로 올렸다. 라인 색을 끄고 싶은 곳은 같은 명시도 이상으로 덮는다. */
 .pos[data-pos="top"][data-pos],
 .role-icon.pos-top.role-icon {
@@ -1713,15 +1708,6 @@ button.row.picked:hover {
   color: var(--pos-support);
 }
 
-/* 라인 아이콘(키트의 자체 제작 도형)과 라인 이름 */
-.pos {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  width: 3.7em;
-  font-size: var(--text-label);
-  font-weight: 500;
-}
 .role-icon {
   flex: none;
   width: 14px;
@@ -1745,39 +1731,13 @@ button.row.picked:hover {
   }
 }
 
-/* 고르기 */
-.choice {
-  background: var(--ih-panel);
-  border-color: var(--ih-control-border);
-}
-.choice.chosen {
-  background: var(--ih-selected);
-  border-color: var(--ih-accent);
-}
-.segmented {
-  gap: var(--space-1);
-  padding: var(--space-1);
-  background: var(--ih-panel);
-  border: 1px solid var(--ih-control-border);
-  border-radius: var(--radius-control);
-}
+/* 붙은 탭의 칸: 테두리 없이 보조 글자. 고른 칸은 위 .segmented button[aria-pressed="true"]·.segmented select.chosen이
+   명시도로 이긴다. 이 규칙은 .filter-row select(본문 글자)보다 뒤에 있어야 범위 고르기 칸 글자가 보조 글자로 남는다. */
 .segmented button,
 .segmented select {
   border: 1px solid transparent;
   background: none;
   color: var(--ih-text-secondary);
-}
-/* 고른 칸: 포인트 색 1px 테두리 + 옅은 포인트 바탕 + 본문 글자(채운 버튼처럼 보이지 않게). */
-.segmented button[aria-pressed="true"],
-.segmented button[aria-pressed="true"]:hover {
-  border: 1px solid var(--ih-accent);
-  background: var(--ih-selected);
-  color: var(--ih-text);
-}
-.segmented select.chosen {
-  border: 1px solid var(--ih-accent);
-  background: var(--ih-selected);
-  color: var(--ih-text);
 }
 /* 펼친 목록(시즌·연도 등)의 글자: select의 반투명 바탕·흐린 글자색을 물려받으면 읽기 어렵다.
    목록 줄은 불투명한 바탕에 본문 글자 색으로 고정한다(다크·라이트 모두 16:1 안팎). */
@@ -2152,7 +2112,7 @@ table {
 :is(.title-chip, .title-preview):is(.grade-5, .grade-6, .grade-7, .grade-8) {
   color: var(--ih-text-secondary);
 }
-/* 목록 줄의 칭호(TitleBadge compact): 테두리·바탕 없이 글자 + 작은 엠블럼만(2026-11-09 2단계 밀도 정리). */
+/* 목록 줄의 칭호(TitleBadge compact): 줄이 빽빽해지지 않게 테두리·바탕 없이 글자 + 작은 엠블럼만. */
 .title-chip.compact,
 .title-chip.compact[class*="grade-"] {
   gap: var(--space-1);
@@ -2595,7 +2555,7 @@ main:focus {
   align-items: center;
   justify-content: center;
 }
-/* 이름은 한 줄, 넘치면 말줄임표(2026-11-10: 글자 단위로 "가상선수0 / 3"처럼 꺾이던 것을 막는다).
+/* 이름은 한 줄, 넘치면 말줄임표(글자 단위로 "가상선수0 / 3"처럼 꺾이지 않게).
    전체 이름은 버튼 title에 있다. 칸은 minmax(0, 1fr)라 이름이 길어도 칸이 넓어지지 않는다. */
 .mc-name-text {
   display: block;
@@ -2653,7 +2613,7 @@ main:focus {
   flex-wrap: wrap;
   gap: var(--space-1);
 }
-/* 점 칸 21px(2026-11-10: 22px에서 1px 줄임), 글자 0.75rem. 테두리 1px를 칸 안에 넣어 승·패 크기를 같게 둔다. */
+/* 점 칸 21px, 글자 0.75rem. 테두리 1px를 칸 안에 넣어 승·패 크기를 같게 둔다. */
 .form-dot {
   display: inline-grid;
   place-items: center;
@@ -2666,7 +2626,7 @@ main:focus {
   font-weight: 500;
   line-height: 1;
 }
-/* 승은 승리 색으로 채우고, 패는 바탕 없이 패배 테두리 + 패배 글자(2026-11-10). 칸 안의 "승"·"패" 글자로도 구분한다. */
+/* 승은 승리 색으로 채우고, 패는 바탕 없이 패배 테두리 + 패배 글자. 칸 안의 "승"·"패" 글자로도 구분한다. */
 .form-dot.win {
   background: var(--ih-win-accent);
   border-color: var(--ih-win-accent);
@@ -3003,7 +2963,7 @@ main:focus {
 
 /* 개인 통계·검색의 작은 막대와 승률 고리. 그림은 보조이고 값은 옆 숫자로 함께 적는다.
    승률 막대는 3단 색 + 50% 기준선, 5경기 미만은 속 빈 테두리 막대(색이 아니라 모양으로 "자료 적음"). */
-/* 막대 높이 5px(작은 막대 4px). 2026-11-09 2단계: 8px → 5px로 낮춰 숫자 옆 보조 그림답게. */
+/* 막대 높이 5px(작은 막대 4px). 숫자 옆 보조 그림이라 낮게 둔다. */
 .meter {
   position: relative;
   display: block;
@@ -3031,7 +2991,7 @@ main:focus {
   background: var(--ih-text-secondary);
 }
 /* 속 빈 막대: 5경기 미만 승률(tone-muted, 그래프 .bar-fill도 같은 모양)과 패·비교 두 번째 사람(.wl-loss·.cmp-bar-b).
-   예전 빗금 무늬(그라데이션) 대신 1px 테두리만 그린다. 테두리는 막대 바탕 대비 3:1 이상인 보조 글자 색. */
+   무늬(그라데이션) 없이 1px 테두리만 그린다. 테두리는 막대 바탕 대비 3:1 이상인 보조 글자 색. */
 .meter-fill.tone-muted,
 .bar-fill.tone-muted {
   background: transparent;
@@ -3311,11 +3271,7 @@ main:focus {
   font-size: var(--text-label);
   font-weight: 500;
 }
-.screen-head h1 {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-/* 두 사람 비교(src/web/screens/Compare.tsx, 2026-11-08 재설계).
+/* 두 사람 비교(src/web/screens/Compare.tsx).
    머리 카드 두 장(요약) + 가운데 VS → 도구 줄 → 나란히 보기(자세한 수치)·라인별·같은 팀·상대 → 경기 목록.
    두 사람은 색이 아니라 모양으로 가른다(CLAUDE.md 5절: 장식 색 없음, 파랑·빨강은 진영 뜻): 첫 번째 사람은 꽉 찬 표식·막대,
    두 번째 사람은 속 빈(1px 테두리) 표식·막대. 둘 다 보조 글자 색이고, 이름이 늘 옆에 붙는다. */
@@ -3846,7 +3802,7 @@ main:focus {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-label);
 }
-/* 전체 목록은 카드 한 장(.list-card) 안의 구분선 줄(2026-11-10). 고른 줄은 카드 안에서도 1px 포인트 테두리 + 틴트를
+/* 전체 목록은 카드 한 장(.list-card) 안의 구분선 줄. 고른 줄은 카드 안에서도 1px 포인트 테두리 + 틴트를
    유지하고, 마우스를 올려도 그 모양이 풀리지 않게 한다. */
 .list-card .list-row.pick-item.selected {
   border-top-width: 1px;
@@ -3923,14 +3879,17 @@ main:focus {
   overflow-wrap: anywhere;
 }
 
-/* 모임 탭의 묶음(접고 펴기). 묶음 제목은 구역 제목(h2)과 같은 크기, 묶음 안의 구역은 선으로 나눈다. */
+/* 모임 탭의 묶음(접고 펴기). 묶음 제목은 구역 제목(h2)과 같은 크기, 묶음 안의 구역은 선으로 나눈다.
+   구역 바로 가기(.block-nav)로 옮겨 올 때 묶음 머리가 위에 붙는 상단 바 밑에 숨지 않게 scroll-margin을 둔다. */
 .group-block {
   padding: var(--space-1) var(--space-4) var(--space-3);
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
 }
 .group-block > summary {
+  min-height: 44px;
   font-size: var(--text-section);
 }
-/* 긴 세로 목록의 리듬(2026-11-09 2단계): 구역마다 위쪽 옅은 구분선 + 그 아래 24px 뒤에 구역 제목(h2),
+/* 긴 세로 목록의 리듬: 구역마다 위쪽 옅은 구분선 + 그 아래 24px 뒤에 구역 제목(h2),
    첫 구역은 선 없이. 구역 설명문(.hint)은 제목 바로 아래 8px. 접는 묶음 머리(summary)는 44px 그대로다. */
 .group-block-body {
   display: flex;
@@ -3947,9 +3906,6 @@ main:focus {
 }
 .group-block-body h2 + .hint {
   margin-top: 0;
-}
-.group-block > summary {
-  min-height: 44px;
 }
 .danger-block {
   border-color: var(--ih-danger);
@@ -4348,7 +4304,7 @@ main:focus {
   font-variant-numeric: tabular-nums;
 }
 
-/* 모임 고르기(2026-11-06): 모임 탭 맨 위 목록·접힌 "새 모임 만들기", 계정 메뉴의 모임 바꾸기 버튼. */
+/* 모임 고르기: 모임 탭 맨 위 목록·접힌 "새 모임 만들기", 계정 메뉴의 모임 바꾸기 버튼. */
 .group-switch-compact {
   margin: 0 0 var(--space-3);
 }
@@ -4390,7 +4346,7 @@ main:focus {
   margin-left: var(--space-2);
 }
 
-/* 요약 화면 전광판(matchCard.tsx MatchScoreboard, 2026-11-10 시안 "중계 화면"). 위 4px 진영 띠 · 머리 줄(경기 상세 버튼,
+/* 요약 화면 전광판(matchCard.tsx MatchScoreboard, 중계 화면 모양). 위 4px 진영 띠 · 머리 줄(경기 상세 버튼,
    카드 빈 곳도 같은 곳) · 진영 이름과 시리즈 점수 · 라인별 맞대결(왼쪽 이름은 오른쪽 정렬, 오른쪽 이름은 왼쪽 정렬).
    줄 높이를 고정해 두 팀 group과 가운데 라인 칸이 DOM으로 나뉘어 있어도 라인끼리 같은 줄에 선다. */
 .scoreboard {
@@ -4639,7 +4595,7 @@ main:focus {
   }
 }
 
-/* 경기 메모·시리즈(2026-11-06). 카드에는 한 줄(넘치면 말줄임), 상세에는 줄바꿈 그대로. */
+/* 경기 메모·시리즈. 카드에는 한 줄(넘치면 말줄임), 상세에는 줄바꿈 그대로. */
 .mc-extra {
   position: relative;
   z-index: 1;
@@ -4808,7 +4764,7 @@ main:focus {
 .season-awards .row-label {
   margin: var(--space-2) 0 var(--space-2);
 }
-/* 카드는 내용 높이만큼(2026-11-10): 같은 줄의 긴 카드에 맞춰 늘어나 빈 공간이 생기지 않게. */
+/* 카드는 내용 높이만큼: 같은 줄의 긴 카드에 맞춰 늘어나 빈 공간이 생기지 않게. */
 .award-list {
   display: grid;
   align-items: start;
@@ -4906,7 +4862,7 @@ main:focus {
   line-height: 1.4;
   color: var(--ih-text-secondary);
 }
-/* 주요 상: 큼직한 카드. 바탕·테두리는 다른 상과 같은 카드이고 상 색은 아이콘에만 쓴다(2026-11-09 2단계). */
+/* 주요 상: 큼직한 카드. 바탕·테두리는 다른 상과 같은 카드이고 상 색은 아이콘에만 쓴다. */
 .award-main {
   gap: var(--space-2);
   padding: var(--space-4) var(--space-4);
@@ -4990,7 +4946,7 @@ main:focus {
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
-/* 해당 없는 상 한 줄 + 까닭 목록(접힌 도움말 안, 2026-11-08). */
+/* 해당 없는 상 한 줄 + 까닭 목록(접힌 도움말 안). */
 .award-none {
   margin-top: var(--space-3);
 }
@@ -5144,7 +5100,7 @@ main:focus {
   min-width: 0;
 }
 
-/* 참가자 본인 연결 · 멤버 화면 · 참가자 요청(2026-11-06) */
+/* 참가자 본인 연결 · 멤버 화면 · 참가자 요청 */
 .request-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -5186,10 +5142,10 @@ main:focus {
   flex-wrap: wrap;
 }
 
-/* ---------- 사용자 편의 기능(2026-11-07) ---------- */
+/* ---------- 사용자 편의 기능 ---------- */
 /* 결과 입력 2버튼: 진영 색은 팀 상자(.team.side-blue/red)를 그대로 쓴다. 좁은 화면에서도 두 버튼을 나란히 둔다.
-   클래스 이름은 result-pick-*로 둔다. 예전 .result-win은 경기 카드의 "승" 배지(.mc-result.result-win)와 겹쳐
-   개인 통계·두 사람 비교의 승 배지가 88px 버튼 모양으로 늘어났다(2026-11-08 수정). */
+   클래스 이름은 result-pick-*로 둔다. .result-win을 쓰면 경기 카드의 "승" 배지(.mc-result.result-win)와 겹쳐
+   개인 통계·두 사람 비교의 승 배지가 88px 버튼 모양으로 늘어난다. */
 .result-pick {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5228,7 +5184,7 @@ main:focus {
   margin-bottom: var(--space-1);
 }
 
-/* 챔피언 기록(2026-11-10, src/web/championPicker.tsx). 결과 입력 창의 접힌 영역과 경기 상세의 챔피언 수정 창.
+/* 챔피언 기록(src/web/championPicker.tsx). 결과 입력 창의 접힌 영역과 경기 상세의 챔피언 수정 창.
    목록은 떠 있는 상자가 아니라 칸 바로 밑에 끼워 넣는다: 390px 폭에서도 창 밖으로 나가지 않고, 칸을 창 위쪽으로
    올리면(championPicker의 scrollIntoView) 키보드 위에 목록이 남는다. 다른 사람이 고른 챔피언은 투명도가 아니라
    보조 글자색으로 흐리게 한다(투명도는 대비 검사 밖이라 테마마다 읽기 어려워질 수 있다). */
@@ -5368,7 +5324,7 @@ main:focus {
   gap: var(--space-1) var(--space-2);
 }
 
-/* ---------- 준비 화면 두 단(2026-11-08) ----------
+/* ---------- 준비 화면 두 단 ----------
    섞기 버튼이 편성 판에서 멀어 섞은 결과를 보려면 위로 올라가야 했다. 모든 폭에서 섞기를 편성 바로 아래로 옮기고,
    PC(1200px 이상)에서는 왼쪽 편성 판이 화면을 내려도 따라오게(sticky) 두 단으로 놓는다. */
 .prep-layout {
@@ -5396,7 +5352,7 @@ main:focus {
   }
 }
 
-/* ---------- 티어 배정·기피 라인(2026-11-08) ----------
+/* ---------- 티어 배정·기피 라인 ----------
    머리(뒤로·제목·탭)가 따라 내려오고, PC(1200px 이상)에서는 오른쪽 요약 판(티어별 인원·돌아가기)이 따라 내려온다.
    배정을 마친 뒤 맨 위로 올라가지 않아도 된다. */
 .priority-head {
@@ -5483,7 +5439,7 @@ button.priority-jump:hover {
   border-color: var(--ih-line);
 }
 
-/* ---------- 편성 손으로 고치기: 끌어다 놓기(2026-11-08) ----------
+/* ---------- 편성 손으로 고치기: 끌어다 놓기 ----------
    편성 판·대기자의 사람을 끌어 다른 사람 자리에 놓으면 둘이 바뀐다. 누르기 방식(두 사람 차례로)은 그대로이고,
    첫 사람을 고르면 나머지 자리에 "바꾸기" 표가 떠서 다음에 뭘 누를지 보인다. */
 button.row[draggable="true"],
@@ -5507,7 +5463,7 @@ button.row.drop-target:hover,
 button.row.swap-target:hover {
   border-color: var(--ih-accent);
 }
-/* 팀 판(.team) 안의 사람 줄(2026-11-09 2단계): 카드 안 줄 칸 규칙에 맞춰 상자 대신 위쪽 구분선 한 줄.
+/* 팀 판(.team) 안의 사람 줄: 카드 안 줄 칸 규칙에 맞춰 상자 대신 위쪽 구분선 한 줄.
    테두리 1px 자리는 네 변 모두 두되 평소에는 투명이라, 고른 줄·놓을 자리 표시(네 변 테두리)로 바뀌어도 줄이 밀리지 않는다. */
 .team button.row {
   margin-bottom: 0;
@@ -5573,7 +5529,7 @@ button.row.swap-target:hover {
 .support-panel h2 {
   margin-top: 0;
 }
-/* .prep-tools의 display:flex가 hidden 속성을 이겨 접어도 펼쳐 보이던 문제(2026-11-08 화면 점검에서 발견). */
+/* .prep-tools의 display:flex가 hidden 속성을 이겨 접어도 펼쳐 보이지 않게 한다. */
 .support-panel[hidden] {
   display: none;
 }
@@ -5585,7 +5541,7 @@ button.row.swap-target:hover {
   }
 }
 
-/* 모임 탭 구역 바로 가기(2026-11-08): 작은 칩 한 줄, 좁은 화면에서는 가로로 넘긴다. */
+/* 모임 탭 구역 바로 가기: 작은 칩 한 줄, 좁은 화면에서는 가로로 넘긴다. */
 .block-nav {
   display: flex;
   gap: var(--space-2);
@@ -5598,7 +5554,7 @@ button.row.swap-target:hover {
 }
 .block-nav .chip {
   flex: none;
-  /* 누르기 쉬운 크기(44px, 2026-11-08 화면 점검). 겉모양은 그대로 작게 보이게 위아래 여백만 늘린다. */
+  /* 누르기 쉬운 크기(44px). 겉모양은 그대로 작게 보이게 위아래 여백만 늘린다. */
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--ih-line);
@@ -5612,11 +5568,8 @@ button.row.swap-target:hover {
   color: var(--ih-text);
   border-color: var(--ih-control-border);
 }
-.group-block {
-  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
-}
 
-/* ---------- PC 밀도(2026-11-08 디자인 정리 3단계) ----------
+/* ---------- PC 밀도 ----------
    기록 목록의 경기 카드는 PC에서 줄 높이와 글자를 줄여 한 화면에 더 많은 경기가 보이게 한다. 구조는 같다. */
 @media (min-width: 1200px) {
   .match-cards .match-card {
@@ -5640,17 +5593,7 @@ button.row.swap-target:hover {
   font-weight: 600;
 }
 
-/* ---------- 고르기 칸(select) 폭 규칙(2026-11-08) ----------
-   사람·항목을 고르는 칸은 어느 화면 폭에서나 가장 긴 선택지에 딱 맞는 폭(width: auto)이다. 한 줄 가득(100%)
-   늘어난 칸은 내용에 비해 쓸데없이 길어 보여서 모두 내용 폭으로 바꿨다. 선택지 표(시트 가져오기 열 맞추기)·
-   요청 양식처럼 칸이 표의 열이거나 입력 양식인 곳만 100%를 유지한다. */
-select {
-  max-width: 100%;
-}
-.filter-row label {
-  flex: 0 1 auto;
-}
-.filter-row select,
+/* 고르기 칸 폭: 줄 안에 놓인 칸도 내용 폭이다(맨 위 select 규칙). 다른 규칙이 100%로 늘린 칸을 되돌린다. */
 .merge-select,
 .rank-line select,
 .list-row .button-row > select,
@@ -5691,7 +5634,7 @@ label:has(> select) {
   width: 7em;
 }
 
-/* 개인 통계 > 다른 플레이어와 비교(예전 이름 "한 사람과 맞대결"): 전적 두 줄 + 두 사람 비교로 가는 큰 버튼(2026-11-08). 폰은 위아래, PC는 옆으로. */
+/* 개인 통계 > 다른 플레이어와 비교: 전적 두 줄 + 두 사람 비교로 가는 큰 버튼. 폰은 위아래, PC는 옆으로. */
 .rival-pane {
   display: flex;
   flex-direction: column;
@@ -5777,8 +5720,8 @@ label:has(> select) {
   }
 }
 
-/* 그래프 분석 재구성(2026-11-08): 도구 띠 → 요약 타일 → 보기 전환 → 고른 보기 하나(전체 폭).
-   두 단으로 나누지 않고 한 단으로 쌓는다(예전 2단은 왼쪽만 길고 오른쪽 아래가 비었다). */
+/* 그래프 분석: 도구 띠 → 요약 타일 → 보기 전환 → 고른 보기 하나(전체 폭).
+   두 단으로 나누지 않고 한 단으로 쌓는다(두 단이면 왼쪽만 길고 오른쪽 아래가 빈다). */
 @media (min-width: 1200px) {
   .screen.cols.viz-root {
     grid-template-columns: minmax(0, 1fr);
@@ -5790,17 +5733,13 @@ label:has(> select) {
     gap: var(--space-3);
   }
 }
-/* 도구 띠: 카드 한 장. 왼쪽 고르기 칸, 오른쪽 요약 글·도움말. 좁으면 요약이 아래 줄로 내려간다. */
+/* 도구 띠: 다른 화면의 필터 줄처럼 카드 없이 한 줄. 왼쪽 고르기 칸, 오른쪽 요약 글·도움말. 좁으면 요약이 아래 줄로 내려간다. */
 .graph-tools {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-1) var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--ih-panel);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--radius-panel);
 }
 .graph-tools > .filter-row {
   flex: 1 1 auto;
@@ -5845,9 +5784,16 @@ label:has(> select) {
   font-size: var(--text-screen);
   font-weight: 600;
 }
-/* 보기 전환: 세 칸이 같은 폭. 좁은 화면에서는 글자가 두 줄로 접혀도 된다. */
+/* 보기 전환 여섯 칸: 폰은 3칸 두 줄, 넓으면 한 줄. 칸은 같은 폭이고 좁으면 글자가 두 줄로 접혀도 된다. */
 .graph-views {
-  max-width: 560px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 840px;
+}
+@media (min-width: 768px) {
+  .graph-views {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 .graph-views button {
   min-height: 44px;
@@ -5923,24 +5869,9 @@ label:has(> select) {
 }
 
 
-/* ---------- 그래프 분석 그림 4종 + 고른 플레이어 묶음(2026-11-09) ----------
-   범주색 다섯 칸(순위 변동 상위 5명, 라인 모양 두 사람)은 dataviz 기본 팔레트의 1·2·3·5·7번(파랑·주황·청록·자홍·보라).
-   색은 사람을 따르고(순위가 아니라) 글자는 늘 본문 색이다. 고른 사람이 상위 5명 밖이면 본문 색 굵은 선.
-   2단계(2026-11-09): 채도 15% 낮춤. 라이트는 흰 카드 대비 선 3:1이 되게 조금 진하게 했다. */
-.viz-root {
-  --viz-cat-1: #4688d8;
-  --viz-cat-2: #cc5f33;
-  --viz-cat-3: #23946d;
-  --viz-cat-4: #cb5b84;
-  --viz-cat-5: #968de2;
-}
-[data-theme="light"] .viz-root {
-  --viz-cat-1: #3779c9;
-  --viz-cat-2: #dd6c40;
-  --viz-cat-3: #259e72;
-  --viz-cat-4: #d96792;
-  --viz-cat-5: #695acc;
-}
+/* ---------- 그래프 분석 그림 4종 + 고른 플레이어 묶음 ----------
+   범주색(--viz-cat-*, 그래프 분석 구역 머리의 .viz-root)은 사람을 따르고(순위가 아니라) 글자는 늘 본문 색이다.
+   고른 사람이 상위 5명 밖이면 본문 색 굵은 선. */
 .cat-1 {
   --cat: var(--viz-cat-1);
 }
@@ -5955,18 +5886,6 @@ label:has(> select) {
 }
 .cat-5 {
   --cat: var(--viz-cat-5);
-}
-
-/* 보기 전환 여섯 칸: 폰은 3칸 두 줄, 넓으면 한 줄. */
-.graph-views {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  max-width: 840px;
-}
-@media (min-width: 768px) {
-  .graph-views {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
 }
 
 /* 이야기 띠: 폰 2칸, 넓으면 4칸. 누르면 그 사람을 고른다. */
@@ -6433,7 +6352,7 @@ label:has(> select) {
   }
 }
 
-/* ---------- 섞기 공정성(모임 전체) 묶음(2026-11-09 디자인 수정, 그래프 분석) ----------
+/* ---------- 섞기 공정성(모임 전체) 묶음, 그래프 분석 ----------
    머리(큰 비율 + 판정) → 분포 띠(균형/조금/많이) → 보조 타일 3칸(미터).
    큰 숫자는 중립색 하나이고 판정은 글(FAIR_VERDICT_TEXT)이 전한다. 띠의 세 구간은 명도와 채움으로 가른다(5절: 단일 지표를
    여러 색 구간으로 칠하지 않는다): 균형은 본문 글자색 채움, 조금 치우침은 보조 글자색 채움, 많이 치우침은 1px 테두리만 있는
@@ -6548,7 +6467,7 @@ label:has(> select) {
   }
 }
 
-/* ---------- 팀 추천 창(2026-11-09 구조 수정) ----------
+/* ---------- 팀 추천 창 ----------
    후보 카드: 머리글(제목 + 적용) → 요약 칩 → 블루·레드 두 열 명단. 기본 추천은 테두리를 브랜드 색으로 띄운다. */
 .candidate.cand-main {
   border-color: var(--ih-accent);
@@ -6652,7 +6571,7 @@ label:has(> select) {
   }
 }
 
-/* ---------- 준비 화면 예상 승률 판(2026-11-09, prep/ForecastSection.tsx) ----------
+/* ---------- 준비 화면 예상 승률 판(prep/ForecastSection.tsx) ----------
    블루 = 팀 상자 .team.side-blue와 같은 승리 강조색, 레드 = 패배 강조색. 색만으로 구분하지 않게 글자(블루/레드)를 함께 쓴다. */
 .forecast {
   container-type: inline-size;
@@ -6734,7 +6653,7 @@ label:has(> select) {
   align-items: center;
   min-height: 44px;
   padding: var(--space-3) var(--space-3);
-  /* 판(.list-card) 하나 안의 줄 칸: 위쪽 구분선만(2026-11-09 2단계). */
+  /* 판(.list-card) 하나 안의 줄 칸: 위쪽 구분선만. */
   border-top: 1px solid var(--ih-line);
 }
 .fc-lane:first-child {
@@ -6754,7 +6673,7 @@ label:has(> select) {
   white-space: nowrap;
   color: var(--ih-text-secondary);
 }
-/* 우세 칩: 테두리는 옅은 무채색 그대로, 진영 색은 글자에만(2026-11-09 2단계 채도 정리). */
+/* 우세 칩: 테두리는 옅은 무채색 그대로, 진영 색은 글자에만. */
 .fc-edge.fc-tone-A,
 .fc-edge.fc-tone-B {
   border-color: var(--ih-line);
@@ -6862,7 +6781,7 @@ label:has(> select) {
   margin-top: var(--space-2);
 }
 
-/* ---------- 화면 틀(2026-11-10 구조 정리) ----------
+/* ---------- 화면 틀 ----------
    색만 바꾼 차콜 테마 뒤에 "뼈대"를 맞췄다. 전적 사이트에서 흔한 구조 관습(한 가지 가운데 폭, 제목 + 한 줄 설명 머리,
    한 줄 필터, 요약 카드 줄, 머리 줄이 있는 정렬 표)만 따랐고 특정 사이트의 색·배치·문구는 가져오지 않았다.
    부품은 screenKit.tsx의 ScreenHead · FilterBar · StatCard · SortHead(목록형 표 머리) · DataTable(진짜 표) · Glue.
@@ -7679,13 +7598,6 @@ input[type="search"].filter-search {
   color: var(--ih-text-secondary);
 }
 
-/* 그래프 분석의 도구 띠도 다른 화면의 필터 줄처럼 카드 없이 한 줄로 둔다. */
-.graph-tools {
-  padding: 0;
-  background: none;
-  border: 0;
-}
-
 /* ---------- 챔피언 초상화(championPortrait.tsx, 설정은 portraits.ts) ----------
    Data Dragon 그림. 불러오는 동안은 같은 크기의 빈 칸(면 색)이라 자리가 밀리지 않고, 못 불러오면 요소째 빠져 글자만 남는다. */
 .champ-portrait {
@@ -7998,7 +7910,7 @@ input[type="search"].filter-search {
   }
 }
 
-/* 참가자 편성 화면(ViewerLive.tsx, 2026-11-10 실험 B-1): 맨 위 "내 자리" 칸과 명단의 "나"·"바뀜" 글자 꼬리표.
+/* 참가자 편성 화면(ViewerLive.tsx): 맨 위 "내 자리" 칸과 명단의 "나"·"바뀜" 글자 꼬리표.
    강조는 색만으로 하지 않는다(글자 꼬리표가 늘 함께 있다). 움직임은 넣지 않는다. */
 .live-me {
   display: flex;
@@ -8033,7 +7945,7 @@ input[type="search"].filter-search {
 .live-check {
   margin-top: var(--space-3);
 }
-/* 분석 코멘트 문장 아래 근거(2026-11-10): 예전에는 title 풍선이라 터치 화면에서 보이지 않았다. */
+/* 분석 코멘트 문장 아래 근거. title 풍선은 터치 화면에서 보이지 않아 글로 펼친다. */
 .commentary-remarks .remark-basis {
   display: block;
   color: var(--ih-text-secondary);
@@ -8050,7 +7962,7 @@ input[type="search"].filter-search {
   min-width: 0;
 }
 
-/* ---------- 쉬는 사람(오늘 명단 이어가기, 2026-11-10) ----------
+/* ---------- 쉬는 사람(오늘 명단 이어가기) ----------
    편성 판 아래 한 장의 목록: 이름 | 오늘 경기 | 연속 | [빼기]. 숫자 칸은 오른쪽 정렬·고정폭 숫자라 줄끼리 세로로 맞는다.
    어느 팀에도 속하지 않은 사람들이라 진영 색 띠를 쓰지 않는다. 끌기 표시(점선 테두리)는 줄(li)에 단다. */
 .rest-row .row-main {
