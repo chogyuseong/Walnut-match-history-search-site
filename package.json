@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
     "check:bundle": "node scripts/check-bundle.mjs",
+    "audit:design": "node scripts/design-audit.mjs",
     "e2e": "playwright test",
     "seed": "node scripts/seed.mjs",
     "deploy:staging": "node scripts/predeploy-check.mjs staging --skip-build && vite build && wrangler deploy --env staging",
