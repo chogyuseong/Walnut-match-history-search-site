@@ -1,12 +1,12 @@
-// styles.css에서 CLAUDE.md 디자인 규칙 밖의 값을 세고 줄 번호를 보여 준다.
-// 지금은 보고만 한다(항상 exit 0). 6단계에서 위반이 남으면 실패하도록 STRICT를 켠다.
+// styles.css에서 CLAUDE.md 디자인 규칙 밖의 값을 세고 줄 번호를 보여 준다. 하나라도 있으면 exit 1.
+// 배포 전 점검(scripts/predeploy-check.mjs)이 이 스크립트를 돌려 실패하면 배포를 멈춘다.
 //   npm run audit:design            항목별 개수 + 값별 줄 번호
-//   npm run audit:design -- --brief 항목별 개수만(단계 전후 숫자 비교용)
-// 색은 여기서 보지 않는다. 대비는 test/theme-contrast.test.ts가 보고, 장식색 정리는 4단계에서 사람이 판단한다.
+//   npm run audit:design -- --brief 항목별 개수만
+// 규칙상 꼭 필요한 값이 걸리면 값을 억지로 맞추지 말고, CLAUDE.md에 같은 예외가 있는지 확인한 뒤 EXCEPTIONS에 이유와 함께 넣는다.
+// 색은 여기서 보지 않는다. 대비는 test/theme-contrast.test.ts가 보고, 장식색은 사람이 판단한다.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const STRICT = false;
 const CSS_PATH = fileURLToPath(new URL("../src/web/styles.css", import.meta.url));
 const brief = process.argv.includes("--brief");
 
@@ -21,7 +21,8 @@ const EXCEPTIONS = [
   { rule: "translate", selector: ".radar-label", why: "레이더 좌표에 글자 중심 맞춤(데이터 좌표)" },
   { rule: "translate", selector: ".mmr-axis-start", why: "기준선 위치(--at)에 맞춘 글자(데이터 좌표)" },
   // 6절: 키보드 포커스 표시는 2px outline이 규칙 값이다.
-  { rule: "thick-line", selector: ":focus-visible", why: "키보드 포커스 2px outline(6절)" },  // 1절: 폭은 간격 척도 대상이 아니다. 머리 칸 눈금을 아래 줄의 막대 칸에 맞추려고 옆 칸 폭(순위 2rem, 펼치기 44px)만큼 띄운다.
+  { rule: "thick-line", selector: ":focus-visible", why: "키보드 포커스 2px outline(6절)" },
+  // 1절: 폭은 간격 척도 대상이 아니다. 머리 칸 눈금을 아래 줄의 막대 칸에 맞추려고 옆 칸 폭(순위 2rem, 펼치기 44px)만큼 띄운다.
   { rule: "spacing", selector: ".mmr-head .c-bar", why: "줄의 순위·펼치기 칸 폭 + 틈에 맞춘 눈금 위치(칸 폭)" },
 ];
 // 50% 반경은 원(아바타·상태 점·원형 그래프)에만 허용된다(3절). 원인지는 기계가 못 가리므로 50%는 통과시키고
@@ -159,7 +160,7 @@ for (const d of decls) {
     // 자동 재생 장식 애니메이션 금지(6절). 상태를 알리는 로딩 표시가 생기면 EXCEPTIONS에 이유와 함께 넣는다.
     if (value !== "none") hit("animation", value, line);
   } else if (prop === "transform" && /translate/.test(value)) {
-    // @keyframes 안의 translate는 자동 애니메이션 쪽 문제라 여기서 세지 않는다(2단계에서 애니메이션째 지운다).
+    // @keyframes 안의 translate는 세지 않는다. 그 애니메이션을 쓰는 곳이 animation 항목에서 걸린다.
     if (/^(from|to|\d+%)/.test(d.selector)) continue;
     if (!excuse("translate", d)) hit("translate", value, line);
   }
@@ -204,4 +205,10 @@ console.log(`50% 반경(원 용도인지 사람이 확인): ${circleRadius}`);
 console.log(`예외로 뺀 것: ${excused.length}`);
 if (!brief) for (const e of excused) console.log(`  ${e}`);
 
-if (STRICT && total > 0) process.exit(1);
+if (total > 0) {
+  console.error(
+    `규칙 밖 값 ${total}개. ${brief ? "npm run audit:design으로 줄 번호를 보고 " : "위 줄 번호를 "}고치거나, ` +
+      "CLAUDE.md에 적힌 예외라면 EXCEPTIONS에 이유와 함께 넣는다.",
+  );
+  process.exit(1);
+}
