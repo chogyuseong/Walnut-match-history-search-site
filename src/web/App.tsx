@@ -477,6 +477,11 @@ function OperatorScreen(props: { route: string[] }) {
         back={() => go("/records")}
         player={id ?? ""}
         choosePlayer={(personId) => go(personId ? `/graphs/${personId}` : "/graphs")}
+        emptyAction={
+          <button type="button" className="primary" onClick={() => go("/pick")}>
+            이름 넣고 팀 짜기
+          </button>
+        }
       />
     );
   }

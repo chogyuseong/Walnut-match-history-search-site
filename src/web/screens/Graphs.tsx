@@ -1,6 +1,6 @@
 import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGroup, resultsOf, sortRankingBy, streakOf, streakText } from "../../shared/insights";
 import { useMemo, useState, type ReactNode } from "react";
-import { fractionPercent, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
+import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { heatClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
 import {
@@ -195,6 +195,8 @@ export function Graphs(props: {
   player?: string;
   /** 플레이어 고르기·해제(""). 주지 않으면 화면 안에서만 기억한다. */
   choosePlayer?: (id: string) => void;
+  /** 확정 경기가 하나도 없을 때 안내 아래에 둘 행동 하나(운영자: 팀 짜기). 조회 링크는 비운다. */
+  emptyAction?: ReactNode;
 }) {
   const { snapshot } = props;
   const timeZone = snapshot.group.timezone;
@@ -308,6 +310,24 @@ export function Graphs(props: {
             ? [{ key: compareId, label: nameOf(compareId), axes: lineShape(matrix.get(compareId) ?? {}, shapeMode), slot: 2 as const }]
             : []),
         ];
+
+  // 모임에 확정 경기가 하나도 없으면 빈 그림·빈 칸 여러 개 대신 안내 하나와 행동 하나만 둔다(CLAUDE.md 8절).
+  // 범위를 좁혀 비는 경우는 고르기 줄이 필요하므로 여기에 들지 않는다(누적 기준으로 판단).
+  if (!snapshot.matches.some(isCounted)) {
+    return (
+      <div className="screen page-wide viz-root">
+        <ScreenHead
+          back={<BackLink label="← 기록" fallback={props.back} />}
+          title="그래프 분석"
+          desc="범위·플레이어를 골라 승률·라인·진영·편성 흐름을 봅니다"
+        />
+        <div className="empty-state">
+          <p>결과를 저장한 경기가 쌓이면 승률·라인·진영·섞기 공정성 분석이 보여요.</p>
+          {props.emptyAction}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="screen cols viz-root">

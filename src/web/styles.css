@@ -1116,10 +1116,11 @@ button.bar-row:hover {
   font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
+/* 숫자 칸(라인별 승률)은 오른쪽, 이름 칸은 왼쪽 정렬(CLAUDE.md 7절). */
 .matrix th,
 .matrix td {
   padding: var(--space-1) 0;
-  text-align: center;
+  text-align: right;
   border-radius: 4px;
   color: var(--ih-text);
   line-height: 1.25;
@@ -1130,6 +1131,7 @@ button.bar-row:hover {
 }
 .matrix th:first-child {
   width: 29%;
+  text-align: left;
 }
 @media (min-width: 1200px) {
   .matrix th:first-child {
@@ -1150,6 +1152,7 @@ button.bar-row:hover {
    승률은 굵게, 경기 수는 작고 흐리게. 5경기 미만 칸(band-none)은 바탕 없이 둔다. */
 .matrix td {
   display: table-cell;
+  padding-right: var(--space-1);
 }
 .matrix td[class*="heat-"] {
   background: var(--viz-mid);
@@ -1177,7 +1180,7 @@ button.bar-row:hover {
   background: var(--ih-subtle);
 }
 .matrix thead th .pos {
-  justify-content: center;
+  justify-content: flex-end;
   width: auto;
   color: var(--ih-text-secondary);
 }
@@ -4404,7 +4407,7 @@ table {
 .sb-side.sb-red .sb-side-name {
   color: var(--ih-loss-text);
 }
-/* 승리는 포인트 색으로 채운 각진 라벨, 패배는 테두리만. */
+/* 승리·패배 라벨: 글자가 뜻을 전하고, 승리는 본문 글자·진한 테두리, 패배는 보조 글자·옅은 테두리(골드 채움은 장식이라 뺐다). */
 .sb-verdict {
   padding: 0 var(--space-3);
   line-height: 1.7;
@@ -4415,9 +4418,8 @@ table {
   font-weight: 500;
 }
 .sb-verdict.win {
-  border-color: var(--ih-primary);
-  background: var(--ih-primary);
-  color: var(--ih-on-primary);
+  border-color: var(--ih-control-border);
+  color: var(--ih-text);
 }
 .sb-series {
   display: flex;
@@ -6914,11 +6916,17 @@ input[type="search"].filter-search {
   }
 }
 
-/* 요약 카드 줄(StatCard). 폰 2칸, 넓은 화면은 들어가는 만큼 한 줄. */
+/* 요약 카드 줄(StatCard, 화면마다 셋까지). 폰 2칸이고 셋째 카드는 혼자 반 칸에 남지 않게 한 줄을 다 쓴다
+   (랭킹은 1위 카드가 먼저 한 줄을 써서 따로 정한다, .mmr-cards). 넓은 화면은 들어가는 만큼 한 줄. */
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
+}
+@media (max-width: 767px) {
+  .stat-cards:not(.mmr-cards) > :last-child:nth-child(3) {
+    grid-column: 1 / -1;
+  }
 }
 @media (min-width: 768px) {
   .stat-cards {
@@ -7560,6 +7568,7 @@ input[type="search"].filter-search {
   flex-wrap: wrap;
   align-items: center;
   gap: 0 var(--space-2);
+  line-height: 1.5;
 }
 /* 진영 미정 경기의 "●A"/"■B" 표시. 팀 A는 블루 칸, B는 레드 칸에 놓이므로 칸의 진영 색을 따른다(팀 상자 윗선과 같은 색). */
 .rm-mark {
@@ -7571,15 +7580,9 @@ input[type="search"].filter-search {
 .rm-red .rm-mark {
   color: var(--ih-loss-text);
 }
-.rm-name,
-.rm-name:not(:disabled):hover {
-  padding: 0;
-  color: inherit;
+.rm-name {
   font-size: var(--text-label);
-  text-decoration: none;
-}
-.rm-name:not(:disabled):hover {
-  text-decoration: underline;
+  white-space: nowrap;
 }
 .rm-names.is-win {
   color: var(--ih-text);
