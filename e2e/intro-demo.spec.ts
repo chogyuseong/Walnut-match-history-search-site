@@ -113,6 +113,9 @@ test.describe("처음 온 방문자 (390px)", () => {
     await expect(page.getByRole("banner").getByRole("button", { name: "로그인됨" })).toBeVisible();
     await expect(page.getByText("아직 경기가 없어요.")).toBeVisible();
     await expect(intro(page)).toHaveCount(0);
+    // 저장한 경기가 없으면 빈 안내는 "지금 할 일" 하나다. 빈 전적 검색·빈 요약 패널을 겹쳐 두지 않는다(CLAUDE.md 8절).
+    await expect(page.getByRole("region", { name: "전적 검색" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "기록 요약 안내" })).toHaveCount(0);
 
     // 로그아웃해도 이 기기에 기억한 모임이 있으면 소개를 다시 보여주지 않는다.
     await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID() } });

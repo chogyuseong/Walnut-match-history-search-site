@@ -19,8 +19,9 @@ import { seriesScoreOfMatch, useSeriesBadges } from "../seriesPanel";
 import { DataTable, type TableColumn } from "../dataTable";
 import { FormDots, StandingNote, useMediaQuery } from "../screenKit";
 
-/** 결과를 저장한 경기가 없을 때. 무엇이 쌓이는지만 짧게 알려준다. */
-export function DashboardEmpty() {
+/** 결과를 저장한 경기가 없을 때(조회 링크·예시의 요약 탭). 무엇이 쌓이는지만 짧게 알려준다.
+ *  운영자 오늘 화면은 이 패널 대신 "지금 할 일" 안내 하나만 둔다(Today.tsx). */
+function DashboardEmpty() {
   return (
     <section className="card dash-empty" aria-label="기록 요약 안내">
       <h2>기록이 쌓이면 여기에</h2>

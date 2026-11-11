@@ -2198,14 +2198,32 @@ table {
   max-width: 45%;
 }
 
-/* 칭호 설정 */
+/* 칭호 설정 창: 줄마다 [엠블럼] [이름 칸] [경계 칸 % 이상] [빼기]. 칸 위에 보이는 라벨(CLAUDE.md 7절)을 두고,
+   엠블럼·빼기는 칸 높이(44px)에 맞춰 아래쪽 정렬한다. 좁으면 경계 칸이 다음 줄로 내려간다.
+   줄 사이를 목록 기본(8px)보다 띄워 라벨이 윗줄 칸이 아니라 제 줄 칸에 붙어 보이게 한다. */
+.title-rows {
+  gap: var(--space-3);
+}
 .title-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-2);
 }
-.title-row > input {
+.title-row > .title-preview {
+  min-height: var(--control-height);
+  align-items: center;
+}
+.title-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-label);
+}
+.title-field-label {
+  color: var(--ih-text-secondary);
+}
+.title-name {
   flex: 1 1 8em;
   min-width: 0;
 }
@@ -2213,13 +2231,15 @@ table {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: var(--text-label);
 }
 .title-min input {
   width: 5em;
 }
 .title-rest {
+  display: flex;
+  align-items: center;
   min-width: 5em;
+  min-height: var(--control-height);
 }
 
 /* ---------- B: 로그인·복원·처리방침 ---------- */

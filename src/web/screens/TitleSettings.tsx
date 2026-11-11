@@ -106,10 +106,10 @@ export function TitleSettings(props: {
       {rows && (
         <Dialog title="칭호 바꾸기" onClose={() => setRows(null)}>
           <p className="hint">
-            줄마다 왼쪽 칸에 칭호 이름, 오른쪽 칸에 경계(% 이상)를 적습니다. 위에서부터 높은 구간입니다. 경계는 "이상"이라 정확히 65%면 65% 이상 구간입니다. 이름은{" "}
+            줄마다 칭호 이름과 경계(% 이상)를 적습니다. 위에서부터 높은 구간입니다. 경계는 "이상"이라 정확히 65%면 65% 이상 구간입니다. 이름은{" "}
             {MAX_TITLE_NAME_LENGTH}자까지 쓸 수 있습니다. 색과 엠블럼은 구간 순서에 따라 정해집니다.
           </p>
-          <ul className="list">
+          <ul className="list title-rows">
             {rows.map((row, i) => {
               const last = i === rows.length - 1;
               const grade = titleGrade(i, rows.length);
@@ -121,31 +121,42 @@ export function TitleSettings(props: {
                       <TitleEmblem grade={grade} />
                     </span>
                   )}
-                  <input
-                    aria-label={`${i + 1}번째 칭호 이름`}
-                    value={row.name}
-                    maxLength={MAX_TITLE_NAME_LENGTH + 4}
-                    onChange={(e) =>
-                      setRows(rows.map((r, k) => (k === i ? { ...r, name: e.target.value } : r)))
-                    }
-                  />
+                  {/* 줄마다 보이는 라벨("이름"·"경계"). 읽히는 이름은 몇 번째 줄인지까지 담은 aria-label이고,
+                      보이는 낱말이 그 안에 들어 있다(음성 명령으로 "이름"을 불러도 찾는다). */}
+                  <label className="title-field title-name">
+                    <span className="title-field-label">이름</span>
+                    <input
+                      aria-label={`${i + 1}번째 칭호 이름`}
+                      value={row.name}
+                      maxLength={MAX_TITLE_NAME_LENGTH + 4}
+                      onChange={(e) =>
+                        setRows(rows.map((r, k) => (k === i ? { ...r, name: e.target.value } : r)))
+                      }
+                    />
+                  </label>
                   {last ? (
-                    <span className="hint title-rest">나머지</span>
+                    <span className="title-field">
+                      <span className="title-field-label">경계</span>
+                      <span className="hint title-rest">나머지</span>
+                    </span>
                   ) : (
-                    <label className="title-min">
-                      <input
-                        aria-label={`${i + 1}번째 칭호 경계(% 이상)`}
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={100}
-                        step={1}
-                        value={row.minRate}
-                        onChange={(e) =>
-                          setRows(rows.map((r, k) => (k === i ? { ...r, minRate: e.target.value } : r)))
-                        }
-                      />
-                      <span>% 이상</span>
+                    <label className="title-field">
+                      <span className="title-field-label">경계</span>
+                      <span className="title-min">
+                        <input
+                          aria-label={`${i + 1}번째 칭호 경계(% 이상)`}
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={100}
+                          step={1}
+                          value={row.minRate}
+                          onChange={(e) =>
+                            setRows(rows.map((r, k) => (k === i ? { ...r, minRate: e.target.value } : r)))
+                          }
+                        />
+                        <span>% 이상</span>
+                      </span>
                     </label>
                   )}
                   {rows.length > 1 && (
