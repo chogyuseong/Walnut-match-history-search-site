@@ -20,6 +20,8 @@ const EXCEPTIONS = [
   // 1절: 데이터 좌표를 옮기는 translate는 정렬 보정이 아니다. 레이더 축 글자, MMR 기준선 글자.
   { rule: "translate", selector: ".radar-label", why: "레이더 좌표에 글자 중심 맞춤(데이터 좌표)" },
   { rule: "translate", selector: ".mmr-axis-start", why: "기준선 위치(--at)에 맞춘 글자(데이터 좌표)" },
+  // 1절: 폭은 간격 척도 대상이 아니다. 머리 칸 눈금을 아래 줄의 막대 칸에 맞추려고 옆 칸 폭(순위 2rem, 펼치기 44px)만큼 띄운다.
+  { rule: "spacing", selector: ".mmr-head .c-bar", why: "줄의 순위·펼치기 칸 폭 + 틈에 맞춘 눈금 위치(칸 폭)" },
 ];
 // 50% 반경은 원(아바타·상태 점·원형 그래프)에만 허용된다(3절). 원인지는 기계가 못 가리므로 50%는 통과시키고
 // 개수만 따로 보여 준다. 일반 상자에 50%가 붙어 있지 않은지는 사람이 확인한다.
@@ -123,7 +125,7 @@ for (const d of decls) {
   if (/^(margin|padding)(-[a-z-]+)?$|^(row-|column-)?gap$/.test(prop)) {
     for (const w of words(value)) {
       if (prop.startsWith("margin") && w.startsWith("-")) hit("negative-margin", w, line);
-      else if (!spaceWordOk(w)) hit("spacing", w, line);
+      else if (!spaceWordOk(w) && !excuse("spacing", d)) hit("spacing", w, line);
     }
   } else if (prop === "font-size") {
     if (!FONT_SIZE_OK.has(value) && !/^var\(--text-[a-z]+\)$/.test(value)) hit("font-size", value, line);
