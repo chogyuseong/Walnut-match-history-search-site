@@ -61,7 +61,7 @@ async function fontsReady(font: string): Promise<void> {
   if (!document.fonts) return;
   try {
     await Promise.all(
-      ["400", "700", "800"].map((w) => document.fonts.load(`${w} 32px ${font}`, "가나다 0123 ABC")),
+      ["400", "500", "600"].map((w) => document.fonts.load(`${w} 32px ${font}`, "가나다 0123 ABC")),
     );
     await document.fonts.ready;
   } catch {
@@ -108,7 +108,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, p: Palette, height: number, g
   ctx.moveTo(PAD, height - 92);
   ctx.lineTo(WIDTH - PAD, height - 92);
   ctx.stroke();
-  setFont(ctx, p, 800, 30);
+  setFont(ctx, p, 600, 30);
   ctx.fillStyle = p.text;
   ctx.textAlign = "left";
   ctx.fillText(fit(ctx, group, WIDTH - PAD * 2 - 260), PAD, height - 48);
@@ -152,12 +152,12 @@ function drawTeamBox(
   ctx.strokeStyle = won ? p.brand : side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
   ctx.stroke();
 
-  setFont(ctx, p, 800, 32);
+  setFont(ctx, p, 600, 32);
   ctx.fillStyle = side === "blue" ? p.winText : side === "red" ? p.lossText : p.text;
   ctx.fillText(`${team === "A" ? "●" : "■"} ${teamName(team, match.teamASide)}`, x + 24, y + 40);
   if (won !== null) {
     ctx.textAlign = "right";
-    setFont(ctx, p, 800, 30);
+    setFont(ctx, p, 600, 30);
     ctx.fillStyle = p.text;
     ctx.fillText(won ? "승리" : "패배", x + w - 24, y + 40);
     ctx.textAlign = "left";
@@ -170,7 +170,7 @@ function drawTeamBox(
     if (position) ctx.fillText(position, x + 24, rowY);
     ctx.fillStyle = p.text;
     const nameX = position ? x + 104 : x + 24;
-    const name = fitSized(ctx, p, won ? 800 : 600, nameOf(entry.participantId), x + w - 24 - nameX, 30, 22);
+    const name = fitSized(ctx, p, won ? 600 : 500, nameOf(entry.participantId), x + w - 24 - nameX, 30, 22);
     ctx.fillText(name, nameX, rowY);
     rowY += rowH;
   }
@@ -190,7 +190,7 @@ export async function drawMatchImage(snapshot: Snapshot, match: MatchView): Prom
   ctx.fillStyle = p.bg;
   ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 800, 56);
+  setFont(ctx, p, 600, 56);
   ctx.fillStyle = p.text;
   ctx.fillText(`${match.matchNo}경기`, PAD, PAD + 34);
   setFont(ctx, p, 600, 30);
@@ -248,7 +248,7 @@ export async function drawDraftImage(draft: Draft, groupName: string, timeZone: 
   ctx.fillStyle = p.bg;
   ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 800, 56);
+  setFont(ctx, p, 600, 56);
   ctx.fillStyle = p.text;
   ctx.fillText("오늘의 편성", PAD, PAD + 34);
   setFont(ctx, p, 600, 30);
@@ -332,7 +332,7 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
   ctx.fillStyle = p.bg;
   ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 800, 56);
+  setFont(ctx, p, 600, 56);
   ctx.fillStyle = p.text;
   ctx.fillText("오늘의 결과", PAD, PAD + 34);
   setFont(ctx, p, 600, 30);
@@ -340,7 +340,7 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
   ctx.fillText(`확정 ${confirmed.length}경기 · 참가 ${people.length}명`, PAD, PAD + 98);
 
   let y = PAD + 150;
-  setFont(ctx, p, 800, 32);
+  setFont(ctx, p, 600, 32);
   ctx.fillStyle = p.text;
   ctx.fillText("경기별 결과", PAD, y + 20);
   y += 56;
@@ -360,7 +360,7 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
     ctx.fillStyle = side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
     ctx.fillRect(PAD, y + 8, 8, h - 16);
 
-    setFont(ctx, p, 800, 30);
+    setFont(ctx, p, 600, 30);
     ctx.fillStyle = p.text;
     ctx.fillText(`${match.matchNo}경기`, PAD + 28, y + 34);
     setFont(ctx, p, 600, 24);
@@ -371,7 +371,7 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
     ctx.textAlign = "left";
 
     let lineY = y + 76;
-    setFont(ctx, p, 800, 24);
+    setFont(ctx, p, 600, 24);
     ctx.fillStyle = p.text;
     ctx.fillText("승", PAD + 28, lineY);
     setFont(ctx, p, 600, 24);
@@ -379,7 +379,7 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
       ctx.fillText(text, PAD + 72, lineY);
       lineY += lineH;
     }
-    setFont(ctx, p, 800, 24);
+    setFont(ctx, p, 600, 24);
     ctx.fillStyle = p.muted;
     ctx.fillText("패", PAD + 28, lineY);
     setFont(ctx, p, 500, 24);
@@ -391,7 +391,7 @@ export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchVi
   }
 
   y += 40;
-  setFont(ctx, p, 800, 32);
+  setFont(ctx, p, 600, 32);
   ctx.fillStyle = p.text;
   ctx.fillText("개인 승패", PAD, y);
   y += 40;
@@ -428,13 +428,13 @@ function drawRecordRow(
 ): void {
   const games = wins + losses;
   const record = `${ratePercent(wins, games)}% · ${wins}승 ${losses}패 (${games}경기)`;
-  setFont(ctx, p, 800, 22);
+  setFont(ctx, p, 600, 22);
   const recordW = ctx.measureText(record).width;
   ctx.fillStyle = p.text;
-  const shown = fitSized(ctx, p, 700, name, Math.max(80, colW - recordW - 48), 26, 18);
+  const shown = fitSized(ctx, p, 600, name, Math.max(80, colW - recordW - 48), 26, 18);
   ctx.fillText(shown, x + 16, rowY);
   ctx.textAlign = "right";
-  setFont(ctx, p, 800, 22);
+  setFont(ctx, p, 600, 22);
   ctx.fillText(record, x + colW - 16, rowY);
   ctx.textAlign = "left";
 }
@@ -473,7 +473,7 @@ export async function drawSessionSummaryImage(
   ctx.fillStyle = p.bg;
   ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 800, 56);
+  setFont(ctx, p, 600, 56);
   ctx.fillStyle = p.text;
   ctx.fillText("오늘 요약", PAD, PAD + 34);
   setFont(ctx, p, 600, 30);
@@ -485,7 +485,7 @@ export async function drawSessionSummaryImage(
   );
 
   let y = PAD + 150;
-  setFont(ctx, p, 800, 32);
+  setFont(ctx, p, 600, 32);
   ctx.fillStyle = p.text;
   ctx.fillText("개인 승패 (승 많은 순)", PAD, y + 20);
   y += 56;
@@ -515,7 +515,7 @@ export async function drawSessionSummaryImage(
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = p.line;
     ctx.stroke();
-    setFont(ctx, p, 800, 26);
+    setFont(ctx, p, 600, 26);
     ctx.fillStyle = p.text;
     ctx.fillText(title, PAD + 24, y + 30);
     setFont(ctx, p, 600, 26);
@@ -555,7 +555,7 @@ export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary
   ctx.fillStyle = p.bg;
   ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 800, 56);
+  setFont(ctx, p, 600, 56);
   ctx.fillStyle = p.text;
   ctx.fillText(fit(ctx, `${summary.label} 요약`, innerW), PAD, PAD + 34);
   setFont(ctx, p, 600, 30);
@@ -573,7 +573,7 @@ export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = p.line;
   ctx.stroke();
-  setFont(ctx, p, 800, 30);
+  setFont(ctx, p, 600, 30);
   ctx.fillStyle = p.text;
   ctx.fillText(`${summary.games}경기 · 참가 ${summary.participants}명 · 내전 ${summary.days}일`, PAD + 24, y + 36);
   setFont(ctx, p, 600, 24);
@@ -596,7 +596,7 @@ export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary
   );
   y += 130;
 
-  setFont(ctx, p, 800, 32);
+  setFont(ctx, p, 600, 32);
   ctx.fillStyle = p.text;
   ctx.fillText("시상", PAD, y + 20);
   y += 56;
@@ -608,7 +608,7 @@ export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = p.line;
     ctx.stroke();
-    setFont(ctx, p, 800, 26);
+    setFont(ctx, p, 600, 26);
     ctx.fillStyle = p.text;
     ctx.fillText(row.title, PAD + 24, y + 30);
     setFont(ctx, p, 600, 26);

@@ -190,6 +190,15 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 64px;
+
+  /* 글자 크기 척도(CLAUDE.md 4절). font-size는 이 여섯 값만 쓴다. rem이라 사용자가 키운 기본 글자를 따라간다.
+     meta는 비핵심 보조 정보(날짜·배지·범례)에만 쓴다. 기록·경고·입력 내용을 meta로 줄이지 않는다. */
+  --text-meta: 0.75rem;
+  --text-label: 0.875rem;
+  --text-body: 1rem;
+  --text-section: 1.25rem;
+  --text-screen: 1.5rem;
+  --text-hero: 2rem;
 }
 
 * {
@@ -217,8 +226,8 @@ body {
   background: var(--ih-bg);
   color: var(--ih-text);
   font-family: var(--ih-font-sans);
-  font-size: 1rem;
-  line-height: 1.55;
+  font-size: var(--text-body);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   /* 한국어는 기본값이면 글자 사이 아무 데서나 줄이 바뀌어 "라이/엇"처럼 낱말이 쪼개진다. 띄어쓰기에서만 바꾼다.
      띄어쓰기 없는 긴 닉네임은 칸을 넘칠 때만 중간에서 끊는다(break-word). anywhere를 여기 걸면 좁은 줄에서
@@ -241,21 +250,36 @@ main {
   gap: var(--space-5);
 }
 
-/* 글자 단계(2026-11-08 위계 정리): 화면 제목 > 구역 제목 > 소제목(작고 흐린 꼬리표) > 본문 > 안내문. */
+/* 글자 단계: 화면 제목 > 구역 제목 > 소제목(작고 흐린 꼬리표) > 본문 > 안내문.
+   제목 크기·굵기는 여기 한 군데에서만 정한다. 넓은 화면이라고 h1을 키우지 않는다(4절: 테마·폭별 크기 변경 금지). */
 h1 {
-  font-size: 1.5rem;
-  line-height: 1.25;
+  font-size: var(--text-screen);
+  line-height: 1.3;
+  font-weight: 600;
   margin: 0;
 }
+/* 아래 8px은 "제목과 설명 사이 8px"(1절) 기준. */
 h2 {
-  font-size: 1.0625rem;
-  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-section);
+  line-height: 1.4;
+  font-weight: 600;
+  margin: var(--space-2) 0;
 }
 h3 {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
+  line-height: 1.5;
+  font-weight: 500;
   margin: var(--space-2) 0 var(--space-1);
   color: var(--ih-text-secondary);
-  letter-spacing: 0.04em;
+}
+/* 브라우저 기본 굵게(700)를 규칙 안으로 낮춘다. 강조 글은 600, 표 머리·작은 제목은 500. */
+b,
+strong {
+  font-weight: 600;
+}
+th,
+h4 {
+  font-weight: 500;
 }
 p {
   margin: 0;
@@ -285,7 +309,7 @@ h3 {
   z-index: 2;
 }
 .count {
-  font-size: 1.25rem;
+  font-size: var(--text-section);
 }
 
 /* 버튼: 터치 대상 44px 이상 */
@@ -322,7 +346,7 @@ summary:focus-visible,
   background: var(--ih-primary);
   border-color: var(--ih-primary);
   color: var(--ih-on-primary);
-  font-weight: 700;
+  font-weight: 500;
 }
 .primary:not(:disabled):hover {
   background: var(--ih-primary-hover);
@@ -393,14 +417,14 @@ fieldset {
   min-width: 0;
 }
 legend {
-  font-weight: 700;
+  font-weight: 500;
   padding: 0 var(--space-1);
 }
 
-/* 작은 글자 단계 한 단계 올림(2026-11-09): 파일 전체에서 0.75·0.8125rem → 0.875rem, 0.625·0.6875rem → 0.75rem, 그림 글자 11→12px·12→13px. */
+/* 안내문은 14px. 12px(--text-meta)는 날짜·배지 같은 비핵심 보조 정보에만 쓴다. */
 .hint {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   line-height: 1.45;
   max-width: 68ch;
 }
@@ -436,8 +460,8 @@ legend {
   border: 1px solid var(--ih-control-border);
   border-radius: 50%;
   color: var(--ih-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--text-meta);
+  font-weight: 500;
   font-style: italic;
   line-height: 1;
 }
@@ -449,9 +473,8 @@ legend {
   display: block;
   margin-top: var(--space-2);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 400;
-  letter-spacing: 0;
   line-height: 1.45;
   max-width: 68ch;
 }
@@ -459,9 +482,8 @@ legend {
 .row-label {
   margin: var(--space-2) 0 0;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: var(--text-label);
+  font-weight: 500;
 }
 /* 접힌 도움말(screenKit.tsx Help): 카드 모양 details와 달리 테두리 없이 작은 글자 링크처럼 보인다. */
 details.help {
@@ -474,7 +496,7 @@ details.help > summary {
   /* 누르기 쉬운 높이(44px, 2026-11-08 화면 점검: 32px였다). 글자는 작게 그대로. */
   min-height: 44px;
   padding: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--ih-accent);
 }
@@ -485,7 +507,7 @@ details.help > .help-body {
   padding: var(--space-1) 0 var(--space-1) var(--space-3);
   border-left: 2px solid var(--ih-line);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   line-height: 1.45;
   max-width: 68ch;
 }
@@ -501,7 +523,7 @@ details.help > .help-body p {
 }
 .warn-text {
   color: var(--warn-line);
-  font-weight: 700;
+  font-weight: 500;
 }
 .note {
   background: var(--ih-panel);
@@ -515,7 +537,6 @@ details.help > .help-body p {
   border-color: var(--warn-line);
 }
 .badge {
-  font-size: 0.875rem;
   border: 1px solid var(--ih-line);
   border-radius: 4px;
   /* 위아래 여백 없이 줄 높이로 이름표 높이를 낸다(예전 위아래 2px를 더한 높이와 같게). */
@@ -529,7 +550,6 @@ details.help > .help-body p {
   border-color: transparent;
 }
 .tag {
-  font-size: 0.875rem;
   border: 1px solid var(--ih-line);
   border-radius: 4px;
   padding: 0 var(--space-2);
@@ -603,7 +623,7 @@ button.row {
 }
 .row.me {
   background: var(--ih-selected);
-  font-weight: 700;
+  font-weight: 500;
 }
 .row.empty {
   color: var(--ih-text-secondary);
@@ -612,7 +632,7 @@ button.row {
   flex: none;
   width: 2.6em;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 긴 이름은 한 줄로 자르고 말줄임표. 전체 이름은 title과 확인 창에서 볼 수 있다. */
 .name {
@@ -718,7 +738,7 @@ button.row {
 .segmented button[aria-pressed="true"] {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 details {
@@ -732,7 +752,7 @@ summary {
   display: flex;
   align-items: center;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 500;
 }
 details > *:not(summary) {
   margin-top: var(--space-2);
@@ -779,7 +799,7 @@ details > *:not(summary) {
   min-height: var(--tabs-height);
 }
 .tabs button[aria-current="page"] {
-  font-weight: 700;
+  font-weight: 500;
 }
 .viewer-nav {
   display: flex;
@@ -823,7 +843,6 @@ details > *:not(summary) {
 }
 .dialog-head h2 {
   margin: 0;
-  font-size: 1.125rem;
 }
 .candidate {
   border: 1px solid var(--ih-line);
@@ -834,7 +853,7 @@ details > *:not(summary) {
 }
 .manual-copy {
   flex: 1 1 100%;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .copy {
   display: contents;
@@ -886,7 +905,7 @@ details > *:not(summary) {
 .segmented select.chosen {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
-  font-weight: 700;
+  font-weight: 500;
 }
 input[type="search"] {
   margin-bottom: var(--space-2);
@@ -932,7 +951,7 @@ input[type="search"] {
 .filter-row label {
   flex: 1 1 30%;
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .filter-row select {
@@ -983,7 +1002,7 @@ button.bar-row:hover {
 }
 .bar-note {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 값이 "승률 · N승 M패 (G경기)"로 길어져(2026-11-08 통일) 좁은 화면에서는 값을 다음 줄 오른쪽으로 내린다.
    이름·칭호를 "…"로 자르지 않는다. */
@@ -1007,7 +1026,7 @@ button.bar-row:hover {
   flex: none;
   color: var(--ih-text);
   font-variant-numeric: tabular-nums;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 막대 두께 6px(2026-11-10: 10px에서 가늘게). */
 .bar-track {
@@ -1046,7 +1065,7 @@ button.bar-row:hover {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-3);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .legend li {
@@ -1074,7 +1093,7 @@ button.bar-row:hover {
   /* 칸 사이는 테두리가 아니라 바탕색 틈으로 나눈다. */
   border-collapse: separate;
   border-spacing: 2px;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
 .matrix th,
@@ -1105,7 +1124,7 @@ button.bar-row:hover {
   white-space: nowrap;
 }
 .matrix tr.picked th[scope="row"] {
-  font-weight: 700;
+  font-weight: 500;
 }
 /* 표 칸(2026-11-08 재설계): 옅은 바탕(막대 색 22%) + 왼쪽 3px 진한 띠(막대 색 그대로). 색이 탁해지지 않고 글자 대비도 지킨다.
    승률은 굵게, 경기 수는 작고 흐리게. */
@@ -1118,14 +1137,14 @@ button.bar-row:hover {
 }
 .cell-rate {
   display: block;
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   line-height: 1.2;
 }
 .cell-games {
   display: block;
   color: var(--ih-text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
   line-height: 1.2;
 }
 /* 머리 행은 화면을 내려도 붙어 있다. 상단 바(56px) 아래. 바탕은 다른 표 머리와 같은 올린 면. */
@@ -1180,7 +1199,7 @@ button.bar-row:hover {
 }
 .matrix-few > summary {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 승률 색 범례 띠(HeatLegend) */
 .legend-strip {
@@ -1189,7 +1208,7 @@ button.bar-row:hover {
   align-items: center;
   gap: var(--space-2) var(--space-2);
   margin: var(--space-1) 0 var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .legend-bands {
@@ -1213,7 +1232,7 @@ button.bar-row:hover {
   top: 14px;
   left: 0;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
 }
 .legend-bands .swatch:last-child .legend-tick {
   left: auto;
@@ -1385,9 +1404,6 @@ body:has(.action-sticky) .toast {
   .screen.cols > section {
     min-width: 0;
   }
-  .matrix {
-    font-size: 0.9375rem;
-  }
   .matrix th[scope="row"] {
     width: 18%;
   }
@@ -1420,19 +1436,6 @@ button.row .tag {
    디자인 키트 적용: 표면·버튼·목록·팀 상자·경기 줄·상단 바·푸터
    ========================================================================== */
 
-/* 굵기: 화면 제목만 800, 나머지 강조(큰 숫자 포함)는 700까지(2026-11-09: 800·900 → 700). */
-h1 {
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-h2 {
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-h3 {
-  font-weight: 700;
-}
-
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -1447,7 +1450,7 @@ h3 {
 
 /* 버튼·입력 */
 button {
-  font-weight: 700;
+  font-weight: 500;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
@@ -1532,9 +1535,8 @@ details,
 }
 /* 작은 이름표(.badge·.tag): 알약 대신 모서리 4px 네모, 옅은 테두리, 바탕 없음. 뜻 색은 글자와 테두리에만. */
 .badge {
-  font-size: 0.8125rem;
+  font-size: var(--text-meta);
   font-weight: 600;
-  letter-spacing: 0.01em;
   border-color: var(--ih-line);
   border-radius: var(--ih-radius-sm);
   background: transparent;
@@ -1553,7 +1555,7 @@ details,
   color: var(--warn-line);
 }
 .tag {
-  font-size: 0.8125rem;
+  font-size: var(--text-meta);
   font-weight: 600;
   border-color: var(--ih-line);
   border-radius: var(--ih-radius-sm);
@@ -1671,11 +1673,11 @@ li.match-row.tone-red:hover {
 }
 .result-win {
   color: var(--ih-win-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .result-loss {
   color: var(--ih-loss-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 /* 팀 상자: 진영이 정해진 경기(준비 화면은 항상)는 위쪽 3px 진영 색 띠, 제목은 "블루팀"/"레드팀"(format.ts teamName).
@@ -1817,8 +1819,8 @@ button.row.picked:hover {
   align-items: center;
   gap: var(--space-1);
   width: 3.7em;
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
 }
 .role-icon {
   flex: none;
@@ -1907,7 +1909,7 @@ table {
   font-feature-settings: "tnum";
 }
 .rank {
-  font-weight: 700;
+  font-weight: 500;
 }
 /* 순위 숫자 색(format.ts rankClass): 1위 포인트 색 · 2위 은 · 3위 동 · 4~10위 본문 · 11위~ 흐림. 색 띠는 쓰지 않는다. */
 .rank.rank-1 {
@@ -1924,10 +1926,10 @@ table {
 }
 .rank.rank-rest {
   color: var(--ih-text-secondary);
-  font-weight: 600;
+  font-weight: 400;
 }
 .rate {
-  font-weight: 700;
+  font-weight: 500;
 }
 /* 승률 색 단계(format.ts의 heatClass). 한 클래스가 막대 색과 글자 색을 함께 정한다. */
 .heat-h4 {
@@ -1984,7 +1986,7 @@ table {
   stroke: var(--heat-bar);
 }
 .summary-line {
-  font-size: 1.125rem;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1997,13 +1999,13 @@ table {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
   border-radius: var(--ih-radius-md);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .kpi strong {
   margin-left: var(--space-1);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   color: var(--ih-text);
 }
 .kpi strong.blue {
@@ -2057,9 +2059,8 @@ table {
   min-height: 44px;
   color: var(--ih-text);
   text-decoration: none;
-  font-size: 1.0625rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: var(--text-body);
+  font-weight: 600;
   white-space: nowrap;
 }
 .brand:focus-visible {
@@ -2077,7 +2078,7 @@ table {
   /* 터치 대상 44px */
   min-height: 44px;
   padding: var(--space-1) var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   border-color: var(--ih-control-border);
 }
@@ -2092,7 +2093,7 @@ table {
   border: none;
   background: none;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 지금 화면 탭(운영자 탭·조회 메뉴 모두, 좁은 화면 하단·넓은 화면 상단 공통): 옅은 선택 배경 + 강조 글자.
    주 버튼처럼 채우지 않는다(CLAUDE.md 5절). 색 쌍은 --ih-accent / --ih-selected이라 대비 검사를 함께 받는다.
@@ -2104,7 +2105,7 @@ table {
 .viewer-nav .link[aria-current="page"]:hover {
   background: var(--ih-selected);
   color: var(--ih-accent);
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
   border-radius: var(--ih-radius-sm);
 }
@@ -2165,7 +2166,7 @@ table {
     margin: var(--space-1) 0;
     padding: 0 var(--space-1);
     border: none;
-    font-size: 0.875rem;
+    font-size: var(--text-label);
     text-decoration: none;
   }
   .viewer-nav > span > .link:not([aria-current="page"]),
@@ -2214,7 +2215,7 @@ table {
     min-height: 44px;
     padding: var(--space-2) var(--space-4);
     border-radius: var(--ih-radius-sm);
-    font-size: 0.875rem;
+    font-size: var(--text-label);
   }
   .tabs button:not(:disabled):not([aria-current="page"]):hover {
     color: var(--ih-text);
@@ -2224,8 +2225,8 @@ table {
 
 /* 알림 글자(크기·굵기는 2단계에서 척도로 정리) */
 .toast {
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
 }
 
 /* 푸터: 라이엇 게임즈와 무관함을 알리는 문구 */
@@ -2233,9 +2234,9 @@ table {
   margin: var(--space-6) var(--space-4) 0;
   padding: var(--space-5) 0 var(--space-2);
   border-top: 1px solid var(--ih-line);
-  /* 2026-11-10: 본문보다 한 단계 물러나게(0.8125rem, 흐린 글자, 줄 간격 1.5). */
+  /* 법적 고지는 읽을 수 있게 두되 본문 행동보다 물러나게(8절): 12px, 흐린 글자. */
   color: var(--ih-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--text-meta);
   line-height: 1.5;
 }
 .legal p + p {
@@ -2261,7 +2262,7 @@ table {
   border-radius: var(--ih-radius-sm);
   background: transparent;
   color: var(--ih-text);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   line-height: 1.6;
   white-space: nowrap;
@@ -2310,7 +2311,7 @@ table {
   gap: var(--space-1);
   padding: 0;
   border: 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-meta);
   font-weight: 600;
 }
 .title-chip.compact .title-emblem {
@@ -2408,7 +2409,7 @@ table {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .title-min input {
   width: 5em;
@@ -2448,7 +2449,7 @@ table {
   min-height: 48px;
   padding: 0 var(--space-3);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--text-body);
   text-decoration: none;
 }
 .login-btn:focus-visible {
@@ -2502,7 +2503,7 @@ table {
 .restore-diff {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .privacy-table {
   min-width: 34em;
@@ -2519,7 +2520,7 @@ table {
 .privacy-table thead th,
 .restore-diff thead th {
   color: var(--ih-text-secondary);
-  font-weight: 700;
+  font-weight: 500;
   background: var(--ih-subtle);
 }
 .restore-diff tbody th {
@@ -2617,7 +2618,7 @@ table {
   border: none;
   background: none;
   text-align: left;
-  font-weight: 700;
+  font-weight: 500;
 }
 /* 카드 전체를 덮는 누름 영역. 이름 버튼과 동작 버튼은 그 위에 놓인다. */
 .mc-main::after {
@@ -2639,7 +2640,7 @@ table {
 .mc-when {
   flex: none;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -2651,7 +2652,7 @@ table {
   height: 1.75em;
   border: 1px solid currentColor;
   border-radius: 6px;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .mc-action {
   position: relative;
@@ -2686,7 +2687,7 @@ table {
 .mc-role .pos {
   width: auto;
   gap: var(--space-1);
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
   color: var(--ih-text-secondary);
 }
 .mc-role .role-icon {
@@ -2697,8 +2698,8 @@ table {
   display: flex;
   flex-direction: column;
   line-height: 1.15;
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   color: var(--ih-text-secondary);
 }
 .mc-team-name {
@@ -2718,7 +2719,7 @@ table {
   border-radius: 6px;
   background: none;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   text-align: center;
   display: flex;
@@ -2750,7 +2751,6 @@ table {
   .mc-name,
   .mc-name:not(:disabled):hover {
     padding: 0;
-    font-size: 0.8125rem;
   }
 }
 /* 좁은 화면(5칸이 60px 안팎)에서는 한 줄 말줄임이 "가상선수…"처럼 앞이 같은 이름을 전부 가려 버린다.
@@ -2767,7 +2767,7 @@ table {
 }
 .mc-team.is-win .mc-name {
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .mc-name.is-me,
 .mc-name.is-me:not(:disabled):hover {
@@ -2778,7 +2778,7 @@ table {
 @media (min-width: 720px) {
   .mc-name,
   .mc-name:not(:disabled):hover {
-    font-size: 0.875rem;
+    font-size: var(--text-label);
   }
   .mc-roles,
   .mc-team {
@@ -2801,8 +2801,8 @@ table {
   height: 1.3125rem;
   border: 1px solid transparent;
   border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--text-meta);
+  font-weight: 500;
   line-height: 1;
 }
 /* 승은 승리 색으로 채우고, 패는 바탕 없이 패배 테두리 + 패배 글자(2026-11-10). 칸 안의 "승"·"패" 글자로도 구분한다. */
@@ -2817,8 +2817,8 @@ table {
   color: var(--ih-loss-text);
 }
 .streak {
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   white-space: nowrap;
 }
 .streak.win {
@@ -2845,7 +2845,7 @@ table {
 }
 /* 결과 기반 MMR 숫자(랭킹 줄·개인 요약). 색은 쓰지 않는다(승률 색 단계와 겹치지 않게). */
 .rating-num {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
   /* nowrap을 두지 않는다: 개인 요약의 "MMR · 최고 · 최근" 한 줄이 320px에서 줄바꿈되어야 한다. */
 }
@@ -2853,7 +2853,7 @@ table {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .rank-line select {
@@ -2877,7 +2877,7 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 700;
+  font-weight: 500;
 }
 .form-line {
   display: flex;
@@ -2886,17 +2886,16 @@ table {
   gap: var(--space-1) var(--space-2);
 }
 /* 좁은 폰의 랭킹 행: 오른쪽 전적 칸 글자를 키우니 왼쪽이 좁아져 승·패 점 세 개와 "3연승 중"이 두 줄로 접혔다.
-   이 행에서만 점과 보조 글자를 한 단계 작게 둔다(기록 화면 갱신 때 행 높이가 바뀌어 입력 칸이 밀리는 문제). */
+   이 행에서만 점을 작게 두고, 보조 글자는 14px로 맞춘다(12px로 줄이면 전적이 안 읽힌다). 행 높이가 바뀌면 기록 화면 갱신 때 입력 칸이 밀린다. */
 @media (max-width: 419px) {
   .rank-row .form-dot {
     width: 1.1875rem;
     height: 1.1875rem;
-    font-size: 0.6875rem;
   }
   .rank-row .stat .hint,
   .rank-row .stat .standing,
   .rank-row .rating-num {
-    font-size: 0.8125rem;
+    font-size: var(--text-label);
   }
   /* 오른쪽 전적 칸이 행의 60%까지 차지해 왼쪽이 118px뿐이었다. 58:42로 나눠 왼쪽에 점 세 개 + 연승 글이 한 줄에 들어가게.
      전적 글은 낱말 단위로만 줄을 바꿔 "(2경/기)"처럼 끊기지 않게. */
@@ -2936,7 +2935,7 @@ table {
   background: var(--ih-subtle);
   border: 1px solid var(--ih-line);
   border-radius: var(--ih-radius-md);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   overflow-wrap: anywhere;
 }
 .filter-summary > span {
@@ -2964,8 +2963,8 @@ table {
   gap: var(--space-1);
 }
 .tile-label {
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   color: var(--ih-text-secondary);
 }
 .ps-tiles {
@@ -2995,14 +2994,14 @@ table {
 }
 .ps-tiles dd .pos {
   width: auto;
-  font-size: 1rem;
+  font-size: var(--text-body);
   color: var(--ih-text);
 }
 .ps-tiles dd .streak {
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .tile-sub {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .tile-link,
@@ -3013,7 +3012,7 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 @media (min-width: 720px) {
   .ps-tiles {
@@ -3093,7 +3092,7 @@ table {
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-end;
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
   color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -3108,7 +3107,7 @@ table {
   grid-column: 2;
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
   color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -3139,7 +3138,7 @@ table {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-1) var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .trend-caption strong {
@@ -3238,7 +3237,7 @@ table {
   grid-template-columns: auto minmax(0, 1fr) 2.5rem;
   align-items: center;
   gap: var(--space-1) var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .meter-value {
@@ -3297,11 +3296,11 @@ table {
   line-height: 1.15;
 }
 .ring-text strong {
-  font-size: 1.25rem;
+  font-size: var(--text-section);
   font-variant-numeric: tabular-nums;
 }
 .ring-text span {
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
   color: var(--ih-text-secondary);
 }
 
@@ -3309,8 +3308,8 @@ table {
 .rank-group {
   margin-top: var(--space-2);
   padding: var(--space-1) var(--space-1) var(--space-1);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   color: var(--ih-text-secondary);
   border-bottom: 1px solid var(--ih-line);
 }
@@ -3342,7 +3341,7 @@ table {
   border-radius: 4px;
   background: color-mix(in srgb, var(--tier-fill) 10%, transparent);
   color: var(--tier-fill);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   line-height: 1.5;
   white-space: nowrap;
@@ -3375,8 +3374,8 @@ table {
   display: inline-flex;
   align-items: center;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -3390,7 +3389,7 @@ table {
 .mmr-ranking .tile-label,
 .mmr-ranking .rank-group,
 .mmr-ranking .form-dot {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 
 /* 시작값 기준 막대(Ranking.tsx StartBar): 가는 바탕 선 위에 기준선(시작 MMR)에서 오른쪽(올랐다, 본문 색)·왼쪽(내렸다,
@@ -3481,7 +3480,7 @@ table {
   gap: var(--space-1);
   margin: 0;
   padding-left: var(--space-5);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 @media (min-width: 720px) {
@@ -3494,8 +3493,8 @@ table {
 /* 두 사람 비교 */
 .vs {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
 }
 .screen-head h1 {
   min-width: 0;
@@ -3579,8 +3578,8 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 1.0625rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
   color: var(--ih-text);
   text-decoration-color: var(--cmp-tone);
   text-underline-offset: 4px;
@@ -3598,17 +3597,18 @@ table {
   justify-content: flex-end;
 }
 .cmp-card-rate .rate {
-  font-size: 1.875rem;
+  font-size: var(--text-screen);
+  font-weight: 600;
   line-height: 1.1;
 }
 .cmp-card-cap {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--ih-text-secondary);
 }
 .cmp-card-wl {
   word-break: keep-all;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
@@ -3625,7 +3625,7 @@ table {
 .cmp-card .form-dot {
   width: 1.1875rem;
   height: 1.1875rem;
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
 }
 .cmp-card-facts {
   display: flex;
@@ -3646,23 +3646,23 @@ table {
   min-width: 0;
 }
 .cmp-card-facts dt {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--text-meta);
+  font-weight: 500;
   color: var(--ih-text-secondary);
 }
 .cmp-card-facts dd {
   margin: 0;
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 .cmp-card-facts .standing {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .cmp-card-facts .rating-num {
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .cmp-card-facts .pos {
@@ -3679,9 +3679,8 @@ table {
   border-radius: var(--ih-radius-pill);
   background: var(--ih-subtle);
   color: var(--ih-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--text-meta);
+  font-weight: 500;
 }
 /* 아직 고르지 않음: 카드 자리에 고르기 칸. 점선 테두리로 "빈 자리"임을 보인다. */
 .cmp-slot {
@@ -3704,8 +3703,8 @@ table {
   align-items: stretch;
   gap: var(--space-1);
   min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   text-align: left;
   color: var(--ih-text-secondary);
 }
@@ -3763,10 +3762,10 @@ table {
   }
   .cmp-name,
   .cmp-name:not(:disabled):hover {
-    font-size: 1.25rem;
+    font-size: var(--text-section);
   }
   .cmp-card-rate .rate {
-    font-size: 2.5rem;
+    font-size: var(--text-hero);
   }
   .cmp-card-facts {
     flex-direction: row;
@@ -3779,7 +3778,7 @@ table {
   .cmp-vs-mark {
     width: 40px;
     height: 40px;
-    font-size: 0.875rem;
+    font-size: var(--text-label);
   }
   .cmp-pick {
     grid-template-columns: minmax(8rem, 14rem) auto minmax(8rem, 14rem);
@@ -3810,15 +3809,15 @@ table {
 }
 .cmp-table thead th {
   vertical-align: bottom;
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   color: var(--ih-text);
   background: var(--ih-subtle);
 }
 .cmp-table th[scope="row"] {
   width: 28%;
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   color: var(--ih-text-secondary);
 }
 .cmp-lines th[scope="row"] {
@@ -3832,12 +3831,12 @@ table {
   font-size: inherit;
 }
 .cmp-table td.cmp-lead {
-  font-weight: 700;
+  font-weight: 500;
   background: color-mix(in oklab, var(--ih-text) 6%, transparent);
 }
 .cmp-lead-mark {
   margin-right: var(--space-1);
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
   color: var(--ih-ok-text);
   vertical-align: 0.15em;
 }
@@ -3860,21 +3859,21 @@ table {
 }
 .cmp-sub {
   display: block;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   color: var(--ih-text-secondary);
   /* "(62경기)"가 낱말 중간에서 줄이 바뀌지 않게. */
   word-break: keep-all;
 }
 .cmp-sub-inline {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .cmp-small {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .cmp-delta {
-  font-weight: 700;
+  font-weight: 500;
 }
 
 /* 같은 팀일 때·상대일 때: 양끝에 이름, 가운데 큰 숫자, 그 아래 띠. */
@@ -3887,8 +3886,8 @@ table {
 }
 .cmp-face-name {
   min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .cmp-face-name.cmp-b {
@@ -3900,11 +3899,11 @@ table {
   font-variant-numeric: tabular-nums;
 }
 .cmp-face-big {
-  font-size: 1.875rem;
+  font-size: var(--text-screen);
   line-height: 1.1;
 }
 .cmp-face-sub {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--ih-text-secondary);
 }
@@ -3917,8 +3916,8 @@ table {
   margin: 0;
 }
 .cmp-score-n {
-  font-size: 1.875rem;
-  font-weight: 700;
+  font-size: var(--text-screen);
+  font-weight: 600;
   line-height: 1.1;
   color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
@@ -3927,7 +3926,7 @@ table {
   color: var(--ih-text);
 }
 .cmp-score-colon {
-  font-size: 1.25rem;
+  font-size: var(--text-section);
   font-weight: 600;
   color: var(--ih-text-secondary);
 }
@@ -3964,8 +3963,8 @@ table {
   font-weight: 600;
 }
 .cmp-synergy strong {
-  font-size: 1.0625rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 .cmp-up {
   color: var(--ih-ok-text);
@@ -4022,8 +4021,8 @@ table {
   display: flex;
   flex-direction: column;
   line-height: 1.2;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--text-section);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .cmp-duel-side .hint {
@@ -4071,7 +4070,7 @@ table {
   min-width: 0;
 }
 .pick-meta {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   color: var(--ih-text-secondary);
 }
@@ -4080,7 +4079,7 @@ table {
 }
 .pick-order button {
   padding: var(--space-2) var(--space-3);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 전체 목록은 카드 한 장(.list-card) 안의 구분선 줄(2026-11-10). 고른 줄은 카드 안에서도 1px 포인트 테두리 + 틴트를
    유지하고, 마우스를 올려도 그 모양이 풀리지 않게 한다. */
@@ -4158,15 +4157,15 @@ table {
   overflow-wrap: anywhere;
 }
 
-/* 모임 탭의 묶음(접고 펴기). 묶음 제목은 구역 제목(h2)보다 크게, 묶음 안의 구역은 선으로 나눈다. */
+/* 모임 탭의 묶음(접고 펴기). 묶음 제목은 구역 제목(h2)과 같은 크기, 묶음 안의 구역은 선으로 나눈다. */
 .group-block {
   padding: var(--space-1) var(--space-4) var(--space-3);
 }
 .group-block > summary {
-  font-size: 1.0625rem;
+  font-size: var(--text-section);
 }
 /* 긴 세로 목록의 리듬(2026-11-09 2단계): 구역마다 위쪽 옅은 구분선 + 그 아래 24px 뒤에 구역 제목(h2),
-   첫 구역은 선 없이. 구역 설명문(.hint)은 제목 바로 아래 4px. 접는 묶음 머리(summary)는 44px 그대로다. */
+   첫 구역은 선 없이. 구역 설명문(.hint)은 제목 바로 아래 8px. 접는 묶음 머리(summary)는 44px 그대로다. */
 .group-block-body {
   display: flex;
   flex-direction: column;
@@ -4178,7 +4177,7 @@ table {
   padding-top: var(--space-5);
 }
 .group-block-body h2 {
-  margin: 0 0 var(--space-1);
+  margin: 0 0 var(--space-2);
 }
 .group-block-body h2 + .hint {
   margin-top: 0;
@@ -4202,7 +4201,7 @@ table {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-1);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .sheet-steps li {
   display: flex;
@@ -4217,7 +4216,7 @@ table {
 .sheet-steps li.current {
   border-bottom-color: var(--ih-accent);
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .sheet-step-no {
   display: inline-flex;
@@ -4257,7 +4256,7 @@ table {
   min-width: 0;
 }
 .sheet-col-name {
-  font-weight: 700;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .sheet-col-sample {
@@ -4282,7 +4281,7 @@ table {
 }
 .sheet-table {
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   white-space: nowrap;
 }
 .sheet-table th,
@@ -4308,7 +4307,7 @@ table {
   color: var(--ih-text-secondary);
 }
 .sheet-row-header td {
-  font-weight: 700;
+  font-weight: 500;
   background: var(--ih-subtle);
 }
 .sheet-row-skipped td {
@@ -4355,7 +4354,7 @@ table {
 .topbar-account-button {
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   white-space: nowrap;
 }
 .topbar-account {
@@ -4390,7 +4389,7 @@ table {
   border: 1px solid var(--ih-line);
   border-radius: var(--ih-radius-md);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .account-menu p {
   margin: 0;
@@ -4453,7 +4452,7 @@ table {
 }
 .local-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 /* [로그인 | 회원가입] 전환: 기존 .segmented의 고른 칸 모양을 탭(aria-selected)에도 쓴다. */
 .segmented button[role="tab"][aria-selected="true"],
@@ -4461,7 +4460,7 @@ table {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 /* 고르지 않은 탭 글자는 보조 글자색보다 진하게(라이트 테마에서도 4.5:1). */
 .segmented button[role="tab"][aria-selected="false"] {
@@ -4473,17 +4472,17 @@ table {
   min-width: 0;
 }
 .field > label {
-  font-weight: 700;
+  font-weight: 500;
 }
 .field .field-rule {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .field-problem {
   margin: 0;
   color: var(--warn-line);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
 }
 .field-problem::before {
   content: "! ";
@@ -4511,7 +4510,7 @@ table {
 .login-or {
   margin: 0;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   text-align: center;
 }
 /* 개발용 로그인: 자체 계정 칸과 섞이지 않게 점선 상자로 따로 둔다. */
@@ -4535,9 +4534,8 @@ table {
   background: var(--ih-subtle);
   color: var(--ih-text);
   text-align: center;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--text-body);
+  font-weight: 500;
   /* 좁은 화면에서는 붙임표 자리에서 줄을 바꾼다. */
   overflow-wrap: anywhere;
   word-break: break-all;
@@ -4609,7 +4607,7 @@ table {
   min-width: 44px;
   min-height: 44px;
   padding: 0;
-  font-size: 1.125rem;
+  font-size: var(--text-body);
 }
 .count-stepper input {
   width: 3.5em;
@@ -4650,7 +4648,7 @@ table {
 }
 .join-compact-row h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .join-compact .help {
   margin-top: var(--space-1);
@@ -4705,7 +4703,7 @@ table {
   /* 머리 줄은 표 머리처럼 올린 면으로 채운다. */
   background: var(--ih-panel);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   text-align: left;
 }
@@ -4723,8 +4721,7 @@ table {
 }
 .sb-kicker {
   color: var(--ih-accent);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 500;
 }
 .sb-extra {
   margin: var(--space-2) var(--space-5) 0;
@@ -4749,10 +4746,9 @@ table {
   align-items: flex-start;
 }
 .sb-side-name {
-  font-size: 2.5rem;
-  font-weight: 800;
+  font-size: var(--text-hero);
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.02em;
   color: var(--ih-text-secondary);
   white-space: nowrap;
 }
@@ -4769,26 +4765,25 @@ table {
   border: 1px solid var(--ih-line);
   border-radius: var(--ih-radius-sm);
   color: var(--ih-text-secondary);
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: var(--text-meta);
+  font-weight: 500;
 }
 .sb-verdict.win {
   border-color: var(--ih-primary);
   background: var(--ih-primary);
   color: var(--ih-on-primary);
-  font-weight: 700;
 }
 .sb-series {
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
   margin: 0;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .sb-series-num {
-  font-size: 5.5rem;
+  font-size: var(--text-hero);
   color: var(--ih-text);
 }
 /* 시리즈에서 뒤진 쪽 숫자는 흐리게(큰 글자라 3:1이면 읽힌다). */
@@ -4796,14 +4791,13 @@ table {
   color: var(--ih-text-secondary);
 }
 .sb-series-colon {
-  font-size: 2.25rem;
+  font-size: var(--text-screen);
   color: var(--ih-text-secondary);
 }
 .sb-vs {
   color: var(--ih-text-secondary);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 .sb-lanes {
   position: relative;
@@ -4839,8 +4833,8 @@ table {
 .sb-role .pos {
   width: auto;
   gap: var(--space-1);
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: var(--text-meta);
+  font-weight: 500;
 }
 .sb-name,
 .sb-name:not(:disabled):hover {
@@ -4855,7 +4849,7 @@ table {
   border-radius: 0;
   background: none;
   color: var(--ih-text-secondary);
-  font-size: 1.25rem;
+  font-size: var(--text-section);
   font-weight: 500;
 }
 .sb-team.left .sb-name {
@@ -4868,7 +4862,7 @@ table {
 }
 .sb-team.is-win .sb-name {
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .sb-name:not(:disabled):hover .sb-name-text {
   text-decoration: underline;
@@ -4890,7 +4884,6 @@ table {
   .sb-main,
   .sb-main:not(:disabled):hover {
     padding: var(--space-3) var(--space-4) 0;
-    font-size: 0.8125rem;
   }
   .sb-extra {
     margin: var(--space-2) var(--space-4) 0;
@@ -4900,16 +4893,10 @@ table {
     padding: var(--space-2) var(--space-4) var(--space-4);
   }
   .sb-side-name {
-    font-size: 1.625rem;
+    font-size: var(--text-screen);
   }
   .sb-series {
     gap: var(--space-2);
-  }
-  .sb-series-num {
-    font-size: 3.75rem;
-  }
-  .sb-series-colon {
-    font-size: 1.5rem;
   }
   .sb-lanes.with-pos {
     grid-template-columns: minmax(0, 1fr) 3.75rem minmax(0, 1fr);
@@ -4917,10 +4904,7 @@ table {
   .sb-name,
   .sb-name:not(:disabled):hover {
     padding: 0 var(--space-3);
-    font-size: 1rem;
-  }
-  .sb-role .pos {
-    font-size: 0.75rem;
+    font-size: var(--text-body);
   }
 }
 
@@ -4934,7 +4918,7 @@ table {
   gap: var(--space-2);
   min-width: 0;
   margin: 0 var(--space-1) var(--space-1);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .mc-memo {
@@ -4946,7 +4930,7 @@ table {
 }
 .mc-memo-label {
   margin-right: var(--space-1);
-  font-weight: 700;
+  font-weight: 500;
 }
 .series-badge {
   flex: none;
@@ -4959,7 +4943,7 @@ table {
   border-radius: var(--ih-radius-sm);
   background: transparent;
   color: var(--ih-text);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   line-height: 1.6;
 }
@@ -4978,7 +4962,7 @@ table {
 }
 .memo-count.over {
   color: var(--ih-loss-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .series-games {
   display: flex;
@@ -5021,8 +5005,8 @@ table {
 }
 .season-tiles dd.season-stat {
   display: block;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: var(--text-screen);
+  font-weight: 600;
   line-height: 1.2;
   color: var(--ih-text);
   font-variant-numeric: tabular-nums;
@@ -5030,7 +5014,7 @@ table {
 }
 .season-unit {
   margin-left: var(--space-1);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--ih-text-secondary);
 }
@@ -5040,7 +5024,7 @@ table {
   align-items: stretch;
   gap: var(--space-2);
   width: 100%;
-  font-size: 1.25rem;
+  font-size: var(--text-section);
 }
 .side-values {
   white-space: nowrap;
@@ -5077,7 +5061,7 @@ table {
   background: var(--ih-loss-accent);
 }
 .season-tiles .tile-sub {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
 }
 
@@ -5160,7 +5144,7 @@ table {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
   overflow-wrap: anywhere;
 }
@@ -5186,12 +5170,12 @@ table {
   overflow-wrap: anywhere;
 }
 .award-who {
-  font-size: 1.0625rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
   color: var(--ih-text);
 }
 .award-why {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
@@ -5199,13 +5183,13 @@ table {
   word-break: keep-all;
 }
 .award-tie {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   color: var(--ih-text-secondary);
 }
 .award-rule {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   line-height: 1.4;
   color: var(--ih-text-secondary);
 }
@@ -5223,11 +5207,11 @@ table {
   height: 20px;
 }
 .award-main h3 {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text);
 }
 .award-main .award-who {
-  font-size: 1.375rem;
+  font-size: var(--text-section);
   line-height: 1.25;
 }
 /* 주요 상: 이름 아래 줄에 근거 숫자(한 줄에 붙이면 괄호 중간에서 줄이 바뀐다). */
@@ -5236,7 +5220,7 @@ table {
   display: block;
 }
 .award-main .award-why {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 라인별 다섯 칸의 공통 기준(소제목 바로 아래 한 줄). */
 .season-awards .award-line-rule {
@@ -5255,16 +5239,15 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
   overflow-wrap: normal;
-  letter-spacing: 0;
 }
 .award-line-name {
   color: var(--ih-text);
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 .award-line-tail {
   color: var(--ih-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--text-meta);
   font-weight: 600;
 }
 .award-line .award-who,
@@ -5272,10 +5255,10 @@ table {
   display: block;
 }
 .award-line .award-who {
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .award-line .award-why {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 /* 해당 없음: 점선 테두리, 바탕 없이 옅게. */
 .award.is-none {
@@ -5292,7 +5275,7 @@ table {
 }
 .award.is-none .winner {
   display: block;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 /* 해당 없는 상 한 줄 + 까닭 목록(접힌 도움말 안, 2026-11-08). */
@@ -5309,11 +5292,11 @@ table {
 }
 .award-none-list h3 {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .award-none-list p {
   margin: var(--space-1) 0 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .award-none-list .award-rule {
@@ -5322,7 +5305,7 @@ table {
 /* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). */
 .intro h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--text-section);
 }
 .intro p {
   margin: 0;
@@ -5356,7 +5339,7 @@ table {
   overflow-wrap: anywhere;
 }
 .intro-features span {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 @media (min-width: 720px) {
@@ -5402,7 +5385,7 @@ table {
   overflow: auto;
   margin: 0;
   padding: var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background: var(--ih-subtle);
@@ -5435,7 +5418,7 @@ table {
 }
 .dialog-section h3 {
   margin: 0 0 var(--space-2);
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .member-request-form {
   display: grid;
@@ -5484,7 +5467,7 @@ table {
   text-align: left;
 }
 .result-pick-title {
-  font-size: 1.125rem;
+  font-size: var(--text-body);
 }
 .result-pick-names {
   overflow-wrap: anywhere;
@@ -5519,7 +5502,7 @@ table {
 .champ-team > legend {
   padding: 0;
   margin-bottom: var(--space-1);
-  font-weight: 700;
+  font-weight: 500;
 }
 .champ-row {
   display: grid;
@@ -5587,7 +5570,7 @@ table {
 .champ-note {
   flex: none;
   color: var(--ih-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--text-meta);
 }
 .champ-empty {
   padding: var(--space-3);
@@ -5601,7 +5584,7 @@ table {
 }
 .champ-name {
   color: var(--ih-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--text-label);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5616,7 +5599,7 @@ table {
   padding: var(--space-2) var(--space-3);
   margin: 0;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   max-height: 40vh;
   overflow-y: auto;
 }
@@ -5850,11 +5833,8 @@ button.row.swap-target:hover {
   display: none;
 }
 
-/* PC 제목(2026-11-10): 한 단계 크게, 화면 머리 아래 4px 더 띄운다. 모바일은 1.5rem 그대로. */
+/* PC에서는 화면 머리 아래를 4px 더 띄운다. 제목 크기는 폭과 관계없이 같다. */
 @media (min-width: 720px) {
-  h1 {
-    font-size: 1.75rem;
-  }
   .screen-head {
     margin-bottom: var(--space-1);
   }
@@ -5880,7 +5860,7 @@ button.row.swap-target:hover {
   border-radius: var(--ih-radius-sm);
   background: var(--ih-panel);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
 }
 .block-nav .chip:hover {
@@ -5900,10 +5880,10 @@ button.row.swap-target:hover {
   .match-cards .mc-name,
   .match-cards .mc-name:not(:disabled):hover {
     min-height: 34px;
-    font-size: 0.9375rem;
+    font-size: var(--text-body);
   }
   .match-cards .mc-roles {
-    font-size: 0.875rem;
+    font-size: var(--text-label);
   }
 }
 
@@ -6027,22 +6007,22 @@ label:has(> select) {
   background: var(--ih-panel);
 }
 .rival-tile .tile-label {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--ih-text-secondary);
 }
 .rival-tile .stat {
   max-width: none;
   text-align: left;
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
   overflow-wrap: anywhere;
   word-break: keep-all;
 }
 /* 첫 span이 승률 숫자(RateText, 승률 색 단계 클래스). */
 .rival-tile .stat > span:first-child {
-  font-size: 1.375rem;
-  font-weight: 700;
+  font-size: var(--text-section);
+  font-weight: 600;
 }
 .compare-cta {
   display: flex;
@@ -6056,15 +6036,15 @@ label:has(> select) {
   background: var(--ih-selected);
 }
 .compare-cta strong {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .compare-cta strong::after {
   content: " →";
 }
 .compare-cta span {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   color: var(--ih-text-secondary);
 }
@@ -6156,10 +6136,10 @@ label:has(> select) {
   margin: 0;
   max-width: none;
 }
-/* 분석 요약 타일 4칸은 숫자 크기를 같게(1.5rem/700). 진영 칸도 다른 칸과 같은 크기. */
+/* 분석 요약 타일 4칸은 숫자 크기를 같게(1.5rem/600). 진영 칸도 다른 칸과 같은 크기. */
 .graph-summary .season-tiles dd.season-sides {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: var(--text-screen);
+  font-weight: 600;
 }
 /* 보기 전환: 세 칸이 같은 폭. 좁은 화면에서는 글자가 두 줄로 접혀도 된다. */
 .graph-views {
@@ -6180,9 +6160,8 @@ label:has(> select) {
 .bar-group-label {
   margin: 0 0 var(--space-1);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: var(--text-label);
+  font-weight: 500;
 }
 .bar-group-count {
   font-weight: 500;
@@ -6216,12 +6195,12 @@ label:has(> select) {
     gap: var(--space-1);
   }
   .line-first .bar-head > .name {
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: var(--text-body);
+    font-weight: 500;
   }
   .line-first .bar-value {
     margin-left: 0;
-    font-size: 0.875rem;
+    font-size: var(--text-label);
   }
   /* 값 줄이 두 줄로 접히는 칸이 있어도 막대는 모두 같은 높이(아래)에 놓인다. */
   .line-first .bars > li {
@@ -6348,8 +6327,8 @@ label:has(> select) {
   --story: var(--story-attendance);
 }
 .story-card strong {
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
   line-height: 1.3;
   overflow-wrap: anywhere;
   word-break: keep-all;
@@ -6376,7 +6355,7 @@ label:has(> select) {
 .race-axis,
 .cal-axis {
   fill: var(--ih-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-meta);
   font-variant-numeric: tabular-nums;
 }
 .race-hit {
@@ -6437,11 +6416,11 @@ label:has(> select) {
 }
 .race-name {
   fill: var(--ih-text);
-  font-size: 13px;
+  font-size: var(--text-meta);
   font-weight: 600;
 }
 .race-label.picked .race-name {
-  font-weight: 700;
+  font-weight: 500;
 }
 
 /* 라인 모양(graphFigures LineShapeChart): 상자는 정사각형, 축 이름표는 HTML로 상자 위에 % 위치로 얹는다. */
@@ -6458,7 +6437,7 @@ label:has(> select) {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .radar {
@@ -6522,7 +6501,7 @@ label:has(> select) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   line-height: 1.2;
   white-space: nowrap;
   text-align: center;
@@ -6543,12 +6522,12 @@ label:has(> select) {
   align-items: center;
   gap: var(--space-1);
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .radar-value.weak {
   color: var(--ih-text-secondary);
-  font-weight: 500;
+  font-weight: 400;
 }
 .radar-key {
   display: inline-block;
@@ -6595,7 +6574,7 @@ label:has(> select) {
   align-items: center;
   gap: var(--space-1);
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .cal-legend-step svg {
@@ -6614,23 +6593,22 @@ label:has(> select) {
   box-shadow: inset 3px 0 0 var(--ih-accent);
 }
 /* 묶음 안 왼쪽 항목은 개인 통계보다 한 단계 크게(사용자 피드백: 오각형을 키우니 왼쪽이 작아 보임).
-   고리 88→104px, 전적 줄 1.125→1.25rem, 안내 줄 0.8125→0.9375rem, 최근 10경기 점 1.25→1.5rem. */
+   고리 104px, 전적 줄 20px, 안내 줄 16px로 키운다. */
 .graph-profile .ring {
   width: 104px;
   height: 104px;
 }
 .graph-profile .summary-line {
-  font-size: 1.25rem;
+  font-size: var(--text-section);
 }
 .graph-profile .profile-main .hint,
 .graph-profile .profile-main .tile-label,
 .graph-profile .trend-caption {
-  font-size: 0.9375rem;
+  font-size: var(--text-body);
 }
 .graph-profile .form-dot {
   width: 1.4375rem;
   height: 1.4375rem;
-  font-size: 0.8125rem;
 }
 .graph-profile .profile-main {
   gap: var(--space-2);
@@ -6644,7 +6622,7 @@ label:has(> select) {
 .graph-profile .trend-caption span:first-child {
   display: none;
 }
-/* 분석 코멘트: 규칙으로 만든 판단 문장. 글자는 본문 크기(0.9375rem 이상), 점 색은 공정성 판정 색과 같은 초록·주황, 보통은 회색. */
+/* 분석 코멘트: 규칙으로 만든 판단 문장. 글자는 본문 크기(16px), 점 색은 공정성 판정 색과 같은 초록·주황, 보통은 회색. */
 .commentary {
   display: flex;
   flex-direction: column;
@@ -6656,12 +6634,12 @@ label:has(> select) {
 }
 .commentary h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .commentary-summary {
   margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 .commentary-remarks {
   margin: 0;
@@ -6674,7 +6652,7 @@ label:has(> select) {
 .commentary-remarks li,
 .commentary-empty {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--text-body);
   line-height: 1.55;
 }
 .commentary-remarks li {
@@ -6803,14 +6781,14 @@ label:has(> select) {
   min-width: 5.2em;
 }
 .fair-pct {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: var(--text-hero);
+  font-weight: 600;
   line-height: 1.1;
   color: var(--fair-color);
   font-variant-numeric: tabular-nums;
 }
 .fair-big-label {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .fair-verdict {
@@ -6820,7 +6798,7 @@ label:has(> select) {
   min-width: 0;
 }
 .fair-verdict strong {
-  font-size: 1.05rem;
+  font-size: var(--text-body);
   color: var(--ih-text);
 }
 /* 분포 띠: 구간 폭 = flex-grow(경기 수). 둥근 모서리는 띠 전체에만.
@@ -6839,9 +6817,9 @@ label:has(> select) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--text-meta);
   line-height: 1;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--on-sig);
   animation: viz-fade 0.4s ease-out;
 }
@@ -6861,7 +6839,7 @@ label:has(> select) {
   margin: var(--space-2) 0 var(--space-2);
   padding: 0;
   list-style: none;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .fair-legend li {
@@ -6892,7 +6870,7 @@ label:has(> select) {
     padding: var(--space-3) var(--space-3);
   }
   .fair-pct {
-    font-size: 1.6rem;
+    font-size: var(--text-screen);
   }
 }
 
@@ -6909,7 +6887,7 @@ label:has(> select) {
 }
 .cand-head h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .cand-chips {
   display: flex;
@@ -6926,7 +6904,7 @@ label:has(> select) {
   padding: var(--space-1) var(--space-2);
   border-radius: 4px;
   background: var(--ih-subtle);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .cand-chips li strong {
@@ -6952,7 +6930,7 @@ label:has(> select) {
 }
 .cand-team h4 {
   margin: 0 0 var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
 .cand-team-blue h4 {
@@ -6986,8 +6964,8 @@ label:has(> select) {
   flex: none;
   padding: 0 var(--space-2);
   border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-meta);
+  font-weight: 500;
   line-height: 1.65;
   white-space: nowrap;
   color: var(--on-cand-light);
@@ -7062,8 +7040,8 @@ label:has(> select) {
   padding: 0 var(--space-2);
   background: var(--fc-tone);
   color: var(--fc-on);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   white-space: nowrap;
 }
 .fc-seg.fc-tone-B {
@@ -7121,7 +7099,7 @@ label:has(> select) {
   line-height: 1.85;
   border-radius: 4px;
   border: 1px solid var(--ih-line);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   white-space: nowrap;
   color: var(--ih-text-secondary);
 }
@@ -7130,7 +7108,7 @@ label:has(> select) {
 .fc-edge.fc-tone-B {
   border-color: var(--ih-line);
   color: var(--fc-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .fc-person {
   display: flex;
@@ -7160,7 +7138,7 @@ label:has(> select) {
 .fc-sub,
 .fc-h2h {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   /* 판이 좁은 PC 오른쪽 단(약 430px)에서 "3경기" 같은 말이 중간에 끊기지 않게 띄어쓰기에서만 줄을 바꾼다. */
   word-break: keep-all;
 }
@@ -7218,7 +7196,7 @@ label:has(> select) {
 }
 .lane-chip {
   padding: var(--space-1) var(--space-3);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
 .lane-chip.hard {
@@ -7288,7 +7266,7 @@ label:has(> select) {
 }
 .page-desc {
   color: var(--ih-text-secondary);
-  font-size: 0.9375rem;
+  font-size: var(--text-body);
   line-height: 1.45;
 }
 .page-desc .inline-link {
@@ -7314,7 +7292,7 @@ label:has(> select) {
   align-items: center;
   gap: var(--space-2) var(--space-2);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
 }
 .filter-bar select {
@@ -7324,7 +7302,7 @@ label:has(> select) {
 .filter-meta {
   margin-left: auto;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
 input[type="search"].filter-search {
@@ -7358,7 +7336,7 @@ input[type="search"].filter-search {
 .filter-bar .segmented > select.chosen {
   background: var(--ih-selected);
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
   outline: 1px solid var(--ih-accent);
   outline-offset: -1px;
 }
@@ -7403,7 +7381,7 @@ input[type="search"].filter-search {
 }
 .stat-card-title {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
 }
 .stat-card-lead {
@@ -7411,17 +7389,17 @@ input[type="search"].filter-search {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 700;
+  font-weight: 500;
 }
 .stat-card-value {
-  font-size: 1.625rem;
-  font-weight: 800;
+  font-size: var(--text-screen);
+  font-weight: 600;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 .stat-card-unit {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
 }
 .stat-card-rows {
@@ -7431,7 +7409,7 @@ input[type="search"].filter-search {
   margin: var(--space-2) 0 0;
   padding-top: var(--space-2);
   border-top: 1px solid var(--ih-line);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .stat-card-rows > div {
   display: flex;
@@ -7468,8 +7446,8 @@ input[type="search"].filter-search {
   min-height: 32px;
   padding: 0;
   color: inherit;
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: var(--text-section);
+  font-weight: 600;
   text-align: left;
   text-decoration: none;
 }
@@ -7516,7 +7494,7 @@ input[type="search"].filter-search {
   border-bottom: 0;
   border-radius: var(--ih-radius-md) var(--ih-radius-md) 0 0;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 600;
 }
 /* 순위표 줄은 패널색이 아니라 화면 배경색으로 내린다. 옆의 경기 카드(패널색)와 같은 면으로 보이면 줄이 눈에 안 들어온다.
@@ -7557,7 +7535,7 @@ input[type="search"].filter-search {
 }
 .dt-arrow {
   color: var(--ih-text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
 }
 .dt-sort.is-active .dt-arrow {
   color: var(--ih-accent);
@@ -7610,14 +7588,14 @@ input[type="search"].filter-search {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
   border-radius: var(--ih-radius-md);
-  font-size: 0.9375rem;
+  font-size: var(--text-label);
 }
 .data-table th {
   padding: var(--space-2) var(--space-3);
   background: var(--ih-subtle);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--text-label);
+  font-weight: 500;
   text-align: left;
   white-space: nowrap;
 }
@@ -7669,7 +7647,7 @@ input[type="search"].filter-search {
   margin-top: var(--space-2);
   padding-top: var(--space-2);
   border-top: 1px solid var(--ih-line);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
 .mmr-tier-count {
@@ -7684,7 +7662,8 @@ input[type="search"].filter-search {
   font-weight: 600;
 }
 .mmr-delta {
-  font-weight: 800;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .mmr-delta.up {
   color: var(--ok-text);
@@ -7707,7 +7686,8 @@ input[type="search"].filter-search {
   align-self: start;
   padding-top: var(--space-3);
   text-align: center;
-  font-size: 1.0625rem;
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
 }
 .mmr-row > .c-who {
   grid-area: who;
@@ -7730,7 +7710,7 @@ input[type="search"].filter-search {
   gap: var(--space-1) var(--space-2);
   padding-bottom: var(--space-2);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
 .mmr-row > .c-toggle {
@@ -7758,12 +7738,12 @@ input[type="search"].filter-search {
   white-space: nowrap;
   padding-left: 0;
   padding-right: 0;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 500;
   text-align: left;
 }
 .mmr-value {
-  font-size: 1.125rem;
+  font-size: var(--text-body);
   line-height: 1.1;
 }
 .mmr-placing-cell {
@@ -7773,7 +7753,7 @@ input[type="search"].filter-search {
 }
 .mmr-placing {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   white-space: nowrap;
 }
 .mmr-placing-cell .meter {
@@ -7787,7 +7767,7 @@ input[type="search"].filter-search {
   border: none;
   background: none;
   color: var(--ih-text-secondary);
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 .mmr-trend {
   padding: var(--space-1) var(--space-3) var(--space-2);
@@ -7801,7 +7781,7 @@ input[type="search"].filter-search {
   display: block;
   height: 1.4rem;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -7839,7 +7819,6 @@ input[type="search"].filter-search {
   .mmr-row > .c-rank {
     align-self: center;
     padding-top: 0;
-    font-size: 1.125rem;
   }
   .mmr-head .c-bar {
     order: 0;
@@ -7860,7 +7839,7 @@ input[type="search"].filter-search {
   .mmr-row .c-games,
   .mmr-row .c-rate {
     color: var(--ih-text);
-    font-size: 0.9375rem;
+    font-size: var(--text-body);
   }
 }
 @media (min-width: 1024px) {
@@ -7895,7 +7874,9 @@ input[type="search"].filter-search {
     "rank sub sub"
     "rank stat mmr";
   align-items: center;
-  gap: var(--space-1) var(--space-2);
+  /* 칸 사이 4px: 390px 폰에서 MMR(14px)·티어 배지 옆에 "100% · 2승 0패 (2경기)"가 한 줄로 들어가야 한다.
+     8px로 넓히면 "(" 뒤에서 "2경기)"가 다음 줄로 떨어진다. */
+  gap: var(--space-1);
 }
 .rank-row.rank-grid {
   justify-content: stretch;
@@ -7924,7 +7905,7 @@ input[type="search"].filter-search {
 .rank-row > .c-mmr {
   grid-area: mmr;
   justify-self: end;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   white-space: nowrap;
 }
 .rank-line1 {
@@ -7940,7 +7921,7 @@ input[type="search"].filter-search {
   align-items: center;
   gap: var(--space-1) var(--space-2);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 @media (min-width: 720px) {
   .rank-grid {
@@ -7969,7 +7950,7 @@ input[type="search"].filter-search {
     white-space: nowrap;
   }
   .rank-row .c-rate {
-    font-weight: 700;
+    font-weight: 500;
   }
 }
 
@@ -8006,12 +7987,12 @@ input[type="search"].filter-search {
   min-height: 32px;
   padding: 0;
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
 }
 .recent-table .rm-when {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -8025,8 +8006,8 @@ input[type="search"].filter-search {
   margin-top: var(--space-1);
 }
 .recent-table .rm-result {
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   white-space: nowrap;
 }
 .rm-tone.tone-blue {
@@ -8046,7 +8027,7 @@ input[type="search"].filter-search {
 }
 /* 진영 미정 경기의 "●A"/"■B" 표시. 팀 A는 블루 칸, B는 레드 칸에 놓이므로 칸의 진영 색을 따른다(팀 상자 윗선과 같은 색). */
 .rm-mark {
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .rm-blue .rm-mark {
   color: var(--ih-win-text);
@@ -8059,7 +8040,7 @@ input[type="search"].filter-search {
   min-height: 28px;
   padding: 0;
   color: inherit;
-  font-size: 0.9375rem;
+  font-size: var(--text-label);
   text-decoration: none;
 }
 .rm-name:not(:disabled):hover {
@@ -8067,7 +8048,7 @@ input[type="search"].filter-search {
 }
 .rm-names.is-win {
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .rm-names.is-loss {
   color: var(--ih-text-secondary);
@@ -8120,7 +8101,7 @@ input[type="search"].filter-search {
   align-items: center;
   gap: var(--space-2) var(--space-3);
   color: var(--ih-text-secondary);
-  font-size: 0.9375rem;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
 }
 .champ-coverage p {
@@ -8174,13 +8155,13 @@ input[type="search"].filter-search {
   border: 0;
   background: none;
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   border-radius: var(--ih-radius-sm);
 }
 .ct-initials button[aria-pressed="true"] {
   background: var(--ih-selected);
   color: var(--ih-text);
-  font-weight: 700;
+  font-weight: 500;
   outline: 1px solid var(--ih-accent);
   outline-offset: -1px;
 }
@@ -8197,7 +8178,7 @@ input[type="search"].filter-search {
 .ct-group-head {
   padding-top: var(--space-4);
   color: var(--ih-accent);
-  font-weight: 700;
+  font-weight: 500;
 }
 .ct-grid {
   display: grid;
@@ -8218,7 +8199,7 @@ input[type="search"].filter-search {
   border: 1px solid transparent;
   background: none;
   color: var(--ih-text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--text-meta);
   border-radius: var(--ih-radius-sm);
 }
 .ct-cell > span {
@@ -8243,7 +8224,7 @@ input[type="search"].filter-search {
 }
 .ct-few h3 {
   margin: var(--space-1) 0 var(--space-2);
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 /* 칸이 일곱 개라 공통 표 여백(좌우 12px)을 쓰면 720~1023px에서 옆 모음판과 나란히 놓일 때 표가 화면 밖으로 넘친다.
    모든 너비에서 좌우 8px로 줄인다. */
@@ -8279,7 +8260,7 @@ input[type="search"].filter-search {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .ct-player {
   white-space: nowrap;
@@ -8293,8 +8274,8 @@ input[type="search"].filter-search {
   height: 24px;
   border: 1px solid transparent;
   border-radius: var(--ih-radius-sm);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--text-label);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .ct-tier-mark.t1 {
@@ -8351,7 +8332,7 @@ input[type="search"].filter-search {
 .ct-detail h4 {
   margin: 0 0 var(--space-1);
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .ct-detail-list {
   display: flex;
@@ -8360,7 +8341,7 @@ input[type="search"].filter-search {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.875rem;
+  font-size: var(--text-label);
 }
 .ct-detail-list > li {
   display: flex;
@@ -8378,7 +8359,7 @@ input[type="search"].filter-search {
 }
 .ct-result {
   margin-left: auto;
-  font-weight: 700;
+  font-weight: 500;
 }
 .ct-result.win {
   color: var(--ih-win-text);
@@ -8409,11 +8390,11 @@ input[type="search"].filter-search {
   overflow-wrap: anywhere;
 }
 .live-me-head {
-  font-size: 1.0625rem;
+  font-size: var(--text-body);
 }
 .live-me-label {
   color: var(--ih-text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-label);
   margin-right: var(--space-1);
 }
 .tag.tag-me,
@@ -8436,7 +8417,7 @@ input[type="search"].filter-search {
 .commentary-remarks .remark-basis {
   display: block;
   color: var(--ih-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--text-meta);
   line-height: 1.4;
 }
 /* 편성 화면 명단은 이름을 말줄임하지 않는다. 좁은 폭에서 "바뀜" 꼬리표가 자리를 차지하면 새로 들어온 사람 이름이
