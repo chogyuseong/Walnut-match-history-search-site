@@ -1,6 +1,6 @@
 ---
 name: frontier-coder
-description: Fable 5.2 검토 담당. v2 구조 전체를 검토하거나 대규모 마이그레이션·리팩터링 결과를 검토할 때만 쓴다(또는 사용자가 Fable을 직접 지정할 때). 검토 의견과 고칠 점을 보고하고, 구현은 Opus(메인·hard-worker)가 한다. 일반 지휘·설계·기능 구현·버그 수정에는 쓰지 말 것.
+description: Fable 5.2 지휘·검토 담당. 작업자 여러 명을 쓰는 큰 작업의 계획과 작업 지시서를 세우거나, v2 구조 전체·대규모 마이그레이션 결과를 검토할 때만 쓴다(또는 사용자가 Fable을 직접 지정할 때). 지시서와 검토 의견을 보고하고, 구현은 Opus(hard-worker)가 한다. 일반 기능 구현·버그 수정에는 쓰지 말 것.
 model: claude-fable-5-2
 effort: medium
 ---
