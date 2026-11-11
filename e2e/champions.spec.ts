@@ -94,7 +94,7 @@ test("결과 입력에서 초성으로 챔피언을 골라 저장하고, 경기 
   await expect(sheet.getByText("챔피언도 기록하기(선택) · 2명")).toBeVisible();
 
   const sent = page.waitForRequest((r) => r.url().endsWith("/result") && r.method() === "POST");
-  await sheet.getByRole("button", { name: "저장", exact: true }).click();
+  await sheet.getByRole("button", { name: "결과 저장", exact: true }).click();
   const body = (await sent).postDataJSON();
   expect(Object.values(body.champions).sort()).toEqual(["Ahri", "Aurora"]);
   await expect(sheet.getByText("1경기 저장됨 · 블루팀 승")).toBeVisible();
@@ -132,7 +132,7 @@ test("챔피언 영역을 펼치지 않으면 결과 입력 요청은 예전 그
   await expect(sheet.getByRole("combobox")).toHaveCount(0);
 
   const sent = page.waitForRequest((r) => r.url().endsWith("/result") && r.method() === "POST");
-  await sheet.getByRole("button", { name: "저장", exact: true }).click();
+  await sheet.getByRole("button", { name: "결과 저장", exact: true }).click();
   expect(Object.keys((await sent).postDataJSON()).sort()).toEqual(
     ["baseMatchVersion", "requestId", "winnerSide", "winnerTeam"].sort(),
   );

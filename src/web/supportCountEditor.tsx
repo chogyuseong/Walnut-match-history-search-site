@@ -106,10 +106,11 @@ export function SupportCountEditor(props: {
         })}
       </ul>
       <div className="button-row">
-        {/* 화면의 주 버튼(이 팀으로 시작 등)과 겹치지 않게, 바뀐 값이 있을 때만 primary로 올린다. */}
+        {/* 늘 secondary: 준비 화면에서는 고정 "이 팀으로 시작"이 채운 버튼이라, 값을 고쳤을 때 채우면 둘이 된다.
+            바뀐 사람 수가 버튼 이름에 붙어 저장할 것이 있다는 것은 글자로 보인다. */}
         <button
           type="button"
-          className={changed.length > 0 ? "primary" : "secondary"}
+          className="secondary"
           disabled={busy || changed.length === 0}
           onClick={() => void save()}
         >

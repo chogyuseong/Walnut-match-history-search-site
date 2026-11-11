@@ -44,7 +44,7 @@ async function playOneBlueWin(page: Page, groupId: string, ten: { id: string }[]
   await page.getByRole("button", { name: "결과 입력" }).click();
   const sheet = page.getByRole("dialog", { name: "1경기 결과" });
   await sheet.getByRole("button", { name: /블루팀 승/ }).click();
-  await sheet.getByRole("button", { name: "저장", exact: true }).click();
+  await sheet.getByRole("button", { name: "결과 저장", exact: true }).click();
   await expect(sheet.getByText("1경기 저장됨 · 블루팀 승")).toBeVisible();
 }
 

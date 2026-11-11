@@ -227,7 +227,7 @@ export function ResultSheet(props: {
           disabled={!winner || !side || busy || memoTooLong(memo)}
           onClick={() => void save()}
         >
-          {busy ? "저장 중" : "저장"}
+          {busy ? "저장 중" : "결과 저장"}
         </button>
       </Dialog>
     );
@@ -319,7 +319,7 @@ export function ResultSheet(props: {
         disabled={!winner || !side || busy || memoTooLong(memo)}
         onClick={() => void save()}
       >
-        {busy ? "저장 중" : "저장"}
+        {busy ? "저장 중" : "결과 저장"}
       </button>
     </Dialog>
   );
