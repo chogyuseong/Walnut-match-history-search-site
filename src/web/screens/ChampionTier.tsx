@@ -105,7 +105,7 @@ export function ChampionTier(props: {
   const head = (
     <ScreenHead
       title="챔피언 티어"
-      desc="챔피언을 기록한 확정 경기만 셉니다. 판 수가 적으면 승률을 50% 쪽으로 당겨 티어를 매겨요."
+      desc="우리 모임 경기에서 나온 성적이에요. 챔피언 자체의 성능과는 다를 수 있어요. 챔피언을 기록한 확정 경기만 세고, 판 수가 적으면 승률을 50% 쪽으로 당겨 티어를 매겨요."
       actions={coverage}
     />
   );

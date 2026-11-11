@@ -91,6 +91,10 @@ test("예시 모임: 표가 열리고 승률로 정렬되며, 줄을 펼치면 �
 
   // 초상화를 못 불러와도 이름 글자는 남고 깨진 그림이 없다. 불러오기를 마쳤는데 크기가 0인 그림(깨진 그림)이 남으면 안 된다.
   // 아직 화면 밖이라 요청하지 않은 그림(loading="lazy")은 빈 칸이라 세지 않는다.
+  // 표가 길어 맨 아래 줄은 lazy 거리 밖이라 요청조차 안 될 수 있다(위 설명이 한 줄만 늘어도 그렇게 됐다).
+  // 끝까지 내렸다 올라와 모든 그림이 실제로 실패를 겪게 한 뒤 아래 "표 안 그림 0개"를 본다.
+  await table.locator("tbody tr").last().scrollIntoViewIfNeeded();
+  await table.locator("tbody tr").first().scrollIntoViewIfNeeded();
   await expect
     .poll(() => page.evaluate(() => [...document.querySelectorAll<HTMLImageElement>("img.champ-portrait")].filter((img) => img.complete && img.naturalWidth === 0).length))
     .toBe(0);

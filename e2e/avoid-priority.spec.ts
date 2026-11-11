@@ -94,6 +94,8 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
     await expect(toggle("기피01", pos)).toHaveAttribute("aria-pressed", "true");
     await expect(toggle("기피01", pos)).toBeEnabled();
   }
+  // 네 번째 저장이 끝난 알림을 먼저 본다. 안 기다리면 그 알림이 늦게 와 아래 "4개까지" 알림을 덮어쓴다.
+  await expect(page.locator(".toast")).toContainText("기피01: 탑·정글·미드·원딜 기피");
   // 다섯 번째는 aria-disabled(보조 기술에 "누를 수 없음")지만 누르면 이유를 알린다.
   await expect(toggle("기피01", "서폿")).toHaveAttribute("aria-disabled", "true");
   await toggle("기피01", "서폿").click({ force: true });

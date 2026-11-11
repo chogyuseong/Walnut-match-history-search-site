@@ -32,17 +32,31 @@ const FEATURES: { title: string; text: string }[] = [
 
 /**
  * 첫 화면의 소개(로그인하지 않았고 이 기기에 기억한 모임·조회 링크·편성이 없을 때만, src/web/screens/Today.tsx).
- * 오늘 화면 맨 위에 붙는다. 로그인 없이 팀 짜기는 그 아래에서 그대로 쓸 수 있다.
+ * 오늘 화면 맨 위에 붙는다. 휴대폰(390×844)에서 스크롤 없이 "로그인 없이 팀 짜기"가 보여야 하므로
+ * 버튼을 기능 목록보다 위에 둔다. 버튼 이름은 누르면 일어나는 일을 그대로 적는다.
  */
 export function Intro() {
   const [loginOpen, setLoginOpen] = useState(false);
   return (
     <section className="card intro" aria-label="이 사이트 소개">
-      <h2>내전 기록을 남기고 분석하는 곳</h2>
+      <h2>우리 모임 내전, 팀 짜기부터 전적 관리까지 한곳에서</h2>
       <p>
         리그 오브 레전드의 사용자 설정 게임(내전)은 라이엇 전적에 남지 않아요. 여기서 팀을 짜고 결과를 기록하면
         모임의 전적과 통계가 쌓이고, 이름으로 전적을 검색할 수 있어요.
       </p>
+      <div className="intro-actions">
+        <button type="button" className="primary wide" onClick={() => go("/pick")}>
+          로그인 없이 팀 짜기
+        </button>
+        <div className="button-row">
+          <button type="button" className="secondary" onClick={() => go("/demo")}>
+            예시 모임 둘러보기
+          </button>
+          <button type="button" className="secondary" onClick={() => setLoginOpen(true)}>
+            로그인하고 모임 만들기
+          </button>
+        </div>
+      </div>
       <ul className="intro-features">
         {FEATURES.map((f) => (
           <li key={f.title}>
@@ -51,15 +65,6 @@ export function Intro() {
           </li>
         ))}
       </ul>
-      <div className="button-row">
-        <button type="button" className="primary" onClick={() => setLoginOpen(true)}>
-          시작하기
-        </button>
-        <button type="button" className="secondary" onClick={() => go("/demo")}>
-          예시 모임 둘러보기
-        </button>
-      </div>
-      <p className="hint">팀 짜기와 명단 복사는 아래에서 로그인 없이 바로 해 볼 수 있어요.</p>
       {loginOpen && (
         <LoginDialog
           reason="가입하거나 로그인하면 모임을 만들고 경기 결과를 저장할 수 있어요."

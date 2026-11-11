@@ -114,7 +114,7 @@ export function Ranking(props: {
   }, [ranking, sort, placement, table]);
   // 검색 결과는 일치도 순이라 묶음이 섞이므로 검색하지 않을 때만 묶음 머리글을 둔다.
   const groupHeads = query.trim() === "";
-  const desc = `누적 기준 · 확정 경기만 · 시작 ${ratingOptions.start} · 연승·연패 가중`;
+  const desc = `누적 기준 · 확정 경기만 · 시작 ${ratingOptions.start} · 연승·연패 가중 · ${RANKING_GROUP_LABEL[0]} 먼저`;
   const championLink = props.openChampions && (
     <button type="button" className="link" onClick={props.openChampions}>
       챔피언 티어 →
@@ -258,6 +258,12 @@ export function Ranking(props: {
                       // 순위 줄 개수(listitem)에 섞이지 않도록 머리글은 목록 항목 역할을 갖지 않는다.
                       <li className="rank-group" role="presentation">
                         {RANKING_GROUP_LABEL[group]} · {groupSizes[group]}명
+                        {/* 826점이 16위, 1269점이 17위처럼 점수와 순번이 어긋나 보이는 자리라 까닭을 경계에 적는다. */}
+                        {group === 1 && groupSizes[0] > 0 && (
+                          <span className="rank-group-why">
+                            경기 수가 적어 MMR이 높아도 {RANKING_GROUP_LABEL[0]} 아래에 세워요
+                          </span>
+                        )}
                       </li>
                     )}
                     <li className="mmr-item mmr-enter" style={enterStyle(i)}>

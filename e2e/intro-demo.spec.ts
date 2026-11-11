@@ -18,7 +18,7 @@ const intro = (page: Page) => page.getByRole("region", { name: "이 사이트 �
 test.describe("처음 온 방문자 (390px)", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("소개 → 예시 모임(요약·기록·랭킹·개인 통계·그래프·시즌 요약) → 시작하기는 로그인", async ({ page }) => {
+  test("소개 → 예시 모임(요약·기록·랭킹·개인 통계·그래프·시즌 요약) → 로그인하고 모임 만들기", async ({ page }) => {
     // 첫 화면이 불러오는 스크립트에는 예시 데이터 코드가 없다(예시 모임을 열 때만 불러온다).
     const scripts: string[] = [];
     page.on("response", async (response) => {
@@ -29,6 +29,11 @@ test.describe("처음 온 방문자 (390px)", () => {
     await expect(intro(page)).toBeVisible();
     await expect(intro(page)).toContainText("라이엇 전적에 남지 않아요");
     await expect(intro(page).getByRole("listitem")).toHaveCount(6);
+    // 스크롤하지 않은 첫 화면(390×844)에 로그인 없이 팀 짜기 버튼이 다 보인다. 하단 탭에 가려도 안 된다.
+    const tryNow = intro(page).getByRole("button", { name: "로그인 없이 팀 짜기" });
+    const tryBox = (await tryNow.boundingBox())!;
+    const tabsTop = (await page.getByRole("navigation", { name: "주 메뉴" }).boundingBox())!.y;
+    expect(tryBox.y + tryBox.height).toBeLessThanOrEqual(Math.min(844, tabsTop));
     // 소개 아래의 원래 첫 화면(로그인 없이 팀 짜기)은 그대로다.
     await expect(page.getByText("아직 경기가 없어요.")).toBeVisible();
     await expect(page.getByRole("button", { name: "이름 넣고 팀 짜기" })).toBeVisible();
@@ -82,9 +87,14 @@ test.describe("처음 온 방문자 (390px)", () => {
     await expect(page).toHaveURL(/#\/group$/);
     await expect(page.getByRole("button", { name: "로그인하고 계속" })).toBeVisible();
 
-    // 첫 화면의 "시작하기"는 로그인(가입) 창을 연다. 로그인하면 소개가 사라지고 원래 첫 화면이다.
+    // 소개의 "로그인 없이 팀 짜기"는 참가자 고르기로 간다.
     await page.goto("/#/");
-    await intro(page).getByRole("button", { name: "시작하기" }).click();
+    await intro(page).getByRole("button", { name: "로그인 없이 팀 짜기" }).click();
+    await expect(page).toHaveURL(/#\/pick$/);
+
+    // "로그인하고 모임 만들기"는 로그인(가입) 창을 연다. 로그인하면 소개가 사라지고 원래 첫 화면이다.
+    await page.goto("/#/");
+    await intro(page).getByRole("button", { name: "로그인하고 모임 만들기" }).click();
     const dialog = page.getByRole("dialog", { name: "로그인" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("tab", { name: "회원가입" })).toBeVisible();

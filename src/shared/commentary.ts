@@ -532,10 +532,11 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
     });
   }
 
-  // 총평: 손질할 곳이 있으면 그것을, 없으면 섞기 수치를 짧게(판정 낱말 없이).
+  // 총평: 치우친 곳이 있으면 그것을, 없으면 섞기 수치를 짧게(판정 낱말 없이).
+  // "손질 필요"라고 단정하지 않는다. 편성 판정은 MMR로 낸 예상 승률에서 나온 참고 지표라 실제 체감과 다를 수 있다.
   const fixes = [sideSkew ? "진영" : "", fairReady && verdict === "poor" ? "편성" : ""].filter(Boolean);
   let summary: string;
-  if (fixes.length > 0) summary = `${fixes.join("·")} 손질 필요`;
+  if (fixes.length > 0) summary = `${fixes.join("·")} 치우침 · 살펴볼 만해요`;
   else if (!fairReady) summary = "경기가 더 쌓이면 섞기 판단이 가능해요";
   else {
     const balancedShare = `균형 경기 ${ratePercent(fairness.balanced, fairness.games)}%`;
