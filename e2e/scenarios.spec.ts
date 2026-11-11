@@ -196,9 +196,10 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
   await page.goto("/#/records");
   const search = page.getByRole("region", { name: "소환사 랭킹" }).getByLabel("이름 검색");
   await search.fill("선수0");
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  // 좁은 화면에서는 경기 목록이 랭킹 아래에 있다. 검색 칸을 화면 가운데에 두고, 새 경기가 저장돼 아래 목록에 카드가
+  // 늘어도 보고 있던 자리(입력 칸의 화면 위치)는 그대로여야 한다.
+  await search.evaluate((el: HTMLInputElement) => el.scrollIntoView({ block: "center" }));
   await search.evaluate((el: HTMLInputElement) => el.focus({ preventScroll: true }));
-  // 맨 아래까지 내렸다. 새 경기 카드가 목록 위에 끼어들어도 보고 있던 자리(입력 칸의 화면 위치)는 그대로여야 한다.
   const top0 = await search.evaluate((el) => el.getBoundingClientRect().top);
   await finish(page.request, s, await start(page.request, s, s.people.slice(0, 10)), "A", "red");
   const again = page.waitForResponse((r) => r.url().includes("/snapshot") && r.ok());
@@ -212,7 +213,7 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
   expect(kept.value).toBe("선수0");
   expect(kept.label).toBe("이름 검색");
   const top1 = await search.evaluate((el) => el.getBoundingClientRect().top);
-  // 맨 아래에 붙은 상태라 아래쪽 랭킹 행 높이의 소수점(글자 14px × 줄 간격 1.45) 반올림이 1~2px 섞인다. 눈에 띄지 않는 범위.
+  // 랭킹 행 높이의 소수점 반올림이 1~2px 섞일 수 있다. 눈에 띄지 않는 범위.
   expect(Math.abs(top1 - top0)).toBeLessThanOrEqual(2);
 });
 
