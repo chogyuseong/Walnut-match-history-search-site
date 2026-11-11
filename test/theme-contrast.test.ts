@@ -18,7 +18,7 @@ function tokensOf(selectorPattern: RegExp): Map<string, string> {
   return out;
 }
 
-// 테마 토큰과 라인·이야기 카드 색은 같은 선택자(`:root, [data-theme="dark"]`)의 두 블록에 나뉘어 있다. 둘 다 모인다.
+// 테마 토큰과 라인·이야기 카드 색은 맨 위 `:root, [data-theme="dark"]` 블록에 함께 있다. 같은 선택자 블록이 더 생겨도 모두 모인다.
 const dark = tokensOf(/^:root,\s*\[data-theme="dark"\]$/);
 const light = new Map([...dark, ...tokensOf(/^\[data-theme="light"\]$/)]);
 // 막대 바탕: .viz-root(다크)과 [data-theme="light"] .viz-root.
