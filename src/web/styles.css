@@ -971,13 +971,21 @@ details > *:not(summary) {
   max-width: 62%;
   text-align: right;
 }
+/* 붙은 탭 안의 select(시즌·연도)는 옆 버튼("오늘"·"전체")과 한 줄 탭으로 읽혀야 한다.
+   select 기본값(16px 입력 글자, 왼쪽 정렬)을 그대로 두면 탭 안에서 select 칸만 글자가 크고 왼쪽에 붙는다.
+   그래서 버튼과 같은 14px/500, 가운데 정렬로 맞춘다. 화살표 자리 때문에 글자가 화살표 폭의 절반쯤 왼쪽에 놓이는 것은
+   브라우저 기본 화살표를 그대로 쓰는 대가로 둔다(appearance를 끄면 화살표를 직접 그려야 한다).
+   text-align-last는 text-align만으로는 가운데로 가지 않는 브라우저(예전 Chromium·Safari)를 위한 것이다. */
 .segmented select {
   flex: 1;
+  font-size: var(--text-label);
+  font-weight: 500;
+  text-align: center;
+  text-align-last: center;
 }
 .segmented select.chosen {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
-  font-weight: 500;
 }
 input[type="search"] {
   margin-bottom: var(--space-2);
@@ -7195,17 +7203,18 @@ label:has(> select) {
   align-items: center;
   gap: var(--space-2) var(--space-3);
 }
+/* 라벨 + 고르기 칸(기록의 "사람"·"이긴 진영"). 같은 화면 랭킹 조작 줄의 "라인별"(.rank-line)과 같은 글자로 둔다.
+   선택자를 label 안으로 한정한 까닭: 구간 탭 안의 select(시즌·연도)까지 본문 색이 되면 고르지 않은 칸끼리
+   버튼은 흐리고 select만 진하게 보인다. */
 .filter-bar > label {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2) var(--space-2);
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
-  font-weight: 600;
 }
-.filter-bar select {
+.filter-bar > label > select {
   color: var(--ih-text);
-  font-weight: 500;
 }
 .filter-meta {
   margin-left: auto;
