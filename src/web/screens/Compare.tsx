@@ -34,7 +34,7 @@ import {
   ratingOptionsOf,
 } from "../../shared/rating";
 import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
-import { heatBarClass, nameMap, rateTier, standingsOf } from "../format";
+import { heatClass, nameMap, rateTier, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, FormDots, PosLabel, ScopePicker, ScreenHead, StandingNote } from "../screenKit";
@@ -64,7 +64,7 @@ const PAGE = 20;
 const RECENT_GAMES = 10;
 const RECENT_DUELS = 5;
 
-/** 앞선 쪽 표시: 굵기·옅은 바탕(CSS)에 더해 ▲ 기호와 읽기용 글자. 색만으로 구분하지 않는다. */
+/** 앞선 쪽 표시: 굵기(CSS)에 더해 ▲ 기호와 읽기용 글자. 색만으로 구분하지 않는다. */
 function LeadMark() {
   return (
     <>
@@ -76,10 +76,10 @@ function LeadMark() {
   );
 }
 
-/** 승률 막대(작게). 5경기 미만은 승률 색을 칠하지 않고 회색(그래프·개인 통계와 같은 규칙). */
+/** 승률 막대(작게). 5경기 미만은 승률 색 없이 속 빈 막대(그래프·개인 통계와 같은 규칙). */
 function RateMeter(props: { tally: Tally; className?: string }) {
   const { tally } = props;
-  const heat = heatBarClass(tally.wins, tally.games);
+  const heat = heatClass(tally.wins, tally.games);
   return (
     <span className={`meter meter-sm ${props.className ?? ""}`} aria-hidden="true">
       <span
@@ -240,7 +240,7 @@ export function Compare(props: {
   );
 
   /**
-   * 표 한 줄의 두 칸. 앞선 쪽 칸에 ▲와 옅은 바탕을 둔다(같으면 강조 없음).
+   * 표 한 줄의 두 칸. 앞선 쪽 칸에 ▲와 굵은 글자를 둔다(같으면 강조 없음).
    * 칸 내용이 함수면 ▲를 넘겨 그 안의 알맞은 자리에 두게 하고, 아니면 맨 앞에 둔다.
    */
   type CellContent = ReactNode | ((mark: ReactNode) => ReactNode);

@@ -3,6 +3,7 @@ import css from "../src/web/styles.css?raw";
 
 // 두 테마(dark·light)의 색 토큰이 WCAG 대비 기준을 지키는지 styles.css를 직접 읽어 검사한다.
 // 기준은 저장소 맨 위 CLAUDE.md 5절: 글자 4.5:1, 컨트롤 경계와 승률 막대 3:1. 반투명(rgba) 틴트는 검사하지 않는다.
+// 칭호·MMR 티어·순위는 4단계(2026-11-11)에서 본문·보조 글자 색으로 중립화해 따로 검사할 색이 없다(위 본문 글자 검사에 든다).
 // light는 dark 토큰(:root 블록)을 물려받고 바뀐 값만 덮어쓴다.
 
 /** 선택자 묶음(예: `:root,\n[data-theme="dark"]`)으로 시작하는 블록 안의 `--이름: #hex;` 선언을 모두 모은다. */
@@ -36,7 +37,20 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const HEAT = ["h4", "h3", "h2", "h1", "0", "0h", "0l", "l1", "l2", "l3", "l4"];
+/** 승률 3단(CLAUDE.md 5절)이 가리키는 토큰: 높음 강조색 · 기준 주요 글자 · 낮음 보조 글자. */
+const HEAT_TIERS = { high: "--ih-accent", mid: "--ih-text", low: "--ih-text-secondary" } as const;
+
+/** `.heat-h1, .heat-h2 … { --heat: var(--토큰); }`처럼 선택자 묶음에 heat 클래스가 든 블록의 --heat 값을 클래스별로 모은다. */
+function heatTokenOf(): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const value = /--heat\s*:\s*var\((--[\w-]+)\)/.exec(match[2]!)?.[1];
+    if (!value) continue;
+    for (const cls of match[1]!.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\.(heat-[\w]+)/g)) out.set(cls[1]!, value);
+  }
+  return out;
+}
+const heatTokens = heatTokenOf();
 const THEMES = [
   { name: "dark", t: dark, viz: vizDark },
   { name: "light", t: light, viz: vizLight },
@@ -53,6 +67,18 @@ describe("테마 색 대비", () => {
 
   it("바이올렛 테마는 없다", () => {
     expect(css).not.toMatch(/data-theme="violet"/);
+  });
+
+  it("승률 색은 3단뿐이다: 높음 h1~h4 강조색, 기준 0 주요 글자, 낮음 l1~l4 보조 글자", () => {
+    for (const k of ["h1", "h2", "h3", "h4"]) expect(heatTokens.get(`heat-${k}`)).toBe(HEAT_TIERS.high);
+    expect(heatTokens.get("heat-0")).toBe(HEAT_TIERS.mid);
+    for (const k of ["l1", "l2", "l3", "l4"]) expect(heatTokens.get(`heat-${k}`)).toBe(HEAT_TIERS.low);
+  });
+
+  it("장식 그라데이션·칭호 등급 색·금은동 토큰이 없다", () => {
+    expect(css).not.toMatch(/gradient\(/);
+    expect(css).not.toMatch(/--grade-\d\s*:/);
+    expect(css).not.toMatch(/--ih-accent-(medal-gold|silver|bronze)\s*:/);
   });
 
   for (const { name, t, viz } of THEMES) {
@@ -105,29 +131,23 @@ describe("테마 색 대비", () => {
         }
       });
 
-      it("승률 글자 h1~h4·0·l1~l4 vs 패널 4.5:1", () => {
-        for (const k of ["h4", "h3", "h2", "h1", "0", "l1", "l2", "l3", "l4"]) atLeast(`--heat-text-${k}`, "--ih-panel", 4.5);
+      it("승률 3단 글자 vs 패널·표 칸 바탕(보조 면) 4.5:1, 세 단이 서로 다른 색", () => {
+        for (const token of Object.values(HEAT_TIERS)) for (const bg of ["--ih-panel", "--ih-subtle"]) atLeast(token, bg, 4.5);
+        expect(new Set(Object.values(HEAT_TIERS).map(get)).size).toBe(3);
       });
 
-      it("승률 막대 vs 막대 바탕 3:1, 열 단계가 서로 다른 색", () => {
+      it("승률 막대 세 색·속 빈 막대 테두리 vs 막대 바탕 3:1", () => {
         const track = viz.get("--viz-track")!;
-        for (const k of HEAT) {
-          const bar = get(`--heat-bar-${k}`);
+        for (const token of Object.values(HEAT_TIERS)) {
+          const bar = get(token);
           const ratio = contrast(bar, track);
-          expect(ratio, `${name}: --heat-bar-${k} ${bar} / track ${track} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(3);
+          expect(ratio, `${name}: ${token} ${bar} / track ${track} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(3);
         }
-        // 0과 0l은 같은 파랑(기준 구간)이라 하나로 센다.
-        const bars = HEAT.filter((k) => k !== "0l").map((k) => get(`--heat-bar-${k}`));
-        expect(new Set(bars).size).toBe(bars.length);
       });
 
       it("이야기 카드 라벨 색 vs 카드 바탕·고른 카드 바탕 4.5:1", () => {
         for (const kind of ["streak", "upset", "pair", "attendance"])
           for (const bg of ["--ih-subtle", "--ih-selected"]) atLeast(`--story-${kind}`, bg, 4.5);
-      });
-
-      it("칭호 등급 1~8 vs 패널 4.5:1", () => {
-        for (let g = 1; g <= 8; g++) atLeast(`--grade-${g}`, "--ih-panel", 4.5);
       });
     });
   }

@@ -214,7 +214,6 @@ export function Ranking(props: {
         <div className="stat-cards mmr-cards">
           {leaderRow && leaderRating ? (
             <StatCard
-              tone="lead"
               className="mmr-lead-card"
               title={
                 <>
@@ -342,7 +341,7 @@ export function Ranking(props: {
                             <Meter value={row.games / placementGames} tone="share" small />
                           </span>
                         ) : (
-                          <span className="c-bar">{rating && scale && <StartBar rating={rating.rating} scale={scale} top={row.rank === 1} />}</span>
+                          <span className="c-bar">{rating && scale && <StartBar rating={rating.rating} scale={scale} />}</span>
                         )}
                         {/* MMR·티어·변동: 넓은 화면에서는 칸 셋, 좁은 화면에서는 한 덩어리(display: contents ↔ flex). */}
                         <span className="mmr-score">
@@ -403,7 +402,7 @@ export function Ranking(props: {
   );
 }
 
-/** 최근 10경기 변화: 오르면 초록 글자 "▲ 28", 내리면 빨강 글자 "▼ 7", 그대로면 회색 "–"(바탕 없음). 화살표로도 구분한다. */
+/** 최근 10경기 변화: 오르면 본문 글자 "▲ 28", 내리면 보조 글자 "▼ 7", 그대로면 "–"(바탕 없음). 오르내림은 화살표가 전한다. */
 function DeltaChip(props: { delta: number }) {
   const value = Math.round(props.delta);
   const shown = value > 0 ? `▲ ${value}` : value < 0 ? `▼ ${-value}` : "–";
@@ -432,7 +431,7 @@ function ScaleAxis(props: { scale: MmrScale }) {
 }
 
 /** 시작값 기준 막대. 위치·길이는 CSS 변수(--at 기준선, --left·--width 막대, 모두 0~1)로 넘긴다. */
-function StartBar(props: { rating: number; scale: MmrScale; top: boolean }) {
+function StartBar(props: { rating: number; scale: MmrScale }) {
   const { scale } = props;
   const bar = divergingBar(props.rating, scale);
   const diff = shownRating(props.rating) - shownRating(scale.start);
@@ -441,8 +440,7 @@ function StartBar(props: { rating: number; scale: MmrScale; top: boolean }) {
     "--left": bar.left,
     "--width": bar.width,
   } as CSSProperties;
-  // 1위 줄만 포인트 색 막대(순위 숫자 색과 같은 규칙). 내려간 막대는 1위여도 패배 색이다.
-  const tone = !bar.up ? "down" : props.top ? "up top" : "up";
+  const tone = bar.up ? "up" : "down";
   return (
     <span className="mmr-start-bar">
       <span className="sr-only">

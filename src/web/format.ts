@@ -200,9 +200,10 @@ export const RATE_HEAT_MIN_GAMES = SMALL_SAMPLE;
 
 /**
  * 승률 색 단계의 경계(%). 45~55%는 기준 구간(기본 색)이다.
- * - 높은 쪽: 55 초과 → 1단계, 60 이상 → 2, 65 이상 → 3, 70 이상 → 4(가장 붉다).
- * - 낮은 쪽: 45 미만 → -1단계, 40 이하 → -2, 35 이하 → -3, 30 이하 → -4(가장 가라앉는다).
- * 경계값 자체(정확히 45%·55%)는 기준 구간에 든다.
+ * - 높은 쪽: 55 초과 → 1단계, 60 이상 → 2, 65 이상 → 3, 70 이상 → 4.
+ * - 낮은 쪽: 45 미만 → -1단계, 40 이하 → -2, 35 이하 → -3, 30 이하 → -4.
+ * 경계값 자체(정확히 45%·55%)는 기준 구간에 든다. 화면 색은 세 단뿐이라(styles.css .heat-*: 높음 강조색 · 기준 주요 글자 ·
+ * 낮음 보조 글자) 1~4단계는 같은 색이다. 단계 수를 남긴 것은 시험·정렬 없는 비교(rate-colors e2e)가 단계 이름을 쓰기 때문이다.
  */
 export const RATE_HEAT_HOT = [55, 60, 65, 70] as const;
 export const RATE_HEAT_COLD = [45, 40, 35, 30] as const;
@@ -241,18 +242,6 @@ export function heatClass(wins: number, games: number): string {
   const heat = rateHeat(wins, games);
   if (heat === null) return "";
   return heat > 0 ? `heat-h${heat}` : heat < 0 ? `heat-l${-heat}` : "heat-0";
-}
-
-/**
- * 막대·표 칸처럼 색을 채우는 곳의 클래스. heatClass에 더해 기준 구간(45~55%)을 둘로 가른다:
- * 50% 이상은 mid-hi, 50% 미만은 mid-lo(2026-11-08: 사람이 가장 많이 몰리는 구간이라 5% 단위로 색을 나눠 달라는 요청).
- * 글자(rateTier)는 가르지 않는다(기준 구간은 기본 글자 색). 단계 경계·테스트는 heatClass 그대로다.
- */
-export function heatBarClass(wins: number, games: number): string {
-  const base = heatClass(wins, games);
-  if (base !== "heat-0") return base;
-  // 보이는 정수 승률로 가른다("50%"로 보이면 49.6%여도 mid-hi).
-  return ratePercent(wins, games) >= 50 ? "heat-0 mid-hi" : "heat-0 mid-lo";
 }
 
 /**

@@ -2,7 +2,8 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-// 승률 색 단계(45~55% 중립, 높을수록 붉게, 낮을수록 가라앉게)와 칭호 색·엠블럼을 확인한다.
+// 승률 색(3단: 높음 강조색 · 45~55% 주요 글자 · 낮음 보조 글자, 단계 클래스 이름은 heat-h1~h4·0·l1~l4 그대로)과
+// 칭호 등급 클래스·엠블럼을 확인한다. 칭호는 색이 아니라 엠블럼 모양과 이름으로 구분한다(CLAUDE.md 5절).
 // 승률이 20%대~80%대로 고르게 퍼진 모임을 API로 만든다.
 // SHOTS_DIR 환경 변수를 주면 두 테마 × 390·1440px 스크린샷(개인 통계·분석·랭킹·검색·칭호 설정)을 그 폴더에 남긴다.
 
@@ -151,7 +152,7 @@ async function colorOf(page: Page, selector: string, prop: "stroke" | "color") {
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·비중 막대는 그대로다, 칭호는 등급 색·엠블럼", async ({
+test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·비중 막대는 그대로다, 칭호는 등급 클래스·엠블럼", async ({
   page,
 }) => {
   test.setTimeout(400000);
@@ -180,12 +181,12 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   const bg = (el: Element) => getComputedStyle(el).backgroundColor;
   expect(await sides.locator(".meter-fill.tone-blue").evaluate(bg)).toBe("rgb(79, 141, 221)");
   expect(await sides.locator(".meter-fill.tone-red").evaluate(bg)).toBe("rgb(217, 83, 79)");
-  // 승·패 막대도 그대로: 승은 승리 색 #4f8ddd, 패는 패배 색 #d9534f 빗금.
+  // 승·패 막대도 그대로: 승은 승리 색 #4f8ddd 채움, 패는 패배 색 #d9534f 테두리만(속 빈 막대, 빗금 무늬 대신).
   const recent = page.getByRole("region", { name: "최근" });
   expect(await recent.locator(".wl-win").first().evaluate(bg)).toBe("rgb(79, 141, 221)");
-  expect(
-    await recent.locator(".wl-loss").first().evaluate((el) => getComputedStyle(el).backgroundImage),
-  ).toContain("rgb(217, 83, 79)");
+  const lossBar = recent.locator(".wl-loss").first();
+  expect(await lossBar.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgb(217, 83, 79)");
+  expect(await lossBar.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
   // 비중 막대는 중립 색이고 승률 단계를 따르지 않는다.
   const lines = page.getByRole("region", { name: "라인별" });
   await expect(lines.locator(".meter-fill.tone-share")).toHaveCount(5);
@@ -213,7 +214,8 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   expect(await lossDot.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(234, 132, 127)");
   expect(await lossDot.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgba(217, 83, 79, 0.35)");
 
-  // 랭킹: 승률 숫자 글자가 여러 단계로 나뉘고, 높은 줄과 낮은 줄의 글자 색이 다르다. 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
+  // 랭킹: 승률 숫자 글자가 여러 단계 클래스로 나뉘고, 높은 줄(강조색)과 낮은 줄(보조 글자)의 글자 색이 다르다(3단).
+  // 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
   const ranking = page.getByRole("region", { name: "소환사 랭킹" });
