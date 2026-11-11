@@ -2170,6 +2170,15 @@ table {
   flex: 1 1 auto;
   min-width: 0;
 }
+/* 칸 번호(1~5): 이름 칸이 비어도 몇 번째 사람인지 보이는 꼬리표(placeholder를 라벨로 쓰지 않는다). */
+.backfill-no {
+  flex: none;
+  min-width: 1.5em;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .backfill-slot select {
   flex: none;
   width: 8.5em; /* 가장 긴 선택지 "포지션 없음"이 잘리지 않는 폭 */

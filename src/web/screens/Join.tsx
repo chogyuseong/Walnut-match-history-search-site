@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { MAX_NAME_LENGTH, nameKey } from "../../shared/names";
 import { matchesName } from "../../shared/search";
 import { ApiFailure, call } from "../api";
@@ -35,6 +35,7 @@ export function Join(props: { token: string; rest: string[] }) {
   const rosterJump = useSearchJump<HTMLUListElement>();
   const [newName, setNewName] = useState("");
   const [done, setDone] = useState<string | null>(null);
+  const newNameId = useId();
 
   const load = useCallback(async () => {
     try {
@@ -248,6 +249,7 @@ export function Join(props: { token: string; rest: string[] }) {
 
           <section aria-label="새 이름으로 신청">
             <h2>명단에 없으면</h2>
+            <label htmlFor={newNameId}>새 이름</label>
             <form
               className="input-row"
               onSubmit={(event) => {
@@ -259,8 +261,7 @@ export function Join(props: { token: string; rest: string[] }) {
               }}
             >
               <input
-                aria-label="새 이름"
-                placeholder="새 이름"
+                id={newNameId}
                 maxLength={MAX_NAME_LENGTH}
                 autoComplete="off"
                 value={newName}

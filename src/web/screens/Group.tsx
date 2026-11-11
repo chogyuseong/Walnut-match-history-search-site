@@ -198,16 +198,17 @@ export function Group() {
         <section aria-label="참가자">
           <h2>참가자 {people.length}명</h2>
           {people.length > PEOPLE_PREVIEW && (
-            <input
-              type="search"
-              aria-label="참가자 이름으로 찾기"
-              placeholder="이름으로 찾기"
-              autoComplete="off"
-              enterKeyHint="search"
-              value={peopleQuery}
-              onChange={(e) => setPeopleQuery(e.target.value)}
-              onKeyDown={peopleJump.onSearchKey}
-            />
+            <label>
+              참가자 이름으로 찾기
+              <input
+                type="search"
+                autoComplete="off"
+                enterKeyHint="search"
+                value={peopleQuery}
+                onChange={(e) => setPeopleQuery(e.target.value)}
+                onKeyDown={peopleJump.onSearchKey}
+              />
+            </label>
           )}
           <ul ref={peopleJump.results} tabIndex={-1} className="list list-card search-results">
             {listedPeople.map((p) =>

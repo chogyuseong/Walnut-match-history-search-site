@@ -27,35 +27,39 @@ export function GroupSwitcher() {
     void app.switchGroup(id).then(() => app.setNotice(`'${label}' 모임으로 바꿨어요.`));
   }
 
+  // 이름 칸의 보이는 라벨(placeholder는 비웠을 때의 기본값 안내만 한다). 모임 탭에 GroupSwitcher는 하나라 고정 id를 쓴다.
   const createForm = (
-    <form
-      className="input-row"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setBusy(true);
-        setError(null);
-        void app
-          .createGroup(name.trim() === "" ? undefined : name.trim())
-          .then(() => {
-            setName("");
-            app.setNotice("새 모임을 만들고 그 모임으로 바꿨어요.");
-          })
-          .catch(setError)
-          .finally(() => setBusy(false));
-      }}
-    >
-      <input
-        aria-label="새 모임 이름"
-        placeholder="새 모임 이름(비우면 '내 내전 모임')"
-        maxLength={20}
-        value={name}
-        disabled={full}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <button type="submit" className="secondary" disabled={busy || full}>
-        새 모임 만들기
-      </button>
-    </form>
+    <>
+      <label htmlFor="new-group-name">새 모임 이름</label>
+      <form
+        className="input-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setBusy(true);
+          setError(null);
+          void app
+            .createGroup(name.trim() === "" ? undefined : name.trim())
+            .then(() => {
+              setName("");
+              app.setNotice("새 모임을 만들고 그 모임으로 바꿨어요.");
+            })
+            .catch(setError)
+            .finally(() => setBusy(false));
+        }}
+      >
+        <input
+          id="new-group-name"
+          placeholder="비우면 '내 내전 모임'"
+          maxLength={20}
+          value={name}
+          disabled={full}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <button type="submit" className="secondary" disabled={busy || full}>
+          새 모임 만들기
+        </button>
+      </form>
+    </>
   );
   const limitHint = (
     <p className="hint">
