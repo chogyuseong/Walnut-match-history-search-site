@@ -1733,7 +1733,10 @@ button.row.picked:hover {
    2단계(2026-11-09): 색상은 그대로 두고 채도를 15% 낮췄다. 카드·바탕 대비 글자 4.5:1 이상(라이트는 그래서 더 진해졌다,
    test/theme-contrast.test.ts가 검사).
    신호 색(--sig-*): 섞기 공정성 분포 띠·판정, 분석 코멘트 점처럼 "좋음(초록)·조금(노랑)·나쁨(주황)" 뜻을 가진 칠.
-   칠 위 글자는 --on-sig. 팀 추천 창 티어 이름표(--cand-t1~5)는 테마와 무관하게 같은 다섯 단계다. */
+   칠 위 글자는 --on-sig. 팀 추천 창 티어 이름표(--cand-t1~5)는 테마와 무관하게 같은 다섯 단계다.
+   이야기 카드 색(--story-*): 그래프 분석 맨 위 카드 넷의 라벨 색(연두·분홍·청록·연보라). CLAUDE.md 5절의 명시 예외다.
+   파랑(블루 진영)·빨강(레드·패)·골드(강조·고른 카드)와 겹치는 색상은 피했다. 값을 바꿀 때는 카드 바탕(--ih-subtle)과
+   고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts). */
 :root,
 [data-theme="dark"] {
   --pos-top: #e58a65;
@@ -1753,8 +1756,16 @@ button.row.picked:hover {
   --on-cand-light: #1b1a17;
   --on-cand-dark: #ffffff;
   --on-cand-deep: #d8dce8;
+  --story-streak: #b4d66b;
+  --story-upset: #f29dbb;
+  --story-pair: #4fcfc4;
+  --story-attendance: #bdb5f5;
 }
 [data-theme="light"] {
+  --story-streak: #55701a;
+  --story-upset: #a83a62;
+  --story-pair: #0f6b66;
+  --story-attendance: #5446b8;
   --pos-top: #b25228;
   --pos-jungle: #237d4c;
   --pos-mid: #8a6a13;
@@ -6309,8 +6320,32 @@ label:has(> select) {
 .story-card:hover {
   border-color: var(--ih-control-border);
 }
+/* 카드 종류별 라벨 색. --story가 없는 종류(MMR 최고 상승)는 보조 글자색 그대로이고 점도 없다. */
 .story-card .tile-label {
-  color: var(--ih-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--story, var(--ih-text-secondary));
+}
+.story-card[class*="kind-"] .tile-label::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--story, transparent);
+}
+.story-card.kind-streak {
+  --story: var(--story-streak);
+}
+.story-card.kind-upset {
+  --story: var(--story-upset);
+}
+.story-card.kind-pair {
+  --story: var(--story-pair);
+}
+.story-card.kind-attendance {
+  --story: var(--story-attendance);
 }
 .story-card strong {
   font-size: 0.9375rem;

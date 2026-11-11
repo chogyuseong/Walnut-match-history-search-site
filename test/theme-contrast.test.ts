@@ -121,6 +121,11 @@ describe("테마 색 대비", () => {
         expect(new Set(bars).size).toBe(bars.length);
       });
 
+      it("이야기 카드 라벨 색 vs 카드 바탕·고른 카드 바탕 4.5:1", () => {
+        for (const kind of ["streak", "upset", "pair", "attendance"])
+          for (const bg of ["--ih-subtle", "--ih-selected"]) atLeast(`--story-${kind}`, bg, 4.5);
+      });
+
       it("칭호 등급 1~8 vs 패널 4.5:1", () => {
         for (let g = 1; g <= 8; g++) atLeast(`--grade-${g}`, "--ih-panel", 4.5);
       });
