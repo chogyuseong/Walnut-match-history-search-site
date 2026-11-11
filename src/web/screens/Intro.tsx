@@ -36,7 +36,8 @@ const FEATURES: { icon: LineIconName; title: string; text: string }[] = [
     text: "링크를 보내면 참가자가 로그인 없이 이름을 올리고, 기록과 지금 경기의 자기 자리를 봐요.",
   },
   {
-    icon: "today",
+    // 달력(today)은 하단 메뉴 "오늘"의 아이콘이라 겹치지 않게 요약 아이콘을 쓴다.
+    icon: "summary",
     title: "시즌 요약",
     text: "시즌이나 한 해를 골라 요약과 시상을 보고 이미지로 나눌 수 있어요.",
   },

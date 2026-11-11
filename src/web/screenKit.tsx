@@ -807,8 +807,11 @@ export function SortHead<K extends string>(props: {
               aria-pressed={active}
               onClick={() => props.onSort(cell.sort!)}
             >
-              {cell.label}
-              <SortArrow active={active} dir={props.sort.dir} />
+              {/* 선택 밑줄은 이 글자 묶음에만 긋는다. 버튼은 44px 누르는 폭이라 버튼에 그으면 글자보다 넓다. */}
+              <span className="dt-sort-text">
+                {cell.label}
+                <SortArrow active={active} dir={props.sort.dir} />
+              </span>
             </button>
           </span>
         );

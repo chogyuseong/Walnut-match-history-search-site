@@ -102,6 +102,9 @@
   /* 양식·읽기 화면의 글줄 폭. 좌우 여백은 이 값 바깥에 더한다(.screen 폭 규칙). */
   --reading-max: 720px;
   --page-gutter: var(--space-4);
+  /* 창 폭 전체로 그은 줄(예시 안내 띠·조회 메뉴 줄) 안 글자의 좌우 여백. 창이 본문 폭보다 넓으면 남는 폭의 반을 더해
+     글자가 본문 칸의 왼쪽 정렬선(--page-gutter)에 놓인다. 100%는 줄 자신의 폭(창 폭)이다. */
+  --bleed-inline: max(var(--page-gutter), calc((100% - var(--content-max)) / 2 + var(--page-gutter)));
   /* 상단 바 높이. 768px 이상에서는 위에 붙어 따라오므로 따라오는 머리·판의 top과 앵커 이동 여백이 이 값에서 출발한다. */
   --topbar-height: 64px;
   /* 768px 미만의 하단 고정 메뉴 높이. 기기 아래 안전 영역은 따로 더한다. */
@@ -192,6 +195,15 @@ main {
   margin: 0 auto;
   /* 하단 메뉴와 기기 하단 안전 영역만큼 띄운다. */
   padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + var(--space-4));
+}
+/* 예시 모임·조회 링크: 맨 위 안내 띠와 메뉴 줄(main 안에 있다)의 바탕·선이 상단 바처럼 창 폭 전체로 그어지게
+   main의 폭 제한을 풀고, 그 아래 본문과 푸터는 .bleed-body가 본문 폭으로 묶는다(App.tsx·Demo·Viewer). */
+main.bleed {
+  max-width: none;
+}
+.bleed-body {
+  max-width: var(--content-max);
+  margin: 0 auto;
 }
 
 /* 화면 본문. 좌우 여백이 곧 페이지 안전 여백(--page-gutter)이라 main에는 좌우 여백이 없다. */
@@ -1937,14 +1949,15 @@ table {
   background: var(--ih-selected);
   color: var(--ih-accent);
 }
-/* 조회·예시 메뉴 줄: 모임 이름 + 화면 칸. 좁은 화면에서는 화면 칸 묶음(> span)만 아래 메뉴로 내려가고 이름은 위에 남는다. */
+/* 조회·예시 메뉴 줄: 모임 이름 + 화면 칸. 좁은 화면에서는 화면 칸 묶음(> span)만 아래 메뉴로 내려가고 이름은 위에 남는다.
+   줄은 창 폭 전체(main.bleed)이고, 좌우 여백 --bleed-inline이 글자를 본문(1200px 칸 + 여백)의 정렬선에 맞춘다. */
 .viewer-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   min-height: var(--control-height);
-  padding: var(--space-1) var(--page-gutter);
+  padding: var(--space-1) var(--bleed-inline);
   border-bottom: 1px solid var(--ih-line);
   background: var(--ih-panel);
 }
@@ -2326,6 +2339,28 @@ table {
 
 /* ---------- C: 경기 카드·대시보드·랭킹·비교·이미지 ---------- */
 /* 새 색을 만들지 않고 키트 토큰만 쓴다. 승·패는 색과 함께 글자(승/패)로 적는다. */
+/* 본문으로 건너뛰기(App.tsx TopBar 앞): 평소에는 화면 읽기 전용처럼 숨고, 키보드 초점을 받으면 상단 바 왼쪽 위에 보인다. */
+.skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link:focus {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--page-gutter);
+  z-index: 10;
+  background: var(--ih-panel);
+}
+/* 건너뛰기로 초점을 받은 main 전체에 테두리를 그리지 않는다(초점 목적지일 뿐 누르는 것이 아니다). */
+main:focus {
+  outline: none;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -2437,10 +2472,11 @@ table {
   pointer-events: none;
   min-width: 0;
 }
+/* 첫 칸(진영·승패 "레드 패")은 두 낱말이 한 줄에 들어가는 고정 폭. 라인 머리 줄(.mc-roles)과 같은 폭이어야 칸이 맞는다. */
 .mc-roles,
 .mc-team {
   display: grid;
-  grid-template-columns: 2.25rem repeat(5, minmax(0, 1fr));
+  grid-template-columns: 3rem repeat(5, minmax(0, 1fr));
   gap: var(--space-1);
   align-items: center;
   min-width: 0;
@@ -2465,8 +2501,10 @@ table {
 }
 .mc-team-label {
   display: flex;
-  flex-direction: column;
-  line-height: 1.15;
+  align-items: baseline;
+  gap: var(--space-1);
+  white-space: nowrap;
+  line-height: 1.5;
   font-size: var(--text-label);
   font-weight: 500;
   color: var(--ih-text-secondary);
@@ -2510,11 +2548,6 @@ table {
   text-decoration: underline;
 }
 @media (max-width: 419px) {
-  .mc-roles,
-  .mc-team {
-    /* 진영 칸은 "블루"·"레드"(14px 두 글자)가 한 줄로 들어가는 최소 폭. 1.6rem에서는 칸 밖으로 비어져 나왔다. */
-    grid-template-columns: 2rem repeat(5, minmax(0, 1fr));
-  }
   .match-card {
     padding: 0 var(--space-1) var(--space-2) var(--space-2);
   }
@@ -2549,10 +2582,6 @@ table {
   .mc-name,
   .mc-name:not(:disabled):hover {
     font-size: var(--text-label);
-  }
-  .mc-roles,
-  .mc-team {
-    grid-template-columns: 2.5rem repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -5021,7 +5050,7 @@ table {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--bleed-inline);
   background: var(--ih-warn-bg);
   border-bottom: 1px solid var(--ih-line);
 }
@@ -7049,12 +7078,10 @@ input[type="search"].filter-search {
 .dt-sort:not(:disabled):hover {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
   min-height: var(--control-height);
   min-width: var(--control-height);
   padding: var(--space-1) 0;
   border: 0;
-  border-bottom: 1px solid transparent;
   border-radius: 0;
   background: none;
   color: inherit;
@@ -7067,8 +7094,17 @@ input[type="search"].filter-search {
 .dt-sort:not(:disabled):hover {
   color: var(--ih-text);
 }
+/* 글자·화살표 묶음. 지금 정렬 열은 이 묶음 아래에만 강조색 밑줄(글자 폭만큼). */
+.dt-sort-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-bottom: 1px solid transparent;
+}
 .dt-sort.is-active {
   color: var(--ih-text);
+}
+.dt-sort.is-active .dt-sort-text {
   border-bottom-color: var(--ih-accent);
 }
 .dt-arrow {
@@ -7113,6 +7149,10 @@ input[type="search"].filter-search {
   .dt-head .dt-sort.is-active {
     border-color: var(--ih-accent);
     background: var(--ih-selected);
+  }
+  /* 칩 모양에서는 테두리·바탕이 선택을 보이므로 글자 밑줄은 긋지 않는다. */
+  .dt-head .dt-sort.is-active .dt-sort-text {
+    border-bottom-color: transparent;
   }
 }
 

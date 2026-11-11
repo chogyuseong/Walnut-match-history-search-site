@@ -56,8 +56,10 @@ export function DataTable<T>(props: {
               >
                 {col.sortable && props.onSort ? (
                   <button type="button" className={active ? "dt-sort is-active" : "dt-sort"} onClick={() => props.onSort!(col.key)}>
-                    {col.label}
-                    <SortArrow active={active} dir={sort?.dir ?? "desc"} />
+                    <span className="dt-sort-text">
+                      {col.label}
+                      <SortArrow active={active} dir={sort?.dir ?? "desc"} />
+                    </span>
                   </button>
                 ) : (
                   col.label
