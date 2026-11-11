@@ -514,6 +514,10 @@ function run(seed: number, check: boolean, withAvoid = false): { final: Draft; s
   return { final: d, steps: length };
 }
 
+// 시드 1500개 점검은 혼자 돌면 30초 안팎이라 기본 한도(vitest.config.ts 30초)에 너무 가깝다. 전체 테스트를 병렬로 돌리면
+// 33초쯤 걸려 가끔 시간 초과로 실패했다. 검사 양은 줄이지 않고 이 테스트에만 넉넉한 한도를 준다.
+const BULK_FUZZ_TIMEOUT_MS = 120_000;
+
 describe("팀 섞기 대량 무작위 점검", () => {
   it("시드 1500개 × 조작 20~40번: 매 단계 불변식, 같은 시드·같은 조작이면 같은 결과", () => {
     let steps = 0;
@@ -523,7 +527,7 @@ describe("팀 섞기 대량 무작위 점검", () => {
       if (seed % 10 === 0) expect(run(seed, false).final).toEqual(first.final);
     }
     expect(steps).toBeGreaterThan(40000);
-  });
+  }, BULK_FUZZ_TIMEOUT_MS);
 
   it("기피 라인 맵을 넣은 시드 800개: 같은 불변식 + 섞기마다 팀별 기피 어김이 최소, 결정적", () => {
     let steps = 0;

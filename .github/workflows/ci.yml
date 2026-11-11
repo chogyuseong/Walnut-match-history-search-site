@@ -1,5 +1,5 @@
 # 검사 자동화. 배포는 하지 않는다(배포 절차는 docs/배포안내.md, 사람이 직접 한다).
-# - check: 타입 검사 → 코드 검사 → 단위·통합 테스트 → 화면 빌드 → 번들 크기 검사
+# - check: 타입 검사 → 코드 검사 → 디자인 규칙 검사 → 단위·통합 테스트 → 화면 빌드 → 번들 크기 검사
 # - e2e:   로컬 D1 + wrangler dev를 띄워 브라우저 흐름 테스트(Chromium만)
 # 액션 버전(2026-11-08 각 저장소 action.yml에서 확인, 모두 runs.using: node24):
 #   checkout v7 · setup-node v7 · cache v6 · upload-artifact v7
@@ -31,6 +31,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      # styles.css의 디자인 규칙(CLAUDE.md) 밖 값. 하나라도 있으면 실패(배포 전 점검도 같은 검사를 부른다).
+      - run: npm run audit:design
       # 이 저장소의 테스트는 Workers 실행 환경(@cloudflare/vitest-plugin)을 띄워 기본 5초 제한을 넘길 수 있다.
       - run: npx vitest run --testTimeout=30000
       - run: npm run build
