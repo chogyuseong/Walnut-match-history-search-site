@@ -33,7 +33,7 @@ describe("테마 저장값 읽기(naejeon.theme)", () => {
     expect(storage.items.get("naejeon.theme")).toBe("light");
   });
 
-  it("저장값이 없으면 다크로 열고 새로 적지 않는다(첫 방문 판정이 기기 저장값을 본다)", () => {
+  it("저장값이 없으면 다크로 열고 새로 적지 않는다", () => {
     const storage = fakeStorage({});
     vi.stubGlobal("localStorage", storage);
     expect(readTheme()).toBe("dark");
