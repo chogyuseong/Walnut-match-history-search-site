@@ -164,6 +164,28 @@ describe("경기 삭제", () => {
     expect(memo.status).toBe(404);
   });
 
+  it("결과 미입력 경기를 지운 사이 상한(10개)이 다 차면 되살리기를 거절하고, 하나를 확정하면 되살린다", async () => {
+    const g = await setupGroup(12);
+    const roster = rosterOf(g.people);
+    const endLater = async () => {
+      const started = await start(g, roster, { ackRepeat: roster.map((r) => r.participantId) });
+      return (await matchAction(g, started.body.match, "end-later")).body.match as MatchView;
+    };
+    const old = await endLater();
+    expect((await remove(g, old)).status).toBe(200);
+    const fresh: MatchView[] = [];
+    for (let i = 0; i < 10; i++) fresh.push(await endLater());
+
+    const blocked = await undelete(g, old.id);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error.code).toBe("TOO_MANY_AWAITING");
+    expect((await snapshot(g)).matches.filter((m) => m.state === "awaiting_result")).toHaveLength(10);
+
+    expect((await matchAction(g, fresh[0]!, "result", { winnerTeam: "A", winnerSide: "blue" })).status).toBe(200);
+    expect((await undelete(g, old.id)).status).toBe(200);
+    expect((await snapshot(g)).matches.filter((m) => m.state === "awaiting_result")).toHaveLength(10);
+  });
+
   it("조회자·참가자 본인·로그인 안 한 요청은 거절하고, 공동 운영자는 지우고 되살릴 수 있다", async () => {
     const { g, second } = await twoGames();
     expect((await remove(g, second, "")).status).toBe(401);

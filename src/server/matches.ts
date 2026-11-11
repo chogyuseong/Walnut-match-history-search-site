@@ -1113,6 +1113,22 @@ export async function undeleteMatch(
         });
       }
       const guards: D1PreparedStatement[] = [];
+      // 결과 미입력 경기를 지운 사이 새 경기가 쌓였으면, 되살리는 순간 상한(MAX_AWAITING)을 넘을 수 있다.
+      // 경기 시작과 같은 상한을 여기서도 지킨다. 저장 batch 안의 awaitingLimitGuard가 동시에 들어온 시작까지 막는다.
+      if (match.state === "awaiting_result") {
+        const awaiting = await env.DB.prepare(
+          "SELECT COUNT(*) AS n FROM matches WHERE group_id = ?1 AND state = 'awaiting_result' AND deleted_at IS NULL",
+        )
+          .bind(groupId)
+          .first<{ n: number }>();
+        if ((awaiting?.n ?? 0) + 1 > MAX_AWAITING) {
+          throw new ApiError(
+            409,
+            "TOO_MANY_AWAITING",
+            `결과를 입력하지 않은 경기가 이미 ${awaiting?.n ?? 0}개라 되살리면 ${MAX_AWAITING}개를 넘어요. 다른 경기의 결과를 먼저 입력한 뒤 되살리세요.`,
+          );
+        }
+      }
       if ((match.source === "import" || match.source === "backfill") && match.state !== "excluded") {
         const stamp = await fingerprintScopeStamp(env, groupId);
         const overlaps = await fingerprintOverlaps(env, groupId, [matchId]);
@@ -1137,12 +1153,24 @@ export async function undeleteMatch(
           env.DB.prepare(
             "UPDATE matches SET deleted_at = NULL, version = version + 1 WHERE id = ?1 AND group_id = ?2",
           ).bind(matchId, groupId),
+          // 되살린 뒤의 개수로 센다. 그래서 UPDATE 다음에 둔다.
+          ...(match.state === "awaiting_result" ? [awaitingLimitGuard(env, groupId)] : []),
           deletionRevision(env, groupId, matchId, false, by, now),
         ],
       };
     },
   });
   return loadMatch(env, groupId, matchId);
+}
+
+/** 지우지 않은 결과 미입력 경기가 MAX_AWAITING개를 넘으면 batch 전체를 실패시킨다(되살리기 경합용). */
+function awaitingLimitGuard(env: Env, groupId: string): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT INTO guard (version_conflict)
+     SELECT 1 WHERE (
+       SELECT COUNT(*) FROM matches WHERE group_id = ?1 AND state = 'awaiting_result' AND deleted_at IS NULL
+     ) > ?2`,
+  ).bind(groupId, MAX_AWAITING);
 }
 
 /* ------------------------------------------------------------------ */

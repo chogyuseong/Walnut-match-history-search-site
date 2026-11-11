@@ -5,7 +5,8 @@ import { fractionPercent, personRecordsByLine, type Tally } from "./stats";
 import { POSITIONS, TEAMS, type MatchView, type Position, type Team } from "./types";
 
 /**
- * 준비 화면 예상 승률 판(2026-11-09 추가). 작성 중인 편성(Draft)으로 블루(팀 A)·레드(팀 B)의 예상 승률과 그 이유(라인별 MMR 우위)를 구한다.
+ * 준비 화면 예상 승률 판(2026-11-09 추가). 작성 중인 편성(Draft)으로 블루(팀 A)·레드(팀 B)의 예상 승률과 그 이유(라인마다 두 사람의 전체 MMR 우위)를 구한다.
+ * 라인별 MMR은 따로 없다: 미드만 하던 사람이 처음 서폿을 가도 같은 MMR로 견준다. 화면 도움말도 그렇게 설명한다.
  * 쓰는 곳: src/web/screens/prep/ForecastSection.tsx. 저장하지 않고 스냅숏의 경기로 매번 계산한다(서버·DB 무관).
  * 식은 경기 전 예상(upset.ts matchExpectations)과 같다: 팀 MMR = 팀원 지금 MMR 평균, 경기 없는 사람은 시작값(모임 설정),
  * 예상 = expectedScore(Elo). 신뢰 여부도 같은 규칙(열 명 중 배치를 마친 사람이 한 명이라도 있으면 신뢰).

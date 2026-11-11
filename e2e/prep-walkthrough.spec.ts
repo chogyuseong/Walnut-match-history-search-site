@@ -261,7 +261,7 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 예상 승률 판(
   await expect(forecast.getByRole("heading", { name: "예상 승률" })).toBeVisible();
   await expect(forecast.getByRole("img", { name: "블루팀 50% : 레드팀 50%" })).toBeVisible();
   await expect(forecast).toContainText("아직 MMR이 쌓이지 않아 예상이 정확하지 않아요");
-  await expect(forecast).toContainText("팀 평균 MMR 1200 : 1200 · 배치 중 10명");
+  await expect(forecast).toContainText("팀 평균 MMR 1200 : 1200 · 배치 완료 0/10명");
 
   // 티어 점수: 판 맨 아래에 접힌 채로 있고, 열면 두 팀 티어 점수와 티어별 인원이 보인다(운영자만).
   const balanceList = page.getByRole("list", { name: "티어별 인원" });
