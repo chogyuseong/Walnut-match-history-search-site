@@ -250,7 +250,7 @@ test.describe("좁은 화면과 긴 이름 (39)", () => {
       await page.getByRole("button", { name: "이 팀으로 시작" }).scrollIntoViewIfNeeded();
       const startAfter = await page.getByRole("button", { name: "이 팀으로 시작" }).boundingBox();
       expect(start).not.toBeNull();
-      if (width >= 720) {
+      if (width >= 768) {
         // 넓은 화면: 탭이 위에 있으므로 버튼은 탭 아래에 있어야 한다.
         expect(startAfter!.y).toBeGreaterThanOrEqual(tabs!.y + tabs!.height - 1);
       } else {
@@ -271,7 +271,7 @@ test.describe("좁은 화면과 긴 이름 (39)", () => {
 
       // 넓은 화면에서는 탭이 위에, 좁은 화면에서는 아래에 있다.
       const tabsBox = await page.getByRole("navigation", { name: "주 메뉴" }).boundingBox();
-      if (width >= 720) expect(tabsBox!.y).toBe(0);
+      if (width >= 768) expect(tabsBox!.y).toBe(0);
       else expect(tabsBox!.y).toBeGreaterThan(300);
     });
   }

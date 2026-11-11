@@ -173,6 +173,17 @@
   --warn-line: var(--ih-warn-line);
   --ok-bg: var(--ih-ok-bg);
   --ok-text: var(--ih-ok-text);
+
+  /* 화면 틀(CLAUDE.md 2절). 반응형 기준은 768px(하단 메뉴 ↔ 위 메뉴, 패널 여백 16 ↔ 24)과 1200px(두 단 배치) 둘이다.
+     --page-gutter는 본문 좌우 안전 여백이라 아래 미디어 쿼리에서 16 → 24 → 32로 바뀐다. 상단 바·위 메뉴·본문(.screen)·
+     법적 고지가 같은 값을 써야 왼쪽 정렬선이 맞는다. */
+  --content-max: 1200px;
+  /* 양식·읽기 화면의 글줄 폭. 좌우 여백은 이 값 바깥에 더한다(.screen 폭 규칙). */
+  --reading-max: 720px;
+  --page-gutter: var(--space-4);
+  /* 상단 바 높이. 768px 이상에서는 위에 붙어 따라오므로 따라오는 머리·판의 top과 앵커 이동 여백이 이 값에서 출발한다. */
+  --topbar-height: 56px;
+  /* 768px 미만의 하단 고정 메뉴 높이. 기기 아래 안전 영역은 따로 더한다. */
   --tabs-height: 56px;
 
   /* 간격 척도(CLAUDE.md 1절). margin·padding·gap은 0, auto, 안전 영역 env()와 이 여덟 값만 쓴다.
@@ -207,6 +218,16 @@
   --text-screen: 1.5rem;
   --text-hero: 2rem;
 }
+@media (min-width: 768px) {
+  :root {
+    --page-gutter: var(--space-5);
+  }
+}
+@media (min-width: 1200px) {
+  :root {
+    --page-gutter: var(--space-6);
+  }
+}
 
 * {
   box-sizing: border-box;
@@ -214,16 +235,18 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  /* 초점 이동·scrollIntoView가 칸을 하단 탭과 고정 버튼 뒤, 고정 머리글 아래로 보내지 않게 한다. */
+  /* 초점 이동·scrollIntoView(검색 이동 useSearchJump도 이 값을 읽는다)가 칸을 하단 메뉴와 고정 버튼 뒤, 따라오는
+     머리(.sticky-head, 약 64px) 아래로 보내지 않게 한다. 88px은 고정 행동 버튼 줄(.action-sticky) 몫이다.
+     768px 미만은 상단 바가 본문과 함께 흐르므로 위쪽은 따라오는 머리 몫만 둔다. */
   scroll-padding-top: 64px;
   scroll-padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 88px);
 }
 html[data-keyboard="open"] {
   scroll-padding-bottom: 16px;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   html {
-    scroll-padding-top: 128px;
+    scroll-padding-top: calc(var(--topbar-height) + 72px);
     scroll-padding-bottom: 88px;
   }
 }
@@ -244,17 +267,25 @@ body {
 }
 
 main {
-  max-width: 960px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  /* 하단 탭과 기기 하단 안전 영역만큼 띄운다. */
+  /* 하단 메뉴와 기기 하단 안전 영역만큼 띄운다. */
   padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + var(--space-4));
 }
 
+/* 화면 본문. 좌우 여백이 곧 페이지 안전 여백(--page-gutter)이라 main에는 좌우 여백이 없다. */
 .screen {
-  padding: var(--space-4);
+  padding: var(--space-4) var(--page-gutter);
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+}
+/* 폭: 표·두 단 화면(page-wide, cols)은 본문 폭 전체, 그 밖(양식·입력 흐름·읽는 글)은 글줄 폭(--reading-max).
+   준비·티어 배정은 1200px 이상에서만 두 단이라 그때만 본문 폭 전체를 쓴다(아래 각 화면 규칙). */
+.screen:not(.cols, .page-wide) {
+  max-width: calc(var(--reading-max) + 2 * var(--page-gutter));
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* 글자 단계: 화면 제목 > 구역 제목 > 소제목(작고 흐린 꼬리표) > 본문 > 안내문.
@@ -828,10 +859,10 @@ details > *:not(summary) {
   margin-top: var(--space-2);
 }
 
-/* 주요 행동: 평소에는 탭 위에 고정, 키보드가 열리면 본문 안에 둔다. */
+/* 주요 행동: 평소에는 하단 메뉴 위에 고정, 키보드가 열리면 본문 안에 둔다. */
 .action-sticky {
   position: sticky;
-  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 8px);
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + var(--space-2));
   background: var(--ih-bg);
   padding: var(--space-2) 0;
   z-index: 1;
@@ -839,8 +870,8 @@ details > *:not(summary) {
 .action-inline {
   padding: var(--space-2) 0;
 }
-/* 화면 키보드가 열리면(좁은 화면) 하단 탭을 숨겨 입력 칸·확인 창 버튼을 가리지 않게 한다. */
-@media (max-width: 719px) {
+/* 화면 키보드가 열리면(좁은 화면) 하단 메뉴를 숨겨 입력 칸·확인 창 버튼을 가리지 않게 한다. */
+@media (max-width: 767px) {
   html[data-keyboard="open"] .tabs {
     display: none;
   }
@@ -876,7 +907,7 @@ details > *:not(summary) {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  padding: var(--space-1) var(--space-4);
+  padding: var(--space-1) var(--page-gutter);
   border-bottom: 1px solid var(--ih-line);
   background: var(--ih-panel);
 }
@@ -945,7 +976,7 @@ details > *:not(summary) {
 }
 
 /* 넓은 화면: 확인 창을 가운데에 띄우고, 화면·카드 안쪽 여백을 모바일 16px에서 24px로 넓힌다. */
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .overlay {
     align-items: center;
   }
@@ -953,7 +984,9 @@ details > *:not(summary) {
     border-radius: var(--radius-panel);
     padding: var(--space-5);
   }
-  .screen,
+  .screen {
+    padding: var(--space-5) var(--page-gutter);
+  }
   .card {
     padding: var(--space-5);
   }
@@ -1106,7 +1139,7 @@ button.bar-row:hover {
 }
 /* 값이 "승률 · N승 M패 (G경기)"로 길어져(2026-11-08 통일) 좁은 화면에서는 값을 다음 줄 오른쪽으로 내린다.
    이름·칭호를 "…"로 자르지 않는다. */
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .bar-head {
     flex-wrap: wrap;
   }
@@ -1211,7 +1244,7 @@ button.bar-row:hover {
 .matrix th:first-child {
   width: 29%;
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .matrix th:first-child {
     width: 18%;
   }
@@ -1246,10 +1279,10 @@ button.bar-row:hover {
   font-size: var(--text-meta);
   line-height: 1.2;
 }
-/* 머리 행은 화면을 내려도 붙어 있다. 상단 바(56px) 아래. 바탕은 다른 표 머리와 같은 올린 면. */
+/* 머리 행은 화면을 내려도 붙어 있다. 상단 바 아래. 바탕은 다른 표 머리와 같은 올린 면. */
 .matrix thead th {
   position: sticky;
-  top: 56px;
+  top: var(--topbar-height);
   z-index: 1;
   background: var(--ih-subtle);
 }
@@ -1439,14 +1472,13 @@ button.bar-row:hover {
   border: 1px dashed var(--ih-text-secondary);
 }
 
-/* 넓은 화면: 탭을 상단 바 가운데로 올리고 본문 폭을 읽기 좋은 너비로 줄인다. */
-@media (min-width: 720px) {
+/* 넓은 화면: 하단 메뉴가 없으므로 본문 아래 여백을 줄이고, 따라오는 머리는 위에 붙은 상단 바 아래에 붙는다. */
+@media (min-width: 768px) {
   main {
-    max-width: 760px;
     padding-bottom: var(--space-6);
   }
   .sticky-head {
-    top: 56px;
+    top: var(--topbar-height);
   }
   .action-sticky {
     bottom: 0;
@@ -1464,23 +1496,16 @@ button.bar-row:hover {
 body:has(.action-sticky) .toast {
   bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 84px);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   body:has(.action-sticky) .toast {
     bottom: 84px;
   }
 }
 
-/* ---------- PC(1024px 이상): 넓은 화면을 2단으로 쓴다 ----------
-   입력·진행 화면은 읽기 좋은 폭(760px)을 유지하고,
+/* ---------- PC(1200px 이상): 넓은 화면을 2단으로 쓴다 ----------
+   입력·진행 화면은 글줄 폭(.screen 폭 규칙)을 유지하고,
    읽는 화면(기록·개인 통계·그래프·모임)은 구역을 두 단으로 나란히 놓는다. */
-@media (min-width: 1024px) {
-  main {
-    max-width: 1120px;
-  }
-  .screen:not(.cols) {
-    max-width: 760px;
-    margin: 0 auto;
-  }
+@media (min-width: 1200px) {
   .screen.cols {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -2050,10 +2075,10 @@ table {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  height: 56px;
-  max-width: 1120px;
+  height: var(--topbar-height);
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 0 var(--space-4);
+  padding: 0 var(--page-gutter);
 }
 .brand {
   display: inline-flex;
@@ -2112,7 +2137,7 @@ table {
   text-decoration: none;
   border-radius: var(--radius-control);
 }
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .tabs button,
   .tabs button:not(:disabled):hover {
     min-height: calc(var(--tabs-height) - 12px);
@@ -2143,7 +2168,7 @@ table {
 /* 좁은 화면: 조회·예시 메뉴의 화면 링크 묶음(> span)을 운영자 하단 탭(.tabs)과 같은 자리·모양으로 아래에 고정한다
    (2026-11-10 시안). 모임 이름은 위에 남는다. DOM은 그대로라 넓은 화면에서는 예전처럼 위 줄 오른쪽에 있다.
    본문 아래 여백(main padding-bottom)은 이미 하단 탭 높이만큼이라 따로 띄우지 않는다. */
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .viewer-nav > span {
     position: fixed;
     left: 0;
@@ -2186,16 +2211,13 @@ table {
 }
 /* 조회 화면의 점검 안내: 본문(.screen)과 같은 좌우 여백. */
 .viewer-note {
-  margin: var(--space-3) var(--space-4) 0;
+  margin: var(--space-3) var(--page-gutter) 0;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .topbar {
     position: sticky;
     top: 0;
     z-index: 3;
-  }
-  .topbar-inner {
-    padding: 0 var(--space-5);
   }
   .tabs {
     top: 0;
@@ -2228,7 +2250,7 @@ table {
 
 /* 푸터: 라이엇 게임즈와 무관함을 알리는 문구 */
 .legal {
-  margin: var(--space-6) var(--space-4) 0;
+  margin: var(--space-6) var(--page-gutter) 0;
   padding: var(--space-5) 0 var(--space-2);
   border-top: 1px solid var(--ih-line);
   /* 법적 고지는 읽을 수 있게 두되 본문 행동보다 물러나게(8절): 12px, 흐린 글자. */
@@ -2239,9 +2261,9 @@ table {
 .legal p + p {
   margin-top: var(--space-1);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .legal {
-    margin: var(--space-7) var(--space-5) 0;
+    margin: var(--space-7) var(--page-gutter) 0;
   }
 }
 
@@ -2335,7 +2357,7 @@ table {
 }
 
 /* 하단 탭이 6개(랭킹 추가)가 되어도 320px에서 넘치지 않게 좌우 여백을 줄인다. 높이(56px)는 그대로다. */
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .tabs button,
   .tabs button:not(:disabled):hover {
     min-width: 0;
@@ -2771,7 +2793,7 @@ table {
   background: var(--ih-selected);
   border: 1px solid var(--ih-accent);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .mc-name,
   .mc-name:not(:disabled):hover {
     font-size: var(--text-label);
@@ -3010,7 +3032,7 @@ table {
   text-align: left;
   font-size: var(--text-body);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .ps-tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -3022,10 +3044,10 @@ table {
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
 }
-/* 개인 통계: 720px부터 두 단. 키 큰 "라인별"이 오른쪽에서 두 줄을 차지하고
+/* 개인 통계: 768px부터 두 단. 키 큰 "라인별"이 오른쪽에서 두 줄을 차지하고
    왼쪽에 짧은 "최근"·"진영별"을 쌓아 한쪽 아래가 길게 비지 않게 한다.
-   (공통 .screen.cols의 1024px 2단 규칙은 다른 화면용으로 그대로 둔다.) */
-@media (min-width: 720px) {
+   (공통 .screen.cols의 1200px 2단 규칙은 다른 화면용으로 그대로 둔다.) */
+@media (min-width: 768px) {
   .screen.cols.person-screen {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -3048,7 +3070,7 @@ table {
   }
 }
 
-/* 개인 통계의 추이 두 장(누적 승률·MMR): 기본은 세로로 하나씩, 720px부터 반씩 한 줄에 나란히 두어 비교해 본다.
+/* 개인 통계의 추이 두 장(누적 승률·MMR): 기본은 세로로 하나씩, 768px부터 반씩 한 줄에 나란히 두어 비교해 본다.
    SVG가 preserveAspectRatio="none"이라 폭이 절반이 돼도 높이는 그대로다. */
 .trend-pair {
   display: grid;
@@ -3056,7 +3078,7 @@ table {
   gap: var(--space-3);
   align-items: start;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .trend-pair {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3435,7 +3457,7 @@ table {
   width: 1px;
   background: var(--ih-text-secondary);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .mmr-start-track {
     height: 16px;
   }
@@ -3463,7 +3485,7 @@ table {
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .dash-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
@@ -3731,7 +3753,7 @@ table {
     min-width: 44px;
   }
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .cmp-duel {
     gap: var(--space-3);
   }
@@ -4069,7 +4091,7 @@ table {
   background: var(--ih-selected);
   border-color: var(--ih-accent);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   /* 여러 열: 칸마다 위쪽 구분선을 두고, 카드 자체의 위 테두리는 없앤다. 첫 줄 칸들의 선이 카드 위 테두리를 대신해
      선이 두 겹(2px)으로 보이지 않는다. 참가자가 열 수보다 적으면 위 테두리가 그 칸까지만 그어진다.
      고른 칸은 안쪽 1px 외곽선(outline-offset -1px)으로 포인트 테두리를 그린다. 테두리를 쓰면 이웃 칸 선과 겹쳐 두 겹이 된다. */
@@ -4389,8 +4411,8 @@ table {
     white-space: nowrap;
   }
 }
-/* 720~1023px: 주 메뉴를 가운데에 두면 오른쪽의 테마·로그인과 겹치므로 로고 바로 옆으로 붙이고 칸을 줄인다. */
-@media (min-width: 720px) and (max-width: 1023px) {
+/* 768~1199px: 주 메뉴를 가운데에 두면 오른쪽의 테마·로그인과 겹치므로 로고 바로 옆으로 붙이고 칸을 줄인다. */
+@media (min-width: 768px) and (max-width: 1199px) {
   .tabs {
     left: 160px;
     transform: none;
@@ -5068,7 +5090,7 @@ table {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .award-list-main {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -5323,12 +5345,12 @@ table {
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .intro-features {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .intro-features {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -5606,7 +5628,7 @@ table {
 
 /* ---------- 준비 화면 두 단(2026-11-08) ----------
    섞기 버튼이 편성 판에서 멀어 섞은 결과를 보려면 위로 올라가야 했다. 모든 폭에서 섞기를 편성 바로 아래로 옮기고,
-   PC(1024px 이상)에서는 왼쪽 편성 판이 화면을 내려도 따라오게(sticky) 두 단으로 놓는다. */
+   PC(1200px 이상)에서는 왼쪽 편성 판이 화면을 내려도 따라오게(sticky) 두 단으로 놓는다. */
 .prep-layout {
   display: grid;
   gap: var(--space-4);
@@ -5617,9 +5639,9 @@ table {
   gap: var(--space-4);
   min-width: 0;
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .screen.prep-screen {
-    max-width: 1040px;
+    max-width: none;
   }
   .prep-layout {
     grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
@@ -5628,12 +5650,12 @@ table {
   }
   .prep-boards {
     position: sticky;
-    top: 72px; /* 상단 바(56px) + 여백 */
+    top: calc(var(--topbar-height) + var(--space-4));
   }
 }
 
 /* ---------- 티어 배정·기피 라인(2026-11-08) ----------
-   머리(뒤로·제목·탭)가 따라 내려오고, PC(1024px 이상)에서는 오른쪽 요약 판(티어별 인원·돌아가기)이 따라 내려온다.
+   머리(뒤로·제목·탭)가 따라 내려오고, PC(1200px 이상)에서는 오른쪽 요약 판(티어별 인원·돌아가기)이 따라 내려온다.
    배정을 마친 뒤 맨 위로 올라가지 않아도 된다. */
 .priority-head {
   row-gap: var(--space-2);
@@ -5642,7 +5664,7 @@ table {
 .priority-head .priority-tabs {
   flex: 1 1 100%; /* 좁은 화면: 둘째 줄 */
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .priority-head .priority-tabs {
     flex: 0 0 auto;
     margin-left: auto; /* 넓은 화면: 제목 오른쪽 */
@@ -5664,9 +5686,9 @@ table {
 .priority-side {
   display: none;
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .screen.priority-screen {
-    max-width: 1040px;
+    max-width: none;
   }
   .priority-layout {
     grid-template-columns: minmax(0, 1fr) 240px;
@@ -5674,11 +5696,11 @@ table {
     align-items: start;
   }
   .priority-main > section {
-    scroll-margin-top: 124px;
+    scroll-margin-top: calc(var(--topbar-height) + 68px);
   }
   .priority-side {
     position: sticky;
-    top: 124px; /* 상단 바(56px) + 따라오는 머리(약 60px) + 여백 */
+    top: calc(var(--topbar-height) + 68px); /* 상단 바 + 따라오는 머리(약 60px) + 여백 */
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -5791,8 +5813,8 @@ button.row.swap-target:hover {
     display: none;
   }
 }
-/* 좁은 화면(720px 미만): 손잡이와 "바꾸기" 표를 숨겨 이름이 잘리지 않게 한다. 고른 상태는 테두리와 안내 줄로 보인다. */
-@media (max-width: 719px) {
+/* 좁은 화면(768px 미만): 손잡이와 "바꾸기" 표를 숨겨 이름이 잘리지 않게 한다. 고른 상태는 테두리와 안내 줄로 보인다. */
+@media (max-width: 767px) {
   .grip,
   .swap-hint {
     display: none;
@@ -5815,7 +5837,7 @@ button.row.swap-target:hover {
 }
 
 /* PC에서는 화면 머리 아래를 4px 더 띄운다. 제목 크기는 폭과 관계없이 같다. */
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .screen-head {
     margin-bottom: var(--space-1);
   }
@@ -5849,12 +5871,12 @@ button.row.swap-target:hover {
   border-color: var(--ih-control-border);
 }
 .group-block {
-  scroll-margin-top: 72px;
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
 }
 
 /* ---------- PC 밀도(2026-11-08 디자인 정리 3단계) ----------
    기록 목록의 경기 카드는 PC에서 줄 높이와 글자를 줄여 한 화면에 더 많은 경기가 보이게 한다. 구조는 같다. */
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .match-cards .match-card {
     padding-bottom: var(--space-1);
   }
@@ -5864,25 +5886,6 @@ button.row.swap-target:hover {
   }
   .match-cards .mc-roles {
     font-size: var(--text-label);
-  }
-}
-
-/* 홈(오늘) PC 두 단(2026-11-08 디자인 정리 3단계): 왼쪽에 최근 경기, 오른쪽에 랭킹·요즘 흐름을 세로로 쌓아
-   화면을 내려도 따라온다. 760px 한 줄에 카드만 쌓이던 빈 여백을 쓴다. */
-@media (min-width: 1024px) {
-  .screen.home-screen {
-    max-width: 1040px;
-  }
-  .home-screen .dashboard {
-    display: grid;
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    gap: var(--space-4) var(--space-5);
-    align-items: start;
-  }
-  .home-screen .dashboard > .dash-grid {
-    grid-template-columns: minmax(0, 1fr);
-    position: sticky;
-    top: 72px;
   }
 }
 
@@ -6042,7 +6045,7 @@ label:has(> select) {
 
 /* 그래프 분석 재구성(2026-11-08): 도구 띠 → 요약 타일 → 보기 전환 → 고른 보기 하나(전체 폭).
    두 단으로 나누지 않고 한 단으로 쌓는다(예전 2단은 왼쪽만 길고 오른쪽 아래가 비었다). */
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .screen.cols.viz-root {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -6087,7 +6090,7 @@ label:has(> select) {
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .graph-meta {
     justify-content: space-between;
     flex-basis: 100%;
@@ -6134,7 +6137,7 @@ label:has(> select) {
   font-weight: 500;
   color: var(--ih-text-secondary);
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .people-bars {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6156,7 +6159,7 @@ label:has(> select) {
   min-height: 56px;
 }
 /* 라인별 승률(맨 위, PC 5칸): 칸이 좁아 라인 이름이 밀려나지 않게 이름을 위, 값을 아래에 쌓는다. */
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .line-first .bar-head {
     flex-direction: column;
     align-items: flex-start;
@@ -6227,7 +6230,7 @@ label:has(> select) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   max-width: 840px;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .graph-views {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
@@ -6242,7 +6245,7 @@ label:has(> select) {
   padding: 0;
   list-style: none;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .story-strip ul {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -6544,7 +6547,7 @@ label:has(> select) {
   display: block;
 }
 
-/* 고른 플레이어 묶음: 폰은 세로로 쌓고, 720px부터 왼쪽(요약·흐름·승패 띠) | 오른쪽(라인 모양). */
+/* 고른 플레이어 묶음: 폰은 세로로 쌓고, 768px부터 왼쪽(요약·흐름·승패 띠) | 오른쪽(라인 모양). */
 .graph-profile {
   display: flex;
   flex-direction: column;
@@ -6679,7 +6682,7 @@ label:has(> select) {
 }
 /* PC: 왼쪽 요약, 오른쪽 라인 모양. 오른쪽 칸을 넓게 두면 오각형이 화면 오른쪽 끝으로 밀려 보여서(사용자 피드백)
    두 칸을 같은 폭으로 하고 오각형은 칸 왼쪽에 붙여 폭을 제한한다. */
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .profile-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
@@ -7153,26 +7156,7 @@ label:has(> select) {
    한 줄 필터, 요약 카드 줄, 머리 줄이 있는 정렬 표)만 따랐고 특정 사이트의 색·배치·문구는 가져오지 않았다.
    부품은 screenKit.tsx의 ScreenHead · FilterBar · StatCard · SortHead(목록형 표 머리) · DataTable(진짜 표) · Glue.
 
-   폭 토큰 둘: 읽는 화면(.screen.page-wide, .screen.cols)은 --page-wide(본문 바·메뉴와 같은 폭),
-   양식 화면(그냥 .screen: 로그인·모임 설정·가져오기·개인정보·입력 흐름)은 --page-narrow.
-   예전에는 요약·랭킹 760px, 기록 1120px, 오늘 1040px처럼 화면마다 폭이 달라 탭을 오갈 때 본문이 출렁였다. */
-:root {
-  --page-wide: 1120px;
-  --page-narrow: 760px;
-}
-@media (min-width: 1024px) {
-  main {
-    max-width: var(--page-wide);
-  }
-  .screen:not(.cols) {
-    max-width: var(--page-narrow);
-  }
-  /* 오늘(home-screen)의 예전 1040px 규칙보다 뒤에 있어 이긴다. 준비·티어 배정(1040px)은 입력 흐름이라 그대로 둔다. */
-  .screen.page-wide,
-  .screen.home-screen {
-    max-width: none;
-  }
-}
+   화면 폭은 맨 위 .screen 규칙 하나가 정한다(본문 폭 --content-max, 양식·읽는 화면 --reading-max). */
 
 /* 화면 머리(ScreenHead): 왼쪽 제목 + 한 줄 설명, 오른쪽 동작. 좁으면 동작이 제목 아래로 내려간다. */
 .page-head {
@@ -7281,7 +7265,7 @@ input[type="search"].filter-search {
   outline: 2px solid var(--ih-accent);
   outline-offset: -2px;
 }
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   /* 폰: 구간 탭은 한 줄을 다 쓰고 칸을 똑같이 나눈다. 고르기 상자는 다음 줄. */
   .filter-bar .segmented {
     flex: 1 1 100%;
@@ -7300,7 +7284,7 @@ input[type="search"].filter-search {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .stat-cards {
     grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
     gap: var(--space-3);
@@ -7484,7 +7468,7 @@ input[type="search"].filter-search {
 .glue {
   white-space: pre;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .dt-list .glue {
     display: inline-block;
     width: 0;
@@ -7493,7 +7477,7 @@ input[type="search"].filter-search {
     vertical-align: top;
   }
 }
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   /* 폰: 머리 줄은 정렬 버튼 칩 한 줄(+ .keep 칸)만 남는다. 줄은 화면마다 두세 줄짜리 모양으로 접힌다. */
   /* .dt-list를 앞에 붙여 화면별 칸 배치(.mmr-grid·.rank-grid의 display: grid)보다 앞서게 한다. */
   .dt-list .dt-head {
@@ -7566,28 +7550,28 @@ input[type="search"].filter-search {
 .data-table tr.is-clickable:hover td {
   background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
 }
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .data-table .wide-only {
     display: none;
   }
 }
 
 /* ---------- MMR 랭킹(Ranking.tsx) 순위표 칸 배치 ----------
-   PC(1024px~): 순위 | 이름·칭호 | 막대 | MMR | 티어 | 최근 변동 | 경기 | 승률 | 최근 10경기 | 펼치기 — 한 줄.
-   태블릿(720~1023px): 티어·최근 10경기를 뺀다(본문 728px에 막대 칸이 남게).
+   PC(1200px~): 순위 | 이름·칭호 | 막대 | MMR | 티어 | 최근 변동 | 경기 | 승률 | 최근 10경기 | 펼치기 — 한 줄.
+   태블릿(768~1199px): 티어·최근 10경기를 뺀다(768px 창의 본문 720px에 막대 칸이 남게).
    폰: 순위 | 이름 | MMR·티어·변동 | 펼치기 / 막대 / 경기·승률·최근 10경기 — 세 줄.
    .mmr-score·.mmr-meta는 폰에서만 묶음이고 넓은 화면에서는 display: contents로 풀려 칸 하나하나가 grid 칸이 된다. */
 .mmr-cards {
   margin-bottom: var(--space-1);
 }
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   /* 폰 2칸: 1위 칸은 한 줄을 다 쓰고, 그 뒤 카드가 셋이면 마지막 카드도 혼자 남지 않게 한 줄을 다 쓴다. */
   .mmr-cards > .mmr-lead-card,
   .mmr-cards > .mmr-lead-card ~ :nth-child(4):last-child {
     grid-column: 1 / -1;
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .mmr-cards {
     grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
   }
@@ -7755,7 +7739,7 @@ input[type="search"].filter-search {
   color: var(--ih-text);
   font-weight: 600;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .mmr-grid {
     grid-template-columns: 2.5rem minmax(6rem, 1.2fr) minmax(5rem, 1fr) 4rem 4.25rem 3.25rem 3.5rem var(--control-height);
     grid-template-areas: none;
@@ -7794,7 +7778,7 @@ input[type="search"].filter-search {
     font-size: var(--text-body);
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .mmr-grid {
     grid-template-columns: 2.5rem minmax(7rem, 1.2fr) minmax(7rem, 1fr) 4rem 4.5rem 4.25rem 3.25rem 3.5rem 12.75rem 36px;
   }
@@ -7808,15 +7792,15 @@ input[type="search"].filter-search {
 
 /* ---------- 기록 화면(Records.tsx) ----------
    PC 2단: 왼쪽 좁은 단 경기 카드 목록, 오른쪽 넓은 단 소환사 랭킹 표(전적 사이트의 "왼쪽 탐색 + 오른쪽 넓은 표" 관습). */
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .screen.cols.records-screen {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   }
 }
 /* 한 단 화면(2단이 되기 전 폭): 경기 목록을 맨 아래로 내린다. 경기가 수백 개까지 길어져 그 아래 소환사 랭킹·시리즈·
    변경 내역에 닿으려면 끝까지 내려야 했다. 보이는 순서만 바꾸는 것이라 키보드 초점은 경기 목록을 먼저 지난다.
-   위 2단 기준(1024px)을 바꾸면 이 기준도 같이 바꾼다. */
-@media (max-width: 1023px) {
+   위 2단 기준(1200px)을 바꾸면 이 기준도 같이 바꾼다. */
+@media (max-width: 1199px) {
   .records-screen > .rec-matches {
     order: 1;
   }
@@ -7824,7 +7808,7 @@ input[type="search"].filter-search {
 .rank-controls .filter-search {
   flex: 1 1 10rem;
 }
-/* 소환사 랭킹 칸 배치. 넓은 화면(720px~): 순위 | 이름(아래 줄 칭호·최근 승패) | 승률 | 승수 | 경기 수 | MMR.
+/* 소환사 랭킹 칸 배치. 넓은 화면(768px~): 순위 | 이름(아래 줄 칭호·최근 승패) | 승률 | 승수 | 경기 수 | MMR.
    폰: 순위 | 이름 두 줄 | 오른쪽 위 "70% · 7승 3패 (10경기)", 오른쪽 아래 MMR·티어(예전 줄 모양 그대로). */
 .rank-grid {
   display: grid;
@@ -7883,7 +7867,7 @@ input[type="search"].filter-search {
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .rank-grid {
     grid-template-columns: 2rem minmax(0, 1fr) 3.5rem 4.75rem 3.75rem 6.75rem;
     grid-template-areas: none;
@@ -7924,8 +7908,8 @@ input[type="search"].filter-search {
 }
 /* 한 단 화면: 이전 경기 목록을 맨 아래로 내려 전광판 → 랭킹 상위 → 요즘 흐름 → 이전 경기 순으로 보인다.
    이전 경기는 .dash-main 안에 있어서 묶음을 풀어(display: contents) .dashboard의 줄로 올린 뒤 순서를 바꾼다.
-   보이는 순서만 바꾸므로 키보드 초점은 이전 경기를 먼저 지난다. 아래 2단 기준(1024px)을 바꾸면 같이 바꾼다. */
-@media (max-width: 1023px) {
+   보이는 순서만 바꾸므로 키보드 초점은 이전 경기를 먼저 지난다. 아래 2단 기준(1200px)을 바꾸면 같이 바꾼다. */
+@media (max-width: 1199px) {
   .dashboard > .dash-main {
     display: contents;
   }
@@ -7933,19 +7917,17 @@ input[type="search"].filter-search {
     order: 1;
   }
 }
-@media (min-width: 1024px) {
-  .dashboard,
-  .home-screen .dashboard {
+@media (min-width: 1200px) {
+  .dashboard {
     display: grid;
     grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
     gap: var(--space-4) var(--space-5);
     align-items: start;
   }
-  .dashboard > .dash-grid,
-  .home-screen .dashboard > .dash-grid {
+  .dashboard > .dash-grid {
     grid-template-columns: minmax(0, 1fr);
     position: sticky;
-    top: 72px;
+    top: calc(var(--topbar-height) + var(--space-4));
   }
 }
 /* 이전 경기 표: 번호 · 일시 · 결과 · 블루 다섯 · 레드 다섯. 다섯 이름은 칸 안에서 줄을 바꾼다. */
@@ -8050,7 +8032,7 @@ input[type="search"].filter-search {
 }
 
 /* 좁은 화면 하단 메뉴에서 빼는 칸(운영자 탭·참가자 메뉴의 "챔피언"). 6칸이 넘으면 "현재 경기" 같은 글자가 칸을 넘친다. */
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   .tabs button.nav-wide-only,
   .viewer-nav > span > .link.nav-wide-only {
     display: none;
@@ -8058,7 +8040,8 @@ input[type="search"].filter-search {
 }
 
 /* ---------- 챔피언 티어(screens/ChampionTier.tsx) ----------
-   PC: 왼쪽 좁은 격자(초성 줄 + 초성별 초상화) | 오른쪽 표. 폰: 한 단, 격자는 접힌 details. */
+   PC(1200px 이상): 왼쪽 좁은 격자(초성 줄 + 초성별 초상화) | 오른쪽 표. 그보다 좁으면 한 단, 격자는 접힌 details.
+   768px 창에서 둘을 나란히 두면 표 폭이 400px 남짓이라 챔피언 이름이 "가/렌"처럼 한 글자씩 꺾였다. */
 .champ-tier {
   display: flex;
   flex-direction: column;
@@ -8084,14 +8067,14 @@ input[type="search"].filter-search {
   gap: var(--space-4);
   align-items: start;
 }
-@media (min-width: 720px) {
+@media (min-width: 1200px) {
   .ct-body {
     grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
   }
   .ct-board-side {
     position: sticky;
-    top: 72px;
-    max-height: calc(100vh - 88px);
+    top: calc(var(--topbar-height) + var(--space-4));
+    max-height: calc(100vh - var(--topbar-height) - var(--space-6));
     overflow-y: auto;
   }
 }
@@ -8195,7 +8178,7 @@ input[type="search"].filter-search {
   margin: var(--space-1) 0 var(--space-2);
   font-size: var(--text-body);
 }
-/* 칸이 일곱 개라 공통 표 여백(좌우 12px)을 쓰면 720~1023px에서 옆 모음판과 나란히 놓일 때 표가 화면 밖으로 넘친다.
+/* 칸이 일곱 개라 공통 표 여백(좌우 12px)을 쓰면 옆 모음판과 나란히 놓일 때 표 칸이 모자라 이름이 꺾인다.
    모든 너비에서 좌우 8px로 줄인다. */
 .ct-table th,
 .ct-table td,
@@ -8296,7 +8279,7 @@ input[type="search"].filter-search {
   padding: var(--space-1) 0;
   cursor: default;
 }
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .ct-detail {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -8339,7 +8322,7 @@ input[type="search"].filter-search {
 .ct-result.loss {
   color: var(--ih-loss-text);
 }
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   /* 폰: 표가 가로로 넘치지 않게 초상화를 조금 작게. */
   .ct-table .champ-portrait {
     width: 28px;

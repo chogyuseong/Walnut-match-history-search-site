@@ -91,7 +91,8 @@ function words(value) {
 }
 
 function spaceWordOk(w) {
-  if (SPACE_OK.has(w) || /^var\(--space-\d\)$/.test(w) || /^env\(safe-area-inset-[a-z]+\)$/.test(w)) return true;
+  // --page-gutter는 폭에 따라 --space-4·5·6 중 하나를 가리키는 본문 좌우 여백이다(styles.css :root).
+  if (SPACE_OK.has(w) || /^var\(--space-\d\)$/.test(w) || w === "var(--page-gutter)" || /^env\(safe-area-inset-[a-z]+\)$/.test(w)) return true;
   // 안전 영역을 더하는 calc: env()를 빼고 남은 px가 모두 척도 값이면 통과.
   if (/^(calc|max)\(/.test(w) && w.includes("env(safe-area")) {
     const rest = w.replace(/env\([^)]*\)/g, "").match(/-?[\d.]+px/g) ?? [];

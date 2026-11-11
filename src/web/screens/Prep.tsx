@@ -202,7 +202,7 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
       )}
 
       {/* 순서(2026-11-08): 편성 판 바로 아래에 섞기·진영을 두어 섞은 결과를 보면서 다시 누를 수 있다.
-          PC(1024px 이상)에서는 .prep-layout이 두 단이 되고 왼쪽 편성 판이 따라 내려온다(styles.css). */}
+          PC(1200px 이상)에서는 .prep-layout이 두 단이 되고 왼쪽 편성 판이 따라 내려온다(styles.css). */}
       <div className="prep-layout">
         <div className="prep-boards">
           <TeamBoards draft={draft} ctx={ctx} edit={edit} />

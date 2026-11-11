@@ -120,7 +120,7 @@ interface PanelProps {
 const tierId = (cls: Priority) => `tier-${cls ?? "none"}`;
 
 /**
- * PC(1024px 이상)에서 오른쪽에 따라 내려오는 요약 판(CSS .priority-side, 좁은 화면에서는 숨김).
+ * PC(1200px 이상)에서 오른쪽에 따라 내려오는 요약 판(CSS .priority-side, 좁은 화면에서는 숨김).
  * 줄마다 수를 보여 주고 id가 있으면 눌러서 그 구역으로 간다. 맨 아래는 돌아가기.
  */
 function PrioritySide(props: {
