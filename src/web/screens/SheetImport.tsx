@@ -989,7 +989,7 @@ function MappingStep(props: {
       )}
 
       {problems.length > 0 ? (
-        <div className="note warn" role="alert">
+        <div className="note error" role="alert">
           {problems.map((p) => (
             <p key={p}>{p}</p>
           ))}

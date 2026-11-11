@@ -69,7 +69,7 @@ export function Member(props: { gid: string; rest: string[] }) {
     return (
       <div className="screen">
         {error ? (
-          <p className="note warn" role="alert">
+          <p className="note error" role="alert">
             {error.status === 404
               ? "이 모임과의 연결이 없어요. 연결이 끊겼거나 운영자가 정리했을 수 있어요. 다시 연결하려면 운영자에게 새 연결 링크를 받아 주세요."
               : "불러오지 못했어요."}{" "}
@@ -507,7 +507,7 @@ export function Claim(props: { token: string }) {
     <div className="screen">
       <h1>내 이름 연결</h1>
       {invalid ? (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           이 연결 링크는 이미 썼거나 만료됐어요. 운영자에게 새 링크를 요청해 주세요.
         </p>
       ) : !info ? (

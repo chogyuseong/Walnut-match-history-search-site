@@ -70,7 +70,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
         {error ? (
           <>
             <h1>{error.status === 404 ? "링크를 열 수 없어요" : "불러오지 못했어요"}</h1>
-            <p className="note warn" role="alert">
+            <p className="note error" role="alert">
               {error.status === 404
                 ? "이 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요."
                 : "잠시 뒤 다시 시도해 주세요."}{" "}

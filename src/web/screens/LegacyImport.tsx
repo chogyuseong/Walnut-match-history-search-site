@@ -283,7 +283,7 @@ export function LegacyImport() {
           </label>
           {/* 주소 문제는 칸 바로 아래(설명 문단보다 위)에 둔다. */}
           {isSheetUrl ? (
-            <div className="note warn" role="alert">
+            <div className="note error" role="alert">
               <p>구글 시트 주소예요. 시트의 표를 가져오려면 시트에서 가져오기를 쓰세요.</p>
               <button type="button" className="secondary" onClick={() => go("/sheet-import")}>
                 구글 시트에서 가져오기로

@@ -303,7 +303,7 @@ export function CoInvite(props: { token: string }) {
     <div className="screen">
       <h1>공동 운영자 초대</h1>
       {invalid ? (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           이 초대 링크는 이미 썼거나 만료됐어요. 대표 운영자에게 새 링크를 요청해 주세요.
         </p>
       ) : !info ? (

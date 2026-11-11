@@ -139,7 +139,7 @@ export function Group() {
       <GroupSwitcher />
       <MembershipList />
       {snapshot.group.maintenance && (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           백업 복원이 끝나지 않아 이 모임은 점검 중이에요. 맨 아래 '위험한 작업'의 '백업에서 복원'에서 같은 파일로 다시
           실행해 주세요.
         </p>
@@ -448,6 +448,7 @@ export function Group() {
                 refresh={app.refreshAfterOwnChange}
                 onSaved={() => app.setNotice("서포터 횟수를 저장했어요.")}
                 label="전체 참가자 서포터 횟수"
+                saveIsPrimary
               />
             </details>
           )}
@@ -1348,34 +1349,34 @@ function RatingSettings(props: {
       >
         {RATING_SETTING_KEYS.map((key) => {
           const { label, min, max } = RATING_SETTING_RANGES[key];
+          // 범위 오류는 그 칸 바로 아래에 둔다(7절). 저장 버튼은 오류가 하나라도 있으면 막힌다.
           return (
-            <label key={key} className="inline-label">
-              {label}
-              <input
-                type="number"
-                inputMode="numeric"
-                min={min}
-                max={max}
-                step={1}
-                value={valueOf(key)}
-                disabled={props.busy}
-                onChange={(e) => setDrafts({ ...drafts, [key]: e.target.value })}
-              />
-            </label>
+            <div key={key} className="field">
+              <label className="inline-label">
+                {label}
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={min}
+                  max={max}
+                  step={1}
+                  value={valueOf(key)}
+                  disabled={props.busy}
+                  onChange={(e) => setDrafts({ ...drafts, [key]: e.target.value })}
+                />
+              </label>
+              {invalid.includes(key) && (
+                <p className="field-problem" role="alert">
+                  {label}는 {min}~{max} 사이 정수로 적어 주세요.
+                </p>
+              )}
+            </div>
           );
         })}
         <button type="submit" className="secondary" disabled={props.busy || invalid.length > 0 || !changed}>
           저장
         </button>
       </form>
-      {invalid.length > 0 && (
-        <p className="note warn" role="alert">
-          {invalid
-            .map((key) => `${RATING_SETTING_RANGES[key].label}는 ${RATING_SETTING_RANGES[key].min}~${RATING_SETTING_RANGES[key].max}`)
-            .join(", ")}{" "}
-          사이 정수로 적어 주세요.
-        </p>
-      )}
     </section>
   );
 }

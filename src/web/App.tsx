@@ -374,7 +374,7 @@ function LoadFailed() {
   return (
     <div className="screen">
       <h1>불러오지 못했어요</h1>
-      <p className="note warn" role="alert">
+      <p className="note error" role="alert">
         {app.loadError?.kind === "offline"
           ? "인터넷에 연결돼 있지 않아요. 연결되면 다시 시도해 주세요."
           : app.loadError?.status === 429 || app.loadError?.status === 503

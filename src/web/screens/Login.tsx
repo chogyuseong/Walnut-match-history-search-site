@@ -141,7 +141,7 @@ export function LoginDialog(props: { reason: string; onDone: () => void; onClose
       )}
       {fake && <FakeLogin onDone={props.onDone} />}
       {!fake && !local && !oauth && (
-        <p className="note warn">로그인 수단이 아직 설정되지 않았습니다. 서비스 운영자에게 알려 주세요.</p>
+        <p className="note error">로그인 수단이 아직 설정되지 않았습니다. 서비스 운영자에게 알려 주세요.</p>
       )}
     </Dialog>
   );

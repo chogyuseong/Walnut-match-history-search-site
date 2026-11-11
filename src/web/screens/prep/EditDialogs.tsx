@@ -66,7 +66,7 @@ export function RecommendDialog(props: { draft: Draft; candidates: TeamCandidate
     <Dialog title="팀 추천" onClose={() => edit.setCandidates(null)}>
       {candidates.length === 0 ? (
         <>
-          <p className="note warn" role="alert">
+          <p className="note error" role="alert">
             조건을 모두 만족하는 편성이 없어요. 서로 충돌하는 조건을 지워 주세요.
           </p>
           <ul className="list">

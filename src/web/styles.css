@@ -612,6 +612,20 @@ details.help > .help-body p {
 .field-problem::before {
   mask-image: var(--icon-error-16);
 }
+/* 강제 색 모드(윈도 고대비)는 칠한 배경을 지워 mask 아이콘이 통째로 사라진다. 아이콘 칠만 글자 시스템 색으로 되살린다. */
+@media (forced-colors: active) {
+  .note.warn::before,
+  .note.error::before,
+  .saved::before,
+  .badge.ok::before,
+  .badge.warn-badge::before,
+  .tag.warn-tag::before,
+  .warn-text::before,
+  .field-problem::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
 .warn-text {
   display: flex;
   color: var(--ih-text);
@@ -5675,6 +5689,11 @@ label:has(> select) {
 }
 .same-time .button-row {
   flex: none;
+}
+/* 시각 + "열 명이 같아요" 꼬리표: 이름 칸의 한 줄 말줄임(.name)을 풀어 꼬리표 글이 잘리지 않고 다음 줄로 내려가게 한다. */
+.same-time .name {
+  white-space: normal;
+  overflow: visible;
 }
 /* 날짜 점검 "범위 직접 고르기": 경기 번호 칸은 숫자 몇 자리면 되므로 짧게 */
 .inline-label > input[type="number"] {

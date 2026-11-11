@@ -19,6 +19,11 @@ export function SupportCountEditor(props: {
   refresh: () => Promise<unknown>;
   onSaved?: () => void;
   label: string;
+  /**
+   * 고친 값이 있을 때 저장 버튼을 채운 주 버튼으로 올린다. 화면에 다른 채운 버튼이 없는 모임 탭만 켠다.
+   * 준비 화면은 고정 "이 팀으로 시작"이 주 버튼이라 끄고, 대신 "저장하지 않은 횟수" 주의를 띄운다.
+   */
+  saveIsPrimary?: boolean;
 }) {
   const { people, counts } = props;
   const [edits, setEdits] = useState<Record<string, number>>({});
@@ -106,11 +111,9 @@ export function SupportCountEditor(props: {
         })}
       </ul>
       <div className="button-row">
-        {/* 늘 secondary: 준비 화면에서는 고정 "이 팀으로 시작"이 채운 버튼이라, 값을 고쳤을 때 채우면 둘이 된다.
-            바뀐 사람 수가 버튼 이름에 붙어 저장할 것이 있다는 것은 글자로 보인다. */}
         <button
           type="button"
-          className="secondary"
+          className={props.saveIsPrimary && changed.length > 0 ? "primary" : "secondary"}
           disabled={busy || changed.length === 0}
           onClick={() => void save()}
         >
@@ -122,6 +125,12 @@ export function SupportCountEditor(props: {
           </button>
         )}
       </div>
+      {/* 저장하지 않고 "이 팀으로 시작"을 누르면 고친 값은 소리 없이 사라진다. 보조 버튼만으로는 놓치기 쉬워 알린다. */}
+      {!props.saveIsPrimary && changed.length > 0 && (
+        <p className="note warn" role="status">
+          저장하지 않은 횟수가 {changed.length}명 있어요. 저장하지 않으면 경기를 시작할 때 반영되지 않아요.
+        </p>
+      )}
       <p className="hint">
         0~{MAX_COUNT}회로 정할 수 있어요. 저장한 뒤 실제로 시작한 경기의 서포터는 이어서 더해져요.
       </p>

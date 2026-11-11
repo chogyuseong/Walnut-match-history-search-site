@@ -83,7 +83,7 @@ export function Join(props: { token: string; rest: string[] }) {
     return (
       <div className="screen">
         <h1>참가 신청</h1>
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           이 신청 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.
         </p>
       </div>
