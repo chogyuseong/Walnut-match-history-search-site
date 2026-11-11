@@ -58,6 +58,7 @@ import {
   cancelMatch,
   confirmResult,
   correctMatch,
+  deleteMatch,
   endLater,
   excludeMatch,
   importMatches,
@@ -69,6 +70,7 @@ import {
   shiftMatchDates,
   SHIFT_DATES_BODY_BYTES,
   startMatch,
+  undeleteMatch,
 } from "./matches";
 import { addToSeries, createSeries, removeFromSeries, updateSeries } from "./series";
 import { deleteAccount, deleteGroup } from "./deletion";
@@ -927,18 +929,22 @@ const matchActions = {
   memo: saveMemo,
   // 챔피언 기록(migrations/0025). 확정 경기만. 결과 입력 때 함께 고른 것은 result 요청의 champions로 온다.
   champions: saveChampions,
+  // 경기 삭제·되살리기(migrations/0026). 정정·전적 제외와 같은 권한(대표·공동 운영자). 누가 했는지를 이력에 남기려고
+  // 계정 ID를 받는다(다른 처리는 다섯째 인자를 쓰지 않는다).
+  delete: deleteMatch,
+  undelete: undeleteMatch,
 } as const;
 
 app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
   const action = c.req.param("action");
   if (!Object.hasOwn(matchActions, action)) {
     throw new ApiError(404, "NOT_FOUND", "찾을 수 없습니다.");
   }
   const handler = matchActions[action as keyof typeof matchActions];
   return c.json({
-    match: await handler(c.env, gid, c.req.param("mid"), await readJsonBody(c.req.raw)),
+    match: await handler(c.env, gid, c.req.param("mid"), await readJsonBody(c.req.raw), accountId),
   });
 });
 

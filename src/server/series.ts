@@ -93,11 +93,17 @@ function matchStillGuard(env: Env, groupId: string, match: MatchView): D1Prepare
   ).bind(match.id, groupId, match.version, match.state);
 }
 
-/** 시리즈가 그대로 있고 판 수가 확인한 때와 같아야 한다(다른 기기의 넣기·빼기와 겹치면 실패). */
+/**
+ * 시리즈가 그대로 있고 판 수가 확인한 때와 같아야 한다(다른 기기의 넣기·빼기와 겹치면 실패).
+ * 판 수는 지운 경기를 뺀 수다(loadSeries가 지운 경기를 빼고 주므로 같은 기준으로 센다). 그 사이 판을 지우거나
+ * 되살려도 수가 달라져 실패한다.
+ */
 function seriesStillGuard(env: Env, groupId: string, series: SeriesView): D1PreparedStatement {
   return env.DB.prepare(
     `INSERT INTO guard (version_conflict)
-     SELECT 1 WHERE (SELECT COUNT(*) FROM match_series_members WHERE group_id = ?1 AND series_id = ?2) <> ?3
+     SELECT 1 WHERE (SELECT COUNT(*) FROM match_series_members s
+                     JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
+                     WHERE s.group_id = ?1 AND s.series_id = ?2 AND m.deleted_at IS NULL) <> ?3
        OR NOT EXISTS (SELECT 1 FROM match_series WHERE group_id = ?1 AND id = ?2)`,
   ).bind(groupId, series.id, series.matchIds.length);
 }
@@ -295,7 +301,11 @@ export async function addToSeries(
   return { series: await storedSeries(env, groupId, stored, seriesId) };
 }
 
-/** 시리즈에서 한 판을 뺀다. 마지막 판을 빼면 시리즈도 지운다. 경기 기록은 그대로다. */
+/**
+ * 시리즈에서 한 판을 뺀다. 마지막 판을 빼면 시리즈도 지운다. 경기 기록은 그대로다.
+ * 보이는 마지막 판을 빼도 지운 경기(migrations/0026)가 시리즈에 남아 있으면 시리즈 행은 지우지 않는다(소속 행이 외래 키로
+ * 걸려 있고, 그 경기를 되살리면 시리즈째 돌아와야 한다). 그동안 시리즈는 판이 없어 화면에 보이지 않는다.
+ */
 export async function removeFromSeries(
   env: Env,
   groupId: string,
@@ -315,7 +325,15 @@ export async function removeFromSeries(
       if (!series.matchIds.includes(matchId)) {
         throw new ApiError(404, "NOT_FOUND", "이 시리즈에 없는 경기입니다.");
       }
-      const last = series.matchIds.length === 1;
+      const hidden = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM match_series_members s
+         JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
+         WHERE s.group_id = ?1 AND s.series_id = ?2 AND m.deleted_at IS NOT NULL`,
+      )
+        .bind(groupId, seriesId)
+        .first<{ n: number }>();
+      const emptied = series.matchIds.length === 1;
+      const last = emptied && (hidden?.n ?? 0) === 0;
       const statements = [
         seriesStillGuard(env, groupId, series),
         env.DB.prepare(
@@ -327,8 +345,8 @@ export async function removeFromSeries(
           env.DB.prepare("DELETE FROM match_series WHERE group_id = ?1 AND id = ?2").bind(groupId, seriesId),
         );
       }
-      const after: SeriesView | null = last ? null : { ...series, matchIds: series.matchIds.filter((id) => id !== matchId) };
-      return { stored: { deleted: last, series: after }, statements };
+      const after: SeriesView | null = emptied ? null : { ...series, matchIds: series.matchIds.filter((id) => id !== matchId) };
+      return { stored: { deleted: emptied, series: after }, statements };
     },
   });
   if (stored.deleted === true) return { series: null };

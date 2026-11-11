@@ -14,6 +14,7 @@ import {
   type Side,
   type Team,
 } from "../shared/types";
+import { operatorRole } from "./auth";
 import type { Env } from "./env";
 import {
   ApiError,
@@ -240,7 +241,7 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
       }
 
       const awaiting = await env.DB.prepare(
-        "SELECT COUNT(*) AS n FROM matches WHERE group_id = ?1 AND state = 'awaiting_result'",
+        "SELECT COUNT(*) AS n FROM matches WHERE group_id = ?1 AND state = 'awaiting_result' AND deleted_at IS NULL",
       )
         .bind(groupId)
         .first<{ n: number }>();
@@ -634,12 +635,13 @@ export async function saveMemo(env: Env, groupId: string, matchId: string, body:
       return {
         stored: { matchId },
         statements: [
-          // 확인과 저장 사이에 메모·상태가 바뀌었으면 batch 전체를 실패시킨다.
+          // 확인과 저장 사이에 메모·상태가 바뀌었거나 경기가 지워졌으면 batch 전체를 실패시킨다. 메모는 경기 버전을 올리지
+          // 않아 삭제와의 겹침을 버전으로 막지 못하므로 deleted_at을 직접 본다(지운 경기의 메모가 바뀌지 않게).
           env.DB.prepare(
             `INSERT INTO guard (version_conflict)
              SELECT 1 WHERE NOT EXISTS (
                SELECT 1 FROM matches WHERE id = ?1 AND group_id = ?2 AND memo IS ?3
-                 AND state IN ('in_progress', 'awaiting_result', 'confirmed')
+                 AND state IN ('in_progress', 'awaiting_result', 'confirmed') AND deleted_at IS NULL
              )`,
           ).bind(matchId, groupId, baseMemo),
           env.DB.prepare("UPDATE matches SET memo = ?1 WHERE id = ?2 AND group_id = ?3").bind(memo, matchId, groupId),
@@ -863,8 +865,9 @@ export async function excludeMatch(
 /* 지문 중복 검사(일괄 입력·복구)                                        */
 /* ------------------------------------------------------------------ */
 
-/** 지문이 있을 수 있는 경기(일괄 입력·지난 경기 입력) 중 전적 제외가 아닌 것. */
-const FINGERPRINT_SCOPE = "group_id = ?1 AND state <> 'excluded' AND source IN ('import', 'backfill')";
+/** 지문이 있을 수 있는 경기(일괄 입력·지난 경기 입력) 중 전적 제외도, 지운 것도 아닌 것. */
+const FINGERPRINT_SCOPE =
+  "group_id = ?1 AND state <> 'excluded' AND deleted_at IS NULL AND source IN ('import', 'backfill')";
 const SCOPE_STAMP = "COUNT(*) || ':' || COALESCE(SUM(version), 0)";
 
 /** 확인한 때의 범위 상태(경기 수:버전 합). 확인과 저장 사이에 범위가 바뀌면 batch를 실패시키는 데 쓴다. */
@@ -886,7 +889,7 @@ function fingerprintScopeGuard(env: Env, groupId: string, stamp: string): D1Prep
   ).bind(groupId, stamp);
 }
 
-/** 복구할 경기(ids)와 저장된 지문이 같은, 전적 제외가 아닌 다른 경기가 있으면 batch 전체를 실패시킨다. */
+/** 복구할 경기(ids)와 저장된 지문이 같은, 전적 제외도 지운 것도 아닌 다른 경기가 있으면 batch 전체를 실패시킨다. */
 function storedFingerprintRestoreGuard(env: Env, groupId: string, ids: readonly string[]): D1PreparedStatement {
   return env.DB.prepare(
     `INSERT INTO guard (version_conflict)
@@ -894,6 +897,7 @@ function storedFingerprintRestoreGuard(env: Env, groupId: string, ids: readonly 
        SELECT 1 FROM matches a
        JOIN matches b ON b.group_id = a.group_id AND b.import_fingerprint = a.import_fingerprint AND b.id <> a.id
        WHERE a.group_id = ?1 AND a.id IN (SELECT value FROM json_each(?2)) AND b.state <> 'excluded'
+         AND b.deleted_at IS NULL
      )`,
   ).bind(groupId, JSON.stringify(ids));
 }
@@ -908,10 +912,11 @@ interface FingerprintOverlap {
 /**
  * ids의 경기 가운데 같은 지문(저장된 것 또는 내용으로 계산한 것)의 다른 경기가 전적 제외가 아닌 상태로 있는 것.
  * 다시 가져오기에서 "이미 들어간 경기"로 보는 기준과 같다(src/server/sheets.ts groupFingerprints).
+ * ids는 지운 경기여도 된다(되살리기). 다른 경기 쪽의 지운 경기는 견주지 않는다.
  */
 async function fingerprintOverlaps(env: Env, groupId: string, ids: readonly string[]): Promise<FingerprintOverlap[]> {
   if (ids.length === 0) return [];
-  const all = await groupFingerprints(env, groupId);
+  const all = await groupFingerprints(env, groupId, ids);
   const target = new Set(ids);
   const active = new Map<string, Set<number>>();
   for (const f of all) {
@@ -1000,6 +1005,139 @@ export async function restoreMatch(
             { state: { from: "excluded", to: target } },
             now,
           ),
+        ],
+      };
+    },
+  });
+  return loadMatch(env, groupId, matchId);
+}
+
+/* ------------------------------------------------------------------ */
+/* 경기 삭제·되살리기(migrations/0026)                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 지울 수 있는 상태. 진행 중 경기는 "경기 취소"로 끝내고, 취소된 경기는 이미 통계에 없어 지울 까닭이 없다.
+ * state는 지울 때 바꾸지 않으므로 되살리면 이 셋 가운데 지우기 전 상태로 그대로 돌아온다.
+ */
+const DELETABLE_STATES = ["confirmed", "excluded", "awaiting_result"] as const;
+
+/**
+ * 삭제·되살리기 이력. match_revisions.kind CHECK에 새 종류를 넣으려면 표를 새로 만들어야 해서(migrations/0026 머리말)
+ * kind 'correction'에 changes.deleted로 남긴다. 화면(Records.tsx)과 스냅숏(snapshot.ts revisionStatements)이
+ * 이 키로 삭제 줄을 알아본다. by는 누가 했는지(대표·공동 운영자). 계정 ID는 남기지 않는다.
+ */
+function deletionRevision(env: Env, groupId: string, matchId: string, deleted: boolean, by: string, at: string) {
+  return insertRevision(
+    env,
+    groupId,
+    matchId,
+    "correction",
+    { deleted: { from: !deleted, to: deleted }, by: { from: null, to: by } },
+    at,
+  );
+}
+
+/**
+ * 잘못 넣었거나 두 번 넣은 경기를 지운다(휴지통 방식). deleted_at만 채우고 행·명단·시리즈 소속·서포터 차례 기록은 그대로
+ * 둔다. 경기 번호는 당기지 않는다. 지운 경기는 스냅숏·조회 링크·계산에서 빠지고(snapshot.ts ALIVE), 변경 내역의 삭제
+ * 줄에서 되살린다. 전적 제외와 달리 목록에 흔적이 남지 않는다.
+ * 서포터 차례 기록을 무효로 하지 않는 이유: 되살렸을 때 지우기 전과 똑같아야 하고, 이미 지난 내전의 차례는 다시 쓰지 않는다.
+ */
+export async function deleteMatch(
+  env: Env,
+  groupId: string,
+  matchId: string,
+  body: Body,
+  accountId: string,
+): Promise<MatchView> {
+  assertOnlyKeys(body, ["requestId", "baseMatchVersion"]);
+  const requestId = requestIdOf(body);
+  const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
+  await runMutation(env, {
+    groupId,
+    requestId,
+    op: "delete",
+    payload: { matchId, baseMatchVersion },
+    conflictDetails: () => matchConflictDetails(env, groupId, matchId),
+    build: async () => {
+      // 이미 지운 경기는 loadMatch가 찾지 못해 404다(지운 경기는 없는 경기로 다룬다).
+      const match = await loadMatch(env, groupId, matchId);
+      assertMatchVersion(match, baseMatchVersion);
+      assertState(match, DELETABLE_STATES);
+      const by = (await operatorRole(env, groupId, accountId)) ?? "owner";
+      const now = nowIso();
+      return {
+        stored: { matchId },
+        statements: [
+          // 버전이 같으면 그 사이 지워지지도 않았다(지우기·되살리기도 버전을 올린다).
+          matchGuard(env, groupId, matchId, baseMatchVersion, match.state),
+          env.DB.prepare(
+            "UPDATE matches SET deleted_at = ?1, version = version + 1 WHERE id = ?2 AND group_id = ?3",
+          ).bind(now, matchId, groupId),
+          deletionRevision(env, groupId, matchId, true, by, now),
+        ],
+      };
+    },
+  });
+  return loadMatch(env, groupId, matchId, true);
+}
+
+/**
+ * 지운 경기를 되살린다. 상태는 지우기 전 그대로다(삭제가 state를 바꾸지 않는다).
+ * 일괄 입력·지난 경기 입력 경기는 전적 복구(restoreMatch)와 같은 기준으로, 같은 내용의 경기가 이미 기록에 있으면
+ * 거절한다: 지운 뒤 같은 시트를 다시 가져온 경우 두 번 세지 않게. 전적 제외 상태로 지웠던 경기는 통계에 들지 않으므로 보지 않는다.
+ */
+export async function undeleteMatch(
+  env: Env,
+  groupId: string,
+  matchId: string,
+  body: Body,
+  accountId: string,
+): Promise<MatchView> {
+  assertOnlyKeys(body, ["requestId", "baseMatchVersion"]);
+  const requestId = requestIdOf(body);
+  const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
+  await runMutation(env, {
+    groupId,
+    requestId,
+    op: "undelete",
+    payload: { matchId, baseMatchVersion },
+    conflictDetails: () => matchConflictDetails(env, groupId, matchId),
+    build: async () => {
+      const match = await loadMatch(env, groupId, matchId, true);
+      assertMatchVersion(match, baseMatchVersion);
+      if (match.deletedAt === undefined) {
+        throw new ApiError(409, "STATE_CONFLICT", "지운 경기가 아니에요. 화면을 새로 고쳐 확인해 주세요.", {
+          match: { version: match.version, state: match.state },
+        });
+      }
+      const guards: D1PreparedStatement[] = [];
+      if ((match.source === "import" || match.source === "backfill") && match.state !== "excluded") {
+        const stamp = await fingerprintScopeStamp(env, groupId);
+        const overlaps = await fingerprintOverlaps(env, groupId, [matchId]);
+        if (overlaps.length > 0) {
+          const nos = overlaps[0]!.with;
+          throw new ApiError(
+            409,
+            "RESTORE_DUPLICATE",
+            `같은 내용의 경기가 이미 기록에 있어요(${nos.map((n) => `${n}번`).join(", ")} 경기). 두 번 세지 않도록 되살리지 않았어요. 그 경기를 먼저 지우거나 전적 제외한 뒤 되살리세요.`,
+            { matchNos: nos },
+          );
+        }
+        guards.push(fingerprintScopeGuard(env, groupId, stamp), storedFingerprintRestoreGuard(env, groupId, [matchId]));
+      }
+      const by = (await operatorRole(env, groupId, accountId)) ?? "owner";
+      const now = nowIso();
+      return {
+        stored: { matchId },
+        statements: [
+          matchGuard(env, groupId, matchId, baseMatchVersion, match.state),
+          ...guards,
+          env.DB.prepare(
+            "UPDATE matches SET deleted_at = NULL, version = version + 1 WHERE id = ?1 AND group_id = ?2",
+          ).bind(matchId, groupId),
+          deletionRevision(env, groupId, matchId, false, by, now),
         ],
       };
     },
@@ -1477,6 +1615,7 @@ export async function importMatches(
           },
     build: async () => {
       // 다시 가져오기 중복 방지: 같은 지문의 경기가 전적 제외가 아닌 상태로 이미 있으면 거절한다.
+      // 지운 경기는 견주지 않는다(groupFingerprints가 뺀다): 잘못 넣은 것을 지우고 고쳐서 다시 넣는 흐름을 막지 않는다.
       // 지문 없는 예전 일괄 입력·지난 경기 입력은 내용으로 계산한 지문과 견준다(화면의 비교와 같은 기준).
       let scopeStamp: string | null = null;
       if (fingerprints.length > 0) {
@@ -1525,7 +1664,7 @@ export async function importMatches(
           env.DB.prepare(
             `INSERT INTO guard (version_conflict)
              SELECT 1 WHERE EXISTS (
-               SELECT 1 FROM matches WHERE group_id = ?1 AND state <> 'excluded'
+               SELECT 1 FROM matches WHERE group_id = ?1 AND state <> 'excluded' AND deleted_at IS NULL
                  AND import_fingerprint IN (SELECT value FROM json_each(?2))
              )`,
           ).bind(groupId, JSON.stringify(fingerprints)),
@@ -1661,10 +1800,10 @@ export async function setImportBatchExcluded(
       const target = await env.DB.prepare(
         exclude
           ? `SELECT COUNT(*) AS n FROM matches
-             WHERE group_id = ?1 AND import_batch_id = ?2 AND state = 'confirmed'`
+             WHERE group_id = ?1 AND import_batch_id = ?2 AND state = 'confirmed' AND deleted_at IS NULL`
           : `SELECT COUNT(*) AS n FROM matches
              WHERE group_id = ?1 AND import_batch_id = ?2 AND state = 'excluded'
-               AND prev_state = 'confirmed'`,
+               AND prev_state = 'confirmed' AND deleted_at IS NULL`,
       )
         .bind(groupId, batchId)
         .first<{ n: number }>();
@@ -1677,9 +1816,10 @@ export async function setImportBatchExcluded(
       const now = nowIso();
       const from = exclude ? "confirmed" : "excluded";
       const to = exclude ? "excluded" : "confirmed";
+      // 지운 경기는 묶음 제외·복구에서도 건드리지 않는다(되살렸을 때 지우기 전 상태 그대로여야 한다).
       const where = exclude
-        ? "group_id = ?1 AND import_batch_id = ?2 AND state = 'confirmed'"
-        : "group_id = ?1 AND import_batch_id = ?2 AND state = 'excluded' AND prev_state = 'confirmed'";
+        ? "group_id = ?1 AND import_batch_id = ?2 AND state = 'confirmed' AND deleted_at IS NULL"
+        : "group_id = ?1 AND import_batch_id = ?2 AND state = 'excluded' AND prev_state = 'confirmed' AND deleted_at IS NULL";
       return {
         stored: { changed: target?.n ?? 0 },
         statements: [
@@ -1723,7 +1863,8 @@ async function restoreImportBatch(env: Env, groupId: string, batchId: string, sk
   const stamp = await fingerprintScopeStamp(env, groupId);
   const targets = await env.DB.prepare(
     `SELECT id FROM matches
-     WHERE group_id = ?1 AND import_batch_id = ?2 AND state = 'excluded' AND prev_state = 'confirmed'`,
+     WHERE group_id = ?1 AND import_batch_id = ?2 AND state = 'excluded' AND prev_state = 'confirmed'
+       AND deleted_at IS NULL`,
   )
     .bind(groupId, batchId)
     .all<{ id: string }>();
@@ -1743,7 +1884,8 @@ async function restoreImportBatch(env: Env, groupId: string, batchId: string, sk
   const skip = new Set(overlaps.map((o) => o.matchId));
   const restore = ids.filter((id) => !skip.has(id));
   const now = nowIso();
-  const where = `group_id = ?1 AND id IN (SELECT value FROM json_each(?2)) AND state = 'excluded' AND prev_state = 'confirmed'`;
+  const where = `group_id = ?1 AND id IN (SELECT value FROM json_each(?2)) AND state = 'excluded' AND prev_state = 'confirmed'
+    AND deleted_at IS NULL`;
   const list = JSON.stringify(restore);
   return {
     stored: { changed: restore.length, ...(skipOverlapping ? { skipped: overlaps.length } : {}) },
@@ -1808,7 +1950,7 @@ export async function shiftMatchDates(env: Env, groupId: string, body: Body): Pr
       const rows = await env.DB.prepare(
         `SELECT id, match_no, version, state, played_at,
            (SELECT timezone FROM groups WHERE id = ?1) AS timezone
-         FROM matches WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
+         FROM matches WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2)) AND deleted_at IS NULL`,
       )
         .bind(groupId, list)
         .all<{ id: string; match_no: number; version: number; state: string; played_at: string; timezone: string }>();

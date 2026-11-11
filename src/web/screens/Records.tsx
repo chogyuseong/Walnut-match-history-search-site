@@ -33,6 +33,7 @@ import {
   sideOfTeam,
   type MatchView,
   type Position,
+  type RevisionView,
   type Side,
   type Snapshot,
   type Team,
@@ -92,6 +93,18 @@ const REVISION_LABEL: Record<string, string> = {
   cancel: "미진행 취소",
   backfill: "지난 경기 입력",
 };
+
+/**
+ * 경기 삭제·되살리기 줄(src/server/matches.ts deleteMatch가 kind "correction"에 changes.deleted로 남긴다)이면
+ * 지운 줄은 true, 되살린 줄은 false. 그 밖의 줄은 null.
+ */
+function deletionOf(r: RevisionView): boolean | null {
+  const change = r.changes.deleted;
+  return change ? change.to === true : null;
+}
+
+/** 삭제·되살리기 줄의 changes.by(누가 했는지). 계정은 남기지 않고 역할만 남는다. */
+const DELETED_BY_LABEL: Record<string, string> = { owner: "대표 운영자", co: "공동 운영자" };
 
 function changeText(key: string, nameOf: (id: string) => string, match: MatchView | undefined): string {
   if (key === "winnerTeam") return "승리 팀";
@@ -673,6 +686,9 @@ export function Records(props: {
                   </li>
                 );
               }
+              if (deletionOf(r) !== null) {
+                return <DeletionRow key={r.id} revision={r} timeZone={tz} app={props.app ?? null} />;
+              }
               const match = snapshot.matches.find((m) => m.id === r.matchId);
               return (
                 <li key={r.id}>
@@ -701,6 +717,60 @@ export function Records(props: {
         </p>
       </details>
     </div>
+  );
+}
+
+/**
+ * 변경 내역의 경기 삭제·되살리기 줄. 지운 경기는 목록에 없어 누를 경기가 없으므로 정적인 줄이고,
+ * 지금도 지워져 있는 경기의 가장 최근 삭제 줄(revision.deletedMatch)에만 운영자에게 "되살리기"를 둔다.
+ */
+function DeletionRow(props: { revision: RevisionView; timeZone: string; app: AppValue | null }) {
+  const { revision: r, app } = props;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  // 응답을 못 받아 다시 누르면 같은 요청 ID로 보낸다(서버가 같은 응답을 돌려준다).
+  const requestId = useRef<string | null>(null);
+  const deleted = deletionOf(r) === true;
+  const by = DELETED_BY_LABEL[String(r.changes.by?.to)] ?? "운영자";
+
+  async function undelete() {
+    if (!app || !r.deletedMatch) return;
+    requestId.current ??= newRequestId();
+    setBusy(true);
+    setError(null);
+    try {
+      await mutate(`/api/groups/${app.groupId}/matches/${r.matchId}/undelete`, {
+        requestId: requestId.current,
+        baseMatchVersion: r.deletedMatch.version,
+      });
+      requestId.current = null;
+      app.setNotice(`${r.matchNo}경기를 되살렸어요. 목록과 통계에 다시 들어가요.`);
+      await app.refreshAfterOwnChange();
+    } catch (e) {
+      setError(e);
+      if (e instanceof ApiFailure && e.code === "VERSION_CONFLICT") void app.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="list-row static">
+      <div>
+        {r.matchNo}경기 · {deleted ? "삭제" : "삭제 되살림"}
+        <br />
+        <span className="hint">
+          {by} · {formatDate(r.createdAt, props.timeZone)} {formatTime(r.createdAt, props.timeZone)}
+        </span>
+        <ErrorNote error={error} onCheck={() => void app?.refresh()} />
+      </div>
+      {app && r.deletedMatch && (
+        <button type="button" className="secondary" disabled={busy} onClick={() => void undelete()}>
+          <span aria-hidden="true">{busy ? "되살리는 중" : "되살리기"}</span>
+          <span className="sr-only">{r.matchNo}경기 되살리기</span>
+        </button>
+      )}
+    </li>
   );
 }
 
@@ -785,6 +855,7 @@ export function MatchDetail(props: {
   // 챔피언 수정 창에서 고르는 중인 값({ 참가자 ID: 챔피언 키 }).
   const [championDraft, setChampionDraft] = useState<Record<string, string>>({});
   const [imageOpen, setImageOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const expectationOf = useExpectations(snapshot);
   // 요청 ID는 같은 요청(동작·내용·경기 버전)을 다시 보낼 때 같은 값을 쓴다. 성공하거나 내용이 바뀌면 새로 만든다.
   const request = useRef<{ id: string; key: string } | null>(null);
@@ -833,6 +904,33 @@ export function MatchDetail(props: {
         setError(e);
         if (e instanceof ApiFailure && e.code === "VERSION_CONFLICT") void app.refresh();
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * 경기 삭제(src/server/matches.ts deleteMatch). 성공하면 기록 화면으로 먼저 돌아간 뒤 새로 읽는다: 새로 읽은 다음에
+   * 돌아가면 그 사이 이 화면이 "경기를 찾을 수 없어요"로 한 번 그려진다.
+   */
+  async function deleteThisMatch() {
+    if (!app) return;
+    const key = `${match!.id}:${match!.version}:delete`;
+    if (!request.current || request.current.key !== key) request.current = { id: newRequestId(), key };
+    setBusy(true);
+    setError(null);
+    try {
+      await mutate(`/api/groups/${snapshot.group.id}/matches/${match!.id}/delete`, {
+        requestId: request.current.id,
+        baseMatchVersion: match!.version,
+      });
+      request.current = null;
+      app.setNotice(`${match!.matchNo}경기를 지웠어요. 기록 화면의 변경 내역에서 되살릴 수 있어요.`);
+      props.back();
+      await app.refreshAfterOwnChange();
+    } catch (e) {
+      setError(e);
+      if (e instanceof ApiFailure && e.code === "VERSION_CONFLICT") void app.refresh();
     } finally {
       setBusy(false);
     }
@@ -960,20 +1058,38 @@ export function MatchDetail(props: {
         </button>
       )}
 
-      {operator && (match.state === "confirmed" || match.state === "awaiting_result") && (
+      {operator && (match.state === "confirmed" || match.state === "awaiting_result" || match.state === "excluded") && (
         <details>
           <summary>더보기</summary>
+          {match.state !== "excluded" && (
+            <div className="button-row">
+              <button
+                type="button"
+                className="danger"
+                disabled={busy}
+                onClick={() => void send("exclude", {})}
+              >
+                전적 제외
+              </button>
+              <span className="hint">
+                통계와 배치 판수에서 빠집니다. 서포터 횟수는 그대로이고 언제든 복구할 수 있어요.
+              </span>
+            </div>
+          )}
           <div className="button-row">
             <button
               type="button"
               className="danger"
               disabled={busy}
-              onClick={() => void send("exclude", {})}
+              onClick={() => {
+                setError(null);
+                setDeleteOpen(true);
+              }}
             >
-              전적 제외
+              경기 삭제
             </button>
             <span className="hint">
-              통계와 배치 판수에서 빠집니다. 서포터 횟수는 그대로이고 언제든 복구할 수 있어요.
+              잘못 넣은 경기를 지웁니다. 목록과 통계에서 사라지고, 변경 내역에서 되살릴 수 있어요.
             </span>
           </div>
         </details>
@@ -986,7 +1102,27 @@ export function MatchDetail(props: {
           </button>
         </p>
       )}
-      {editing === null && <ErrorNote error={error} />}
+      {editing === null && !deleteOpen && <ErrorNote error={error} />}
+      {deleteOpen && (
+        <Dialog title={`${match.matchNo}경기 삭제`} onClose={() => setDeleteOpen(false)}>
+          <p>
+            {formatDate(match.playedAt, tz)} {formatTime(match.playedAt, tz)} · {STATE_LABEL[match.state]}
+          </p>
+          <MatchTeams match={match} nameOf={nameOf} />
+          <p className="note">
+            목록·랭킹·통계와 조회 링크에서 사라져요. 경기 번호는 비워 두고, 기록 화면의 변경 내역에서 되살릴 수 있어요.
+          </p>
+          <ErrorNote error={error} />
+          <div className="button-row">
+            <button type="button" className="danger" disabled={busy} onClick={() => void deleteThisMatch()}>
+              {busy ? "지우는 중" : "삭제"}
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={() => setDeleteOpen(false)}>
+              그만두기
+            </button>
+          </div>
+        </Dialog>
+      )}
 
       <MatchMemoSection key={`memo-${match.id}`} match={match} app={app} />
       <MatchSeriesSection
@@ -1004,12 +1140,14 @@ export function MatchDetail(props: {
           {history.map((r) => (
             <li key={r.id} className="list-row static">
               <span>
-                {REVISION_LABEL[r.kind] ?? r.kind}
-                {Object.keys(r.changes).length > 0 && r.kind === "correction"
-                  ? ` · ${Object.keys(r.changes)
-                      .map((k) => changeText(k, nameOf, match))
-                      .join(", ")}`
-                  : ""}
+                {deletionOf(r) !== null
+                  ? `${deletionOf(r) ? "삭제" : "삭제 되살림"} · ${DELETED_BY_LABEL[String(r.changes.by?.to)] ?? "운영자"}`
+                  : (REVISION_LABEL[r.kind] ?? r.kind) +
+                    (Object.keys(r.changes).length > 0 && r.kind === "correction"
+                      ? ` · ${Object.keys(r.changes)
+                          .map((k) => changeText(k, nameOf, match))
+                          .join(", ")}`
+                      : "")}
               </span>
               <span className="hint">
                 {formatDate(r.createdAt, tz)} {formatTime(r.createdAt, tz)}

@@ -111,8 +111,8 @@ export async function siteOverview(env: Env, now = Date.now()): Promise<Overview
       `SELECT
          (SELECT COUNT(*) FROM accounts) AS accounts,
          (SELECT COUNT(*) FROM groups) AS groups_n,
-         (SELECT COUNT(*) FROM matches) AS matches,
-         (SELECT COUNT(*) FROM matches WHERE state = 'confirmed') AS confirmed,
+         (SELECT COUNT(*) FROM matches WHERE deleted_at IS NULL) AS matches,
+         (SELECT COUNT(*) FROM matches WHERE state = 'confirmed' AND deleted_at IS NULL) AS confirmed,
          (SELECT COUNT(*) FROM participants) AS participants,
          (SELECT COUNT(*) FROM error_logs) AS errors,
          (${active}?1) AS active7,
