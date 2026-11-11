@@ -270,14 +270,18 @@ function afterKeyboardCloses(keyboardWasOpen: boolean, run: () => void): () => v
   return stop;
 }
 
+/** 화면을 스크롤해 옮길 때의 움직임. 움직임 줄이기를 켠 사용자에게는 부드럽게 미끄러지지 않고 바로 옮긴다(6절). */
+export function scrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}
+
 /**
  * results가 이미 보이면 그대로 두고, 아니면 첫머리가 화면 위쪽에 오게 올린다.
  * 위아래 가림 여백은 html의 scroll-padding(상단 고정 머리·하단 탭·고정 버튼 몫)을 그대로 쓴다.
  * 대화 상자 안에서는 창 안 스크롤 상자 기준으로 최소한만 움직인다(뒤 화면을 끌고 가지 않게).
  */
 function revealResults(results: HTMLElement) {
-  const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const behavior: ScrollBehavior = smooth ? "smooth" : "auto";
+  const behavior = scrollBehavior();
   if (results.closest('[role="dialog"]')) {
     results.scrollIntoView({ block: "nearest", behavior });
     return;

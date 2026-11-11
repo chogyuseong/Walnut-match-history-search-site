@@ -1656,8 +1656,6 @@ button.row.picked:hover {
    색을 바꾸려면 여기만 고친다(screenKit.tsx의 PosLabel이 data-pos, RoleIcon이 pos-라인 클래스(예: pos-top)를 단다).
    2단계(2026-11-09): 색상은 그대로 두고 채도를 15% 낮췄다. 카드·바탕 대비 글자 4.5:1 이상(라이트는 그래서 더 진해졌다,
    test/theme-contrast.test.ts가 검사).
-   신호 색(--sig-*): 섞기 공정성 분포 띠·판정, 분석 코멘트 점처럼 "좋음(초록)·조금(노랑)·나쁨(주황)" 뜻을 가진 칠.
-   칠 위 글자는 --on-sig.
    이야기 카드 색(--story-*): 그래프 분석 맨 위 카드 넷의 라벨 색(연두·분홍·청록·연보라). CLAUDE.md 5절의 명시 예외다.
    파랑(블루 진영)·빨강(레드·패)·골드(강조·고른 카드)와 겹치는 색상은 피했다. 값을 바꿀 때는 카드 바탕(--ih-subtle)과
    고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts). */
@@ -1668,10 +1666,6 @@ button.row.picked:hover {
   --pos-mid: #e6bd59;
   --pos-adc: #65a3e7;
   --pos-support: #d48edf;
-  --sig-good: #39a46b;
-  --sig-warn: #d5ad47;
-  --sig-bad: #da7c3d;
-  --on-sig: #1b1a17;
   --story-streak: #b4d66b;
   --story-upset: #f29dbb;
   --story-pair: #4fcfc4;
@@ -1687,9 +1681,6 @@ button.row.picked:hover {
   --pos-mid: #8a6a13;
   --pos-adc: #326fba;
   --pos-support: #9e4cb4;
-  --sig-good: #369d66;
-  --sig-warn: #ab8627;
-  --sig-bad: #d7702c;
 }
 /* 글자와 아이콘(currentColor) 모두에 라인 색. 표·비교 화면의 `.xxx .pos { color }` 규칙(명시도 0,2,0)을 이기도록
    선택자를 겹쳐 명시도를 0,3,0으로 올렸다. 라인 색을 끄고 싶은 곳은 같은 명시도 이상으로 덮는다. */
@@ -6370,12 +6361,14 @@ label:has(> select) {
   border-radius: 50%;
   background: var(--ih-text-secondary);
 }
-/* 점 색은 뜻(좋음 초록·주의 주황·보통 회색)이 있어 남기되 신호 색 토큰(채도 낮춤)을 쓴다. */
+/* 점은 색 대신 모양으로 가른다(5절: 단일 뜻을 여러 색으로 칠하지 않는다). 보통은 보조 글자색 점, 좋음은 본문 글자색 점,
+   주의는 속 빈 점. 뜻은 문장이 전하고 점은 훑어볼 때의 표시다. */
 .commentary-remarks .remark-good::before {
-  background: var(--sig-good);
+  background: var(--ih-text);
 }
 .commentary-remarks .remark-warn::before {
-  background: var(--sig-bad);
+  background: transparent;
+  border: 1px solid var(--ih-text);
 }
 .commentary .commentary-note {
   margin: 0;
@@ -6432,10 +6425,11 @@ label:has(> select) {
 }
 
 /* ---------- 섞기 공정성(모임 전체) 묶음(2026-11-09 디자인 수정, 그래프 분석) ----------
-   머리(큰 비율 + 판정) → 분포 띠(균형/조금/많이) → 보조 타일 3칸(미터). 판정 색: good 초록, ok 본문, poor 주황.
-   구간 색은 신호등 비유(초록·노랑·주황)로 신호 색 토큰(--sig-*, 채도 낮춤)을 쓰고, 띠 안 글자는 --on-sig. */
+   머리(큰 비율 + 판정) → 분포 띠(균형/조금/많이) → 보조 타일 3칸(미터).
+   큰 숫자는 중립색 하나이고 판정은 글(FAIR_VERDICT_TEXT)이 전한다. 띠의 세 구간은 명도와 채움으로 가른다(5절: 단일 지표를
+   여러 색 구간으로 칠하지 않는다): 균형은 본문 글자색 채움, 조금 치우침은 보조 글자색 채움, 많이 치우침은 1px 테두리만 있는
+   속 빈 칸. 범례 글자가 구간 이름을 직접 적는다. 세 칠은 패널 위 3:1 이상(본문·보조 글자 4.5:1 검사에 든다). */
 .fair-head {
-  --fair-color: var(--ih-text-secondary);
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -6443,13 +6437,6 @@ label:has(> select) {
   border-radius: var(--radius-panel);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
-  border-left-color: var(--fair-color);
-}
-.fair-good {
-  --fair-color: var(--sig-good);
-}
-.fair-poor {
-  --fair-color: var(--sig-bad);
 }
 .fair-big {
   display: flex;
@@ -6461,7 +6448,7 @@ label:has(> select) {
   font-size: var(--text-hero);
   font-weight: 600;
   line-height: 1.1;
-  color: var(--fair-color);
+  color: var(--ih-text);
   font-variant-numeric: tabular-nums;
 }
 .fair-big-label {
@@ -6497,16 +6484,18 @@ label:has(> select) {
   font-size: var(--text-meta);
   line-height: 1;
   font-weight: 500;
-  color: var(--on-sig);
+  color: var(--ih-bg);
 }
 .fair-seg-balanced {
-  background: var(--sig-good);
+  background: var(--ih-text);
 }
 .fair-seg-slight {
-  background: var(--sig-warn);
+  background: var(--ih-text-secondary);
 }
 .fair-seg-lopsided {
-  background: var(--sig-bad);
+  background: transparent;
+  border: 1px solid var(--ih-text);
+  color: var(--ih-text);
 }
 .fair-legend {
   display: flex;

@@ -16,7 +16,7 @@ import { POSITIONS, type ParticipantView, type Position, type Snapshot } from ".
 import { patchParticipant, saveSkillGroups } from "../api";
 import { POSITION_LABEL } from "../format";
 import { Help, PosLabel } from "../screenKit";
-import { Dialog, ErrorNote } from "../ui";
+import { Dialog, ErrorNote, scrollBehavior } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 
 /**
@@ -137,7 +137,7 @@ function PrioritySide(props: {
               <button
                 type="button"
                 className="priority-jump"
-                onClick={() => document.getElementById(row.id!)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                onClick={() => document.getElementById(row.id!)?.scrollIntoView({ behavior: scrollBehavior(), block: "start" })}
               >
                 <span>{row.label}</span>
                 <strong>{row.count}명</strong>

@@ -145,7 +145,7 @@ type View = "people" | "matrix" | "lines" | "race" | "shape" | "activity";
 
 // ─ 섞기 공정성(모임 전체) 묶음의 화면 상수 ─
 /**
- * 판정 한 줄 문구. 색은 styles.css .fair-good/.fair-ok/.fair-poor. 구간을 숫자로만 쓴다(2026-11-10 F5:
+ * 판정 한 줄 문구. 판정은 이 글로만 전한다(색으로 칠하지 않는다, styles.css 섞기 공정성 머리). 구간을 숫자로만 쓴다(2026-11-10 F5:
  * "섞기가 공정했어요"는 예상 승률이 MMR로 낸 추정이라는 점을 빼고 말한다).
  */
 const FAIR_VERDICT_TEXT: Record<FairnessVerdict, string> = {
@@ -500,8 +500,8 @@ export function Graphs(props: {
           <p className="hint">경기가 더 쌓이면 보여요(판정할 수 있는 경기 {fairness.games}/{FAIRNESS_MIN_GAMES}).</p>
         ) : (
           <>
-            {/* 머리: 큰 숫자(균형 경기 비율) + 한 줄 판정. 색은 fairnessVerdict(good·ok·poor)를 따른다. */}
-            <div className={`fair-head fair-${verdict}`}>
+            {/* 머리: 큰 숫자(균형 경기 비율) + 한 줄 판정(fairnessVerdict good·ok·poor의 글). */}
+            <div className="fair-head">
               <div className="fair-big">
                 <span className="fair-pct">
                   {ratePercent(fairness.balanced, fairness.games)}

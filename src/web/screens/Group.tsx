@@ -7,7 +7,7 @@ import { formatDate, formatRange, formatTime, nameMap, viewLink } from "../forma
 import { rotationContext, supportCounts } from "../../shared/rotation";
 import { SupportCountEditor } from "../supportCountEditor";
 import { Help } from "../screenKit";
-import { CopyButton, Dialog, ErrorNote, useSearchJump } from "../ui";
+import { CopyButton, Dialog, ErrorNote, scrollBehavior, useSearchJump } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { TitleSettings } from "./TitleSettings";
 import { NewGroupFromBackup, RestoreSection } from "./Restore";
@@ -166,7 +166,7 @@ export function Group() {
               const block = document.getElementById(`group-block-${id}`) as HTMLDetailsElement | null;
               if (!block) return;
               if (!block.open) block.open = true;
-              block.scrollIntoView({ behavior: "smooth", block: "start" });
+              block.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
             }}
           >
             {label}

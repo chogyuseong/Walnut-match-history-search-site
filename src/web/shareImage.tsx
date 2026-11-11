@@ -25,7 +25,6 @@ interface Palette {
   text: string;
   muted: string;
   line: string;
-  brand: string;
   winBg: string;
   winText: string;
   winAccent: string;
@@ -45,7 +44,6 @@ function palette(): Palette {
     text: v("--ih-text"),
     muted: v("--ih-text-secondary"),
     line: v("--ih-line"),
-    brand: v("--ih-accent"),
     winBg: v("--ih-win-bg"),
     winText: v("--ih-win-text"),
     winAccent: v("--ih-win-accent"),
@@ -147,9 +145,10 @@ function drawTeamBox(
     ctx.fillStyle = side === "blue" ? p.winBg : p.lossBg;
     ctx.fill();
   }
-  ctx.lineWidth = won ? 4 : 1.5;
-  // 이긴 팀은 강조색, 아니면 진영 색 테두리(진영을 모르면 중립).
-  ctx.strokeStyle = won ? p.brand : side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
+  // 테두리는 두 팀 모두 같은 굵기의 진영 색(진영을 모르면 중립)이다. 이긴 팀을 강조색 굵은 테두리로 칠하지 않고
+  // 머리의 "승리"·"패배" 글자와 이름 굵기로 가른다(CLAUDE.md 5절: 카드 테두리를 강조색으로 칠하지 않는다).
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
   ctx.stroke();
 
   setFont(ctx, p, 600, 32);
@@ -158,7 +157,7 @@ function drawTeamBox(
   if (won !== null) {
     ctx.textAlign = "right";
     setFont(ctx, p, 600, 30);
-    ctx.fillStyle = p.text;
+    ctx.fillStyle = won ? p.text : p.muted;
     ctx.fillText(won ? "승리" : "패배", x + w - 24, y + 40);
     ctx.textAlign = "left";
   }

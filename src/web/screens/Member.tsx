@@ -92,8 +92,10 @@ export function Member(props: { gid: string; rest: string[] }) {
   const shell = (current: Parameters<typeof ViewerNav>[0]["current"], body: React.ReactNode) => (
     <>
       <ViewerNav base={base} group={snapshot.group.name} current={current} member />
-      {snapshot.group.maintenance && <MaintenanceNote />}
-      {body}
+      <div className="bleed-body">
+        {snapshot.group.maintenance && <MaintenanceNote />}
+        {body}
+      </div>
     </>
   );
   if (shared) return shell(shared.tab, shared.body);

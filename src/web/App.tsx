@@ -139,7 +139,9 @@ export function App() {
           <main> 앞에 둔다: 넓은 화면에서 상단 바 바로 아래 한 줄이고, Tab 순서도 상단 바 → 주 메뉴 → 본문이다.
           좁은 화면에서는 CSS가 아래에 고정한다(순서는 같다). */}
       {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
-      <main tabIndex={-1}>
+      {/* 참가 중인 모임은 조회 메뉴 줄이 main 안에 있어, 예시·조회 링크처럼 main의 폭 제한을 풀고(bleed) 줄을 창 폭 전체로
+          긋는다. 본문은 Member의 .bleed-body, 푸터는 아래 .bleed-body가 본문 폭으로 묶는다. */}
+      <main className={route[0] === "mine" ? "bleed" : undefined} tabIndex={-1}>
         {!app.ready || app.switching ? (
           LOADING
         ) : (
@@ -148,7 +150,13 @@ export function App() {
             <OperatorScreen key={app.switchSeq} route={route} />
           </Suspense>
         )}
-        <LegalFooter />
+        {route[0] === "mine" ? (
+          <div className="bleed-body">
+            <LegalFooter />
+          </div>
+        ) : (
+          <LegalFooter />
+        )}
       </main>
       {app.notice && (
         <p className="toast" role="status">

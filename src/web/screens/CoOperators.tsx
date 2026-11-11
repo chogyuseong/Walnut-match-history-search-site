@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiFailure, call } from "../api";
 import { formatDate, formatTime } from "../format";
-import { CopyButton, Dialog, ErrorNote } from "../ui";
+import { CopyButton, Dialog, ErrorNote, scrollBehavior } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 
@@ -31,7 +31,7 @@ function accountLabel(row: CoOperatorRow): string {
 function showViewLinkSection() {
   const block = document.getElementById("group-block-often") as HTMLDetailsElement | null;
   if (block && !block.open) block.open = true;
-  document.getElementById("group-view-link")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("group-view-link")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
 }
 
 /** 모임 탭(대표 운영자): 공동 운영자 목록, 초대 링크 만들기, 내보내기. */
