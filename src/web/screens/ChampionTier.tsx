@@ -30,6 +30,7 @@ import {
   useMediaQuery,
   type SortState,
 } from "../screenKit";
+import { useSearchJump } from "../ui";
 import { go } from "../useApp";
 
 /**
@@ -62,6 +63,7 @@ export function ChampionTier(props: {
   const [scope, setScope] = useState<Scope>({ kind: "all" });
   const [lane, setLane] = useState<LaneFilter>("all");
   const [query, setQuery] = useState("");
+  const tableJump = useSearchJump<HTMLElement>();
   const [initial, setInitial] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState<ChampionSortKey>>(DEFAULT_SORT);
   // 펼친 줄. 격자에서 누른 챔피언도 여기로 온다. 한 번에 하나만 펼친다.
@@ -267,8 +269,10 @@ export function ChampionTier(props: {
           className="filter-search"
           aria-label="챔피언 검색"
           placeholder="챔피언 검색(가렌, ㄱㄹ)"
+          enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={tableJump.onSearchKey}
         />
       </FilterBar>
 
@@ -315,7 +319,7 @@ export function ChampionTier(props: {
             {board}
           </aside>
         )}
-        <section className="ct-main" aria-label="챔피언 티어 표">
+        <section ref={tableJump.results} tabIndex={-1} className="ct-main search-results" aria-label="챔피언 티어 표">
           <h2 className="sr-only">챔피언 티어 표</h2>
           {result.recordedMatches === 0 ? (
             <p className="hint">이 범위에는 챔피언이 기록된 경기가 없어요.</p>

@@ -41,6 +41,7 @@ import {
   TitleBadge,
   type SortState,
 } from "../screenKit";
+import { useSearchJump } from "../ui";
 
 /**
  * MMR 랭킹 화면(#/ranking, 조회 링크·예시 모임은 …/ranking). 결과 기반 MMR(rating.ts) 순위표.
@@ -124,6 +125,7 @@ export function Ranking(props: {
 }) {
   const { snapshot } = props;
   const [query, setQuery] = useState("");
+  const rankJump = useSearchJump<HTMLElement>();
   const [sort, setSort] = useState<SortState<RankSortKey>>(DEFAULT_SORT);
   // 추이를 펼친 사람. 한 번에 하나만 펼친다(목록이 길어 여러 개면 내려가며 찾기 어렵다).
   const [openTrend, setOpenTrend] = useState<string | null>(null);
@@ -200,8 +202,10 @@ export function Ranking(props: {
           className="filter-search"
           aria-label="이름 검색"
           placeholder="이름 검색"
+          enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={rankJump.onSearchKey}
         />
       </FilterBar>
 
@@ -273,7 +277,7 @@ export function Ranking(props: {
         </div>
       </section>
 
-      <section aria-label="MMR 순위표">
+      <section ref={rankJump.results} tabIndex={-1} className="search-results" aria-label="MMR 순위표">
         <h2 className="sr-only">순위표</h2>
         {rows.length === 0 ? (
           <p className="hint">일치하는 이름이 없어요.</p>
