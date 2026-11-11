@@ -114,10 +114,18 @@ interface MatchRow {
   team_a_side: Side | null;
   version: number;
   memo: string | null;
+  deleted_at: string | null;
 }
 
 const MATCH_COLUMNS = `id, match_no, session_id, state, source, started_at, ended_at, played_at,
-  confirmed_at, winner_team, team_a_side, version, memo`;
+  confirmed_at, winner_team, team_a_side, version, memo, deleted_at`;
+
+/**
+ * 지운 경기(migrations/0026)를 빼는 조건. 경기를 화면·계산으로 내보내는 읽기는 모두 이 조건을 붙인다(이 파일 밖의
+ * matches 읽기도 같은 글자를 직접 쓴다: matches.ts·series.ts·sheets.ts·restore.ts 등). 지운 경기까지 읽는 곳은
+ * 백업(groups.ts exportBackup)·참가자 합치기(merge.ts)·되살리기(matches.ts undeleteMatch)뿐이다.
+ */
+const ALIVE = "deleted_at IS NULL";
 
 function toMatchView(row: MatchRow): MatchView {
   const view: MatchView = {
@@ -137,6 +145,7 @@ function toMatchView(row: MatchRow): MatchView {
   };
   // 메모는 있을 때만 넣는다(없는 경기의 응답 모양은 예전과 같다). 공개 정보라 조회 응답에도 나간다.
   if (row.memo !== null) view.memo = row.memo;
+  if (row.deleted_at !== null) view.deletedAt = row.deleted_at;
   return view;
 }
 
@@ -157,10 +166,14 @@ function toRosterEntry(row: RosterRow): RosterEntry {
   return entry;
 }
 
-/** 경기 하나를 명단과 함께 읽는다. 다른 모임의 경기는 찾지 못한다. */
-export async function loadMatch(env: Env, groupId: string, matchId: string): Promise<MatchView> {
+/**
+ * 경기 하나를 명단과 함께 읽는다. 다른 모임의 경기는 찾지 못한다.
+ * 지운 경기는 withDeleted가 아니면 없는 경기(404)다: 정정·제외·메모·시리즈 같은 쓰기가 모두 이 함수로 경기를 찾으므로
+ * 지운 경기에는 되살리기 말고 아무것도 할 수 없다.
+ */
+export async function loadMatch(env: Env, groupId: string, matchId: string, withDeleted = false): Promise<MatchView> {
   const row = await env.DB.prepare(
-    `SELECT ${MATCH_COLUMNS} FROM matches WHERE id = ?1 AND group_id = ?2`,
+    `SELECT ${MATCH_COLUMNS} FROM matches WHERE id = ?1 AND group_id = ?2${withDeleted ? "" : ` AND ${ALIVE}`}`,
   )
     .bind(matchId, groupId)
     .first<MatchRow>();
@@ -176,7 +189,7 @@ export async function loadMatch(env: Env, groupId: string, matchId: string): Pro
 }
 
 /**
- * 여러 경기를 명단과 함께 한 번(batch 1회)에 읽는다. 다른 모임의 경기·없는 경기는 빠진다(순서는 정하지 않는다).
+ * 여러 경기를 명단과 함께 한 번(batch 1회)에 읽는다. 다른 모임의 경기·없는 경기·지운 경기는 빠진다(순서는 정하지 않는다).
  * loadMatch를 경기마다 부르면 경기당 질의 2회라 무료 요금제 한도(호출당 50회)에 금방 닿는다(2026-11-08 정합성 점검).
  */
 export async function loadMatchesByIds(env: Env, groupId: string, matchIds: readonly string[]): Promise<MatchView[]> {
@@ -184,7 +197,7 @@ export async function loadMatchesByIds(env: Env, groupId: string, matchIds: read
   const list = JSON.stringify(matchIds);
   const [rows, roster] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
+      `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2)) AND ${ALIVE}`,
     ).bind(groupId, list),
     env.DB.prepare(
       `SELECT ${ROSTER_COLUMNS} FROM match_roster
@@ -362,18 +375,22 @@ export async function buildSnapshot(
   env: Env,
   groupId: string,
   role: "operator" | "viewer",
+  withDeleted = false,
 ): Promise<Snapshot> {
-  return parseSnapshot(role, await env.DB.batch(snapshotStatements(env, groupId, role)));
+  return parseSnapshot(role, await env.DB.batch(snapshotStatements(env, groupId, role, withDeleted)));
 }
 
 /**
  * 스냅숏을 만드는 읽기 문장들(이 순서대로 parseSnapshot이 읽는다). 백업 내려받기(groups.ts exportBackup)는
  * 여기에 자기 읽기를 이어 붙여 batch 한 번(같은 시점)으로 읽는다.
+ * withDeleted: 지운 경기(와 그 시리즈 소속)도 싣는다. 백업과 참가자 합치기만 쓴다. 화면으로 내보내는 응답에는 쓰지 않는다
+ * (명단은 경기가 없으면 parseSnapshot이 버리므로 따로 거르지 않는다).
  */
 export function snapshotStatements(
   env: Env,
   groupId: string,
   role: "operator" | "viewer",
+  withDeleted = false,
 ): D1PreparedStatement[] {
   const includePrivate = role === "operator";
   const db = env.DB;
@@ -417,13 +434,18 @@ export function snapshotStatements(
          WHERE cycle_id = ${activeCycle} AND voided = 0 ORDER BY created_at, id`,
       )
       .bind(groupId),
-    db.prepare(`SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1 ORDER BY played_at, match_no`).bind(groupId),
+    db
+      .prepare(
+        `SELECT ${MATCH_COLUMNS} FROM matches WHERE group_id = ?1${withDeleted ? "" : ` AND ${ALIVE}`}
+         ORDER BY played_at, match_no`,
+      )
+      .bind(groupId),
     db.prepare(`SELECT ${ROSTER_COLUMNS} FROM match_roster WHERE group_id = ?1`).bind(groupId),
     ...revisionStatements(env, groupId),
     db
       .prepare("SELECT id, name, starts_on, ends_on FROM seasons WHERE group_id = ?1 ORDER BY starts_on")
       .bind(groupId),
-    ...seriesStatements(env, groupId),
+    ...seriesStatements(env, groupId, withDeleted),
   ];
   const operatorOnly: D1PreparedStatement[] = includePrivate
     ? [
@@ -438,7 +460,7 @@ export function snapshotStatements(
             `SELECT import_batch_id AS id, COUNT(*) AS count,
                SUM(CASE WHEN state = 'excluded' THEN 1 ELSE 0 END) AS excluded,
                MIN(confirmed_at) AS imported_at
-             FROM matches WHERE group_id = ?1 AND import_batch_id IS NOT NULL
+             FROM matches WHERE group_id = ?1 AND import_batch_id IS NOT NULL AND ${ALIVE}
              GROUP BY import_batch_id ORDER BY imported_at DESC`,
           )
           .bind(groupId),
@@ -678,13 +700,13 @@ function parseMemberRequests(open: D1Result | undefined, resolved: D1Result | un
   return [...rowsOf<RequestRow>(open), ...rowsOf<RequestRow>(resolved)].map(toRequestView);
 }
 
-/** 시리즈 묶음과 속한 경기(경기 시각 → 경기 번호 순). */
+/** 시리즈 묶음과 속한 경기(경기 시각 → 경기 번호 순). 지운 경기는 빠지고, 판이 모두 지워진 시리즈는 없다. */
 export async function loadSeries(env: Env, groupId: string): Promise<SeriesView[]> {
-  const [rows, members] = await env.DB.batch(seriesStatements(env, groupId));
+  const [rows, members] = await env.DB.batch(seriesStatements(env, groupId, false));
   return parseSeries(rows, members);
 }
 
-function seriesStatements(env: Env, groupId: string): D1PreparedStatement[] {
+function seriesStatements(env: Env, groupId: string, withDeleted: boolean): D1PreparedStatement[] {
   return [
     env.DB.prepare(
       "SELECT id, name, format, created_at FROM match_series WHERE group_id = ?1 ORDER BY created_at, id",
@@ -695,7 +717,7 @@ function seriesStatements(env: Env, groupId: string): D1PreparedStatement[] {
     env.DB.prepare(
       `SELECT s.series_id, s.match_id, m.played_at, m.match_no FROM match_series_members s
        CROSS JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
-       WHERE s.group_id = ?1`,
+       WHERE s.group_id = ?1${withDeleted ? "" : " AND m.deleted_at IS NULL"}`,
     ).bind(groupId),
   ];
 }
@@ -719,7 +741,9 @@ function parseSeries(rows: D1Result | undefined, members: D1Result | undefined):
   for (const m of memberRows) {
     byId.get(m.series_id)?.matchIds.push(m.match_id);
   }
-  return [...byId.values()];
+  // 판이 모두 지워진 시리즈는 내보내지 않는다(빈 시리즈를 그리지 않게). 소속 행은 남아 있어 되살리면 다시 보인다.
+  // 판이 0개인 시리즈는 그 밖에는 생기지 않는다: 마지막 판을 빼면 시리즈도 지운다(series.ts removeFromSeries).
+  return [...byId.values()].filter((s) => s.matchIds.length > 0);
 }
 
 /** 스냅숏에 싣는 변경 이력 수. 모임당 수천 경기여도 응답 크기가 일정하도록 상한을 둔다. */
@@ -753,6 +777,8 @@ interface RevisionRow {
   kind: string;
   changes: string;
   created_at: string;
+  match_version: number;
+  match_deleted: number;
 }
 
 /**
@@ -761,20 +787,24 @@ interface RevisionRow {
  * - 합치기·되돌리기는 경기 수만큼 늘어나므로 한 번에 한 줄(kind "merge" / "merge_undo")로 묶어 싣는다.
  *   그래서 많이 뛴 사람을 합쳐도 실제 정정이 상한에 밀려 사라지지 않는다.
  * 합친 사람·남은 사람의 ID는 참가자 목록의 mergedInto와 같은 공개 정보다.
+ * - 지운 경기(migrations/0026)의 이력은 삭제·되살리기 줄(changes.deleted)만 싣는다. 그 줄에는 누가 지웠는지(대표·공동
+ *   운영자)만 있고 승패·명단은 없어 조회 응답에 나가도 지운 경기의 내용이 새지 않는다.
  */
 function revisionStatements(env: Env, groupId: string): D1PreparedStatement[] {
-  const select = `SELECT r.id, r.match_id, m.match_no, r.kind, r.changes, r.created_at
+  const select = `SELECT r.id, r.match_id, m.match_no, r.kind, r.changes, r.created_at,
+       m.version AS match_version, m.deleted_at IS NOT NULL AS match_deleted
      FROM match_revisions r JOIN matches m ON m.id = r.match_id AND m.group_id = r.group_id`;
+  const visible = "(m.deleted_at IS NULL OR json_type(r.changes, '$.deleted') IS NOT NULL)";
   return [
     env.DB.prepare(
-      `${select} WHERE r.group_id = ?1 AND ${MERGE_REF} IS NULL ORDER BY r.id DESC LIMIT ?2`,
+      `${select} WHERE r.group_id = ?1 AND ${visible} AND ${MERGE_REF} IS NULL ORDER BY r.id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_REVISIONS),
     // ORDER BY +r.id: "+"는 id 순서를 색인으로 맞추지 말라는 표시다. 이게 없으면 계획기가 정렬을 아끼려고
     // idx_revisions_group을 거꾸로 걸으며 종류를 하나씩 걸러 사실상 이력 전부를 읽는다. 있으면
     // idx_revisions_group_kind(migrations/0022)로 세 종류의 줄만 읽고 그것만 정렬한다(결과는 같다. id는 겹치지 않는다).
     env.DB.prepare(
       `${select} WHERE r.group_id = ?1 AND r.kind IN ('correction', 'exclude', 'restore')
-         AND ${MERGE_REF} IS NULL ORDER BY +r.id DESC LIMIT ?2`,
+         AND ${visible} AND ${MERGE_REF} IS NULL ORDER BY +r.id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_CHANGES),
     env.DB.prepare(
       `SELECT ref, MAX(id) AS id, COUNT(*) AS match_count, MAX(created_at) AS created_at,
@@ -793,7 +823,10 @@ function parseRevisions(
   merges: D1Result | undefined,
 ): RevisionView[] {
   const byId = new Map<number, RevisionView>();
+  // 지금 지워져 있는 경기의 버전. 그 경기의 가장 최근 삭제 줄에 붙인다(되살리기 요청이 쓴다).
+  const deletedVersion = new Map<string, number>();
   for (const r of [...(recent!.results as unknown as RevisionRow[]), ...(changes!.results as unknown as RevisionRow[])]) {
+    if (r.match_deleted === 1) deletedVersion.set(r.match_id, r.match_version);
     byId.set(r.id, {
       id: r.id,
       matchId: r.match_id,
@@ -827,7 +860,14 @@ function parseRevisions(
       },
     });
   }
-  return [...byId.values()].sort((x, y) => y.id - x.id);
+  const sorted = [...byId.values()].sort((x, y) => y.id - x.id);
+  for (const r of sorted) {
+    const version = deletedVersion.get(r.matchId);
+    if (version === undefined || r.changes.deleted?.to !== true) continue;
+    r.deletedMatch = { version };
+    deletedVersion.delete(r.matchId);
+  }
+  return sorted;
 }
 
 /**

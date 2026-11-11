@@ -464,7 +464,7 @@ export async function createMemberRequest(env: Env, ctx: MemberContext, body: Bo
     // 자기가 뛴 경기만(명단에 내 참가자가 있는 경기). 다른 모임의 경기·없는 경기·안 뛴 경기는 같은 답.
     const played = await env.DB.prepare(
       `SELECT 1 AS ok FROM match_roster r JOIN matches m ON m.id = r.match_id AND m.group_id = r.group_id
-       WHERE r.group_id = ?1 AND r.match_id = ?2 AND r.participant_id = ?3`,
+       WHERE r.group_id = ?1 AND r.match_id = ?2 AND r.participant_id = ?3 AND m.deleted_at IS NULL`,
     )
       .bind(ctx.groupId, matchId, ctx.participantId)
       .first<{ ok: number }>();

@@ -332,7 +332,11 @@ function zonedHourMinute(iso: string, timeZone: string): string {
  *   시트에 시각 열이 없으면 앞의 것, 있으면 뒤의 것과 견줘진다.
  * 이름은 지금 참가자 이름을 쓴다. 넣은 뒤 이름을 바꿨거나 합쳤거나 라인을 고친 경기는 맞지 않을 수 있다.
  */
-async function computedFingerprints(env: Env, groupId: string): Promise<MatchFingerprint[]> {
+async function computedFingerprints(
+  env: Env,
+  groupId: string,
+  alsoDeleted: readonly string[],
+): Promise<MatchFingerprint[]> {
   const group = await env.DB.prepare("SELECT timezone FROM groups WHERE id = ?1")
     .bind(groupId)
     .first<{ timezone: string }>();
@@ -345,10 +349,10 @@ async function computedFingerprints(env: Env, groupId: string): Promise<MatchFin
      JOIN participants p ON p.group_id = r.group_id AND p.id = r.participant_id
      WHERE m.group_id = ?1 AND m.import_fingerprint IS NULL
        AND m.source IN ('import', 'backfill') AND m.state IN ('confirmed', 'excluded')
-       AND m.winner_team IS NOT NULL
+       AND m.winner_team IS NOT NULL AND ${aliveOr("?2")}
      ORDER BY m.played_at, m.match_no`,
   )
-    .bind(groupId)
+    .bind(groupId, JSON.stringify(alsoDeleted))
     .all<{
       id: string;
       source: string;
@@ -400,17 +404,23 @@ async function computedFingerprints(env: Env, groupId: string): Promise<MatchFin
 /**
  * 이 모임의 모든 지문: 일괄 입력으로 넣으며 저장한 지문과, 지문 없는 예전 일괄 입력·지난 경기 한 건 입력의
  * 내용으로 계산한 지문(computedFingerprints). 다시 가져오기 비교와 일괄 입력·복구의 중복 검사가 함께 쓴다.
+ * 지운 경기(migrations/0026)는 빠진다: 지운 경기와 같은 경기는 "이미 들어간 경기"가 아니라 다시 가져올 수 있다.
+ * alsoDeleted: 지웠어도 넣을 경기 ID(되살리기가 자기 지문을 견주려고 쓴다).
  */
-export async function groupFingerprints(env: Env, groupId: string): Promise<MatchFingerprint[]> {
+export async function groupFingerprints(
+  env: Env,
+  groupId: string,
+  alsoDeleted: readonly string[] = [],
+): Promise<MatchFingerprint[]> {
   const rows = await env.DB.prepare(
     `SELECT m.id AS id, m.import_fingerprint AS fingerprint, m.import_row_key AS row_key, b.source_key AS source_key,
             m.state AS state, m.match_no AS match_no
      FROM matches m
      LEFT JOIN import_batches b ON b.group_id = m.group_id AND b.id = m.import_batch_id
-     WHERE m.group_id = ?1 AND m.import_fingerprint IS NOT NULL
+     WHERE m.group_id = ?1 AND m.import_fingerprint IS NOT NULL AND ${aliveOr("?2")}
      ORDER BY m.match_no`,
   )
-    .bind(groupId)
+    .bind(groupId, JSON.stringify(alsoDeleted))
     .all<{ id: string; fingerprint: string; row_key: string | null; source_key: string | null; state: string; match_no: number }>();
   return [
     ...rows.results.map((r) => ({
@@ -421,8 +431,13 @@ export async function groupFingerprints(env: Env, groupId: string): Promise<Matc
       state: r.state,
       matchNo: r.match_no,
     })),
-    ...(await computedFingerprints(env, groupId)),
+    ...(await computedFingerprints(env, groupId, alsoDeleted)),
   ];
+}
+
+/** 살아 있는 경기, 또는 json 배열 매개변수(param)에 든 지운 경기. */
+function aliveOr(param: string): string {
+  return `(m.deleted_at IS NULL OR m.id IN (SELECT value FROM json_each(${param})))`;
 }
 
 /**

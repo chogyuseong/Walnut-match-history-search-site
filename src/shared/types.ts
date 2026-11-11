@@ -45,6 +45,11 @@ export interface MatchView {
    * 공개 정보다: 조회 링크 응답·백업에도 들어간다. 화면은 글자로만 그린다(HTML로 해석하지 않는다).
    */
   memo?: string;
+  /**
+   * 지운 시각(migrations/0026). 화면이 받는 스냅숏·조회 응답에는 지운 경기가 아예 없으므로 이 값도 없다.
+   * 백업 파일과 삭제 요청의 응답처럼 지운 경기까지 일부러 읽은 곳에만 들어 있다.
+   */
+  deletedAt?: string;
 }
 
 /** 시리즈 형식. bo3: 3판 2선승, bo5: 5판 3선승, free: 자유. */
@@ -200,6 +205,11 @@ export interface RevisionView {
    * 원본 이력은 옮긴 경기마다 한 줄씩 그대로 남아 있다.
    */
   merge?: { sourceId: string; targetId: string; matchCount: number };
+  /**
+   * 경기 삭제 줄(changes.deleted, src/server/matches.ts deleteMatch) 가운데 그 경기가 지금도 지워져 있고 가장 최근의
+   * 삭제 줄에만 있다. 지운 경기는 스냅숏의 matches에 없으므로 되살리기 요청의 baseMatchVersion을 여기서 얻는다.
+   */
+  deletedMatch?: { version: number };
 }
 
 export interface SessionView {

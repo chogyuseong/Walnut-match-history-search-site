@@ -203,8 +203,11 @@ async function loadContext(
   }
   const source = await loadPerson(env, groupId, sourceId);
   const target = await loadPerson(env, groupId, targetId);
-  const snapshot = await buildSnapshot(env, groupId, "operator");
+  // 지운 경기(migrations/0026)도 읽는다: 합치기는 명단 행을 경기 상태와 상관없이 모두 옮기므로(아래 UPDATE match_roster)
+  // 옮긴 경기 목록(되돌리기·이력·버전)에도 지운 경기가 들어 있어야 되돌릴 때 함께 돌아온다. 순위 미리보기는 살아 있는 경기로만.
+  const snapshot = await buildSnapshot(env, groupId, "operator", true);
   const matches = snapshot.matches;
+  const aliveMatches = matches.filter((m) => m.deletedAt === undefined);
   const moved = matches.filter((m) => m.roster.some((r) => r.participantId === sourceId));
   const overlaps = overlappingMatches(matches, sourceId, targetId);
   const inProgress = moved.filter((m) => m.state === "in_progress");
@@ -219,7 +222,7 @@ async function loadContext(
   }
   if (overlaps.length > 0) {
     problems.push(
-      `두 사람이 같은 경기에 함께 나왔어요(${overlaps.map((m) => `${m.matchNo}경기`).join(", ")}). ` +
+      `두 사람이 같은 경기에 함께 나왔어요(${overlaps.map((m) => `${m.matchNo}경기${m.deletedAt ? "·지운 경기" : ""}`).join(", ")}). ` +
         "한 경기에 같은 사람이 두 번 들어갈 수 없어 합칠 수 없습니다. 다른 사람이면 합치지 마세요.",
     );
   }
@@ -239,7 +242,7 @@ async function loadContext(
     sourceEvents,
     rotation,
     standings: mergeStandings(
-      matches,
+      aliveMatches,
       sourceId,
       targetId,
       titleBandsOf(snapshot.group.settings),

@@ -240,6 +240,8 @@ interface MRow {
   roster: RosterRow[];
   /** 경기 메모(migrations/0016). 이 항목이 없는 예전 백업은 null. */
   memo: string | null;
+  /** 지운 시각(migrations/0026). 이 항목이 없는 예전 백업은 null(지운 경기 없음). */
+  deletedAt: string | null;
 }
 /** 시리즈 묶음(migrations/0017). 이 항목이 없는 예전 백업은 빈 목록. */
 interface SeriesRowB {
@@ -529,6 +531,11 @@ export function validateBackup(
     if (!isTimeOrNull(r.startedAt) || !isTimeOrNull(r.endedAt) || !isTimeOrNull(r.confirmedAt)) {
       return p.add(`${at}: 시각 값 오류`);
     }
+    // 지운 경기(2026-11-11). 진행 중·취소 경기는 지울 수 없으므로(matches.ts DELETABLE_STATES) 그런 파일은 손댄 것이다.
+    if (!isTimeOrNull(r.deletedAt)) return p.add(`${at}: 삭제 시각 오류`);
+    if (isTime(r.deletedAt) && (r.state === "in_progress" || r.state === "canceled")) {
+      return p.add(`${at}: 진행 중·취소 경기는 지운 상태일 수 없습니다.`);
+    }
     const winner = r.winnerTeam ?? null;
     const side = r.teamASide ?? null;
     if (winner !== null && winner !== "A" && winner !== "B") return p.add(`${at}: 승리 팀 값 오류`);
@@ -630,6 +637,7 @@ export function validateBackup(
       version: r.version as number,
       roster,
       memo,
+      deletedAt: isoOrNull(r.deletedAt),
     });
   });
   if (inProgress > 1) p.add("진행 중 경기가 둘 이상입니다.");
@@ -948,10 +956,12 @@ export interface RestoreCounts {
   participants: number;
 }
 
+/** 복원 확인 화면에 보이는 수. 지운 경기는 화면에 없으므로 세지 않는다(파일·지금 DB 모두). */
 function countsOf(data: BackupData): RestoreCounts {
+  const alive = data.matches.filter((m) => m.deletedAt === null);
   return {
-    matches: data.matches.length,
-    confirmed: data.matches.filter((m) => m.state === "confirmed").length,
+    matches: alive.length,
+    confirmed: alive.filter((m) => m.state === "confirmed").length,
     participants: data.participants.length,
   };
 }
@@ -959,8 +969,8 @@ function countsOf(data: BackupData): RestoreCounts {
 async function currentCounts(env: Env, groupId: string): Promise<RestoreCounts> {
   const row = await env.DB.prepare(
     `SELECT
-       (SELECT COUNT(*) FROM matches WHERE group_id = ?1) AS matches,
-       (SELECT COUNT(*) FROM matches WHERE group_id = ?1 AND state = 'confirmed') AS confirmed,
+       (SELECT COUNT(*) FROM matches WHERE group_id = ?1 AND deleted_at IS NULL) AS matches,
+       (SELECT COUNT(*) FROM matches WHERE group_id = ?1 AND state = 'confirmed' AND deleted_at IS NULL) AS confirmed,
        (SELECT COUNT(*) FROM participants WHERE group_id = ?1) AS participants`,
   )
     .bind(groupId)
@@ -1342,12 +1352,12 @@ async function buildRestorePlan(
     ...insertStatements(env, groupId, "matches",
       ["id", "match_no", "session_id", "state", "prev_state", "source", "started_at", "ended_at",
         "played_at", "confirmed_at", "winner_team", "team_a_side", "settings_version_id", "version",
-        "import_batch_id", "import_fingerprint", "import_row_key", "memo"],
+        "import_batch_id", "import_fingerprint", "import_row_key", "memo", "deleted_at"],
       data.matches.map((m) => [
         map(m.id), m.matchNo, m.sessionId === null ? null : map(m.sessionId), m.state, m.prevState,
         m.source, m.startedAt, m.endedAt, m.playedAt, m.confirmedAt, m.winnerTeam, m.teamASide,
         m.settingsVersionId === null ? null : map(m.settingsVersionId), m.version + versionOffset,
-        batchId(m.importBatchId), m.importFingerprint, m.importRowKey, m.memo,
+        batchId(m.importBatchId), m.importFingerprint, m.importRowKey, m.memo, m.deletedAt,
       ]), maxBytes),
     // 시리즈 묶음: 경기 뒤에 넣는다(경기 외래 키). 시리즈 ID·경기 ID도 같은 대응표로 바꾼다.
     ...insertStatements(env, groupId, "match_series", ["id", "name", "format", "created_at"],

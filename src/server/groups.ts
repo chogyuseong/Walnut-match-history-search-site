@@ -836,7 +836,7 @@ export async function regenerateViewToken(env: Env, groupId: string, body: Body 
  * 4: 일괄 입력 출처(importBatches)와 경기의 가져오기 지문(importFingerprint, importRowKey) 추가.
  * src/server/restore.ts가 1~4를 모두 읽는다.
  * 형식 번호를 올리지 않고 더한 항목(없는 예전 백업도 복원된다): 서포터 횟수 보정값(supportAdjustments),
- * 기피 라인(참가자 avoidPositions), 경기 메모(경기 memo), 시리즈 묶음(series),
+ * 기피 라인(참가자 avoidPositions), 경기 메모(경기 memo), 시리즈 묶음(series), 경기 삭제 시각(경기 deletedAt, migrations/0026),
  * 티어 5단계(참가자 skillGroup 5, 설정 groupWeights 5개 — 4개짜리 예전 백업은 parseSettings가 5개로 맞춘다).
  */
 export const BACKUP_FORMAT_VERSION = 4;
@@ -849,7 +849,8 @@ export async function exportBackup(env: Env, groupId: string): Promise<Record<st
   // 스냅숏 읽기와 백업 전용 읽기를 D1 batch 한 번(한 트랜잭션, 왕복 1회)으로 한다(2026-11-08).
   // 예전에는 스냅숏 batch 뒤에 10번을 따로 읽어, 사이에 저장이 끼면 경기와 이력·명단이 서로 다른 시점일 수 있었다.
   // 문장과 정렬은 예전과 같아 백업 파일 내용(키 순서 포함)은 그대로다.
-  const base = snapshotStatements(env, groupId, "operator");
+  // 지운 경기도 넣는다(withDeleted): 이력·명단·시리즈 소속이 그 경기를 가리키고, 복원한 뒤에도 지운 채로 남아야 한다.
+  const base = snapshotStatements(env, groupId, "operator", true);
   const q = (sql: string) => env.DB.prepare(sql).bind(groupId);
   const results = await env.DB.batch([
     ...base,
