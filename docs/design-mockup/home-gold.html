@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내전로그 첫 화면 시안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+/* 저장소 CLAUDE.md의 토큰을 그대로 옮겼다. 아래 규칙은 이 변수만 쓴다. */
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-badge: 4px;
+  --radius-control: 6px;
+  --radius-panel: 8px;
+
+  --text-meta: 0.75rem;
+  --text-label: 0.875rem;
+  --text-body: 1rem;
+  --text-section: 1.25rem;
+  --text-screen: 1.5rem;
+  --text-hero: 2rem;
+
+  --control-height: 44px;
+  --tabbar-height: 64px;
+  --content-max: 1200px;
+  --reading-max: 720px;
+  --motion: 120ms;
+
+  --font: "Pretendard", system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* 다크가 사이트 기본 테마 */
+:root[data-theme="dark"] {
+  --bg: #0F172A;
+  --panel: #1E293B;
+  --subtle: #334155;
+  --text: #F8FAFC;
+  --text-2: #CBD5E1;
+  --line: #475569;
+  --accent: #E3B04B;
+  --primary: #E3B04B;
+  --primary-hover: #D9A23A;
+  --on-primary: #0F172A;
+  --selected: #3A3220;
+}
+:root[data-theme="light"] {
+  --bg: #F8FAFC;
+  --panel: #FFFFFF;
+  --subtle: #F1F5F9;
+  --text: #0F172A;
+  --text-2: #475569;
+  --line: #CBD5E1;
+  --accent: #8F6414;
+  --primary: #9A6C12;
+  --primary-hover: #855C0E;
+  --on-primary: #FFFFFF;
+  --selected: #FBF3E2;
+}
+
+* { box-sizing: border-box; }
+body {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  margin: var(--space-0);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  font-weight: 400;
+}
+h1, h2, h3, p, ul { margin: var(--space-0); padding: var(--space-0); }
+ul { list-style: none; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.wrap { max-width: var(--content-max); margin: var(--space-0) auto; padding: var(--space-0) var(--space-4); }
+
+/* 상단 바 */
+.topbar { border-bottom: 1px solid var(--line); background: var(--bg); }
+.topbar .wrap { display: flex; align-items: center; gap: var(--space-2); padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.brand { font-size: var(--text-body); font-weight: 600; color: var(--text); text-decoration: none; margin-right: auto; }
+.theme-select {
+  height: var(--control-height); padding: var(--space-0) var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-control);
+  background: var(--panel); color: var(--text); font: inherit; font-size: var(--text-label);
+}
+
+/* 버튼 세 단계: 채운 주 버튼(화면에 하나) / 중립 보조 버튼 / 텍스트 링크 */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--control-height); padding: var(--space-0) var(--space-4);
+  border-radius: var(--radius-control); border: 1px solid transparent;
+  font: inherit; font-size: var(--text-label); font-weight: 500; text-decoration: none; cursor: pointer;
+  transition: background-color var(--motion), border-color var(--motion), color var(--motion);
+}
+.btn-primary { background: var(--primary); color: var(--on-primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: var(--panel); color: var(--text); border-color: var(--line); }
+.btn-secondary:hover { background: var(--subtle); }
+.btn-link { color: var(--accent); padding: var(--space-0) var(--space-2); text-decoration: underline; text-underline-offset: 3px; }
+
+/* 위쪽 탭은 768px 이상에서만, 휴대폰은 아래 고정 탭 */
+.tabs-top { display: none; }
+.tab {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-1);
+  min-height: var(--control-height); border-radius: var(--radius-control);
+  color: var(--text-2); text-decoration: none; font-size: var(--text-label); font-weight: 500;
+  transition: background-color var(--motion), color var(--motion);
+}
+.tab:hover { background: var(--subtle); color: var(--text); }
+.tab[aria-current="page"] { background: var(--selected); color: var(--accent); }
+
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: var(--tabbar-height);
+  padding: var(--space-1) var(--space-2) env(safe-area-inset-bottom);
+  background: var(--panel); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-1);
+}
+.tabbar .tab { flex-direction: column; gap: var(--space-0); font-size: var(--text-meta); }
+
+/* 본문 */
+main { padding-bottom: var(--tabbar-height); }
+.hero { padding-top: var(--space-6); }
+.hero h1 { font-size: var(--text-hero); line-height: 1.25; font-weight: 600; max-width: var(--reading-max); }
+.lead { margin-top: var(--space-2); color: var(--text-2); max-width: var(--reading-max); }
+.actions { margin-top: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+.actions .btn-link { align-self: flex-start; }
+.note { margin-top: var(--space-2); color: var(--text-2); font-size: var(--text-label); }
+
+.features { margin-top: var(--space-7); }
+.features h2 { font-size: var(--text-section); line-height: 1.4; font-weight: 600; }
+.features .sub { margin-top: var(--space-2); color: var(--text-2); font-size: var(--text-label); }
+.feature-list { margin-top: var(--space-4); border-top: 1px solid var(--line); }
+.feature-list li { display: flex; gap: var(--space-3); padding: var(--space-4) var(--space-0); border-bottom: 1px solid var(--line); }
+/* 아이콘 칸을 제목 줄 높이(16px×1.5)에 맞춰 첫 줄 가운데에 오게 한다 */
+.feature-list .icon-box { display: flex; align-items: center; height: 24px; color: var(--text-2); }
+.feature-list li:last-child { border-bottom: 0; }
+.feature-list h3 { font-size: var(--text-body); font-weight: 500; }
+.feature-list p { margin-top: var(--space-1); color: var(--text-2); font-size: var(--text-label); }
+
+/* 법적 고지: 읽을 수 있게 두되 본문보다 조용하게 */
+.legal { margin-top: var(--space-7); padding: var(--space-5) var(--space-0); border-top: 1px solid var(--line); color: var(--text-2); font-size: var(--text-meta); }
+.legal p + p { margin-top: var(--space-2); }
+.legal a { display: inline-flex; align-items: center; min-height: var(--control-height); color: var(--text-2); }
+
+@media (min-width: 768px) {
+  .wrap { padding: var(--space-0) var(--space-5); }
+  .tabbar { display: none; }
+  main { padding-bottom: var(--space-0); }
+  .tabs-top { display: block; border-bottom: 1px solid var(--line); }
+  .tabs-top .wrap { display: flex; gap: var(--space-1); padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  .tabs-top .tab { padding: var(--space-0) var(--space-4); }
+  .hero { padding-top: var(--space-8); }
+  .actions { flex-direction: row; align-items: center; }
+  .actions .btn-link { align-self: auto; }
+}
+@media (min-width: 1200px) {
+  .wrap { padding: var(--space-0) var(--space-6); }
+  /* 넓은 화면은 왼쪽에 소개·행동, 오른쪽에 기능 목록. 주 행동은 왼쪽 단에 있다. */
+  .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); align-items: start; }
+  .features { margin-top: var(--space-0); padding-top: var(--space-8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-today" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14M7 2.5v3M13 2.5v3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 20 20"><path d="M7 5h10M7 10h10M7 15h10M3 5h.5M3 10h.5M3 15h.5"/></symbol>
+  <symbol id="i-rank" viewBox="0 0 20 20"><path d="M4 17V11M10 17V4M16 17v-8"/></symbol>
+  <symbol id="i-stats" viewBox="0 0 20 20"><path d="M3 17h14M4 13l4-4 3 3 5-6"/></symbol>
+  <symbol id="i-team" viewBox="0 0 20 20"><circle cx="7" cy="7" r="2.5"/><circle cx="14" cy="8" r="2"/><path d="M2.5 16c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M12.5 16c0-1.8 1-3 2.5-3s2.5 1.2 2.5 3"/></symbol>
+  <symbol id="i-link" viewBox="0 0 20 20"><path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2l-1 1M11.5 8.5a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l1-1"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#/">내전로그</a>
+    <select class="theme-select" aria-label="화면 테마">
+      <option>다크</option><option>라이트</option>
+    </select>
+    <a class="btn btn-secondary" href="#/login">로그인</a>
+  </div>
+</header>
+
+<nav class="tabs-top" aria-label="주요 화면">
+  <div class="wrap">
+    <a class="tab" href="#/" aria-current="page">오늘</a>
+    <a class="tab" href="#/search">검색</a>
+    <a class="tab" href="#/history">기록</a>
+    <a class="tab" href="#/ranking">랭킹</a>
+    <a class="tab" href="#/stats">분석</a>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap home-grid">
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">우리 모임 내전, 팀 짜기부터 전적 관리까지 한곳에서</h1>
+      <p class="lead">리그 오브 레전드 사용자 설정 게임(내전)은 공식 전적에 남지 않아요. 10명 이름을 넣으면 티어로 실력을 맞춘 두 팀을 짜 주고, 결과를 남기면 모임 전적과 랭킹이 쌓여요.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#/draft">로그인 없이 팀 짜기</a>
+        <a class="btn btn-secondary" href="#/demo">예시 기록 보기</a>
+        <a class="btn btn-link" href="#/login">로그인하고 모임 만들기</a>
+      </div>
+      <p class="note">팀 짜기와 명단 복사는 로그인 없이 돼요. 경기 결과를 저장할 때만 로그인해요.</p>
+    </section>
+
+    <section class="features" aria-labelledby="features-title">
+      <h2 id="features-title">모임에서 이렇게 써요</h2>
+      <p class="sub">참가자는 로그인 없이 링크로 기록을 봐요.</p>
+      <ul class="feature-list">
+        <li>
+          <span class="icon-box"><svg class="icon" aria-hidden="true"><use href="#i-team"/></svg></span>
+          <div><h3>팀 짜기</h3><p>10명을 넣으면 티어로 실력을 맞춘 두 팀을 추천하고, 서포터를 돌아가며 맡도록 순서를 챙겨요.</p></div>
+        </li>
+        <li>
+          <span class="icon-box"><svg class="icon" aria-hidden="true"><use href="#i-rank"/></svg></span>
+          <div><h3>전적·랭킹·개인 통계</h3><p>경기 결과를 저장하면 승률 랭킹, 라인별 기록, 함께 뛴 사람별 기록이 쌓여요.</p></div>
+        </li>
+        <li>
+          <span class="icon-box"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg></span>
+          <div><h3>참가 신청·조회 링크</h3><p>링크를 보내면 참가자가 로그인 없이 이름을 올리고, 기록과 지금 경기의 자기 자리를 봐요.</p></div>
+        </li>
+        <li>
+          <span class="icon-box"><svg class="icon" aria-hidden="true"><use href="#i-today"/></svg></span>
+          <div><h3>시즌 요약</h3><p>시즌이나 한 해를 골라 요약과 시상을 보고 이미지로 나눌 수 있어요.</p></div>
+        </li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="wrap">
+    <footer class="legal" role="contentinfo">
+      <p>내전로그 isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p>
+      <p>내전로그 was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.</p>
+      <p>이 사이트는 라이엇 게임즈의 공식 서비스가 아니며, 내전 모임의 경기 기록과 통계를 위해 만들었습니다. 라이엇 게임즈의 로고·상표는 쓰지 않습니다. 챔피언 초상화는 라이엇 게임즈의 자산이며 위 정책에 따라 라이엇이 공개한 자료(Data Dragon)에서 불러옵니다. 라인 아이콘은 직접 그린 도형입니다.</p>
+      <p>무료 요금제로 운영하는 사이트라 하루 이용량이 한도를 넘으면 그날 한국 시각 오전 9시까지 멈출 수 있습니다. 그때는 잠시 뒤 다시 열어 주세요.</p>
+      <p><a href="#/privacy">개인정보 처리방침</a></p>
+    </footer>
+  </div>
+</main>
+
+<nav class="tabbar" aria-label="주요 화면">
+  <a class="tab" href="#/" aria-current="page"><svg class="icon" aria-hidden="true"><use href="#i-today"/></svg>오늘</a>
+  <a class="tab" href="#/search"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>검색</a>
+  <a class="tab" href="#/history"><svg class="icon" aria-hidden="true"><use href="#i-history"/></svg>기록</a>
+  <a class="tab" href="#/ranking"><svg class="icon" aria-hidden="true"><use href="#i-rank"/></svg>랭킹</a>
+  <a class="tab" href="#/stats"><svg class="icon" aria-hidden="true"><use href="#i-stats"/></svg>분석</a>
+</nav>
+</body>
+</html>
