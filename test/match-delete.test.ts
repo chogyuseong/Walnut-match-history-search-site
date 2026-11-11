@@ -206,6 +206,53 @@ describe("경기 삭제", () => {
   });
 });
 
+describe("변경 내역 상한", () => {
+  it("지운 뒤 정정이 200줄 넘게 쌓여도 삭제 줄과 되살리기 정보가 남아 되살릴 수 있다", async () => {
+    const { g, second } = await twoGames();
+    expect((await remove(g, second)).status).toBe(200);
+    // 정정 줄을 싸게 쌓는다: 경기 250개를 일괄 입력(50개씩)한 뒤 날짜 일괄 정정 한 번(경기마다 정정 한 줄).
+    const ids: string[] = [];
+    for (let batch = 0; batch < 5; batch++) {
+      const res = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/import`, {
+        requestId: requestId(),
+        batchId: unique("batch"),
+        matches: Array.from({ length: 50 }, (_, i) => ({
+          playedAt: new Date(Date.UTC(2026, 0, 1 + batch, 0, i)).toISOString(),
+          roster: rosterOf(g.people),
+          winnerTeam: "A",
+          winnerSide: "unknown",
+        })),
+      });
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      ids.push(...(res.body.matchIds as string[]));
+    }
+    const shifted = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/shift-dates`, {
+      requestId: requestId(),
+      matchIds: ids,
+      years: -1,
+    });
+    expect(shifted.status, JSON.stringify(shifted.body)).toBe(200);
+
+    const snap = await snapshot(g);
+    const corrections = snap.revisions.filter((r) => r.kind === "correction" && !r.changes.deleted);
+    expect(corrections.length).toBeGreaterThanOrEqual(200);
+    const line = snap.revisions.find((r) => r.matchId === second.id);
+    expect(line?.deletedMatch).toBeDefined();
+    // 시간 순서(id 내림차순)가 지켜지고 같은 줄이 두 번 나오지 않는다.
+    const order = snap.revisions.map((r) => r.id);
+    expect(order).toEqual([...order].sort((a, b) => b - a));
+    expect(new Set(order).size).toBe(order.length);
+    // 조회 응답에도 삭제 줄만(승패·명단 없음) 나간다.
+    const view = await viewOf(g);
+    const viewLines = view.body.revisions.filter((r) => r.matchId === second.id);
+    expect(viewLines.map((r) => r.changes)).toEqual([{ deleted: { from: false, to: true }, by: { from: null, to: "owner" } }]);
+    expect(view.body.matches.some((m) => m.id === second.id)).toBe(false);
+
+    expect((await undelete(g, second.id)).status).toBe(200);
+    expect((await snapshot(g)).matches.some((m) => m.id === second.id)).toBe(true);
+  });
+});
+
 describe("시리즈에 든 경기", () => {
   async function seriesOfTwo() {
     const { g, first, second } = await twoGames();

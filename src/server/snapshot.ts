@@ -541,7 +541,7 @@ export function parseSnapshot(role: "operator" | "viewer", results: D1Result[]):
     byId.get(r.match_id)?.roster.push(toRosterEntry(r));
   }
 
-  const revisions = parseRevisions(next(), next(), next());
+  const revisions = parseRevisions(next(), next(), next(), next());
   const seasonRows = rowsOf<{ id: string; name: string; starts_on: string; ends_on: string }>(next());
   const series = parseSeries(next(), next());
 
@@ -752,6 +752,12 @@ const RECENT_REVISIONS = 200;
 const RECENT_CHANGES = 200;
 /** 묶어서 싣는 합치기 이력(합치기·되돌리기 한 번이 한 줄). */
 const RECENT_MERGES = 50;
+/**
+ * 지금 지워져 있는 경기의 가장 최근 삭제 줄은 위 상한과 따로 이만큼까지 싣는다. 날짜 일괄 정정처럼 정정 줄이 한 번에
+ * 수백 개 생겨도 삭제 줄이 밀려나 되살릴 길이 없어지지 않게 하려는 것이다(지운 경기 하나에 한 줄이라 지운 경기 수만큼만 는다).
+ * 지운 경기가 이보다 많으면 오래 전에 지운 것부터 빠진다(그 경기는 백업 복원으로만 되살릴 수 있다).
+ */
+const DELETED_MATCH_LINES = 300;
 
 /**
  * 합치기·되돌리기가 남긴 정정 이력인지 가리는 식. 합치기는 옮긴 경기마다 참가자 정정 한 줄을
@@ -814,6 +820,17 @@ function revisionStatements(env: Env, groupId: string): D1PreparedStatement[] {
              FROM match_revisions r WHERE r.group_id = ?1 AND r.kind = 'correction')
        WHERE ref IS NOT NULL GROUP BY ref ORDER BY id DESC LIMIT ?2`,
     ).bind(groupId, RECENT_MERGES),
+    // 지금 지워진 경기마다 가장 최근 삭제·되살리기 줄 하나(DELETED_MATCH_LINES). 지워진 경기의 마지막 그런 줄은 늘 삭제 줄이다.
+    // MAX(r.id)와 함께 고른 나머지 열은 SQLite 규칙상 그 최댓값의 행에서 온다. 위 "변경 내역" 질의처럼
+    // idx_revisions_group_kind로 정정 줄만 읽는다. 앞 질의와 겹치는 줄은 parseRevisions가 id로 하나로 합친다.
+    env.DB.prepare(
+      `SELECT MAX(r.id) AS id, r.match_id, m.match_no, r.kind, r.changes, r.created_at,
+         m.version AS match_version, 1 AS match_deleted
+       FROM match_revisions r JOIN matches m ON m.id = r.match_id AND m.group_id = r.group_id
+       WHERE r.group_id = ?1 AND r.kind = 'correction' AND m.deleted_at IS NOT NULL
+         AND json_type(r.changes, '$.deleted') IS NOT NULL
+       GROUP BY r.match_id ORDER BY id DESC LIMIT ?2`,
+    ).bind(groupId, DELETED_MATCH_LINES),
   ];
 }
 
@@ -821,11 +838,16 @@ function parseRevisions(
   recent: D1Result | undefined,
   changes: D1Result | undefined,
   merges: D1Result | undefined,
+  deletedLines: D1Result | undefined,
 ): RevisionView[] {
   const byId = new Map<number, RevisionView>();
   // 지금 지워져 있는 경기의 버전. 그 경기의 가장 최근 삭제 줄에 붙인다(되살리기 요청이 쓴다).
   const deletedVersion = new Map<string, number>();
-  for (const r of [...(recent!.results as unknown as RevisionRow[]), ...(changes!.results as unknown as RevisionRow[])]) {
+  for (const r of [
+    ...(recent!.results as unknown as RevisionRow[]),
+    ...(changes!.results as unknown as RevisionRow[]),
+    ...(deletedLines!.results as unknown as RevisionRow[]),
+  ]) {
     if (r.match_deleted === 1) deletedVersion.set(r.match_id, r.match_version);
     byId.set(r.id, {
       id: r.id,
