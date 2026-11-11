@@ -19,8 +19,8 @@ test("운영이 아닌 빌드는 검색엔진에 막혀 있다(noindex·X-Robots
 
 test("로그인하지 않은 첫 화면은 검색용 제목과 소개를 그대로 둔다", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("region", { name: "이 사이트 소개" })).toContainText("리그 오브 레전드(롤)");
-  await expect(page).toHaveTitle("롤 내전 기록 · 팀 짜기와 전적 관리 | 내전 운영");
+  await expect(page.getByRole("region", { name: "이 사이트 소개" })).toContainText("리그 오브 레전드");
+  await expect(page).toHaveTitle("내전 기록 · 팀 짜기와 전적 관리 | 내전로그");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
     "https://naejeon.guseong-family.workers.dev/",

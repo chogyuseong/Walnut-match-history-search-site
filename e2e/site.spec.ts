@@ -387,19 +387,19 @@ test("없는 주소는 안내 화면, 문서 제목은 화면 이름을 따른�
   await setup(page);
   await page.goto("/#/no-such-page");
   await expect(page.getByRole("heading", { level: 1, name: "없는 주소예요" })).toBeVisible();
-  await expect(page).toHaveTitle("없는 주소 · 내전 운영");
+  await expect(page).toHaveTitle("없는 주소 · 내전로그");
   await page.getByRole("button", { name: "오늘 화면으로" }).click();
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page).toHaveTitle("오늘 · 내전 운영");
+  await expect(page).toHaveTitle("오늘 · 내전로그");
   await expect(page.getByRole("heading", { level: 1, name: "없는 주소예요" })).toHaveCount(0);
 
   await page.goto("/#/records");
-  await expect(page).toHaveTitle("기록 · 내전 운영");
+  await expect(page).toHaveTitle("기록 · 내전로그");
   await page.goto("/#/graphs");
-  await expect(page).toHaveTitle("그래프 분석 · 내전 운영");
+  await expect(page).toHaveTitle("그래프 분석 · 내전로그");
   // 사이트 운영자가 아니면 admin은 없는 화면이 아니라 오늘 화면이다(존재를 숨김).
   await page.goto("/#/admin");
-  await expect(page).toHaveTitle("오늘 · 내전 운영");
+  await expect(page).toHaveTitle("오늘 · 내전로그");
   await expect(page.getByRole("heading", { level: 1, name: "없는 주소예요" })).toHaveCount(0);
 });
 

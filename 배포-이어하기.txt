@@ -54,7 +54,7 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 1. 새 D1 naejeon-db 생성, 마이그레이션 0001~0025 적용.
 2. 새 Worker naejeon 배포, 비밀값 SESSION_SECRET·PASSWORD_PEPPER 새로 등록(비밀번호 관리자 'naejeon 운영').
 3. 조규성 새 계정 가입, 운영자 지정(SITE_ADMIN_ACCOUNT_IDS).
-4. 검색 노출: 운영 빌드만 첫 화면을 검색에 연다(제목 "롤 내전 기록 · 팀 짜기와 전적 관리 | 내전 운영",
+4. 검색 노출: 운영 빌드만 첫 화면을 검색에 연다(제목 "내전 기록 · 팀 짜기와 전적 관리 | 내전로그",
    robots.txt·sitemap.xml). staging은 noindex.
 5. 옛 운영 Worker naejeon-v2-production, 옛 D1 naejeon-prod 삭제. staging D1 자료 전부 비움(표는 그대로).
 6. 새 주소 점검(시험 계정으로 하고 모두 지움):

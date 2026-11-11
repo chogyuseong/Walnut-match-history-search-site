@@ -153,10 +153,10 @@ export function App() {
 }
 
 /** 사이트 이름. 상단 바와 푸터, 문서 제목이 함께 쓴다. */
-const SITE_NAME = "내전 운영";
+const SITE_NAME = "내전로그";
 
 /**
- * 운영 화면의 주소 첫 조각(route[0]) → 화면 이름. 문서 제목("화면 이름 · 내전 운영")에 쓰고, 이 표에 없는 주소는
+ * 운영 화면의 주소 첫 조각(route[0]) → 화면 이름. 문서 제목("화면 이름 · 내전로그")에 쓰고, 이 표에 없는 주소는
  * "없는 주소" 화면을 보여 준다. 새 화면을 OperatorScreen에 더하면 여기에도 더한다.
  * admin은 사이트 운영자가 아니면 오늘 화면을 보여 주므로(존재를 숨김) 제목도 그때는 "오늘"이다(pageTitle).
  */
@@ -215,7 +215,7 @@ function isKnownPage(page: string | undefined): boolean {
 
 /**
  * index.html의 <title>(검색 결과에 보이는 제목). 검색엔진도 화면을 그린 뒤의 제목을 읽으므로, 로그인하지 않은 첫 화면은
- * "오늘 · 내전 운영"으로 바꾸지 않고 이 제목을 둔다. 제목 문구는 index.html에서만 고친다.
+ * "오늘 · 내전로그"로 바꾸지 않고 이 제목을 둔다. 제목 문구는 index.html에서만 고친다.
  */
 const SEARCH_TITLE = document.title;
 

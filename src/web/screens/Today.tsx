@@ -78,7 +78,7 @@ export function Today() {
   return (
     <div className="screen page-wide home-screen">
       <ScreenHead
-        title={snapshot?.group.name ?? "내전 운영"}
+        title={snapshot?.group.name ?? "내전로그"}
         badge={
           snapshot &&
           app.loadedAt && (
