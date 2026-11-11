@@ -30,6 +30,9 @@ export function Today() {
   // 처음 온 방문자(로그인 안 함, 기기에 기억한 모임·조회 링크·편성 없음)에게만 소개를 맨 위에 붙인다.
   // 이 화면이 열릴 때 한 번만 정한다(소개가 중간에 사라지거나 생겨 화면이 밀리지 않게).
   const [firstVisit] = useState(() => !app.draft && isFirstVisit());
+  // 소개가 보이면 그것이 화면 전체다. 기록이 없는 사람에게 "아직 경기가 없어요"·빈 검색·빈 요약 같은 빈 안내를
+  // 겹쳐 보여 주지 않는다(CLAUDE.md 8절). 소개의 "로그인 없이 팀 짜기"가 같은 일을 한다.
+  const introOnly = app.ready && !app.me?.accountId && firstVisit;
 
   const snapshot = app.snapshot;
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
@@ -77,20 +80,22 @@ export function Today() {
 
   return (
     <div className="screen page-wide home-screen">
-      <ScreenHead
-        title={snapshot?.group.name ?? "내전로그"}
-        badge={
-          snapshot &&
-          app.loadedAt && (
-            <span className="badge ok">
-              저장됨 · {formatTime(new Date(app.loadedAt).toISOString())} 확인
-            </span>
-          )
-        }
-        desc="오늘 할 입력과 모임 기록 요약"
-      />
-
-      {app.ready && !app.me?.accountId && firstVisit && <Intro />}
+      {introOnly ? (
+        <Intro />
+      ) : (
+        <ScreenHead
+          title={snapshot?.group.name ?? "내전로그"}
+          badge={
+            snapshot &&
+            app.loadedAt && (
+              <span className="badge ok">
+                저장됨 · {formatTime(new Date(app.loadedAt).toISOString())} 확인
+              </span>
+            )
+          }
+          desc="오늘 할 입력과 모임 기록 요약"
+        />
+      )}
 
       {snapshot && <KpiStrip snapshot={snapshot} />}
 
@@ -103,58 +108,60 @@ export function Today() {
         </p>
       )}
 
-      <section className="card" aria-label="지금 할 일">
-        {current ? (
-          <>
-            <p>
-              <strong>{current.matchNo}경기 진행 중</strong> ·{" "}
-              {formatTime(current.startedAt, snapshot?.group.timezone)} 시작
-            </p>
-            <button type="button" className="primary wide" onClick={() => go("/match")}>
-              현재 경기 보기
-            </button>
-          </>
-        ) : app.draft ? (
-          <>
-            <p>
-              <strong>작성하던 편성이 있어요</strong> · 이 기기에만 있어요
-            </p>
-            <button type="button" className="primary wide" onClick={() => go("/prep")}>
-              이어서 편성
-            </button>
-            <button
-              type="button"
-              className="link"
-              onClick={() => {
-                const kept = app.draft;
-                app.setDraft(null);
-                // 확인 창 대신 실행 뒤 되돌리기를 준다.
-                setUndo(() => () => app.setDraft(kept));
-              }}
-            >
-              버리기
-            </button>
-          </>
-        ) : hasAnyMatch ? (
-          <>
-            <p>
-              <strong>
-                {confirmedToday.length === 0 ? "오늘은 아직 경기가 없어요" : `오늘 ${confirmedToday.length}경기 확정`}
-              </strong>
-            </p>
-            <button type="button" className="primary wide" onClick={() => go("/pick")}>
-              참가자 고르기
-            </button>
-          </>
-        ) : (
-          <>
-            <p>아직 경기가 없어요.</p>
-            <button type="button" className="primary wide" onClick={() => go("/pick")}>
-              이름 넣고 팀 짜기
-            </button>
-          </>
-        )}
-      </section>
+      {!introOnly && (
+        <section className="card" aria-label="지금 할 일">
+          {current ? (
+            <>
+              <p>
+                <strong>{current.matchNo}경기 진행 중</strong> ·{" "}
+                {formatTime(current.startedAt, snapshot?.group.timezone)} 시작
+              </p>
+              <button type="button" className="primary wide" onClick={() => go("/match")}>
+                현재 경기 보기
+              </button>
+            </>
+          ) : app.draft ? (
+            <>
+              <p>
+                <strong>작성하던 편성이 있어요</strong> · 이 기기에만 있어요
+              </p>
+              <button type="button" className="primary wide" onClick={() => go("/prep")}>
+                이어서 편성
+              </button>
+              <button
+                type="button"
+                className="link"
+                onClick={() => {
+                  const kept = app.draft;
+                  app.setDraft(null);
+                  // 확인 창 대신 실행 뒤 되돌리기를 준다.
+                  setUndo(() => () => app.setDraft(kept));
+                }}
+              >
+                버리기
+              </button>
+            </>
+          ) : hasAnyMatch ? (
+            <>
+              <p>
+                <strong>
+                  {confirmedToday.length === 0 ? "오늘은 아직 경기가 없어요" : `오늘 ${confirmedToday.length}경기 확정`}
+                </strong>
+              </p>
+              <button type="button" className="primary wide" onClick={() => go("/pick")}>
+                참가자 고르기
+              </button>
+            </>
+          ) : (
+            <>
+              <p>아직 경기가 없어요.</p>
+              <button type="button" className="primary wide" onClick={() => go("/pick")}>
+                이름 넣고 팀 짜기
+              </button>
+            </>
+          )}
+        </section>
+      )}
 
       {undo && (
         <p className="note" role="status">
@@ -172,55 +179,57 @@ export function Today() {
         </p>
       )}
 
-      <section aria-label="전적 검색">
-        <h2>전적 검색</h2>
-        {allTime.size === 0 ? (
-          <p className="hint">경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
-        ) : (
-          <>
-            <input
-              type="search"
-              aria-label="플레이어 이름으로 전적 검색"
-              placeholder="플레이어 이름"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query.trim() !== "" &&
-              (found.length === 0 ? (
-                <p className="hint">일치하는 이름이 없어요.</p>
-              ) : (
-                <ul className="list list-card">
-                  {found.slice(0, 8).map((r) => (
-                    <li key={r.participantId}>
-                      <button
-                        type="button"
-                        className="list-row"
-                        onClick={() => go(`/p/${r.participantId}`)}
-                      >
-                        <span className="name">{r.name}</span>
-                        <span className="stat">
-                          <span className={rateTier(r.wins, r.games)}>
-                            {rateText(r.wins, r.games)}
-                          </span>{" "}
-                          · {r.wins}승 {r.losses}패 (
-                          {r.games}경기)
-                          <br />
-                          <span className="hint">
-                            <StandingNote
-                              standing={standing?.get(r.participantId)}
-                              placementGames={placementGames}
-                              compact
-                            />
+      {!introOnly && (
+        <section aria-label="전적 검색">
+          <h2>전적 검색</h2>
+          {allTime.size === 0 ? (
+            <p className="hint">경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
+          ) : (
+            <>
+              <input
+                type="search"
+                aria-label="플레이어 이름으로 전적 검색"
+                placeholder="플레이어 이름"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query.trim() !== "" &&
+                (found.length === 0 ? (
+                  <p className="hint">일치하는 이름이 없어요.</p>
+                ) : (
+                  <ul className="list list-card">
+                    {found.slice(0, 8).map((r) => (
+                      <li key={r.participantId}>
+                        <button
+                          type="button"
+                          className="list-row"
+                          onClick={() => go(`/p/${r.participantId}`)}
+                        >
+                          <span className="name">{r.name}</span>
+                          <span className="stat">
+                            <span className={rateTier(r.wins, r.games)}>
+                              {rateText(r.wins, r.games)}
+                            </span>{" "}
+                            · {r.wins}승 {r.losses}패 (
+                            {r.games}경기)
+                            <br />
+                            <span className="hint">
+                              <StandingNote
+                                standing={standing?.get(r.participantId)}
+                                placementGames={placementGames}
+                                compact
+                              />
+                            </span>
                           </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ))}
-          </>
-        )}
-      </section>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+            </>
+          )}
+        </section>
+      )}
 
       {awaiting.length > 0 && (
         <section aria-label="결과 미입력 경기">
@@ -307,10 +316,10 @@ export function Today() {
           openRanking={() => go("/records")}
         />
       ) : (
-        app.ready && <DashboardEmpty />
+        app.ready && !introOnly && <DashboardEmpty />
       )}
 
-      {app.ready && !app.me?.accountId && (
+      {app.ready && !app.me?.accountId && !introOnly && (
         <p className="hint">
           팀 짜기와 명단 복사는 로그인 없이 됩니다. 경기를 저장하거나 지난 기록을 가져올 때 로그인합니다.
           이미 쓰고 있다면 맨 위 [로그인]을 누르거나{" "}

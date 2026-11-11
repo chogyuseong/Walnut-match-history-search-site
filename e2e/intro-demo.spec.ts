@@ -28,22 +28,23 @@ test.describe("처음 온 방문자 (390px)", () => {
     await page.goto("/");
     await expect(intro(page)).toBeVisible();
     await expect(intro(page)).toContainText("라이엇 전적에 남지 않아요");
-    await expect(intro(page).getByRole("listitem")).toHaveCount(6);
+    await expect(intro(page).getByRole("listitem")).toHaveCount(4);
     // 스크롤하지 않은 첫 화면(390×844)에 로그인 없이 팀 짜기 버튼이 다 보인다. 하단 탭에 가려도 안 된다.
     const tryNow = intro(page).getByRole("button", { name: "로그인 없이 팀 짜기" });
     const tryBox = (await tryNow.boundingBox())!;
     const tabsTop = (await page.getByRole("navigation", { name: "주 메뉴" }).boundingBox())!.y;
     expect(tryBox.y + tryBox.height).toBeLessThanOrEqual(Math.min(844, tabsTop));
-    // 소개 아래의 원래 첫 화면(로그인 없이 팀 짜기)은 그대로다.
-    await expect(page.getByText("아직 경기가 없어요.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "이름 넣고 팀 짜기" })).toBeVisible();
+    // 소개가 첫 화면 전체다. 기록이 없는 사람에게 빈 안내(아직 경기가 없어요·빈 검색·빈 요약)를 겹쳐 보이지 않는다.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.getByText("아직 경기가 없어요.")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "이름 넣고 팀 짜기" })).toHaveCount(0);
     // 라이엇 게임즈와 무관 고지도 그대로다.
     await expect(page.getByRole("contentinfo")).toContainText("라이엇 게임즈의 공식 서비스가 아니며");
     await noHorizontalOverflow(page, "소개");
     expect(scripts.some((s) => s.includes("빨간우체통"))).toBe(false);
 
     // 예시 모임
-    await intro(page).getByRole("button", { name: "예시 모임 둘러보기" }).click();
+    await intro(page).getByRole("button", { name: "예시 기록 보기" }).click();
     await expect(page).toHaveURL(/#\/demo$/);
     const note = page.getByRole("note", { name: "예시 데이터 안내" });
     await expect(note).toContainText("예시 데이터예요");

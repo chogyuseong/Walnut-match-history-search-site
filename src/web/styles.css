@@ -2218,9 +2218,9 @@ table {
   margin: var(--space-3) var(--page-gutter) 0;
 }
 
-/* 푸터: 라이엇 게임즈와 무관함을 알리는 문구 */
+/* 푸터: 라이엇 게임즈와 무관함을 알리는 문구. 본문과 48px 띄운다(큰 구획 사이). */
 .legal {
-  margin: var(--space-6) var(--page-gutter) 0;
+  margin: var(--space-7) var(--page-gutter) 0;
   padding: var(--space-5) 0 var(--space-2);
   border-top: 1px solid var(--ih-line);
   /* 법적 고지는 읽을 수 있게 두되 본문 행동보다 물러나게(8절): 12px, 흐린 글자. */
@@ -2229,12 +2229,7 @@ table {
   line-height: 1.5;
 }
 .legal p + p {
-  margin-top: var(--space-1);
-}
-@media (min-width: 768px) {
-  .legal {
-    margin: var(--space-7) var(--page-gutter) 0;
-  }
+  margin-top: var(--space-2);
 }
 
 /* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
@@ -5236,54 +5231,87 @@ table {
 .award-none-list .award-rule {
   display: block;
 }
-/* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). */
-.intro h2 {
-  margin: 0;
-  font-size: var(--text-section);
+/* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). 확정 시안 구조: 카드 없이 소개 제목·설명·행동, 그 아래
+   1px 구분선 목록. 390×844에서 주 버튼이 스크롤 없이 하단 메뉴 위에 보여야 하므로 제목 위 여백을 늘리지 않는다
+   (e2e/intro-demo.spec.ts가 잰다). 1200px 이상은 왼쪽 소개·행동 | 오른쪽 기능 목록. */
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
 }
-.intro p {
-  margin: 0;
-  overflow-wrap: anywhere;
+.intro h1 {
+  max-width: var(--reading-max);
+  font-size: var(--text-hero);
+  line-height: 1.25;
 }
+.intro-lead {
+  max-width: var(--reading-max);
+  margin-top: var(--space-2);
+  color: var(--ih-text-secondary);
+}
+.intro-note {
+  margin-top: var(--space-2);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+}
+/* 버튼 세 단계: 채운 주 버튼(하나) / 중립 보조 버튼 / 텍스트 링크. 좁은 화면은 세로로, 링크는 글자 폭만. */
 .intro-actions {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  margin-top: var(--space-5);
 }
-/* 넓으면 버튼 둘이 한 줄을 반씩 나눠 쓰고, 휴대폰 폭에서는 글자가 두 줄로 꺾이지 않게 한 줄에 하나씩 내려간다. */
-.intro-actions .button-row > button {
-  flex: 1 1 180px;
+.intro-actions > .link {
+  align-self: flex-start;
 }
-.intro-features {
-  display: grid;
-  gap: var(--space-2);
+.intro-features h2 {
   margin: 0;
+}
+.intro-features ul {
+  margin: var(--space-4) 0 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--ih-line);
 }
 .intro-features li {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--radius-panel);
-  background: var(--ih-subtle);
-  overflow-wrap: anywhere;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--ih-line);
 }
-.intro-features span {
-  font-size: var(--text-label);
+.intro-features li:last-child {
+  border-bottom: 0;
+}
+/* 아이콘 칸 높이를 제목 첫 줄(16px × 1.5 = 24px)에 맞춰 아이콘이 첫 줄 가운데에 온다. */
+.intro-features li > .line-icon {
+  height: 24px;
   color: var(--ih-text-secondary);
 }
+.intro-features h3 {
+  margin: 0;
+  color: var(--ih-text);
+  font-size: var(--text-body);
+}
+.intro-features p {
+  margin-top: var(--space-1);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+}
 @media (min-width: 768px) {
-  .intro-features {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .intro-actions {
+    flex-direction: row;
+    align-items: center;
+  }
+  .intro-actions > .link {
+    align-self: auto;
   }
 }
 @media (min-width: 1200px) {
-  .intro-features {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-8);
+    align-items: start;
   }
 }
 /* 예시 모임(#/demo) 위 안내. 데이터와 상관없이 바로 그려 높이가 바뀌지 않는다. */

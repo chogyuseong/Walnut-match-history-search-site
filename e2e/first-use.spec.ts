@@ -60,9 +60,9 @@ test.describe("첫 이용 흐름 (390px)", () => {
     const user = uniqueUser();
     await page.goto("/");
 
-    // 첫 화면의 행동은 하나다.
-    await expect(page.getByText("아직 경기가 없어요.")).toBeVisible();
-    await page.getByRole("button", { name: "이름 넣고 팀 짜기" }).click();
+    // 처음 온 사람의 첫 화면은 소개이고 채운 주 버튼은 하나다.
+    await expect(page.locator("button.primary")).toHaveCount(1);
+    await page.getByRole("button", { name: "로그인 없이 팀 짜기" }).click();
 
     // 참가자 선택: 8명만 넣으면 인원과 부족 인원을 알려준다.
     await enterNames(page, NAMES.slice(0, 8));
@@ -230,7 +230,7 @@ test.describe("좁은 화면과 긴 이름 (39)", () => {
       await page.setViewportSize({ width, height: 700 });
       await page.goto("/");
       await noHorizontalOverflow(page);
-      await page.getByRole("button", { name: "이름 넣고 팀 짜기" }).click();
+      await page.getByRole("button", { name: "로그인 없이 팀 짜기" }).click();
       await enterNames(page, LONG);
       await expect(page.getByText("10/10", { exact: true })).toBeVisible();
       await noHorizontalOverflow(page);

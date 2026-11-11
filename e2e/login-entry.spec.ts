@@ -33,8 +33,10 @@ test.describe("상단 바 로그인 (390px)", () => {
     // 로그인 전: 상단에 [로그인], 주 메뉴에 모임 탭이 없다.
     await expect(banner(page).getByRole("button", { name: "로그인", exact: true })).toBeVisible();
     await expect(menu(page).getByRole("button", { name: "모임" })).toHaveCount(0);
-    // 홈의 안내 문구도 상단 버튼과 같은 말을 쓴다.
-    await expect(page.getByText(/맨 위 \[로그인\]을 누르거나/)).toBeVisible();
+    // 처음 온 사람의 첫 화면은 소개라 본문의 로그인 길은 소개 안의 텍스트 링크다("맨 위 [로그인]" 안내는 재방문자용).
+    await expect(
+      page.getByRole("region", { name: "이 사이트 소개" }).getByRole("button", { name: "로그인하고 모임 만들기" }),
+    ).toBeVisible();
 
     await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
     await fakeLogin(page, uniqueUser());
