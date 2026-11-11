@@ -136,8 +136,7 @@ for (const d of decls) {
       if (!excuse("radius", d)) hit("radius", w, line);
     }
   } else if (prop === "box-shadow") {
-    // --ih-shadow-card는 세 테마 모두 none이다.
-    if (value !== "none" && value !== DIALOG_SHADOW && value !== "var(--ih-shadow-card)") hit("box-shadow", value, line);
+    if (value !== "none" && value !== DIALOG_SHADOW) hit("box-shadow", value, line);
   } else if (prop === "text-shadow") {
     if (value !== "none") hit("text-shadow", value, line);
   } else if (prop === "backdrop-filter" || prop === "-webkit-backdrop-filter") {

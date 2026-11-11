@@ -29,9 +29,9 @@ const layout: Record<string, Layout> = {};
 
 test.skip(!SHOTS_DIR, "SHOTS_DIR을 줄 때만 사진을 찍는다");
 
-/** 1×1 투명 PNG */
+/** 1×1 투명 PNG(회색+알파, 알파 0). 흔히 도는 "투명 1px" 예시 중에는 반투명 파랑인 것이 있어 확인한 값이다. */
 const BLANK_PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
   "base64",
 );
 

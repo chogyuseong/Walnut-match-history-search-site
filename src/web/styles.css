@@ -306,14 +306,16 @@ summary:focus-visible,
   outline: 2px solid var(--ih-accent);
   outline-offset: 2px;
 }
+/* 주 버튼(화면당 하나): 골드 채움. 라이트도 같은 계열(#9A6C12 위 흰 글자). */
 .primary {
   background: var(--ih-primary);
   border-color: var(--ih-primary);
   color: var(--ih-on-primary);
   font-weight: 700;
 }
-.secondary {
-  background: var(--ih-panel);
+.primary:not(:disabled):hover {
+  background: var(--ih-primary-hover);
+  border-color: var(--ih-primary-hover);
 }
 .danger {
   border-color: var(--ih-danger);
@@ -767,18 +769,21 @@ details > *:not(summary) {
   background: var(--ih-panel);
 }
 
-/* 확인 창: 하단 탭과 고정 버튼 위를 덮는다. 뒤 화면은 누를 수 없다. */
+/* 확인 창: 하단 탭과 고정 버튼 위를 덮는다. 뒤 화면은 누를 수 없다. 흐림(blur) 없이 단색으로 가린다. */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgb(0 0 0 / 0.6);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   z-index: 10;
 }
+/* 대화상자·팝오버만 그림자를 쓴다(CLAUDE.md 6절). */
 .dialog {
-  background: var(--ih-bg);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
   width: 100%;
   max-width: 560px;
   max-height: 92dvh;
@@ -817,9 +822,10 @@ details > *:not(summary) {
   left: 16px;
   right: 16px;
   bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 12px);
-  background: var(--ih-text);
-  color: var(--ih-bg);
-  border-radius: 8px;
+  background: var(--ih-panel);
+  color: var(--ih-text);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--ih-radius-lg);
   padding: 10px 14px;
   text-align: center;
   z-index: 20;
@@ -1419,7 +1425,6 @@ h3 {
 /* 버튼·입력 */
 button {
   font-weight: 700;
-  background: var(--ih-panel);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
@@ -1431,15 +1436,6 @@ button:not(:disabled):hover {
 button:not([class]):not(:disabled):hover,
 .secondary:not(:disabled):hover {
   background: var(--ih-subtle);
-}
-.primary {
-  background: var(--ih-primary);
-  border-color: var(--ih-primary);
-  color: var(--ih-on-primary);
-}
-.primary:not(:disabled):hover {
-  background: var(--ih-primary-hover);
-  border-color: var(--ih-primary-hover);
 }
 /* 버튼 단계: primary(화면당 하나, 포인트 색 채움) > secondary(조용한 바탕, 또렷한 테두리) > link(글자). 그림자 없음. */
 .secondary {
@@ -2064,15 +2060,15 @@ table {
   color: var(--ih-text-secondary);
   font-size: 0.875rem;
 }
-/* 지금 화면 탭(운영자 탭·조회 메뉴 모두, 좁은 화면 하단·넓은 화면 상단 공통): 채운 버튼과 같은 색으로 채운 칸.
-   선 하나보다 어디에 있는지 바로 보인다. 색 쌍은 --ih-primary / --ih-on-primary이라 대비 검사를 함께 받는다.
+/* 지금 화면 탭(운영자 탭·조회 메뉴 모두, 좁은 화면 하단·넓은 화면 상단 공통): 옅은 선택 배경 + 강조 글자.
+   주 버튼처럼 채우지 않는다(CLAUDE.md 5절). 색 쌍은 --ih-accent / --ih-selected이라 대비 검사를 함께 받는다.
    좁은 화면 하단에서는 위아래 6px를 띄워(56 − 12 = 44px 누름 영역) 칸이 바 가장자리에 붙지 않게 한다. */
 .tabs button[aria-current="page"],
 .tabs button[aria-current="page"]:hover,
 .viewer-nav .link[aria-current="page"],
 .viewer-nav .link[aria-current="page"]:hover {
-  background: var(--ih-primary);
-  color: var(--ih-on-primary);
+  background: var(--ih-selected);
+  color: var(--ih-accent);
   font-weight: 700;
   text-decoration: none;
   border-radius: var(--ih-radius-sm);
@@ -2158,8 +2154,6 @@ table {
     position: sticky;
     top: 0;
     z-index: 3;
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
   }
   .topbar-inner {
     padding: 0 24px;
@@ -2176,8 +2170,6 @@ table {
     gap: 4px;
     background: none;
     border-top: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
     z-index: 4;
   }
   .tabs button,
@@ -2195,24 +2187,8 @@ table {
   }
 }
 
-/* 확인 창·알림 */
-.overlay {
-  background: rgba(0, 0, 0, 0.7);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-}
-/* 확인 창·알림: 그림자 대신 또렷한 테두리. */
-.dialog {
-  background: var(--ih-panel);
-  border: 1px solid var(--ih-line);
-  box-shadow: none;
-}
+/* 알림 글자(크기·굵기는 2단계에서 척도로 정리) */
 .toast {
-  background: var(--ih-subtle);
-  color: var(--ih-text);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--ih-radius-lg);
-  box-shadow: none;
   font-size: 0.875rem;
   font-weight: 700;
 }
@@ -2441,7 +2417,7 @@ table {
   text-decoration: none;
 }
 .login-btn:focus-visible {
-  outline: 3px solid var(--ih-accent);
+  outline: 2px solid var(--ih-accent);
   outline-offset: 2px;
 }
 .login-symbol {
@@ -4377,6 +4353,7 @@ table {
   color: var(--ih-text);
   border: 1px solid var(--ih-line);
   border-radius: var(--ih-radius-md);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
   font-size: 0.875rem;
 }
 .account-menu p {
