@@ -469,8 +469,15 @@ legend {
   flex-wrap: wrap;
   align-items: center;
 }
-:is(h2, h3, p):has(> .info-tip) > .info-tip-body {
+/* 펼친 설명은 다음 줄 전체를 차지해야 하는데, 글 폭 제한(68ch)을 상자에 걸면 flex 줄에서 상자가 그만큼 좁아져 넓은 화면에서
+   제목 옆에 붙는다. 그래서 상자는 줄 전체 폭으로 두고, 안쪽을 68ch짜리 한 칸 grid로 만들어 글 폭만 제한한다.
+   grid라서 설명 안에 strong 같은 요소를 글 중간에 넣으면 따로 떨어진다. 문단은 .tip-line으로 나눈다. */
+:is(h2, h3, p):has(> .info-tip) > .info-tip-body,
+.page-title-line > .info-tip-body {
   flex-basis: 100%;
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, 68ch);
 }
 /* 여러 줄로 꺾이는 긴 글 옆에 i 버튼을 둘 때: 글 묶음 폭을 버튼 자리(44px)만큼 덜어 두어 버튼이 혼자 다음 줄로
    떨어지지 않게 한다. 글이 짧으면 버튼은 글 바로 뒤에 붙는다. */
@@ -507,6 +514,13 @@ legend {
 .info-tip[aria-expanded="true"] .info-tip-dot {
   border-color: var(--ih-accent);
   color: var(--ih-accent);
+}
+/* 여러 문단짜리 설명: 문단마다 .tip-line(설명 상자가 span이라 p를 못 쓴다). */
+.info-tip-body > .tip-line {
+  display: block;
+}
+.info-tip-body > .tip-line + .tip-line {
+  margin-top: var(--space-2);
 }
 .info-tip-body {
   display: block;
