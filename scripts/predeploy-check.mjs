@@ -6,7 +6,9 @@
 // (다) dist/web가 없거나 화면 소스(src/web·src/shared·public·vite.config.ts)보다 오래됐는지(빌드 누락).
 //     npm 스크립트는 이 점검 바로 뒤에 vite build를 하므로 --skip-build로 (다)를 건너뛴다.
 //     wrangler deploy를 손으로 할 때는 플래그 없이 돌려 빌드가 최신인지 함께 본다.
+// (라) styles.css에 디자인 규칙(CLAUDE.md) 밖 값이 있는지(scripts/design-audit.mjs). --skip-build와 관계없이 늘 본다.
 // 경고(실패는 아님): SITE_ADMIN_ACCOUNT_IDS가 비어 있으면 사이트 현황(#/admin)을 아무도 못 본다.
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -118,6 +120,13 @@ if (!skipBuild) {
     const stale = sources.filter((p) => newestMtime(p) > builtAt);
     if (stale.length > 0) problems.push(`dist/web가 ${stale.join(", ")}보다 오래됐어요. npm run build를 다시 돌려 주세요.`);
   }
+}
+
+// (라) 디자인 규칙
+const audit = spawnSync(process.execPath, ["scripts/design-audit.mjs", "--brief"], { encoding: "utf8" });
+if (audit.status !== 0) {
+  const total = /합계: (\d+)/.exec(audit.stdout)?.[1] ?? "?";
+  problems.push(`디자인 규칙 밖 값이 ${total}개 있어요. npm run audit:design으로 줄 번호를 보고 고쳐 주세요.`);
 }
 
 for (const w of warnings) console.warn(`경고: ${w}`);

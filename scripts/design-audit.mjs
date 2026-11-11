@@ -1,12 +1,12 @@
-// styles.css에서 CLAUDE.md 디자인 규칙 밖의 값을 세고 줄 번호를 보여 준다.
-// 지금은 보고만 한다(항상 exit 0). 6단계에서 위반이 남으면 실패하도록 STRICT를 켠다.
+// styles.css에서 CLAUDE.md 디자인 규칙 밖의 값을 세고 줄 번호를 보여 준다. 하나라도 있으면 exit 1.
 //   npm run audit:design            항목별 개수 + 값별 줄 번호
-//   npm run audit:design -- --brief 항목별 개수만(단계 전후 숫자 비교용)
-// 색은 여기서 보지 않는다. 대비는 test/theme-contrast.test.ts가 보고, 장식색 정리는 4단계에서 사람이 판단한다.
+//   npm run audit:design -- --brief 항목별 개수만
+// 배포 전 점검(scripts/predeploy-check.mjs)과 CI(check 작업)가 이 스크립트를 부른다. 규칙 밖 값을 꼭 써야 하면
+// 값을 숨기지 말고 CLAUDE.md에 예외를 먼저 적은 뒤 아래 EXCEPTIONS에 이유와 함께 더한다.
+// 색은 여기서 보지 않는다. 대비는 test/theme-contrast.test.ts가 보고, 장식색인지는 사람이 판단한다.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const STRICT = false;
 const CSS_PATH = fileURLToPath(new URL("../src/web/styles.css", import.meta.url));
 const brief = process.argv.includes("--brief");
 
@@ -21,8 +21,11 @@ const EXCEPTIONS = [
   { rule: "translate", selector: ".radar-label", why: "레이더 좌표에 글자 중심 맞춤(데이터 좌표)" },
   { rule: "translate", selector: ".mmr-axis-start", why: "기준선 위치(--at)에 맞춘 글자(데이터 좌표)" },
   // 6절: 키보드 포커스 표시는 2px outline이 규칙 값이다.
-  { rule: "thick-line", selector: ":focus-visible", why: "키보드 포커스 2px outline(6절)" },  // 1절: 폭은 간격 척도 대상이 아니다. 머리 칸 눈금을 아래 줄의 막대 칸에 맞추려고 옆 칸 폭(순위 2rem, 펼치기 44px)만큼 띄운다.
+  { rule: "thick-line", selector: ":focus-visible", why: "키보드 포커스 2px outline(6절)" },
+  // 1절: 폭은 간격 척도 대상이 아니다. 머리 칸 눈금을 아래 줄의 막대 칸에 맞추려고 옆 칸 폭(순위 2rem, 펼치기 44px)만큼 띄운다.
   { rule: "spacing", selector: ".mmr-head .c-bar", why: "줄의 순위·펼치기 칸 폭 + 틈에 맞춘 눈금 위치(칸 폭)" },
+  // 4절은 장식·제목 전용 글꼴을 막는다. 복구 코드는 0과 O, 1과 l을 가려 읽어야 해서 기기에 있는 고정폭 글꼴을 쓴다(내려받지 않음).
+  { rule: "font-family", selector: ".recovery-code code", why: "복구 코드 글자 구별용 시스템 고정폭 글꼴" },
 ];
 // 50% 반경은 원(아바타·상태 점·원형 그래프)에만 허용된다(3절). 원인지는 기계가 못 가리므로 50%는 통과시키고
 // 개수만 따로 보여 준다. 일반 상자에 50%가 붙어 있지 않은지는 사람이 확인한다.
@@ -36,13 +39,19 @@ const RADIUS_VAR_OK = /^var\(--radius-(badge|control|panel)\)$/;
 // transition은 색 바꿈에만 건다(6절). transform·opacity 같은 속성이 끼면 위반이다.
 const TRANSITION_PROP_OK = new Set(["background-color", "border-color", "color"]);
 const DIALOG_SHADOW = "0 8px 24px rgb(0 0 0 / 0.12)";
+// 반응형 기준(2절)은 768·1200 둘이다(max-width는 그 1px 아래 767·1199). 나머지는 좁은 폰에서 팀 상자·경기 카드·순위 줄이
+// 넘치지 않게 남긴 부품 보정 값이라, 여기 없는 폭을 새로 쓰려면 먼저 768·1200으로 풀 수 없는지 본다.
+// @container 폭은 부품 자신의 폭이라 세지 않는다.
+const MEDIA_WIDTH_OK = new Set([767, 768, 1199, 1200, 359, 419, 479, 480, 481, 599]);
+// 글꼴은 Pretendard + 시스템 대체 글꼴 하나(4절, :root의 --ih-font-sans).
+const FONT_FAMILY_OK = new Set(["var(--ih-font-sans)", "inherit"]);
 
 /** 주석을 같은 길이의 공백으로 바꾼다(줄 번호를 그대로 두려고). */
 function stripComments(text) {
   return text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\r\n]/g, " "));
 }
 
-/** 선언마다 { line, selector, prop, value }. 중괄호 깊이를 따라가며 바로 바깥 블록의 선택자를 붙인다. */
+/** 선언마다 { line, selector, prop, value, important }. 중괄호 깊이를 따라가며 바로 바깥 블록의 선택자를 붙인다. */
 function declarations(text) {
   const out = [];
   const stack = [];
@@ -68,7 +77,10 @@ function declarations(text) {
   }
   function flush() {
     const m = buf.match(/^\s*([-\w]+)\s*:\s*([\s\S]+?)\s*$/);
-    if (m) out.push({ line: bufLine, selector: stack.at(-1) ?? "", prop: m[1], value: m[2].replace(/\s*!important$/, "") });
+    if (m) {
+      const important = /\s*!important$/.test(m[2]);
+      out.push({ line: bufLine, selector: stack.at(-1) ?? "", prop: m[1], value: m[2].replace(/\s*!important$/, ""), important });
+    }
   }
   return out;
 }
@@ -124,8 +136,21 @@ function excuse(rule, d) {
   return Boolean(e);
 }
 
+/** 주석을 지운 글에서 위치 → 줄 번호. */
+const lineAt = (index) => css.slice(0, index).split("\n").length;
+for (const m of css.matchAll(/@media[^{]*/g)) {
+  for (const w of m[0].matchAll(/(min|max)-width\s*:\s*(\d+)px/g)) {
+    if (!MEDIA_WIDTH_OK.has(Number(w[2]))) hit("media-width", `${w[1]}-width: ${w[2]}px`, lineAt(m.index));
+  }
+}
+// 글꼴 추가(4절): 웹 글꼴 선언이나 외부 CSS 불러오기.
+for (const m of css.matchAll(/@(font-face|import)\b/g)) hit("font-family", `@${m[1]}`, lineAt(m.index));
+
 for (const d of decls) {
   const { prop, value, line } = d;
+  // !important는 순서·명시도 대신 힘으로 덮는 것이라 다음 사람이 원인을 찾기 어렵다. 지금 0개라 예외 없이 막는다.
+  if (d.important) hit("important", prop, line);
+  if (prop === "font-family" && !FONT_FAMILY_OK.has(value) && !excuse("font-family", d)) hit("font-family", value, line);
   if (/^(margin|padding)(-[a-z-]+)?$|^(row-|column-)?gap$/.test(prop)) {
     for (const w of words(value)) {
       if (prop.startsWith("margin") && w.startsWith("-")) hit("negative-margin", w, line);
@@ -186,6 +211,9 @@ const ORDER = [
   ["animation", "animation"],
   ["thick-line", "2px 이상 테두리·외곽선"],
   ["translate", "translate 보정"],
+  ["media-width", "반응형 기준 밖 @media 폭"],
+  ["font-family", "글꼴 추가"],
+  ["important", "!important"],
 ];
 
 let total = 0;
@@ -204,4 +232,7 @@ console.log(`50% 반경(원 용도인지 사람이 확인): ${circleRadius}`);
 console.log(`예외로 뺀 것: ${excused.length}`);
 if (!brief) for (const e of excused) console.log(`  ${e}`);
 
-if (STRICT && total > 0) process.exit(1);
+if (total > 0) {
+  console.error(`디자인 규칙 밖 값 ${total}개. 위 줄을 고치거나, 꼭 필요한 예외면 CLAUDE.md와 EXCEPTIONS에 이유를 적는다.`);
+  process.exit(1);
+}
