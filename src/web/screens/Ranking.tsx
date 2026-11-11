@@ -260,19 +260,6 @@ export function Ranking(props: {
             value={highlights.peak ? shownRating(highlights.peak.rating.peak) : "—"}
             rows={highlights.peak ? [["지금 MMR", shownRating(highlights.peak.rating.rating)]] : []}
           />
-          {tierCounts.length > 0 && (
-            <StatCard title="티어 분포" value={`${tierCounts.reduce((sum, t) => sum + t.count, 0)}명`}>
-              <p className="mmr-tier-counts">
-                <span className="sr-only">티어별 인원: </span>
-                {/* 줄마다 "골드 … 5". 글자 내용은 "골드 5"로 이어 읽힌다. */}
-                {tierCounts.map(({ tier, count }) => (
-                  <span key={tier.key} className="mmr-tier-count">
-                    <span>{tier.short}</span> <span>{count}</span>
-                  </span>
-                ))}
-              </p>
-            </StatCard>
-          )}
         </div>
       </section>
 
@@ -388,6 +375,13 @@ export function Ranking(props: {
               })}
             </ul>
           </div>
+        )}
+        {/* 티어 분포는 요약 카드(최대 셋)에서 순위표 아래 한 줄로 내렸다. */}
+        {tierCounts.length > 0 && (
+          <p className="hint mmr-tier-counts">
+            티어 분포 {tierCounts.reduce((sum, t) => sum + t.count, 0)}명 ·{" "}
+            {tierCounts.map(({ tier, count }) => `${tier.short} ${count}`).join(" · ")}
+          </p>
         )}
         <Help label="순서와 막대 읽는 법">
           순서는{" "}

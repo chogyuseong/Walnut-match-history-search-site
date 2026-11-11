@@ -371,7 +371,8 @@ export function Graphs(props: {
         </div>
         <div className="graph-meta">
           <p className="hint">
-            {scopeLabel} · 확정 {counted}경기 · 참가자 {matrixRows.length}명
+            {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. */}
+            {scopeLabel} · 확정 {counted}경기 · 참가자 {matrixRows.length}명 · 자료 적음({SMALL_SAMPLE}경기 미만) {fewCount}명
           </p>
         </div>
       </div>
@@ -431,13 +432,6 @@ export function Graphs(props: {
                 <span className="tile-sub">진영 기록 없음</span>
               </dd>
             )}
-          </div>
-          <div>
-            <dt className="tile-label">자료 적음({SMALL_SAMPLE}경기 미만)</dt>
-            <dd className="season-stat">
-              {fewCount}
-              <span className="season-unit">명</span>
-            </dd>
           </div>
         </dl>
         {/* 예전 "진영별 누적 승률" 카드의 내용: 진영마다 전적 글 한 줄과 미상 안내. */}

@@ -8,7 +8,6 @@ import {
   recentResults,
   resultsOf,
   streakOf,
-  streakText,
 } from "../../shared/insights";
 import {
   matchesInScope,
@@ -386,31 +385,6 @@ export function Person(props: {
                   <span className="hint">(누적 기준)</span>
                 </p>
               )}
-              {detail.summary.games > 0 && (
-                <p className="ps-streak">
-                  {streaks.currentStreak !== 0 && (
-                    <strong className={streaks.currentStreak > 0 ? "streak win" : "streak loss"}>
-                      {streakText(streaks.currentStreak)}
-                    </strong>
-                  )}
-                  <span className="tile-sub">
-                    최다 {streaks.longestWinStreak}연승 · {streaks.longestLoseStreak}연패
-                  </span>
-                </p>
-              )}
-              {(upsets.upsetWins > 0 || upsets.underdogGames > 0) && (
-                <p className="hint">
-                  이변 승 {upsets.upsetWins}회
-                  {upsets.underdogGames > 0 &&
-                    ` · 약팀일 때 승률 ${pct(upsets.underdogWins, upsets.underdogGames)} (${upsets.underdogGames}경기)`}
-                </p>
-              )}
-              {attendance && (
-                <p className="hint">
-                  참석 {attendance.days}일 · 출석률 {pct(attendance.days, attendance.eligibleDays)} · 연속{" "}
-                  {attendance.currentStreak}일 · 마지막 {formatDate(attendance.lastDate, snapshot.group.timezone)}
-                </p>
-              )}
               {placement.title && (
                 <p className="hint">
                   칭호 <TitleBadge name={placement.title} grade={placement.grade} /> 누적 기준 · 범위를 바꿔도
@@ -426,7 +400,27 @@ export function Person(props: {
             </div>
           )}
         </div>
-        {detail.summary.games > 0 && (
+        {/* ─ 추이 두 장: 넓은 화면(768px~)은 승률·MMR을 반씩 한 줄에 나란히, 좁으면 하나씩 쌓인다(.trend-pair) ─ */}
+        {(trend.length >= 2 || detail.summary.games > 0 || (rating && rating.games >= 2)) && (
+          <div className="trend-pair">
+            {trend.length >= 2 ? (
+              <TrendLine points={trend} />
+            ) : detail.summary.games > 0 ? (
+              // 옆(또는 아래) MMR 그래프를 승률 추이로 오해하지 않게 함께 적는다(2026-11-08 화면 점검).
+              <p className="hint">
+                승률 추이는 {SMALL_SAMPLE + 1}경기부터 그려요{rating && rating.games >= 2 ? "(옆은 MMR 추이)" : ""}.
+              </p>
+            ) : null}
+            {/* MMR 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
+            {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} start={ratingOptions.start} />}
+          </div>
+        )}
+      </section>
+
+      {/* 요약은 핵심 지표 셋(승률·MMR·최근 10경기)만 두고, 라인·동료·이변·출석은 여기로 내렸다(CLAUDE.md 8절). */}
+      {detail.summary.games > 0 && (
+        <section className="full person-facts" aria-label="세부 기록">
+          <h2>세부 기록 ({scopeLabel})</h2>
           <dl className="ps-tiles">
             <div>
               <dt className="tile-label">가장 많이 플레이한 라인</dt>
@@ -445,23 +439,19 @@ export function Person(props: {
               <dd>{pairTile(cmp.rival, "상대일 때", cmp.versus)}</dd>
             </div>
           </dl>
-        )}
-        {/* ─ 추이 두 장: 넓은 화면(768px~)은 승률·MMR을 반씩 한 줄에 나란히, 좁으면 하나씩 쌓인다(.trend-pair) ─ */}
-        {(trend.length >= 2 || detail.summary.games > 0 || (rating && rating.games >= 2)) && (
-          <div className="trend-pair">
-            {trend.length >= 2 ? (
-              <TrendLine points={trend} />
-            ) : detail.summary.games > 0 ? (
-              // 옆(또는 아래) MMR 그래프를 승률 추이로 오해하지 않게 함께 적는다(2026-11-08 화면 점검).
-              <p className="hint">
-                승률 추이는 {SMALL_SAMPLE + 1}경기부터 그려요{rating && rating.games >= 2 ? "(옆은 MMR 추이)" : ""}.
-              </p>
-            ) : null}
-            {/* MMR 추이는 범위와 무관한 누적 기준이다(승률 추이는 고른 범위). 2경기부터 그린다. */}
-            {rating && rating.games >= 2 && <RatingTrendLine points={ratingPoints} start={ratingOptions.start} />}
-          </div>
-        )}
-        {detail.summary.games > 0 && (
+          {(upsets.upsetWins > 0 || upsets.underdogGames > 0) && (
+            <p className="hint">
+              이변 승 {upsets.upsetWins}회
+              {upsets.underdogGames > 0 &&
+                ` · 약팀일 때 승률 ${pct(upsets.underdogWins, upsets.underdogGames)} (${upsets.underdogGames}경기)`}
+            </p>
+          )}
+          {attendance && (
+            <p className="hint">
+              참석 {attendance.days}일 · 출석률 {pct(attendance.days, attendance.eligibleDays)} · 연속{" "}
+              {attendance.currentStreak}일 · 마지막 {formatDate(attendance.lastDate, snapshot.group.timezone)}
+            </p>
+          )}
           <Help>
             동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난
             사람에서 고릅니다. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 고릅니다. 승률은
@@ -469,8 +459,8 @@ export function Person(props: {
             경기이고, 약팀일 때 승률은 예상이 50% 미만이던 경기의 승률입니다. 출석률은 처음 온 날부터 센 모임 날 중 온
             비율입니다. MMR은 시작 {ratingOptions.start}점이고 3연승·3연패부터 변화 폭이 커져요(최대 1.5배). {RATING_TIER_HELP}
           </Help>
-        )}
-      </section>
+        </section>
+      )}
 
       <section aria-label="최근">
         <h2>최근 ({scopeLabel})</h2>

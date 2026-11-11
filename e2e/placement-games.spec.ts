@@ -138,5 +138,6 @@ test("MMR 시작 점수를 바꾸면 랭킹 숫자와 티어가 다시 계산된
   await expect(rows.first()).toContainText("1546");
   await expect(rows.first()).toContainText("골드");
   await expect(rows.last()).toContainText("1454");
-  await expect(page.locator(".mmr-tier-counts")).toHaveText("티어별 인원: 골드 5실버 5");
+  // 티어 분포는 요약 카드에서 순위표 아래 한 줄로 내렸다(디자인 4단계).
+  await expect(page.locator(".mmr-tier-counts")).toHaveText("티어 분포 10명 · 골드 5 · 실버 5");
 });

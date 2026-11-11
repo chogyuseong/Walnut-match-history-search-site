@@ -268,13 +268,15 @@ export function Compare(props: {
     );
   };
 
-  /** 머리 카드 한 장(요약). 이름은 개인 통계로 가는 버튼이다. */
+  /**
+   * 머리 카드 한 장(요약). 이름은 개인 통계로 가는 버튼이다.
+   * 핵심 지표는 셋(범위 승률·최근 흐름·MMR)만 둔다(CLAUDE.md 8절). 칭호·주 라인은 아래 "나란히 보기" 표에 있다.
+   */
   const personCard = (side: "a" | "b") => {
     const id = side === "a" ? a! : b!;
     const name = side === "a" ? nameA : nameB;
     const summary = side === "a" ? da.summary : db.summary;
     const recent = side === "a" ? recentA : recentB;
-    const main = side === "a" ? mainA : mainB;
     const rating = ratings.get(id)?.rating ?? ratingOptions.start;
     const recentTally = tallyOf(recent);
     return (
@@ -301,25 +303,12 @@ export function Compare(props: {
             />
           </div>
         )}
-        <dl className="cmp-card-facts">
-          <div>
-            <dt>칭호</dt>
-            <dd>
-              <StandingNote standing={standings.get(id)} placementGames={placementGames} />
-            </dd>
-          </div>
-          <div>
-            <dt>MMR</dt>
-            <dd>
-              <span className="rating-num">{shownRating(rating)}</span>{" "}
-              <span className="cmp-card-cap">{ratingBandOf(rating, ratingOptions.start)}</span>
-            </dd>
-          </div>
-          <div>
-            <dt>주 라인</dt>
-            <dd>{main ? <PosLabel position={main.position} /> : <span className="cmp-card-cap">기록 없음</span>}</dd>
-          </div>
-        </dl>
+        <p className="cmp-card-mmr">
+          <span className="cmp-card-cap">MMR</span> <span className="rating-num">{shownRating(rating)}</span>{" "}
+          <span className="cmp-card-cap">
+            {ratingBandOf(rating, ratingOptions.start)} · 누적
+          </span>
+        </p>
       </article>
     );
   };
@@ -375,7 +364,7 @@ export function Compare(props: {
         </p>
       )}
 
-      <section className="card" aria-label="나란히 보기">
+      <section className="cmp-section" aria-label="나란히 보기">
         <h2>나란히 보기 ({scopeLabel})</h2>
         <table className="cmp-table">
           <thead>
@@ -454,7 +443,7 @@ export function Compare(props: {
         <p className="hint">▲는 그 줄에서 앞선 쪽이에요. 칭호·MMR은 범위와 관계없이 누적 기준입니다.</p>
       </section>
 
-      <section className="card" aria-label="라인별 승률 비교">
+      <section className="cmp-section" aria-label="라인별 승률 비교">
         <h2>라인별 승률 ({scopeLabel})</h2>
         <table className="cmp-table cmp-lines">
           <thead>
@@ -493,7 +482,7 @@ export function Compare(props: {
 
       {/* 같은 라인으로 서로 마주 선 경기만. 두 사람의 경기 수가 같고 승률은 서로 거울이라(A 60% ↔ B 40%) 한 줄에 둘 다 쓴다.
           각자의 라인별 승률(위 표)은 전체 경기 기준이라 이와 다르다는 피드백이 있어 따로 뗐다. */}
-      <section className="card" aria-label="같은 라인 맞대결">
+      <section className="cmp-section" aria-label="같은 라인 맞대결">
         <h2>같은 라인으로 맞붙었을 때 ({scopeLabel})</h2>
         {duels.length === 0 ? (
           <p className="hint">두 사람이 같은 라인에서 상대 팀으로 만난 경기가 없어요.</p>
@@ -532,7 +521,7 @@ export function Compare(props: {
         )}
       </section>
 
-      <section className="card" aria-label="같은 팀일 때">
+      <section className="cmp-section" aria-label="같은 팀일 때">
         <h2>같은 팀일 때 ({scopeLabel})</h2>
         {h2h.together.games === 0 ? (
           <p className="hint">같은 팀으로 뛴 경기가 없어요.</p>
@@ -579,7 +568,7 @@ export function Compare(props: {
         )}
       </section>
 
-      <section className="card" aria-label="상대일 때">
+      <section className="cmp-section" aria-label="상대일 때">
         <h2>상대일 때 ({scopeLabel})</h2>
         {against.games === 0 ? (
           <p className="hint">상대 팀으로 만난 경기가 없어요.</p>

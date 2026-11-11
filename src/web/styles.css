@@ -1423,13 +1423,6 @@ button:not([class]):not(:disabled):hover,
   border-color: var(--ih-control-border);
 }
 
-/* 카드 안의 카드: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다. 명시도는 :where()로 낮춘다. */
-.card :where(.card) {
-  border-width: 1px 0 0;
-  border-radius: 0;
-  padding: var(--space-3) 0 0;
-  background: transparent;
-}
 .note {
   background: var(--ih-panel);
   border-color: var(--ih-line);
@@ -2741,10 +2734,20 @@ table {
   font-weight: 500;
   color: var(--ih-text-secondary);
 }
+/* 개인 통계 "세부 기록": 요약 카드에서 내린 라인·동료 칸과 이변·출석 줄. */
+.person-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.person-facts > h2 {
+  margin: 0;
+}
+/* 지표 묶음(개인 세부 기록·시즌 요약·섞기 공정성): 상자로 감싸지 않고 칸마다 위 1px 구분선만 둔다(CLAUDE.md 2절). */
 .ps-tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: var(--space-4);
   margin: 0;
 }
 .ps-tiles > div {
@@ -2752,10 +2755,8 @@ table {
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--ih-subtle);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--radius-panel);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ih-line);
 }
 .ps-tiles dd {
   display: flex;
@@ -2792,13 +2793,6 @@ table {
   .ps-tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-}
-/* 요약 머리의 연속 기록 줄(예전 "지금" 타일). */
-.ps-streak {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-2);
 }
 /* 개인 통계: 768px부터 두 단. 키 큰 "라인별"이 오른쪽에서 두 줄을 차지하고
    왼쪽에 짧은 "최근"·"진영별"을 쌓아 한쪽 아래가 길게 비지 않게 한다.
@@ -3342,47 +3336,16 @@ table {
   height: 1.1875rem;
   font-size: var(--text-meta);
 }
-.cmp-card-facts {
-  display: flex;
-  flex-direction: column;
-  align-items: inherit;
-  gap: var(--space-2);
-  align-self: stretch;
+.cmp-card-mmr {
   /* .cmp-card > *의 margin: 0보다 뒤에 있어 이긴다. 카드 높이가 달라도 아래 줄을 맞춘다. */
   margin-top: auto;
+  align-self: stretch;
   padding-top: var(--space-2);
   border-top: 1px solid var(--ih-line);
-}
-.cmp-card-facts > div {
-  display: flex;
-  flex-direction: column;
-  align-items: inherit;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.cmp-card-facts dt {
-  font-size: var(--text-meta);
-  font-weight: 500;
-  color: var(--ih-text-secondary);
-}
-.cmp-card-facts dd {
-  margin: 0;
-  min-width: 0;
   font-size: var(--text-label);
-  word-break: keep-all;
-  overflow-wrap: anywhere;
 }
-.cmp-card-facts .standing {
-  font-size: var(--text-label);
-  color: var(--ih-text-secondary);
-}
-.cmp-card-facts .rating-num {
+.cmp-card-mmr .rating-num {
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.cmp-card-facts .pos {
-  width: auto;
-  color: var(--ih-text);
 }
 .cmp-vs-mark {
   align-self: center;
@@ -3482,14 +3445,6 @@ table {
   .cmp-card-rate .rate {
     font-size: var(--text-hero);
   }
-  .cmp-card-facts {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-5);
-  }
-  .cmp-b .cmp-card-facts {
-    justify-content: flex-end;
-  }
   .cmp-vs-mark {
     width: 40px;
     height: 40px;
@@ -3504,6 +3459,18 @@ table {
   }
 }
 
+/* 비교 구역(나란히 보기·라인별·맞대결·같은 팀·상대): 카드로 감싸지 않고 제목 + 위 1px 구분선으로 나눈다(CLAUDE.md 2절). */
+.cmp-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--ih-line);
+}
+.cmp-section > h2 {
+  margin: 0;
+}
 /* 표(나란히 보기·라인별). 앞선 쪽 칸은 ▲ + 굵게(칸 바탕은 칠하지 않는다, CLAUDE.md 7절). */
 .cmp-table {
   width: 100%;
@@ -3709,11 +3676,11 @@ table {
     column-gap: var(--space-5);
   }
 }
-/* 같은 라인으로 맞붙었을 때(두 사람 비교): 왼쪽 A 승률 · 가운데 라인·경기 수 · 오른쪽 B 승률, 아래 A:B 막대. */
+/* 같은 라인으로 맞붙었을 때(두 사람 비교): 왼쪽 A 승률 · 가운데 라인·경기 수 · 오른쪽 B 승률, 아래 A:B 막대.
+   카드 안이라 줄마다 상자를 두르지 않고 위 1px 구분선으로만 나눈다(CLAUDE.md 2절 카드 중첩 금지). */
 .cmp-lane-duels {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3725,10 +3692,8 @@ table {
   align-items: center;
   column-gap: var(--space-2);
   row-gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--radius-panel);
-  background: var(--ih-subtle);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--ih-line);
 }
 .cmp-duel-side {
   display: flex;
@@ -4678,11 +4643,18 @@ table {
 .season-tools > .button-row {
   min-width: 0;
 }
-/* 통계 타일: 숫자는 크게, 단위는 같은 칸 안에서 작게("10경기"가 한 덩어리로 읽히게). */
-.season-tiles > div {
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-3);
-  background: var(--ih-panel);
+/* 통계 칸(시즌 요약·그래프 분석 요약, 셋): 폰은 두 칸에 셋째(진영 승률)가 한 줄을 다 쓰고, 768px부터 세 칸 한 줄.
+   숫자는 크게, 단위는 같은 칸 안에서 작게("10경기"가 한 덩어리로 읽히게). */
+.season-tiles:not(.fair-tiles) > div:last-child:nth-child(3) {
+  grid-column: 1 / -1;
+}
+@media (min-width: 768px) {
+  .ps-tiles.season-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .season-tiles:not(.fair-tiles) > div:last-child:nth-child(3) {
+    grid-column: auto;
+  }
 }
 .season-tiles dd.season-stat {
   display: block;
@@ -7199,37 +7171,18 @@ input[type="search"].filter-search {
   margin-bottom: var(--space-1);
 }
 @media (max-width: 767px) {
-  /* 폰 2칸: 1위 칸은 한 줄을 다 쓰고, 그 뒤 카드가 셋이면 마지막 카드도 혼자 남지 않게 한 줄을 다 쓴다. */
-  .mmr-cards > .mmr-lead-card,
-  .mmr-cards > .mmr-lead-card ~ :nth-child(4):last-child {
+  /* 폰 2칸: 1위 칸은 한 줄을 다 쓰고 나머지 두 카드가 아래 한 줄에 나란히. */
+  .mmr-cards > .mmr-lead-card {
     grid-column: 1 / -1;
   }
 }
 @media (min-width: 1200px) {
   .mmr-cards {
-    grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
   }
 }
 .mmr-tier-counts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--ih-line);
-  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
-}
-.mmr-tier-count {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-.mmr-tier-count > :first-child {
-  color: var(--ih-text-secondary);
-}
-.mmr-tier-count > :last-child {
-  font-weight: 600;
 }
 .mmr-delta {
   font-weight: 600;
@@ -7844,7 +7797,8 @@ input[type="search"].filter-search {
 .ct-player {
   white-space: nowrap;
 }
-/* 티어 칸: 숫자 하나가 든 각진 칸. 1티어만 포인트 색으로 채우고, 아래로 갈수록 테두리·글자가 옅어진다. */
+/* 티어 칸: 숫자 하나가 든 각진 칸. 색 없이 명도로만 단계를 보인다(CLAUDE.md 5절): 1티어는 본문 글자 색으로 채운 칸,
+   2티어는 컨트롤 경계 테두리, 3·4티어는 보조 면, 5티어는 옅은 테두리. 숫자 글자가 늘 뜻을 전한다. */
 .ct-tier-mark {
   display: inline-flex;
   align-items: center;
@@ -7858,11 +7812,11 @@ input[type="search"].filter-search {
   font-variant-numeric: tabular-nums;
 }
 .ct-tier-mark.t1 {
-  background: var(--ih-primary);
-  color: var(--ih-on-primary);
+  background: var(--ih-text);
+  color: var(--ih-bg);
 }
 .ct-tier-mark.t2 {
-  border-color: var(--ih-accent);
+  border-color: var(--ih-control-border);
   color: var(--ih-text);
 }
 .ct-tier-mark.t3 {

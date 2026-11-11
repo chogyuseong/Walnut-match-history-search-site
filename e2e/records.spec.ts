@@ -139,7 +139,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   const versus = page.getByRole("region", { name: "상대 전적" });
   await expect(versus).toContainText(locked);
   await expect(versus.getByRole("listitem")).toHaveCount(0);
-  const tiles = page.getByRole("region", { name: "요약" }).locator(".ps-tiles");
+  const tiles = page.getByRole("region", { name: "세부 기록" }).locator(".ps-tiles");
   await expect(tiles.locator("div").filter({ hasText: "잘 맞는 동료" })).toContainText(locked);
   await expect(tiles.locator("div").filter({ hasText: "어려운 상대" })).toContainText(locked);
   await expect(page.getByRole("group", { name: "시너지·상대 전적 순서" })).toHaveCount(0);
@@ -148,7 +148,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   const order = await page
     .getByRole("region")
     .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
-  expect(order).toEqual(["요약", "최근", "라인별", "진영별", "시너지", "상대 전적", "다른 플레이어와 비교", "맞라인 상대", "참여 경기"]);
+  expect(order).toEqual(["요약", "세부 기록", "최근", "라인별", "진영별", "시너지", "상대 전적", "다른 플레이어와 비교", "맞라인 상대", "참여 경기"]);
   // 참여 경기는 최근 10경기만 먼저 그리고 "더 보기"로 나머지를 연다.
   const played = page.getByRole("region", { name: "참여 경기" });
   await expect(played.getByRole("listitem")).toHaveCount(10);
@@ -237,12 +237,12 @@ test("그래프 분석", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "그래프 분석", level: 1 })).toBeVisible();
   await expect(page.getByText(/전체 · 확정 11경기 · 참가자 12명/)).toBeVisible();
 
-  // 요약 타일: 확정 경기·참가자·블루:레드·자료 적음(5경기 미만: 선수11·12).
+  // 요약 칸 셋: 확정 경기·참가자·블루:레드. 자료 적음(5경기 미만: 선수11·12)은 위 한 줄로 내렸다(디자인 4단계).
+  await expect(page.getByText(/자료 적음\(5경기 미만\) 2명/)).toBeVisible();
   const summary = page.getByRole("region", { name: "분석 요약" });
-  await expect(summary.locator(".ps-tiles > div")).toHaveCount(4);
+  await expect(summary.locator(".ps-tiles > div")).toHaveCount(3);
   await expect(summary.locator(".ps-tiles > div").nth(0)).toContainText("11경기");
   await expect(summary.locator(".ps-tiles > div").nth(1)).toContainText("12명");
-  await expect(summary.locator(".ps-tiles > div").nth(3)).toContainText("2명");
 
   // 보기 전환: 기본은 개인별 승률 하나만 그린다.
   const views = page.getByRole("group", { name: "분석 보기" });
@@ -390,9 +390,11 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
   // 배치 진행 중 두 사람은 맨 아래이고 MMR 대신 배치 판수를 보여 준다.
   await expect(table.getByRole("listitem").nth(10)).toContainText("배치 1/10");
   await expect(table.getByRole("listitem").nth(11)).toContainText("배치 1/10");
-  // 요약 카드 줄: 1위(누적 50경기 이상인 사람이 없어 배치 완료자 중 1위) · 최근 상승 · 최고 기록 · 티어 분포.
+  // 요약 카드 줄: 1위(누적 50경기 이상인 사람이 없어 배치 완료자 중 1위) · 최근 상승 · 최고 기록.
+  // 티어 분포는 순위표 아래 한 줄로 내렸다(요약은 셋까지, 디자인 4단계).
   const cards = page.getByRole("region", { name: "랭킹 요약" }).locator(".stat-card");
-  await expect(cards).toHaveCount(4);
+  await expect(cards).toHaveCount(3);
+  await expect(page.getByRole("region", { name: "MMR 순위표" })).toContainText("티어 분포");
   await expect(cards.first()).toContainText("배치 완료자 중");
 
   // 추이는 한 번에 하나만 펼친다.
