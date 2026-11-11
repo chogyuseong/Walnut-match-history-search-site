@@ -132,11 +132,11 @@ export function bandRangeText(bands: readonly TitleBand[], index: number): strin
  * 이름이 아니라 구간의 순서로 정하므로 운영자가 이름·경계·구간 수를 바꿔도 동작한다.
  *
  * 구조(바꾸기 쉽게 세 층으로 나눈다):
- *   자료(TitleBand: 이름·경계) → 등급(titleGrade: 순수 함수, 숫자 1~8) → 보이는 것(web: CSS 토큰 --grade-N, 엠블럼 표 TITLE_EMBLEMS)
+ *   자료(TitleBand: 이름·경계) → 등급(titleGrade: 순수 함수, 숫자 1~8) → 보이는 것(web: CSS 토큰 --title-N, 엠블럼 표 TITLE_EMBLEMS)
  * 화면은 등급 번호만 안다. 나중에 Riot API 티어 같은 바깥 자료로 칭호를 정하게 되더라도
  * "바깥 티어 → TitleGrade" 함수 하나를 여기에 더하면 되고, 화면·CSS·엠블럼은 그대로 쓴다.
- * 등급 수를 바꾸려면 TITLE_GRADE_COUNT·TitleGrade·CSS 토큰(--grade-1~N, 테마마다)·엠블럼 표를 함께 바꾼다
- * (단위 테스트 rate-heat-titles.test.ts가 개수와 "구간마다 다른 등급"을 확인한다).
+ * 등급 수를 바꾸려면 TITLE_GRADE_COUNT·TitleGrade·CSS 토큰(--title-1~N과 .grade-N 규칙, 테마마다)·엠블럼 표를 함께 바꾼다
+ * (단위 테스트 rate-heat-titles.test.ts가 개수와 "구간마다 다른 등급"을, theme-contrast.test.ts가 색 대비·밝기 순서를 확인한다).
  */
 export const TITLE_GRADE_COUNT = 8;
 export type TitleGrade = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import css from "../src/web/styles.css?raw";
+import { TITLE_GRADES } from "../src/shared/titles";
 
 // 두 테마(dark·light)의 색 토큰이 WCAG 대비 기준을 지키는지 styles.css를 직접 읽어 검사한다.
 // 기준은 저장소 맨 위 CLAUDE.md 5절: 글자 4.5:1, 컨트롤 경계와 승률 막대 3:1. 반투명(rgba) 틴트는 검사하지 않는다.
-// 칭호·MMR 티어·순위는 4단계(2026-11-11)에서 본문·보조 글자 색으로 중립화해 따로 검사할 색이 없다(위 본문 글자 검사에 든다).
+// MMR 티어·순위는 본문·보조 글자 색이라 따로 검사할 색이 없다(위 본문 글자 검사에 든다). 칭호는 등급 색(--title-1~8)을 따로 검사한다.
 // light는 dark 토큰(:root 블록)을 물려받고 바뀐 값만 덮어쓴다.
 
 /** 선택자 묶음(예: `:root,\n[data-theme="dark"]`)으로 시작하는 블록 안의 `--이름: #hex;` 선언을 모두 모은다. */
@@ -75,9 +76,8 @@ describe("테마 색 대비", () => {
     for (const k of ["l1", "l2", "l3", "l4"]) expect(heatTokens.get(`heat-${k}`)).toBe(HEAT_TIERS.low);
   });
 
-  it("장식 그라데이션·칭호 등급 색·금은동 토큰이 없다", () => {
+  it("장식 그라데이션·금은동 토큰이 없다", () => {
     expect(css).not.toMatch(/gradient\(/);
-    expect(css).not.toMatch(/--grade-\d\s*:/);
     expect(css).not.toMatch(/--ih-accent-(medal-gold|silver|bronze)\s*:/);
   });
 
@@ -157,6 +157,20 @@ describe("테마 색 대비", () => {
       // 랭킹 요약 카드 제목이 이야기 카드 색 셋을 다시 쓴다(.mmr-cards). 그 카드 바탕은 패널이다.
       it("랭킹 요약 카드 제목 색 vs 카드 바탕(패널) 4.5:1", () => {
         for (const kind of ["streak", "upset", "attendance"]) atLeast(`--story-${kind}`, "--ih-panel", 4.5);
+      });
+
+      // 칭호는 화면 배경·패널 위에, 목록 줄 호버(보조 면)와 고른 줄·내 줄(선택 배경) 위에도 놓인다. 12px 글자라 4.5:1.
+      it("칭호 등급 색 여덟 개 vs 칭호가 놓이는 네 바탕 4.5:1, 서로 다른 값", () => {
+        for (const grade of TITLE_GRADES)
+          for (const bg of ["--ih-bg", "--ih-panel", "--ih-subtle", "--ih-selected"]) atLeast(`--title-${grade}`, bg, 4.5);
+        expect(new Set(TITLE_GRADES.map((g) => get(`--title-${g}`))).size).toBe(TITLE_GRADES.length);
+      });
+
+      // 높은 등급(1)일수록 밝다. 라이트는 흰 바탕 대비 때문에 폭이 좁지만 같은 방향으로 둔다.
+      it("칭호 등급 색은 1등급에서 아래로 갈수록 휘도가 줄어든다", () => {
+        const lums = TITLE_GRADES.map((g) => luminance(get(`--title-${g}`)));
+        for (let i = 1; i < lums.length; i++)
+          expect(lums[i], `${name}: --title-${i + 1}이 --title-${i}보다 밝다`).toBeLessThan(lums[i - 1]!);
       });
     });
   }

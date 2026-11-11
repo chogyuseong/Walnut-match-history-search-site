@@ -3,9 +3,10 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 // 승률 색(3단: 높음 강조색 · 45~55% 주요 글자 · 낮음 보조 글자, 단계 클래스 이름은 heat-h1~h4·0·l1~l4 그대로)과
-// 칭호 등급 클래스·엠블럼을 확인한다. 칭호는 색이 아니라 엠블럼 모양과 이름으로 구분한다(CLAUDE.md 5절).
-// 승률이 20%대~80%대로 고르게 퍼진 모임을 API로 만든다.
-// SHOTS_DIR 환경 변수를 주면 두 테마 × 390·1440px 스크린샷(개인 통계·분석·랭킹·검색·칭호 설정)을 그 폴더에 남긴다.
+// 칭호 등급 클래스·엠블럼·등급 색을 확인한다. 칭호는 등급마다 색(--title-N)이 다르고, 색만으로 가르지 않게
+// 엠블럼 모양과 이름 글자가 함께 있다(CLAUDE.md 5절 예외). 승률이 20%대~80%대로 고르게 퍼진 모임을 API로 만든다.
+// SHOTS_DIR 환경 변수를 주면 두 테마 × 390·1440px 스크린샷(개인 통계·분석·랭킹·검색·칭호 설정, 8구간 칭호 목록)을
+// 그 폴더에 남긴다.
 
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
 /**
@@ -288,6 +289,24 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
     "grade-7",
     "grade-8",
   ]);
+  // 여덟 등급의 글자색(엠블럼도 currentColor)이 모두 다르다. 1등급은 다크 토큰 --title-1 #d0f65f.
+  const chipColors = await section
+    .locator(".title-chip")
+    .evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).color));
+  expect(new Set(chipColors).size).toBe(8);
+  expect(chipColors[0]).toBe("rgb(208, 246, 95)");
+  if (dir) {
+    for (const theme of ["dark", "light"]) {
+      for (const width of [390, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        await setTheme(page, theme);
+        await section.scrollIntoViewIfNeeded();
+        await section.screenshot({ path: join(dir, `titles8-${theme}-${width}.png`) });
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 900 });
+    await setTheme(page, "dark");
+  }
   // 8구간: 선수12(70% 이상 → 65% 구간, 위에서 3번째)는 3등급.
   await page.goto(`/#/p/${top.id}`);
   await page.reload();

@@ -65,6 +65,19 @@
   --story-upset: #f29dbb;
   --story-pair: #4fcfc4;
   --story-attendance: #bdb5f5;
+  /* 칭호 등급 색(CLAUDE.md 5절의 사용자 요청 예외). 1이 가장 높은 등급이다(titles.ts titleGrade). 글자·엠블럼에만 쓴다.
+     다크는 높을수록 밝다: 상대 휘도가 1에서 8로 갈수록 줄어야 하고, 가장 어두운 8도 칭호가 놓이는 네 바탕(화면 배경·패널·
+     호버의 보조 면·고른 줄의 선택 배경) 위 4.5:1이어야 한다. 가장 빡빡한 바탕은 보조 면이라 휘도를 약 0.41 아래로 내리지 못한다.
+     색상은 골드(강조·높은 승률)·파랑(블루 진영·승)·빨강(레드·패)을 비켜 연두·초록·청록·하늘 / 분홍·자홍·보라에 두고,
+     8은 거의 회색이다. 값을 바꾸면 test/theme-contrast.test.ts(대비·휘도 순서)를 돌린다. */
+  --title-1: #d0f65f;
+  --title-2: #73f69d;
+  --title-3: #59e9ce;
+  --title-4: #60dae7;
+  --title-5: #fea7c9;
+  --title-6: #e89fea;
+  --title-7: #bba4fe;
+  --title-8: #bba6b8;
 }
 
 [data-theme="light"] {
@@ -103,6 +116,16 @@
   --story-upset: #a83a62;
   --story-pair: #0f6b66;
   --story-attendance: #5446b8;
+  /* 흰 바탕에서 밝은 글자는 읽히지 않아 모두 진하게 두고(네 바탕 위 4.5:1, 휘도 0.155 이하), 다크와 같은 색상에서
+     높은 등급일수록 채도를 높이고 휘도도 조금씩 높게(1 0.151 → 8 0.068), 낮을수록 회색에 가깝게 했다. */
+  --title-1: #597605;
+  --title-2: #00783b;
+  --title-3: #027067;
+  --title-4: #04687e;
+  --title-5: #943962;
+  --title-6: #774079;
+  --title-7: #53477f;
+  --title-8: #554553;
 }
 
 /* 테마와 상관없는 척도·치수·아이콘. 테마마다 바꾸지 않는다(CLAUDE.md 5절: 테마별로 레이아웃·글자 크기·간격을 바꾸지 않음). */
@@ -2082,9 +2105,11 @@ table {
 }
 
 /* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
-/* 칭호 표식: 엠블럼 + 이름, 바탕 없이 1px 테두리. 등급(grade-1~8, 구간 순서로 정함)은 색이 아니라 엠블럼 도형
-   (screenKit.tsx TITLE_EMBLEMS, 등급마다 다른 모양)과 이름 글자로 구분하고, 명도만 위 네 등급은 본문 글자,
-   아래 네 등급은 보조 글자로 나눈다(CLAUDE.md 5절: 칭호 무지개색 없음). 모서리 4px 네모. */
+/* 칭호 표식: 엠블럼 + 이름, 바탕 없이 1px 테두리. 등급(grade-1~8, 구간 순서로 정함)마다 글자·엠블럼 색(--title-N)이
+   다르다(CLAUDE.md 5절 예외). 색만으로 가르지 않게 엠블럼 도형(screenKit.tsx TITLE_EMBLEMS)과 이름 글자를 함께 둔다.
+   엠블럼은 currentColor를 따르므로 글자색만 바꾸면 된다. 등급 없는 칭호는 본문 글자색. 모서리 4px 네모.
+   테두리는 등급 색이 아니라 중립 구분선이다: 색 테두리를 두르면 여덟 상자가 버튼처럼 도드라지고, 고른 칸을 뜻하는
+   1px 색 테두리와 헷갈린다. */
 .title-chip {
   display: inline-flex;
   align-items: center;
@@ -2110,11 +2135,15 @@ table {
 }
 .title-chip[class*="grade-"] {
   padding-left: var(--space-1);
-  color: var(--ih-text);
 }
-:is(.title-chip, .title-preview):is(.grade-5, .grade-6, .grade-7, .grade-8) {
-  color: var(--ih-text-secondary);
-}
+:is(.title-chip, .title-preview).grade-1 { color: var(--title-1); }
+:is(.title-chip, .title-preview).grade-2 { color: var(--title-2); }
+:is(.title-chip, .title-preview).grade-3 { color: var(--title-3); }
+:is(.title-chip, .title-preview).grade-4 { color: var(--title-4); }
+:is(.title-chip, .title-preview).grade-5 { color: var(--title-5); }
+:is(.title-chip, .title-preview).grade-6 { color: var(--title-6); }
+:is(.title-chip, .title-preview).grade-7 { color: var(--title-7); }
+:is(.title-chip, .title-preview).grade-8 { color: var(--title-8); }
 /* 목록 줄의 칭호(TitleBadge compact): 줄이 빽빽해지지 않게 테두리·바탕 없이 글자 + 작은 엠블럼만. */
 .title-chip.compact,
 .title-chip.compact[class*="grade-"] {
