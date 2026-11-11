@@ -8,7 +8,7 @@ import { useSeriesBadges } from "../seriesPanel";
 import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
 import { KpiStrip, ScreenHead, StandingNote } from "../screenKit";
 import { CopyButton, Dialog, ErrorNote } from "../ui";
-import { Dashboard, DashboardEmpty } from "./Dashboard";
+import { Dashboard } from "./Dashboard";
 import { go, useAppValue } from "../useApp";
 import { Intro, isFirstVisit } from "./Intro";
 import { LoginDialog } from "./Login";
@@ -51,6 +51,9 @@ export function Today() {
   const allTime = useMemo(() => personRecords(snapshot?.matches ?? []), [snapshot]);
   const standing = useMemo(() => (snapshot ? standingsOf(snapshot) : null), [snapshot]);
   const placementGames = placementGamesOf(snapshot?.group.settings ?? {});
+  // 결과를 저장한 경기가 아직 없으면 위 "지금 할 일" 칸(안내 한 줄 + 행동 하나)만 둔다. 빈 전적 검색과
+  // "기록이 쌓이면 여기에" 요약 안내를 겹쳐 세 번 같은 말을 하지 않는다(CLAUDE.md 8절).
+  const noRecords = allTime.size === 0;
   const found = searchByName(
     [...allTime.values()].map((r) => ({ ...r, name: nameOf(r.participantId) })),
     query,
@@ -179,55 +182,49 @@ export function Today() {
         </p>
       )}
 
-      {!introOnly && (
+      {!introOnly && !noRecords && (
         <section aria-label="전적 검색">
           <h2>전적 검색</h2>
-          {allTime.size === 0 ? (
-            <p className="hint">경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
-          ) : (
-            <>
-              <input
-                type="search"
-                aria-label="플레이어 이름으로 전적 검색"
-                placeholder="플레이어 이름"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {query.trim() !== "" &&
-                (found.length === 0 ? (
-                  <p className="hint">일치하는 이름이 없어요.</p>
-                ) : (
-                  <ul className="list list-card">
-                    {found.slice(0, 8).map((r) => (
-                      <li key={r.participantId}>
-                        <button
-                          type="button"
-                          className="list-row"
-                          onClick={() => go(`/p/${r.participantId}`)}
-                        >
-                          <span className="name">{r.name}</span>
-                          <span className="stat">
-                            <span className={rateTier(r.wins, r.games)}>
-                              {rateText(r.wins, r.games)}
-                            </span>{" "}
-                            · {r.wins}승 {r.losses}패 (
-                            {r.games}경기)
-                            <br />
-                            <span className="hint">
-                              <StandingNote
-                                standing={standing?.get(r.participantId)}
-                                placementGames={placementGames}
-                                compact
-                              />
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+          <input
+            type="search"
+            aria-label="플레이어 이름으로 전적 검색"
+            placeholder="플레이어 이름"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query.trim() !== "" &&
+            (found.length === 0 ? (
+              <p className="hint">일치하는 이름이 없어요.</p>
+            ) : (
+              <ul className="list list-card">
+                {found.slice(0, 8).map((r) => (
+                  <li key={r.participantId}>
+                    <button
+                      type="button"
+                      className="list-row"
+                      onClick={() => go(`/p/${r.participantId}`)}
+                    >
+                      <span className="name">{r.name}</span>
+                      <span className="stat">
+                        <span className={rateTier(r.wins, r.games)}>
+                          {rateText(r.wins, r.games)}
+                        </span>{" "}
+                        · {r.wins}승 {r.losses}패 (
+                        {r.games}경기)
+                        <br />
+                        <span className="hint">
+                          <StandingNote
+                            standing={standing?.get(r.participantId)}
+                            placementGames={placementGames}
+                            compact
+                          />
+                        </span>
+                      </span>
+                    </button>
+                  </li>
                 ))}
-            </>
-          )}
+              </ul>
+            ))}
         </section>
       )}
 
@@ -307,7 +304,7 @@ export function Today() {
       )}
       <ErrorNote error={error} />
 
-      {snapshot ? (
+      {snapshot && !noRecords && (
         <Dashboard
           snapshot={snapshot}
           skipIds={todayIds}
@@ -315,8 +312,6 @@ export function Today() {
           openPerson={(id) => go(`/p/${id}`)}
           openRanking={() => go("/records")}
         />
-      ) : (
-        app.ready && !introOnly && <DashboardEmpty />
       )}
 
       {app.ready && !app.me?.accountId && !introOnly && (
