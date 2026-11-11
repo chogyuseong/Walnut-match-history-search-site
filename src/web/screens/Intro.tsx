@@ -38,10 +38,10 @@ export function Intro() {
   const [loginOpen, setLoginOpen] = useState(false);
   return (
     <section className="card intro" aria-label="이 사이트 소개">
-      <h2>내전 기록을 남기고 분석하는 곳</h2>
+      <h2>롤 내전 기록을 남기고 분석하는 곳</h2>
       <p>
-        사용자 설정 게임(내전)은 라이엇 전적에 남지 않아요. 여기서 팀을 짜고 결과를 기록하면 모임의 전적과 통계가
-        쌓여요.
+        리그 오브 레전드(롤)의 사용자 설정 게임(내전)은 라이엇 전적에 남지 않아요. 여기서 팀을 짜고 결과를 기록하면
+        모임의 전적과 통계가 쌓이고, 이름으로 전적을 검색할 수 있어요.
       </p>
       <ul className="intro-features">
         {FEATURES.map((f) => (

@@ -6,6 +6,7 @@
 //  3. 첫 화면에 허용 목록(scripts/shell-modules.mjs) 밖의 우리 원본 파일이 들어 있다.
 //  4. 가장 큰 JS 파일 하나가 압축 전 MAX_CHUNK_KB를 넘는다(화면 분할이 풀려 한 파일로 다시 뭉치는 것을 막는다).
 //  5. 화면 조각이나 주소 미리 받기 대응표(scripts/route-preload-plugin.mjs)가 가리키는 파일을 빌드 결과에서 못 찾는다.
+//  6. 검색 노출 설정(noindex 메타·X-Robots-Tag·sitemap.xml, scripts/search-index-plugin.mjs)이 엇갈리거나 robots.txt가 전체를 막는다.
 // 1~3에 걸리면 첫 화면 파일의 소스맵을 풀어 원본 파일별 크기 상위 15개를 출력한다(어디가 커졌는지 바로 보이게).
 //
 // 왜 brotli인가: 실제로 받는 양은 압축된 크기다(Cloudflare가 brotli로 보낸다). 압축 전 크기는 같은 코드라도 압축이 잘 되는
@@ -132,6 +133,20 @@ if (!preloadFile || !entries.includes(preloadFile)) {
     }
     console.log(`주소 미리 받기: ${Object.entries(table).map(([k, l]) => `${k} ${l.length}개`).join(", ")}`);
   }
+}
+
+// 검색 노출(scripts/search-index-plugin.mjs): 운영 빌드는 noindex 메타·X-Robots-Tag 없음 + sitemap.xml, 그 밖은 셋 다 반대.
+// robots.txt는 어느 빌드든 전체를 막지 않는다(막으면 검색엔진이 noindex를 읽지 못한다).
+{
+  const noindex = /<meta name="robots" content="noindex"/.test(html);
+  const header = /X-Robots-Tag: noindex/.test(readFileSync(join(DIST, "_headers"), "utf8"));
+  const robots = existsSync(join(DIST, "robots.txt")) ? readFileSync(join(DIST, "robots.txt"), "utf8") : null;
+  const sitemap = existsSync(join(DIST, "sitemap.xml"));
+  if (robots === null) fail("robots.txt가 없어요(vite.config.ts searchIndex).");
+  else if (/^Disallow: \/$/m.test(robots)) fail("robots.txt가 전체를 막고 있어요. 검색엔진이 noindex를 읽지 못해요.");
+  else if (noindex !== header || noindex === sitemap) {
+    fail(`검색 노출 설정이 엇갈려요: noindex 메타 ${noindex}, X-Robots-Tag ${header}, sitemap.xml ${sitemap}`);
+  } else console.log(`검색 노출: ${noindex ? "막힘(운영이 아닌 빌드)" : "열림(운영 빌드)"}`);
 }
 
 const largest = files.map((f) => [f, raw(f)]).sort((a, b) => b[1] - a[1]);

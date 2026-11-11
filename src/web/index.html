@@ -3,8 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      검색 노출: noindex는 운영 빌드(npm run deploy:production)에서만 빌드가 지운다. staging·로컬은 그대로 막힌다.
+      canonical·og:url은 빌드가 운영 주소로 넣는다. 둘 다 scripts/search-index-plugin.mjs.
+      제목·설명은 검색 결과와 카카오톡 공유 미리보기에 그대로 보인다.
+    -->
     <meta name="robots" content="noindex" />
-    <title>내전 운영</title>
+    <title>롤 내전 기록 · 팀 짜기와 전적 관리 | 내전 운영</title>
+    <meta
+      name="description"
+      content="리그 오브 레전드(롤) 내전 기록 사이트. 티어로 실력을 맞춰 팀을 짜고, 경기 결과를 남기면 모임의 전적·승률 랭킹·개인 통계가 쌓여요."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="내전 운영" />
+    <meta property="og:title" content="롤 내전 기록 · 팀 짜기와 전적 관리 | 내전 운영" />
+    <meta
+      property="og:description"
+      content="롤 내전 팀 짜기, 경기 기록, 전적 검색과 승률 랭킹을 한곳에서. 참가자는 로그인 없이 링크로 기록을 봐요."
+    />
     <!--
       디자인 키트의 글꼴(Pretendard v1.3.9, OFL). 불러오지 못하면 기기 기본 글꼴로 보인다.
       무결성 검사(SRI): 저장소에 있는 원본 pretendard.css(버전 태그 고정, GitHub 원본과 바이트가 같음)를 쓴다.

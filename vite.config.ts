@@ -1,12 +1,14 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { routePreload } from "./scripts/route-preload-plugin.mjs";
+import { searchIndex } from "./scripts/search-index-plugin.mjs";
 
 // 화면은 정적 파일로 빌드해 Worker와 함께 배포한다. 서버 렌더링은 쓰지 않는다.
 export default defineConfig({
   root: "src/web",
   // routePreload: 조회 링크·참가 신청·예시 모임 주소로 들어오면 그 화면 조각을 진입 JS와 함께 받게 한다(빌드 때만).
-  plugins: [react(), routePreload()],
+  // searchIndex: 운영 빌드(--mode deploy-production)만 검색엔진에 열고 나머지는 막는다(robots.txt·noindex, 빌드 때만).
+  plugins: [react(), routePreload(), searchIndex()],
   // 저장소 맨 위 public/(정적 헤더 파일 _headers 등)을 빌드 결과(dist/web)에 그대로 복사한다.
   publicDir: "../../public",
   build: {

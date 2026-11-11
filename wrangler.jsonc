@@ -72,14 +72,15 @@
   },
   "env": {
     "production": {
-      // 운영 Worker 이름. 주소는 https://naejeon-v2-production.<계정>.workers.dev 또는 연결한 도메인.
-      "name": "naejeon-v2-production",
+      // 운영 Worker 이름. 주소는 https://naejeon.guseong-family.workers.dev 또는 연결한 도메인.
+      // 2026-11-11 운영을 새로 시작하며 naejeon-v2-production에서 바꿨다(옛 PASSWORD_PEPPER를 잃어 옛 계정을 살릴 수 없었다).
+      "name": "naejeon",
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "naejeon-prod",
-          // 2026-11-10 `npx wrangler d1 create naejeon-prod`로 만듦(APAC).
-          "database_id": "28a43b07-de8a-492f-b177-f0133a40415f",
+          "database_name": "naejeon-db",
+          // 2026-11-11 `npx wrangler d1 create naejeon-db`로 만듦(APAC). 옛 운영 DB naejeon-prod는 새 사이트가 열린 뒤 지운다.
+          "database_id": "d414ebcf-6bfc-4e12-b7f6-7f509bbb1e57",
           "migrations_dir": "migrations"
         }
       ],
@@ -89,7 +90,7 @@
         "DEPLOY_ENV": "production",
         // 실제 서비스 주소(https). OAuth 리디렉션 URI가 이 주소 + /api/auth/{kakao|google}/callback 이다.
         // 지금은 workers.dev 기본 주소. 도메인을 연결하면 여기를 바꾸고 다시 배포한다.
-        "PUBLIC_ORIGIN": "https://naejeon-v2-production.guseong-family.workers.dev",
+        "PUBLIC_ORIGIN": "https://naejeon.guseong-family.workers.dev",
         "SESSION_TTL_HOURS": "720",
         "RATE_WINDOW_SECONDS": "60",
         "RATE_WRITE_PER_ACCOUNT": "60",
@@ -133,8 +134,8 @@
         "BACKUP_KEEP_DAYS": "30",
         // 사이트 운영자(현황 화면 #/admin)의 계정 ID. 쉼표로 여러 명. 비어 있으면 아무도 못 본다.
         // 내 계정 ID는 로그인한 뒤 주소창에 /api/me 를 열면 accountId로 보인다(docs/배포안내.md).
-        // 2026-11-11: 조규성 자체 계정.
-        "SITE_ADMIN_ACCOUNT_IDS": "9f8f33e2-540a-4baa-9623-d20549fefee5"
+        // 2026-11-11: 새 DB(naejeon-db)에 새로 가입한 조규성 자체 계정.
+        "SITE_ADMIN_ACCOUNT_IDS": "30599a47-e82c-4c45-aab5-9a7350ededff"
       },
       // [만들어야 함] npx wrangler r2 bucket create naejeon-prod-backups (docs/배포안내.md 13-4절)
       "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "naejeon-prod-backups" }],

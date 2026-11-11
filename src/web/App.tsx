@@ -77,7 +77,7 @@ export function App() {
   const app = useApp(operatorMode);
   useKeyboardFlag();
   usePrefetchOperator(app, operatorMode);
-  useDocumentTitle(route, !!app.me?.siteAdmin);
+  useDocumentTitle(route, !!app.me?.accountId, !!app.me?.siteAdmin);
 
   if (isJoin) {
     return (
@@ -213,9 +213,16 @@ function isKnownPage(page: string | undefined): boolean {
   return Object.prototype.hasOwnProperty.call(PAGE_TITLE, page ?? "");
 }
 
+/**
+ * index.html의 <title>(검색 결과에 보이는 제목). 검색엔진도 화면을 그린 뒤의 제목을 읽으므로, 로그인하지 않은 첫 화면은
+ * "오늘 · 내전 운영"으로 바꾸지 않고 이 제목을 둔다. 제목 문구는 index.html에서만 고친다.
+ */
+const SEARCH_TITLE = document.title;
+
 /** 지금 주소의 문서 제목. 사람 이름 같은 동적 제목은 쓰지 않는다. */
-function pageTitle(route: string[], siteAdmin: boolean): string {
+function pageTitle(route: string[], loggedIn: boolean, siteAdmin: boolean): string {
   const [page = "", sub] = route;
+  if (page === "" && !loggedIn) return SEARCH_TITLE;
   let name: string;
   if (page === "v" && route[1]) name = SUB_PAGE_TITLE[route[2] ?? ""] ?? "조회";
   else if (page === "join" && route[1]) name = route[2] === "privacy" ? "개인정보 처리방침" : "참가 신청";
@@ -226,8 +233,8 @@ function pageTitle(route: string[], siteAdmin: boolean): string {
 }
 
 /** 주소가 바뀔 때마다 문서 제목(브라우저 탭·방문 기록)을 그 화면 이름으로 바꾼다. */
-function useDocumentTitle(route: string[], siteAdmin: boolean): void {
-  const title = pageTitle(route, siteAdmin);
+function useDocumentTitle(route: string[], loggedIn: boolean, siteAdmin: boolean): void {
+  const title = pageTitle(route, loggedIn, siteAdmin);
   useEffect(() => {
     document.title = title;
   }, [title]);
