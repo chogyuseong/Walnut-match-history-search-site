@@ -30,6 +30,11 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
    PASSWORD_PEPPER는 wrangler.jsonc 맨 위에 로컬 전용 값이 이미 있다.
    그 뒤 npm run dev → http://localhost:8787
 4. 테스트: npm test(단위), npm run e2e(브라우저)
+5. Claude Code 세팅은 클론만으로 따라온다(.claude/ 폴더와 맨 위 CLAUDE.md). 저장소 폴더에서 claude를 처음 열 때
+   '이 폴더를 신뢰하겠습니까'가 뜨면 수락한다. 수락해야 서브에이전트 기본 모델 설정이 적용된다.
+   확인: /status 에서 설정 출처에 프로젝트 설정이 보이고 모델이 opus, effort가 medium이면 된다.
+   컴퓨터에 ANTHROPIC_MODEL, CLAUDE_CODE_EFFORT_LEVEL 환경 변수가 있으면 그쪽이 우선하니 없는지 본다.
+   큰 작업을 지휘할 때만 /model fable 로 바꾼다(규칙은 .claude/CLAUDE.md).
 
 
 [주소]
