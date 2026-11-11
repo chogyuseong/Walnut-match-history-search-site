@@ -46,13 +46,6 @@ import {
  * 데이터는 스냅숏의 경기에서 기기가 매번 계산한다(computeRatings · standingsOf · personForms). 범위 없이 모임 전체 누적이다.
  */
 
-/** 등장 효과를 차례로 늦추는 행 수. 그 아래 행은 10번째와 함께 나타난다(긴 목록이 오래 기다리지 않게). */
-const ENTER_STAGGER_ROWS = 10;
-/** 등장 효과 순번(CSS 변수 --enter). */
-function enterStyle(index: number): CSSProperties {
-  return { "--enter": Math.min(index, ENTER_STAGGER_ROWS - 1) } as CSSProperties;
-}
-
 type RankSortKey = "rating" | "delta" | "games" | "rate";
 /** 정렬은 큰 값부터 하나뿐이다. 작은 값부터는 표본이 적은 사람·배치 중인 사람이 위로 와 읽을 거리가 없다. */
 const DEFAULT_SORT: SortState<RankSortKey> = { key: "rating", dir: "desc" };
@@ -266,7 +259,7 @@ export function Ranking(props: {
                         )}
                       </li>
                     )}
-                    <li className="mmr-item mmr-enter" style={enterStyle(i)}>
+                    <li className="mmr-item">
                       <div className="list-row static mmr-grid mmr-row">
                         {/* 배치 진행 중은 순위가 높아 보여도 강조하지 않는다(점수가 아직 흔들린다). */}
                         <span className={`c-rank ${rankClass(row.rank, placing)}`}>{row.rank}</span>

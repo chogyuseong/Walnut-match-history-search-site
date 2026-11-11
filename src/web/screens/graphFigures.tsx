@@ -204,7 +204,7 @@ export function RankRaceChart(props: { race: RankRace; nameOf: (id: string) => s
         <text className="race-axis" x={RACE_LEFT + plotW} y={RACE_H - RACE_AXIS_BASELINE} textAnchor="end">
           {race.labels[n - 1]}
         </text>
-        {/* 넓은 투명 선은 누르기 쉬운 자리. 보이는 선은 pathLength=1이라 등장 효과가 선 길이와 무관하다. */}
+        {/* 넓은 투명 선은 누르기 쉬운 자리. */}
         {drawn.map((s) => {
           const id = s.participantId;
           const d = pathOf(s.ranks);
@@ -224,7 +224,7 @@ export function RankRaceChart(props: { race: RankRace; nameOf: (id: string) => s
                 {s.finalRank ? ` · 마지막 ${s.finalRank}위` : ""}
               </title>
               <path className="race-hit" d={d} />
-              <path className="race-line" d={d} pathLength={1} />
+              <path className="race-line" d={d} />
             </g>
           );
         })}
