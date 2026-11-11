@@ -7,7 +7,7 @@ import {
   Meter,
   BackLink,
   FormDots,
-  Help,
+  InfoTip,
   PosLabel,
   RateRing,
   RatingTierBadge,
@@ -184,7 +184,7 @@ const BAR_GROUP_LABEL: Record<BarGroup, string> = {
 /**
  * 그래프 분석. 기존 서비스의 네 가지를 옮겼다:
  * 개인별 승률, 라인별 승률, 진영별 누적 승률, 플레이어 × 라인.
- * 위에서 아래로: 도구 띠(범위·라인·플레이어 + 요약 글·도움말) → 요약 타일 4칸(진영 승률 포함) →
+ * 위에서 아래로: 도구 띠(범위·라인·플레이어 + 요약 글) → 요약 타일 4칸(진영 승률 포함) →
  * 보기 전환(개인별 · 플레이어 × 라인 · 라인별) → 고른 보기 하나를 전체 폭으로(2026-11-08 재구성).
  */
 export function Graphs(props: {
@@ -373,23 +373,6 @@ export function Graphs(props: {
           <p className="hint">
             {scopeLabel} · 확정 {counted}경기 · 참가자 {matrixRows.length}명
           </p>
-          <Help>
-            <p>
-              개인별 승률 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({placementGames}경기 이상) → 배치 진행
-              중이고, 그 안에서 승률순입니다. 보는 범위·라인에서 {SMALL_SAMPLE}경기 미만인 사람은 &lsquo;자료 적음&rsquo;으로
-              맨 아래에 둡니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
-            </p>
-            <p>
-              플레이어를 고르면 그 사람의 라인별 승률을 보여줍니다. 전체 플레이어를 합치면 각 경기마다 라인별로 1승·1패가
-              생겨 항상 50%이므로 보여주지 않습니다.
-            </p>
-            <p>진영 승률은 결과를 저장할 때 확인한 실제 진영 기준이고, 진영 미상 경기는 뺍니다.</p>
-            <p>
-              섞기 공정성은 경기 직전 팀원 MMR 평균으로 구한 예상 승률로 봅니다. 열 명 모두 배치 중인 경기는 예상이 의미가
-              적어 뺍니다. 균형 경기는 예상이 {balancedLow}~{balancedHigh}%였던 경기, 평균 치우침은 예상이 50%에서 벗어난
-              정도의 평균입니다.
-            </p>
-          </Help>
         </div>
       </div>
 
@@ -458,22 +441,29 @@ export function Graphs(props: {
           </div>
         </dl>
         {/* 예전 "진영별 누적 승률" 카드의 내용: 진영마다 전적 글 한 줄과 미상 안내. */}
+        {/* 글을 span 하나로 묶는다. i 버튼이 붙은 문단은 flex 줄이 되는데(styles.css .info-tip), 묶지 않으면
+            " · " 같은 글자 조각이 따로 놓이며 앞뒤 빈칸이 사라진다. */}
         <p className="hint">
-          {sides.known === 0 ? (
-            "진영을 아는 경기가 없어요."
-          ) : (
-            <>
-              <span className="nowrap">블루 {percentText(sides.blueWins, sides.known)} · {sides.blueWins}승 {sides.known - sides.blueWins}패 ({sides.known}경기)</span>
-              {" · "}
-              <span className="nowrap">레드 {percentText(sides.redWins, sides.known)} · {sides.redWins}승 {sides.known - sides.redWins}패 ({sides.known}경기)</span>
-            </>
-          )}
-          {sides.unknown > 0 && (
-            <>
-              {" · "}
-              <span className="nowrap">진영 미상 {sides.unknown}경기는 제외했습니다.</span>
-            </>
-          )}
+          <span className="tip-text">
+            {sides.known === 0 ? (
+              "진영을 아는 경기가 없어요."
+            ) : (
+              <>
+                <span className="nowrap">블루 {percentText(sides.blueWins, sides.known)} · {sides.blueWins}승 {sides.known - sides.blueWins}패 ({sides.known}경기)</span>
+                {" · "}
+                <span className="nowrap">레드 {percentText(sides.redWins, sides.known)} · {sides.redWins}승 {sides.known - sides.redWins}패 ({sides.known}경기)</span>
+              </>
+            )}
+            {sides.unknown > 0 && (
+              <>
+                {" · "}
+                <span className="nowrap">진영 미상 {sides.unknown}경기는 제외했습니다.</span>
+              </>
+            )}
+          </span>
+          <InfoTip label="진영 승률">
+            진영 승률은 결과를 저장할 때 확인한 실제 진영 기준이고, 진영 미상 경기는 뺍니다.
+          </InfoTip>
         </p>
       </section>
       )}
@@ -484,7 +474,14 @@ export function Graphs(props: {
 
       {/* ─ 섞기 공정성: 늘 모임 전체(고른 사람과 무관) ─ */}
       <section className="graph-summary" aria-label="섞기 공정성(모임 전체)">
-        <h2>섞기 공정성(모임 전체)</h2>
+        <h2>
+          섞기 공정성(모임 전체){" "}
+          <InfoTip label="섞기 공정성">
+            섞기 공정성은 경기 직전 팀원 MMR 평균으로 구한 예상 승률로 봅니다. 열 명 모두 배치 중인 경기는 예상이 의미가
+            적어 뺍니다. 균형 경기는 예상이 {balancedLow}~{balancedHigh}%였던 경기, 평균 치우침은 예상이 50%에서 벗어난
+            정도의 평균입니다.
+          </InfoTip>
+        </h2>
         {fairness.games < FAIRNESS_MIN_GAMES ? (
           <p className="hint">경기가 더 쌓이면 보여요(판정할 수 있는 경기 {fairness.games}/{FAIRNESS_MIN_GAMES}).</p>
         ) : (
@@ -591,7 +588,14 @@ export function Graphs(props: {
 
       {view === "people" && (
         <section className="chart-card full" aria-label="개인별 승률">
-          <h2>개인별 승률</h2>
+          <h2>
+            개인별 승률{" "}
+            <InfoTip label="개인별 승률 순서">
+              개인별 승률 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({placementGames}경기 이상) → 배치 진행
+              중이고, 그 안에서 승률순입니다. 보는 범위·라인에서 {SMALL_SAMPLE}경기 미만인 사람은 &lsquo;자료 적음&rsquo;으로
+              맨 아래에 둡니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
+            </InfoTip>
+          </h2>
           <p className="hint">
             범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 묶음 안에서 승률순
           </p>
@@ -664,9 +668,15 @@ export function Graphs(props: {
 
       {view === "lines" && (
         <section className="chart-card full line-first" aria-label="라인별 승률">
-          <h2>라인별 승률</h2>
+          <h2>
+            라인별 승률{" "}
+            <InfoTip label="라인별 승률">
+              플레이어를 고르면 그 사람의 라인별 승률을 보여줍니다. 전체 플레이어를 합치면 각 경기마다 라인별로 1승·1패가
+              생겨 항상 50%이므로 보여주지 않습니다.
+            </InfoTip>
+          </h2>
           {playerLines === null ? (
-            // 전체 플레이어를 합친 라인별 승률은 항상 50%라 그리지 않는다(까닭은 도움말).
+            // 전체 플레이어를 합친 라인별 승률은 항상 50%라 그리지 않는다(까닭은 제목 옆 i 설명).
             <p className="hint">위 &lsquo;플레이어&rsquo;에서 한 사람을 고르면 그 사람의 라인별 승률을 보여줍니다.</p>
           ) : (
             <>

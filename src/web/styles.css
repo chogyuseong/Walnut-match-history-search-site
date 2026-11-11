@@ -472,6 +472,12 @@ legend {
 :is(h2, h3, p):has(> .info-tip) > .info-tip-body {
   flex-basis: 100%;
 }
+/* 여러 줄로 꺾이는 긴 글 옆에 i 버튼을 둘 때: 글 묶음 폭을 버튼 자리(44px)만큼 덜어 두어 버튼이 혼자 다음 줄로
+   떨어지지 않게 한다. 글이 짧으면 버튼은 글 바로 뒤에 붙는다. */
+:is(h2, h3, p):has(> .info-tip) > .tip-text {
+  min-width: 0;
+  max-width: calc(100% - var(--control-height));
+}
 .info-tip {
   display: inline-grid;
   place-items: center;
@@ -6023,7 +6029,7 @@ label:has(> select) {
   gap: var(--space-2) var(--space-4);
   padding: var(--space-1) 0;
 }
-/* 요약 글과 "도움말"을 한 줄에. 도움말을 펼치면 본문은 띠 아래쪽 전체 폭으로 내려간다. */
+/* 필터 오른쪽의 요약 글 한 줄(범위·경기 수·참가자 수). */
 .graph-meta {
   display: flex;
   flex-wrap: wrap;
@@ -6039,24 +6045,11 @@ label:has(> select) {
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
-.graph-tools:has(details.help[open]) > .graph-meta {
-  flex-basis: 100%;
-}
-.graph-meta details.help[open] {
-  flex-basis: 100%;
-}
-.graph-meta details.help[open] > summary {
-  margin-left: auto;
-  width: max-content;
-}
 @media (max-width: 719px) {
   .graph-meta {
     justify-content: space-between;
     flex-basis: 100%;
     padding: 0;
-  }
-  .graph-meta details.help[open] > summary {
-    margin-left: 0;
   }
 }
 .graph-summary {

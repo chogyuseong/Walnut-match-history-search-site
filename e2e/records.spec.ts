@@ -280,11 +280,12 @@ test("그래프 분석", async ({ page }) => {
   await expect(summary).toContainText("진영 미상 3경기는 제외했습니다.");
   await expect(summary.locator(".ps-tiles > div").nth(2)).toContainText("63% : 37%");
 
-  // 라인별 승률: 플레이어를 고르기 전에는 고르기 안내만 둔다(전체 합은 항상 50%, 이유는 도움말에).
+  // 라인별 승률: 플레이어를 고르기 전에는 고르기 안내만 둔다(전체 합은 항상 50%, 이유는 제목 옆 i 설명에).
   const lines = page.getByRole("region", { name: "라인별 승률" });
   await expect(lines).toHaveCount(0);
-  await expect(page.locator(".viz-root details.help").first()).toContainText("항상 50%");
   await views.getByRole("button", { name: "라인별 승률" }).click();
+  await lines.getByRole("button", { name: "라인별 승률 설명" }).click();
+  await expect(lines.getByRole("note")).toContainText("항상 50%");
   await expect(lines).toContainText("한 사람을 고르면");
   await expect(lines.getByRole("listitem")).toHaveCount(0);
 
@@ -341,7 +342,8 @@ test("그래프 분석", async ({ page }) => {
   await views.getByRole("button", { name: "개인별 승률" }).click();
   await expect(people.locator(".bar-row.picked")).toHaveCount(1);
   await expect(people.locator(".bar-row.picked")).toContainText("선수02");
-  await people.getByRole("button").first().click();
+  // 제목 옆 i 버튼이 구역의 첫 버튼이라 막대 줄로 좁혀 고른다.
+  await people.locator("button.bar-row").first().click();
   await expect(page.getByRole("region", { name: "요약" })).toBeVisible();
 
   // 320px에서도 가로로 넘치지 않는다(표 포함).
