@@ -48,9 +48,9 @@ const THEMES = [
 
 describe("테마 색 대비", () => {
   it("토큰을 읽었다", () => {
-    expect(dark.get("--ih-bg-canvas")).toBe("#16171a");
-    expect(violet.get("--ih-bg-canvas")).toBe("#131219");
-    expect(light.get("--ih-bg-canvas")).toBe("#f5f3ee");
+    expect(dark.get("--ih-bg")).toBe("#16171a");
+    expect(violet.get("--ih-bg")).toBe("#131219");
+    expect(light.get("--ih-bg")).toBe("#f5f3ee");
     expect(vizDark.get("--viz-track")).toMatch(/^#/);
     expect(vizLight.get("--viz-track")).toMatch(/^#/);
   });
@@ -69,36 +69,36 @@ describe("테마 색 대비", () => {
       };
 
       it("본문·보조 글자 vs 바탕·카드 4.5:1", () => {
-        for (const fg of ["--ih-text-primary", "--ih-text-secondary"])
-          for (const bg of ["--ih-bg-canvas", "--ih-bg-surface"]) atLeast(fg, bg, 4.5);
+        for (const fg of ["--ih-text", "--ih-text-secondary"])
+          for (const bg of ["--ih-bg", "--ih-panel"]) atLeast(fg, bg, 4.5);
       });
 
       it("링크·승·패·저장됨·주의 글자 vs 카드 4.5:1", () => {
         for (const fg of ["--ih-link", "--ih-win-text", "--ih-loss-text", "--ih-ok-text", "--ih-warn-line"])
-          atLeast(fg, "--ih-bg-surface", 4.5);
+          atLeast(fg, "--ih-panel", 4.5);
       });
 
       it("채운 버튼 글자 vs 채움 4.5:1, 승리 색 칸 글자 vs 승리 색 4.5:1", () => {
-        atLeast("--ih-on-brand-fill", "--ih-brand-fill", 4.5);
-        atLeast("--ih-on-brand-fill", "--ih-brand-fill-hover", 4.5);
+        atLeast("--ih-on-primary", "--ih-primary", 4.5);
+        atLeast("--ih-on-primary", "--ih-primary-hover", 4.5);
         atLeast("--ih-on-win", "--ih-win-accent", 4.5);
         atLeast("--ih-on-loss", "--ih-loss-accent", 4.5);
       });
 
       it("라인 색 글자 vs 바탕·카드 4.5:1", () => {
         for (const pos of ["top", "jungle", "mid", "adc", "support"])
-          for (const bg of ["--ih-bg-canvas", "--ih-bg-surface"]) atLeast(`--pos-${pos}`, bg, 4.5);
+          for (const bg of ["--ih-bg", "--ih-panel"]) atLeast(`--pos-${pos}`, bg, 4.5);
       });
 
       it("신호 색 칠 위 글자 4.5:1, 신호 색 vs 카드 3:1", () => {
         for (const sig of ["--sig-good", "--sig-warn", "--sig-bad"]) {
           atLeast("--on-sig", sig, 4.5);
-          atLeast(sig, "--ih-bg-surface", 3);
+          atLeast(sig, "--ih-panel", 3);
         }
       });
 
       it("승률 글자 h1~h4·0·l1~l4 vs 카드 4.5:1", () => {
-        for (const k of ["h4", "h3", "h2", "h1", "0", "l1", "l2", "l3", "l4"]) atLeast(`--heat-text-${k}`, "--ih-bg-surface", 4.5);
+        for (const k of ["h4", "h3", "h2", "h1", "0", "l1", "l2", "l3", "l4"]) atLeast(`--heat-text-${k}`, "--ih-panel", 4.5);
       });
 
       it("승률 막대 vs 막대 바탕 3:1, 열 단계가 서로 다른 색", () => {
@@ -114,7 +114,7 @@ describe("테마 색 대비", () => {
       });
 
       it("칭호 등급 1~8 vs 카드 4.5:1", () => {
-        for (let g = 1; g <= 8; g++) atLeast(`--grade-${g}`, "--ih-bg-surface", 4.5);
+        for (let g = 1; g <= 8; g++) atLeast(`--grade-${g}`, "--ih-panel", 4.5);
       });
     });
   }

@@ -10,8 +10,8 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --ih-bg-canvas: #16171a;
-  --ih-bg-surface: #1e1f23;
+  --ih-bg: #16171a;
+  --ih-panel: #1e1f23;
   /* 올린 면: 표·목록의 머리 줄, 입력 칸, 눌러 볼 수 있는 칸. */
   --ih-bg-elevated: #26272c;
   --ih-bg-subtle: #2e3035;
@@ -19,17 +19,17 @@
   /* 상단 바·하단 탭 바탕. 본문 바탕보다 한 단계 밝게 채워 메뉴 영역이 면으로 구분된다. */
   --ih-bg-bar: #202125;
 
-  --ih-text-primary: #eceef1;
+  --ih-text: #eceef1;
   --ih-text-secondary: #a4a8b0;
   --ih-text-muted: #7d818a;
 
   --ih-border-subtle: rgba(255, 255, 255, 0.08);
   --ih-border-strong: rgba(255, 255, 255, 0.18);
 
-  /* 포인트 색(골드). --ih-brand-glow는 이름만 남은 것으로, 빛 번짐이 아니라 고른 칸의 옅은 바탕(틴트)에만 쓴다. */
+  /* 포인트 색(골드). --ih-selected는 고른 칸의 옅은 바탕(틴트)에만 쓴다. */
   --ih-brand-primary: #e3b04b;
   --ih-brand-primary-hover: #d9a23a;
-  --ih-brand-glow: rgba(227, 176, 75, 0.1);
+  --ih-selected: rgba(227, 176, 75, 0.1);
   --ih-accent-gold: #e3b04b;
   /* MMR 랭킹 금·은·동. */
   --ih-accent-medal-gold: #e3b04b;
@@ -99,9 +99,9 @@
     "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 
   /* 채운 버튼(바탕·글자), 링크 글자, 저장됨·주의 표시. 골드 위에는 어두운 글자를 쓴다. */
-  --ih-brand-fill: #e3b04b;
-  --ih-brand-fill-hover: #d9a23a;
-  --ih-on-brand-fill: #1a1206;
+  --ih-primary: #e3b04b;
+  --ih-primary-hover: #d9a23a;
+  --ih-on-primary: #1a1206;
   /* 승리 색으로 채운 작은 칸(최근 승패 점) 위의 글자. 패배 색 칸 위는 --ih-on-loss(예상 승률 막대). */
   --ih-on-win: #16171a;
   --ih-on-loss: #16171a;
@@ -114,15 +114,15 @@
 
 /* 바이올렛: dark를 물려받고 바탕·포인트·승패 색만 바꾼다. 글자·테두리는 dark의 무채색을 그대로 쓴다. */
 [data-theme="violet"] {
-  --ih-bg-canvas: #131219;
-  --ih-bg-surface: #1a1822;
+  --ih-bg: #131219;
+  --ih-panel: #1a1822;
   --ih-bg-elevated: #221f2d;
   --ih-bg-subtle: #2c2839;
   --ih-bg-glass: rgba(26, 24, 34, 0.86);
   --ih-bg-bar: #1d1b26;
   --ih-brand-primary: #b7a4ff;
   --ih-brand-primary-hover: #a692f5;
-  --ih-brand-glow: rgba(183, 164, 255, 0.1);
+  --ih-selected: rgba(183, 164, 255, 0.1);
   --ih-win-accent: #3fb3c9;
   --ih-win-bg: rgba(63, 179, 201, 0.12);
   --ih-win-bg-hover: rgba(63, 179, 201, 0.18);
@@ -136,28 +136,28 @@
   --ih-loss-border: rgba(224, 86, 122, 0.35);
   --ih-loss-text: #ef86a1;
   /* 흰 글자 대비 4.5:1을 넘도록 지시값 #7c6cf0(3.99:1)보다 한 단계 어둡게. */
-  --ih-brand-fill: #6a5ae0;
-  --ih-brand-fill-hover: #5a4ad0;
-  --ih-on-brand-fill: #ffffff;
+  --ih-primary: #6a5ae0;
+  --ih-primary-hover: #5a4ad0;
+  --ih-on-primary: #ffffff;
   --ih-link: #c4b5ff;
 }
 
 [data-theme="light"] {
   color-scheme: light;
-  --ih-bg-canvas: #f5f3ee;
-  --ih-bg-surface: #ffffff;
+  --ih-bg: #f5f3ee;
+  --ih-panel: #ffffff;
   --ih-bg-elevated: #faf8f3;
   --ih-bg-subtle: #ebe7df;
   --ih-bg-glass: rgba(255, 255, 255, 0.9);
   --ih-bg-bar: #ffffff;
-  --ih-text-primary: #1b1a17;
+  --ih-text: #1b1a17;
   --ih-text-secondary: #5c5a54;
   --ih-text-muted: #76736b;
   --ih-border-subtle: rgba(27, 26, 23, 0.09);
   --ih-border-strong: rgba(27, 26, 23, 0.18);
   --ih-brand-primary: #9a6c12;
   --ih-brand-primary-hover: #855c0e;
-  --ih-brand-glow: rgba(154, 108, 18, 0.1);
+  --ih-selected: rgba(154, 108, 18, 0.1);
   --ih-win-accent: #2f6fc4;
   --ih-win-bg: #eef3fb;
   --ih-win-bg-hover: #dde7f6;
@@ -208,9 +208,9 @@
   --grade-8: #5b6271;
   --ih-shadow-card: none;
   /* 채운 버튼과 지금 화면 탭은 잉크색(2026-11-09 2단계: 탁한 황갈색 #8f6414 대신). 링크·고른 칸은 골드(#9a6c12) 그대로. */
-  --ih-brand-fill: #1b1a17;
-  --ih-brand-fill-hover: #2e2c27;
-  --ih-on-brand-fill: #ffffff;
+  --ih-primary: #1b1a17;
+  --ih-primary-hover: #2e2c27;
+  --ih-on-primary: #ffffff;
   --ih-link: #875d0c;
   --ih-ok-bg: #eaf6ef;
   --ih-ok-text: #1f7a4d;
@@ -220,19 +220,13 @@
 
 /* 화면 규칙이 쓰는 이름. 값은 모두 위 토큰에서 온다. */
 :root {
-  --bg: var(--ih-bg-canvas);
-  --surface: var(--ih-bg-surface);
-  --text: var(--ih-text-primary);
-  --muted: var(--ih-text-secondary);
   --line: var(--ih-border-strong);
   --primary: var(--ih-brand-primary);
-  --primary-text: var(--ih-on-brand-fill);
-  --danger: var(--ih-loss-text);
+  --ih-danger: var(--ih-loss-text);
   --warn-bg: var(--ih-warn-bg);
   --warn-line: var(--ih-warn-line);
   --ok-bg: var(--ih-ok-bg);
   --ok-text: var(--ih-ok-text);
-  --picked: var(--ih-brand-glow);
   --tabs-height: 56px;
 }
 
@@ -258,8 +252,8 @@ html[data-keyboard="open"] {
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--ih-bg);
+  color: var(--ih-text);
   font-family: var(--ih-font-sans);
   font-size: 1rem;
   line-height: 1.55;
@@ -298,7 +292,7 @@ h2 {
 h3 {
   font-size: 0.875rem;
   margin: 6px 0 4px;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   letter-spacing: 0.04em;
 }
 p {
@@ -324,7 +318,7 @@ h3 {
 .sticky-head {
   position: sticky;
   top: 0;
-  background: var(--bg);
+  background: var(--ih-bg);
   padding: 8px 0;
   z-index: 2;
 }
@@ -345,7 +339,7 @@ button {
   padding: 8px 14px;
   border-radius: 6px;
   border: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--ih-panel);
   cursor: pointer;
 }
 button:disabled {
@@ -364,16 +358,16 @@ summary:focus-visible,
 .primary {
   background: var(--primary);
   border-color: var(--primary);
-  color: var(--primary-text);
+  color: var(--ih-on-primary);
   font-weight: 700;
 }
 .secondary {
-  background: var(--surface);
+  background: var(--ih-panel);
 }
 .danger {
-  border-color: var(--danger);
-  color: var(--danger);
-  background: var(--surface);
+  border-color: var(--ih-danger);
+  color: var(--ih-danger);
+  background: var(--ih-panel);
 }
 .link {
   border: none;
@@ -400,7 +394,7 @@ select {
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid var(--ih-border-subtle);
-  background: var(--surface);
+  background: var(--ih-panel);
   width: 100%;
 }
 select {
@@ -441,7 +435,7 @@ legend {
 
 /* 작은 글자 단계 한 단계 올림(2026-11-09): 파일 전체에서 0.75·0.8125rem → 0.875rem, 0.625·0.6875rem → 0.75rem, 그림 글자 11→12px·12→13px. */
 .hint {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   line-height: 1.45;
   max-width: 68ch;
@@ -481,7 +475,7 @@ legend {
 .info-tip-body {
   display: block;
   margin-top: 6px;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: 0;
@@ -517,7 +511,7 @@ details.help > .help-body {
   margin: 2px 0 4px;
   padding: 4px 0 4px 12px;
   border-left: 2px solid var(--ih-border-subtle);
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   line-height: 1.45;
   max-width: 68ch;
@@ -537,7 +531,7 @@ details.help > .help-body p {
   font-weight: 700;
 }
 .note {
-  background: var(--surface);
+  background: var(--ih-panel);
   border: 1px solid var(--line);
   border-left: 3px solid var(--primary);
   border-radius: 8px;
@@ -568,7 +562,7 @@ details.help > .help-body p {
   white-space: nowrap;
 }
 .card {
-  background: var(--surface);
+  background: var(--ih-panel);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 16px;
@@ -596,7 +590,7 @@ details.help > .help-body p {
   }
 }
 .team {
-  background: var(--surface);
+  background: var(--ih-panel);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px;
@@ -629,20 +623,20 @@ button.row {
   margin-bottom: 4px;
 }
 .row.picked {
-  background: var(--picked);
+  background: var(--ih-selected);
   border: 1px solid var(--primary);
 }
 .row.me {
-  background: var(--picked);
+  background: var(--ih-selected);
   font-weight: 700;
 }
 .row.empty {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .pos {
   flex: none;
   width: 2.6em;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
 }
 /* 긴 이름은 한 줄로 자르고 말줄임표. 전체 이름은 title과 확인 창에서 볼 수 있다. */
@@ -655,7 +649,7 @@ button.row {
 }
 .side {
   font-weight: 400;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 
 .list {
@@ -671,13 +665,13 @@ button.row {
   width: 100%;
   min-height: 44px;
   padding: 8px 12px;
-  background: var(--surface);
+  background: var(--ih-panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   text-align: left;
 }
 .list-row.selected {
-  background: var(--picked);
+  background: var(--ih-selected);
   border: 1px solid var(--primary);
 }
 .list-row.static {
@@ -722,7 +716,7 @@ button.row {
 }
 .choice.chosen {
   border: 1px solid var(--primary);
-  background: var(--picked);
+  background: var(--ih-selected);
 }
 .choice-row {
   display: flex;
@@ -748,12 +742,12 @@ button.row {
 }
 .segmented button[aria-pressed="true"] {
   border: 1px solid var(--primary);
-  background: var(--picked);
+  background: var(--ih-selected);
   font-weight: 700;
 }
 
 details {
-  background: var(--surface);
+  background: var(--ih-panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 4px 12px 8px;
@@ -773,7 +767,7 @@ details > *:not(summary) {
 .action-sticky {
   position: sticky;
   bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 8px);
-  background: var(--bg);
+  background: var(--ih-bg);
   padding: 8px 0;
   z-index: 1;
 }
@@ -798,7 +792,7 @@ details > *:not(summary) {
   height: calc(var(--tabs-height) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   display: flex;
-  background: var(--surface);
+  background: var(--ih-panel);
   border-top: 1px solid var(--line);
   z-index: 3;
 }
@@ -819,7 +813,7 @@ details > *:not(summary) {
   flex-wrap: wrap;
   padding: 4px 16px;
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--ih-panel);
 }
 
 /* 확인 창: 하단 탭과 고정 버튼 위를 덮는다. 뒤 화면은 누를 수 없다. */
@@ -833,7 +827,7 @@ details > *:not(summary) {
   z-index: 10;
 }
 .dialog {
-  background: var(--bg);
+  background: var(--ih-bg);
   width: 100%;
   max-width: 560px;
   max-height: 92dvh;
@@ -857,7 +851,7 @@ details > *:not(summary) {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
-  background: var(--surface);
+  background: var(--ih-panel);
   overflow-wrap: anywhere;
 }
 .manual-copy {
@@ -872,8 +866,8 @@ details > *:not(summary) {
   left: 16px;
   right: 16px;
   bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 12px);
-  background: var(--text);
-  color: var(--bg);
+  background: var(--ih-text);
+  color: var(--ih-bg);
   border-radius: 8px;
   padding: 10px 14px;
   text-align: center;
@@ -897,7 +891,7 @@ details > *:not(summary) {
 .rank {
   display: inline-block;
   min-width: 1.6em;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 .stat {
@@ -911,7 +905,7 @@ details > *:not(summary) {
 }
 .segmented select.chosen {
   border: 1px solid var(--primary);
-  background: var(--picked);
+  background: var(--ih-selected);
   font-weight: 700;
 }
 input[type="search"] {
@@ -935,7 +929,7 @@ input[type="search"] {
    막대 바탕(--viz-track)은 따뜻한 무채색이다. 승률 막대(heat-bar)는 이 바탕 대비 3:1 이상(test/theme-contrast.test.ts). */
 /* 기본 계열색(--viz-series)은 2단계(2026-11-09)에서 채도를 15% 낮췄다(명도 그대로). */
 .viz-root {
-  --viz-surface: var(--ih-bg-surface);
+  --viz-surface: var(--ih-panel);
   --viz-series: #5690d9;
   --viz-blue: var(--ih-win-accent);
   --viz-red: var(--ih-loss-accent);
@@ -961,11 +955,11 @@ input[type="search"] {
   flex: 1 1 30%;
   min-width: 0;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .filter-row select {
   width: 100%;
-  color: var(--text);
+  color: var(--ih-text);
 }
 .chart-card {
   background: var(--viz-surface);
@@ -1010,7 +1004,7 @@ button.bar-row:hover {
   gap: 8px;
 }
 .bar-note {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
 }
 /* 값이 "승률 · N승 M패 (G경기)"로 길어져(2026-11-08 통일) 좁은 화면에서는 값을 다음 줄 오른쪽으로 내린다.
@@ -1033,7 +1027,7 @@ button.bar-row:hover {
 /* 값은 본문 색으로 쓰고, 승률 숫자(.rate)만 막대와 같은 색 단계를 따른다. */
 .bar-value {
   flex: none;
-  color: var(--text);
+  color: var(--ih-text);
   font-variant-numeric: tabular-nums;
   font-size: 0.875rem;
 }
@@ -1075,7 +1069,7 @@ button.bar-row:hover {
   flex-wrap: wrap;
   gap: 4px 12px;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .legend li {
   display: flex;
@@ -1094,7 +1088,7 @@ button.bar-row:hover {
   background: var(--viz-surface);
 }
 .band-empty {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .matrix {
   width: 100%;
@@ -1110,11 +1104,11 @@ button.bar-row:hover {
   padding: 4px 2px;
   text-align: center;
   border-radius: 4px;
-  color: var(--text);
+  color: var(--ih-text);
   line-height: 1.25;
 }
 .matrix thead th {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-weight: 400;
 }
 .matrix th:first-child {
@@ -1152,7 +1146,7 @@ button.bar-row:hover {
 }
 .cell-games {
   display: block;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.75rem;
   line-height: 1.2;
 }
@@ -1166,7 +1160,7 @@ button.bar-row:hover {
 .matrix thead th .pos {
   justify-content: center;
   width: auto;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 /* 이름은 개인 통계로 가는 버튼 */
 .matrix-row {
@@ -1184,7 +1178,7 @@ button.bar-row:hover {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--text);
+  color: var(--ih-text);
   font: inherit;
   text-align: left;
   overflow: hidden;
@@ -1207,7 +1201,7 @@ button.bar-row:hover {
   margin-top: 8px;
 }
 .matrix-few > summary {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
 }
 /* 승률 색 범례 띠(HeatLegend) */
@@ -1218,7 +1212,7 @@ button.bar-row:hover {
   gap: 6px 10px;
   margin: 2px 0 8px;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .legend-bands {
   display: flex;
@@ -1490,13 +1484,13 @@ button:not([class]):not(:disabled):hover,
   background: var(--ih-bg-subtle);
 }
 .primary {
-  background: var(--ih-brand-fill);
-  border-color: var(--ih-brand-fill);
-  color: var(--ih-on-brand-fill);
+  background: var(--ih-primary);
+  border-color: var(--ih-primary);
+  color: var(--ih-on-primary);
 }
 .primary:not(:disabled):hover {
-  background: var(--ih-brand-fill-hover);
-  border-color: var(--ih-brand-fill-hover);
+  background: var(--ih-primary-hover);
+  border-color: var(--ih-primary-hover);
 }
 /* 버튼 단계: primary(화면당 하나, 포인트 색 채움) > secondary(조용한 바탕, 또렷한 테두리) > link(글자). 그림자 없음. */
 .secondary {
@@ -1533,7 +1527,7 @@ textarea::placeholder {
 fieldset {
   border-color: var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
 }
 
 /* 표면 */
@@ -1555,7 +1549,7 @@ details,
   background: transparent;
 }
 .note {
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border-color: var(--ih-border-subtle);
   border-left-color: var(--ih-brand-primary);
   border-radius: var(--ih-radius-md);
@@ -1604,7 +1598,7 @@ details,
   gap: 6px;
 }
 .list-row {
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border-color: var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
   font-weight: 500;
@@ -1629,7 +1623,7 @@ button.list-row:not(:disabled):hover {
 .list.list-card {
   gap: 0;
   overflow: hidden;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-lg);
 }
@@ -1665,7 +1659,7 @@ button.list-row:not(:disabled):hover {
   border-width: 1px;
   border-color: var(--ih-brand-primary);
   border-radius: var(--ih-radius-sm);
-  background: var(--picked);
+  background: var(--ih-selected);
 }
 .row-main,
 .row-main:not(:disabled):hover {
@@ -1683,13 +1677,13 @@ button.list-row:not(:disabled):hover {
 }
 .match-row.tone-blue,
 .match-row.tone-win {
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border-color: var(--ih-border-subtle);
   border-left-color: var(--ih-win-accent);
 }
 .match-row.tone-red,
 .match-row.tone-loss {
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border-color: var(--ih-border-subtle);
   border-left-color: var(--ih-loss-accent);
 }
@@ -1733,7 +1727,7 @@ li.match-row.tone-red:hover {
 /* 전역 .side-blue/.side-red(진영 막대 칸, 채움 색)를 덮도록 바탕을 표면 색으로 다시 둔다. */
 .team.side-blue,
 .team.side-red {
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border-color: var(--ih-border-strong);
   box-shadow: none;
 }
@@ -1758,7 +1752,7 @@ button.row {
 }
 .row.picked,
 button.row.picked:hover {
-  background: var(--picked);
+  background: var(--ih-selected);
   border-color: var(--ih-brand-primary);
 }
 .row.me {
@@ -1878,7 +1872,7 @@ button.row.picked:hover {
   border-radius: var(--ih-radius-md);
 }
 .choice.chosen {
-  background: var(--picked);
+  background: var(--ih-selected);
   border-color: var(--ih-brand-primary);
 }
 .segmented {
@@ -1898,20 +1892,20 @@ button.row.picked:hover {
 .segmented button[aria-pressed="true"],
 .segmented button[aria-pressed="true"]:hover {
   border: 1px solid var(--ih-brand-primary);
-  background: var(--picked);
-  color: var(--text);
+  background: var(--ih-selected);
+  color: var(--ih-text);
 }
 .segmented select.chosen {
   border: 1px solid var(--ih-brand-primary);
-  background: var(--picked);
-  color: var(--text);
+  background: var(--ih-selected);
+  color: var(--ih-text);
 }
 /* 펼친 목록(시즌·연도 등)의 글자: select의 반투명 바탕·흐린 글자색을 물려받으면 읽기 어렵다.
    목록 줄은 불투명한 바탕에 본문 글자 색으로 고정한다(다크 16:1, 바이올렛 15:1, 라이트 16:1 안팎). */
 select option,
 select optgroup {
   background-color: var(--ih-bg-elevated);
-  color: var(--ih-text-primary);
+  color: var(--ih-text);
   font-weight: 500;
 }
 select option:disabled {
@@ -1948,10 +1942,10 @@ table {
   color: var(--ih-accent-bronze);
 }
 .rank.rank-mid {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .rank.rank-rest {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-weight: 600;
 }
 .rate {
@@ -2022,7 +2016,7 @@ table {
   flex-wrap: wrap;
   gap: 4px 16px;
   padding: 10px 14px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
   font-size: 0.875rem;
@@ -2032,7 +2026,7 @@ table {
   margin-left: 4px;
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--text);
+  color: var(--ih-text);
 }
 .kpi strong.blue {
   color: var(--ih-win-text);
@@ -2083,7 +2077,7 @@ table {
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  color: var(--text);
+  color: var(--ih-text);
   text-decoration: none;
   font-size: 1.0625rem;
   font-weight: 800;
@@ -2123,14 +2117,14 @@ table {
   font-size: 0.875rem;
 }
 /* 지금 화면 탭(운영자 탭·조회 메뉴 모두, 좁은 화면 하단·넓은 화면 상단 공통): 채운 버튼과 같은 색으로 채운 칸.
-   선 하나보다 어디에 있는지 바로 보인다. 색 쌍은 --ih-brand-fill / --ih-on-brand-fill이라 대비 검사를 함께 받는다.
+   선 하나보다 어디에 있는지 바로 보인다. 색 쌍은 --ih-primary / --ih-on-primary이라 대비 검사를 함께 받는다.
    좁은 화면 하단에서는 위아래 6px를 띄워(56 − 12 = 44px 누름 영역) 칸이 바 가장자리에 붙지 않게 한다. */
 .tabs button[aria-current="page"],
 .tabs button[aria-current="page"]:hover,
 .viewer-nav .link[aria-current="page"],
 .viewer-nav .link[aria-current="page"]:hover {
-  background: var(--ih-brand-fill);
-  color: var(--ih-on-brand-fill);
+  background: var(--ih-primary);
+  color: var(--ih-on-primary);
   font-weight: 700;
   text-decoration: none;
   border-radius: var(--ih-radius-sm);
@@ -2160,7 +2154,7 @@ table {
   color: var(--ih-text-secondary);
 }
 .viewer-nav button.link:not(:disabled):not([aria-current="page"]):hover {
-  color: var(--text);
+  color: var(--ih-text);
   background: var(--ih-bg-elevated);
 }
 /* 좁은 화면: 조회·예시 메뉴의 화면 링크 묶음(> span)을 운영자 하단 탭(.tabs)과 같은 자리·모양으로 아래에 고정한다
@@ -2248,7 +2242,7 @@ table {
     font-size: 0.875rem;
   }
   .tabs button:not(:disabled):not([aria-current="page"]):hover {
-    color: var(--text);
+    color: var(--ih-text);
     background: var(--ih-bg-elevated);
   }
 }
@@ -2261,13 +2255,13 @@ table {
 }
 /* 확인 창·알림: 그림자 대신 또렷한 테두리. */
 .dialog {
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-strong);
   box-shadow: none;
 }
 .toast {
   background: var(--ih-bg-elevated);
-  color: var(--text);
+  color: var(--ih-text);
   border: 1px solid var(--ih-border-strong);
   border-radius: var(--ih-radius-lg);
   box-shadow: none;
@@ -2281,7 +2275,7 @@ table {
   padding: 20px 0 8px;
   border-top: 1px solid var(--ih-border-subtle);
   /* 2026-11-10: 본문보다 한 단계 물러나게(0.8125rem, 흐린 글자, 줄 간격 1.5). */
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.8125rem;
   line-height: 1.5;
 }
@@ -2307,7 +2301,7 @@ table {
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-sm);
   background: transparent;
-  color: var(--text);
+  color: var(--ih-text);
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.6;
@@ -2536,7 +2530,7 @@ table {
   margin: 4px 0 8px;
 }
 .privacy-facts dt {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .privacy-facts dd {
   margin: 0;
@@ -2565,7 +2559,7 @@ table {
 }
 .privacy-table thead th,
 .restore-diff thead th {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-weight: 700;
   background: var(--ih-bg-elevated);
 }
@@ -2626,7 +2620,7 @@ table {
 }
 .sub-head {
   margin: 10px 0 6px;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 
 /* 경기 카드: 머리 줄(경기 번호·결과·시각)이 경기 상세로 가는 버튼이고, 카드의 빈 곳도 같은 곳으로 간다.
@@ -2640,7 +2634,7 @@ table {
   flex-direction: column;
   gap: 2px;
   padding: 0 8px 6px 10px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
   min-width: 0;
@@ -2685,7 +2679,7 @@ table {
 }
 .mc-when {
   flex: none;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
@@ -2734,7 +2728,7 @@ table {
   width: auto;
   gap: 2px;
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .mc-role .role-icon {
   width: 12px;
@@ -2746,13 +2740,13 @@ table {
   line-height: 1.15;
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .mc-team-name {
   white-space: nowrap;
 }
 .mc-team.is-win .mc-team-label {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .mc-name,
 .mc-name:not(:disabled):hover {
@@ -2764,7 +2758,7 @@ table {
   border: none;
   border-radius: 6px;
   background: none;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
   text-align: center;
@@ -2813,13 +2807,13 @@ table {
   }
 }
 .mc-team.is-win .mc-name {
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 700;
 }
 .mc-name.is-me,
 .mc-name.is-me:not(:disabled):hover {
-  color: var(--text);
-  background: var(--picked);
+  color: var(--ih-text);
+  background: var(--ih-selected);
   box-shadow: inset 0 -3px 0 var(--ih-brand-primary);
 }
 @media (min-width: 720px) {
@@ -2901,10 +2895,10 @@ table {
   align-items: center;
   gap: 6px;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .rank-line select {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .rank-main {
   flex: 1 1 auto;
@@ -3013,7 +3007,7 @@ table {
 .tile-label {
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .ps-tiles {
   display: grid;
@@ -3043,14 +3037,14 @@ table {
 .ps-tiles dd .pos {
   width: auto;
   font-size: 1rem;
-  color: var(--text);
+  color: var(--ih-text);
 }
 .ps-tiles dd .streak {
   font-size: 1rem;
 }
 .tile-sub {
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .tile-link,
 .tile-link:not(:disabled):hover {
@@ -3141,7 +3135,7 @@ table {
   justify-content: space-between;
   align-items: flex-end;
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
   padding: 1px 0;
@@ -3156,7 +3150,7 @@ table {
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 .trend-bg {
@@ -3187,10 +3181,10 @@ table {
   justify-content: space-between;
   gap: 2px 8px;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .trend-caption strong {
-  color: var(--trend-color, var(--text));
+  color: var(--trend-color, var(--ih-text));
 }
 
 /* 개인 통계·검색의 작은 막대와 승률 고리. 그림은 보조이고 값은 옆 숫자로 함께 적는다.
@@ -3238,7 +3232,7 @@ table {
   top: -2px;
   bottom: -2px;
   width: 1px;
-  background: var(--ih-text-primary);
+  background: var(--ih-text);
   opacity: 0.55;
 }
 /* 승·패 비율: 승은 승리 색, 패는 패배 색에 빗금(색이 아니라 무늬로도 구분). */
@@ -3262,7 +3256,7 @@ table {
   background: repeating-linear-gradient(
     135deg,
     var(--ih-loss-accent) 0 3px,
-    color-mix(in oklab, var(--ih-loss-accent) 45%, var(--ih-bg-surface)) 3px 5px
+    color-mix(in oklab, var(--ih-loss-accent) 45%, var(--ih-panel)) 3px 5px
   );
 }
 .wl-bar .meter-mid {
@@ -3286,11 +3280,11 @@ table {
   align-items: center;
   gap: 4px 8px;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .meter-value {
   text-align: right;
-  color: var(--text);
+  color: var(--ih-text);
   font-variant-numeric: tabular-nums;
 }
 .ps-tiles dd .meter {
@@ -3330,7 +3324,7 @@ table {
   stroke: var(--viz-axis);
 }
 .ring-mid {
-  stroke: var(--ih-text-primary);
+  stroke: var(--ih-text);
   stroke-width: 2;
   opacity: 0.6;
 }
@@ -3349,7 +3343,7 @@ table {
 }
 .ring-text span {
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 
 /* 랭킹 묶음 소제목(누적 50경기 이상 · 배치 완료 · 배치 진행 중) */
@@ -3358,7 +3352,7 @@ table {
   padding: 2px 4px 4px;
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   border-bottom: 1px solid var(--ih-border-strong);
 }
 .rank-group:first-child {
@@ -3421,7 +3415,7 @@ table {
 .delta-chip {
   display: inline-flex;
   align-items: center;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 700;
   white-space: nowrap;
@@ -3431,7 +3425,7 @@ table {
   color: var(--ok-text);
 }
 .delta-chip.down {
-  color: var(--danger);
+  color: var(--ih-danger);
 }
 /* 랭킹 화면 안의 작은 글자는 0.875rem 아래로 내리지 않는다(공용 기본값이 더 작은 부품 포함). */
 .mmr-ranking .tile-label,
@@ -3471,7 +3465,7 @@ table {
   width: max(2px, calc(var(--width) * 100%));
 }
 .mmr-start-fill.up {
-  background: var(--ih-text-primary);
+  background: var(--ih-text);
 }
 .mmr-start-fill.up.top {
   background: var(--ih-brand-primary);
@@ -3529,7 +3523,7 @@ table {
   margin: 0;
   padding-left: 1.2em;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 @media (min-width: 720px) {
   .dash-grid {
@@ -3540,7 +3534,7 @@ table {
 
 /* 두 사람 비교 */
 .vs {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 700;
 }
@@ -3558,7 +3552,7 @@ table {
   --cmp-b-fill: repeating-linear-gradient(
     135deg,
     var(--cmp-b) 0 3px,
-    color-mix(in oklab, var(--cmp-b) 55%, var(--ih-bg-surface)) 3px 5px
+    color-mix(in oklab, var(--cmp-b) 55%, var(--ih-panel)) 3px 5px
   );
 }
 /* 표 머리·이름 옆의 작은 색 표식(첫 번째 = 꽉 찬 네모, 두 번째 = 빗금 네모). */
@@ -3605,7 +3599,7 @@ table {
   padding: 12px;
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   box-shadow: inset 0 3px 0 var(--cmp-tone);
 }
 .cmp-card.cmp-b {
@@ -3628,7 +3622,7 @@ table {
   white-space: nowrap;
   font-size: 1.0625rem;
   font-weight: 700;
-  color: var(--text);
+  color: var(--ih-text);
   text-decoration-color: var(--cmp-tone);
   text-underline-offset: 4px;
 }
@@ -3714,7 +3708,7 @@ table {
 }
 .cmp-card-facts .pos {
   width: auto;
-  color: var(--text);
+  color: var(--ih-text);
 }
 .cmp-vs-mark {
   align-self: center;
@@ -3760,7 +3754,7 @@ table {
 .cmp-pick select {
   width: 100%;
   min-width: 0;
-  color: var(--text);
+  color: var(--ih-text);
 }
 
 /* 도구 줄: 사람 고르기 · 서로 바꾸기 · 범위. */
@@ -3859,14 +3853,14 @@ table {
   vertical-align: bottom;
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--text);
+  color: var(--ih-text);
   background: var(--ih-bg-elevated);
 }
 .cmp-table th[scope="row"] {
   width: 28%;
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .cmp-lines th[scope="row"] {
   width: 22%;
@@ -3875,12 +3869,12 @@ table {
   width: auto;
 }
 .cmp-table td .pos {
-  color: var(--text);
+  color: var(--ih-text);
   font-size: inherit;
 }
 .cmp-table td.cmp-lead {
   font-weight: 700;
-  background: color-mix(in oklab, var(--ih-text-primary) 6%, transparent);
+  background: color-mix(in oklab, var(--ih-text) 6%, transparent);
 }
 .cmp-lead-mark {
   margin-right: 4px;
@@ -3909,13 +3903,13 @@ table {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   /* "(62경기)"가 낱말 중간에서 줄이 바뀌지 않게. */
   word-break: keep-all;
 }
 .cmp-sub-inline {
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .cmp-small {
   font-size: 0.875rem;
@@ -3971,7 +3965,7 @@ table {
   font-variant-numeric: tabular-nums;
 }
 .cmp-score-n.is-lead {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .cmp-score-colon {
   font-size: 1.25rem;
@@ -4120,7 +4114,7 @@ table {
 .pick-meta {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .pick-order {
   flex: none;
@@ -4135,7 +4129,7 @@ table {
   border-top-width: 1px;
 }
 .list-card button.list-row.pick-item.selected:not(:disabled):hover {
-  background: var(--picked);
+  background: var(--ih-selected);
   border-color: var(--ih-brand-primary);
 }
 @media (min-width: 720px) {
@@ -4166,7 +4160,7 @@ table {
   height: auto;
   max-height: 60dvh;
   object-fit: contain;
-  background: var(--bg);
+  background: var(--ih-bg);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
 }
@@ -4194,7 +4188,7 @@ table {
   overflow-wrap: anywhere;
 }
 .danger-box {
-  border: 1px solid var(--danger);
+  border: 1px solid var(--ih-danger);
   border-radius: var(--ih-radius-md);
   padding: 12px;
   margin: 12px 0;
@@ -4233,10 +4227,10 @@ table {
   min-height: 44px;
 }
 .danger-block {
-  border-color: var(--danger);
+  border-color: var(--ih-danger);
 }
 .danger-block > summary {
-  color: var(--danger);
+  color: var(--ih-danger);
 }
 
 /* ---------- F: 시트 가져오기 ---------- */
@@ -4256,13 +4250,13 @@ table {
   gap: 4px;
   padding: 6px 4px;
   border-bottom: 3px solid var(--line);
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 .sheet-steps li.current {
   border-bottom-color: var(--primary);
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 700;
 }
 .sheet-step-no {
@@ -4346,19 +4340,19 @@ table {
   top: 0;
 }
 .sheet-table tbody th {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-weight: 400;
 }
 .sheet-role {
   font-weight: 400;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .sheet-row-header td {
   font-weight: 700;
   background: var(--ih-bg-elevated);
 }
 .sheet-row-skipped td {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   text-decoration: line-through;
 }
 .sheet-row-error th,
@@ -4366,7 +4360,7 @@ table {
   background: var(--warn-bg);
 }
 .sheet-row-error th {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .check-line {
   display: flex;
@@ -4389,7 +4383,7 @@ table {
 }
 
 /* ---------- 상단 바 로그인 상태 · 모임이 없을 때의 시작 안내 ---------- */
-/* 새 색을 만들지 않고 키트 토큰만 쓴다. [로그인]은 채운 버튼(흰 글자 / --ih-brand-fill),
+/* 새 색을 만들지 않고 키트 토큰만 쓴다. [로그인]은 채운 버튼(흰 글자 / --ih-primary),
    [로그인됨]은 본문 글자 / --ih-bg-elevated 라 세 테마 모두 대비 4.5:1을 넘는다. */
 .topbar-actions {
   display: flex;
@@ -4431,8 +4425,8 @@ table {
   gap: 8px;
   width: min(260px, calc(100vw - 32px));
   padding: 12px;
-  background: var(--ih-bg-surface);
-  color: var(--text);
+  background: var(--ih-panel);
+  color: var(--ih-text);
   border: 1px solid var(--ih-border-strong);
   border-radius: var(--ih-radius-md);
   box-shadow: var(--ih-shadow-card);
@@ -4505,13 +4499,13 @@ table {
 .segmented button[role="tab"][aria-selected="true"],
 .segmented button[role="tab"][aria-selected="true"]:hover {
   border: 1px solid var(--ih-brand-primary);
-  background: var(--picked);
-  color: var(--text);
+  background: var(--ih-selected);
+  color: var(--ih-text);
   font-weight: 700;
 }
 /* 고르지 않은 탭 글자는 보조 글자색보다 진하게(라이트 테마에서도 4.5:1). */
 .segmented button[role="tab"][aria-selected="false"] {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .field {
   display: grid;
@@ -4556,7 +4550,7 @@ table {
 }
 .login-or {
   margin: 0;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   text-align: center;
 }
@@ -4579,7 +4573,7 @@ table {
   border: 1px solid var(--ih-border-strong);
   border-radius: var(--ih-radius-md);
   background: var(--ih-bg-elevated);
-  color: var(--text);
+  color: var(--ih-text);
   text-align: center;
   font-size: 1.0625rem;
   font-weight: 700;
@@ -4673,7 +4667,7 @@ table {
   display: flex;
   align-items: center;
   cursor: pointer;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .account-groups {
   display: grid;
@@ -4715,7 +4709,7 @@ table {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
   --sb-row: 52px;
@@ -4750,7 +4744,7 @@ table {
   border-radius: 0;
   /* 머리 줄은 표 머리처럼 올린 면으로 채운다. */
   background: var(--ih-bg-elevated);
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
   text-align: left;
@@ -4799,7 +4793,7 @@ table {
   font-weight: 800;
   line-height: 1;
   letter-spacing: 0.02em;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   white-space: nowrap;
 }
 .sb-side.sb-blue .sb-side-name {
@@ -4813,14 +4807,14 @@ table {
   padding: 1px 10px;
   border: 1px solid var(--ih-border-strong);
   border-radius: var(--ih-radius-sm);
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 .sb-verdict.win {
-  border-color: var(--ih-brand-fill);
-  background: var(--ih-brand-fill);
-  color: var(--ih-on-brand-fill);
+  border-color: var(--ih-primary);
+  background: var(--ih-primary);
+  color: var(--ih-on-primary);
   font-weight: 700;
 }
 .sb-series {
@@ -4834,7 +4828,7 @@ table {
 }
 .sb-series-num {
   font-size: 5.5rem;
-  color: var(--text);
+  color: var(--ih-text);
 }
 /* 시리즈에서 뒤진 쪽 숫자는 흐리게(큰 글자라 3:1이면 읽힌다). */
 .sb-series-num.trail {
@@ -4842,7 +4836,7 @@ table {
 }
 .sb-series-colon {
   font-size: 2.25rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .sb-vs {
   color: var(--ih-text-muted);
@@ -4899,7 +4893,7 @@ table {
   border-top: 1px solid var(--ih-border-subtle);
   border-radius: 0;
   background: none;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 1.25rem;
   font-weight: 500;
 }
@@ -4912,7 +4906,7 @@ table {
   text-align: left;
 }
 .sb-team.is-win .sb-name {
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 700;
 }
 .sb-name:not(:disabled):hover .sb-name-text {
@@ -4980,7 +4974,7 @@ table {
   min-width: 0;
   margin: 0 2px 2px;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .mc-memo {
   flex: 1 1 auto;
@@ -5003,7 +4997,7 @@ table {
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-sm);
   background: transparent;
-  color: var(--text);
+  color: var(--ih-text);
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.6;
@@ -5065,14 +5059,14 @@ table {
 .season-tiles > div {
   gap: 4px;
   padding: 10px 12px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
 }
 .season-tiles dd.season-stat {
   display: block;
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.2;
-  color: var(--text);
+  color: var(--ih-text);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
@@ -5080,7 +5074,7 @@ table {
   margin-left: 2px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .season-tiles dd.season-sides {
   display: flex;
@@ -5100,11 +5094,11 @@ table {
   color: var(--ih-loss-text);
 }
 .side-values.none {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .side-colon {
   font-weight: 500;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .side-bar {
   display: flex;
@@ -5171,7 +5165,7 @@ table {
   padding: 10px 12px;
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
 }
 .award-k-bestRate {
   --award-tone: var(--grade-1);
@@ -5209,7 +5203,7 @@ table {
   min-width: 0;
   margin: 0;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   overflow-wrap: anywhere;
 }
 .award-mark {
@@ -5236,7 +5230,7 @@ table {
 .award-who {
   font-size: 1.0625rem;
   font-weight: 700;
-  color: var(--text);
+  color: var(--ih-text);
 }
 .award-why {
   font-size: 0.875rem;
@@ -5249,7 +5243,7 @@ table {
 .award-tie {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .award-rule {
   margin: 0;
@@ -5272,7 +5266,7 @@ table {
 }
 .award-main h3 {
   font-size: 0.875rem;
-  color: var(--text);
+  color: var(--ih-text);
 }
 .award-main .award-who {
   font-size: 1.375rem;
@@ -5306,12 +5300,12 @@ table {
   letter-spacing: 0;
 }
 .award-line-name {
-  color: var(--text);
+  color: var(--ih-text);
   font-size: 0.9375rem;
   font-weight: 700;
 }
 .award-line-tail {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -5336,7 +5330,7 @@ table {
   opacity: 0.7;
 }
 .award.is-none h3 {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .award.is-none .winner {
   display: block;
@@ -5405,7 +5399,7 @@ table {
 }
 .intro-features span {
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 @media (min-width: 720px) {
   .intro-features {
@@ -5608,7 +5602,7 @@ table {
   max-height: min(240px, 40vh);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--surface);
+  background: var(--ih-panel);
   border: 1px solid var(--line);
   border-radius: var(--ih-radius-sm);
 }
@@ -5625,16 +5619,16 @@ table {
   border-top: 1px solid var(--ih-border-subtle);
 }
 .champ-option[aria-selected="true"] {
-  background: var(--picked);
+  background: var(--ih-selected);
   outline: 1px solid var(--ih-brand-primary);
   outline-offset: -1px;
 }
 .champ-option.taken {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .champ-note {
   flex: none;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.8125rem;
 }
 .champ-empty {
@@ -5648,7 +5642,7 @@ table {
   min-width: 0;
 }
 .champ-name {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.8125rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5658,7 +5652,7 @@ table {
 .summary-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: var(--surface);
+  background: var(--ih-panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px 12px;
@@ -5767,7 +5761,7 @@ table {
     flex-direction: column;
     gap: 12px;
     padding: 12px;
-    background: var(--ih-bg-surface);
+    background: var(--ih-panel);
     border: 1px solid var(--ih-border-subtle);
     border-radius: var(--ih-radius-md);
   }
@@ -5790,13 +5784,13 @@ table {
   border: 1px solid transparent;
   border-radius: var(--ih-radius-sm);
   background: none;
-  color: var(--text);
+  color: var(--ih-text);
   font: inherit;
   text-align: left;
 }
 .priority-jump strong {
   font-variant-numeric: tabular-nums;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 button.priority-jump:hover {
   background: var(--ih-bg-subtle);
@@ -5821,7 +5815,7 @@ button.row.drop-target,
 }
 button.row.drop-target:hover,
 .list-row.drop-target:hover {
-  background: var(--picked);
+  background: var(--ih-selected);
   border-style: solid;
 }
 button.row.swap-target:hover {
@@ -5846,7 +5840,7 @@ button.row.swap-target:hover {
 .team button.row.picked,
 .team li + li > button.row.picked,
 .team button.row.picked:hover {
-  background: var(--picked);
+  background: var(--ih-selected);
   border-color: var(--ih-brand-primary);
 }
 .team button.row.swap-target:hover,
@@ -5861,7 +5855,7 @@ button.row.swap-target:hover {
   flex: none;
   width: 10px;
   height: 16px;
-  fill: var(--muted);
+  fill: var(--ih-text-secondary);
   opacity: 0.55;
 }
 .swap-hint {
@@ -5886,7 +5880,7 @@ button.row.swap-target:hover {
 .support-panel {
   margin-top: 4px;
   padding: 12px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
 }
@@ -5926,13 +5920,13 @@ button.row.swap-target:hover {
   padding: 6px 12px;
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-sm);
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
 }
 .block-nav .chip:hover {
-  color: var(--text);
+  color: var(--ih-text);
   border-color: var(--ih-border-strong);
 }
 .group-block {
@@ -6072,7 +6066,7 @@ label:has(> select) {
   padding: 12px 14px;
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
 }
 .rival-tile .tile-label {
   font-size: 0.875rem;
@@ -6101,7 +6095,7 @@ label:has(> select) {
   padding: 12px 16px;
   text-align: left;
   border-color: color-mix(in oklab, var(--ih-accent-primary, var(--primary)) 45%, var(--ih-border-strong));
-  background: color-mix(in oklab, var(--ih-accent-primary, var(--primary)) 8%, var(--ih-bg-surface));
+  background: color-mix(in oklab, var(--ih-accent-primary, var(--primary)) 8%, var(--ih-panel));
 }
 .compare-cta strong {
   font-size: 1rem;
@@ -6149,7 +6143,7 @@ label:has(> select) {
   justify-content: space-between;
   gap: 4px 16px;
   padding: 10px 14px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
 }
@@ -6234,7 +6228,7 @@ label:has(> select) {
 }
 .bar-group-count {
   font-weight: 500;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 @media (min-width: 1024px) {
   .people-bars {
@@ -6245,13 +6239,13 @@ label:has(> select) {
 }
 /* 위에서 고른 플레이어의 막대 줄. */
 .bar-row.picked {
-  background: var(--picked);
+  background: var(--ih-selected);
   box-shadow: inset 3px 0 0 var(--ih-brand-primary);
 }
 
 /* 막대 그래프에서 기록 없는 줄: 값 자리에 "—", 막대는 빈 트랙(높이는 다른 줄과 같다). */
 .bar-empty {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .line-first .bar-row {
   min-height: 56px;
@@ -6297,7 +6291,7 @@ label:has(> select) {
   --viz-cat-3: #23946d;
   --viz-cat-4: #cb5b84;
   --viz-cat-5: #968de2;
-  --viz-pick: var(--ih-text-primary);
+  --viz-pick: var(--ih-text);
 }
 [data-theme="light"] .viz-root {
   --viz-cat-1: #3779c9;
@@ -6363,13 +6357,13 @@ label:has(> select) {
   background: var(--ih-bg-elevated);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
-  color: var(--text);
+  color: var(--ih-text);
 }
 .story-card:hover {
   border-color: var(--ih-border-strong);
 }
 .story-card .tile-label {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .story-card strong {
   font-size: 0.9375rem;
@@ -6379,7 +6373,7 @@ label:has(> select) {
   word-break: keep-all;
 }
 .story-card.picked {
-  background: var(--picked);
+  background: var(--ih-selected);
   box-shadow: inset 3px 0 0 var(--ih-brand-primary);
 }
 
@@ -6399,7 +6393,7 @@ label:has(> select) {
 }
 .race-axis,
 .cal-axis {
-  fill: var(--muted);
+  fill: var(--ih-text-secondary);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -6460,7 +6454,7 @@ label:has(> select) {
   stroke-width: 1;
 }
 .race-name {
-  fill: var(--text);
+  fill: var(--ih-text);
   font-size: 13px;
   font-weight: 600;
 }
@@ -6483,7 +6477,7 @@ label:has(> select) {
   flex-direction: column;
   gap: 2px;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .radar {
   margin: 0;
@@ -6556,7 +6550,7 @@ label:has(> select) {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .radar-pos .role-icon {
   width: 14px;
@@ -6566,12 +6560,12 @@ label:has(> select) {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .radar-value.weak {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-weight: 500;
 }
 .radar-key {
@@ -6620,7 +6614,7 @@ label:has(> select) {
   gap: 4px;
   margin: 0;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .cal-legend-step svg {
   display: block;
@@ -6674,7 +6668,7 @@ label:has(> select) {
   flex-direction: column;
   gap: 8px;
   padding: 14px 16px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-lg);
 }
@@ -6713,7 +6707,7 @@ label:has(> select) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--muted);
+  background: var(--ih-text-secondary);
 }
 /* 점 색은 뜻(좋음 초록·주의 주황·보통 회색)이 있어 남기되 신호 색 토큰(채도 낮춤)을 쓴다. */
 .commentary-remarks .remark-good::before {
@@ -6811,7 +6805,7 @@ label:has(> select) {
   gap: 14px;
   padding: 12px 14px;
   border-radius: var(--ih-radius-lg);
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border-left: 4px solid var(--fair-color);
 }
 .fair-good {
@@ -6845,7 +6839,7 @@ label:has(> select) {
 }
 .fair-verdict strong {
   font-size: 1.05rem;
-  color: var(--text);
+  color: var(--ih-text);
 }
 /* 분포 띠: 구간 폭 = flex-grow(경기 수). 둥근 모서리는 띠 전체에만.
    높이 12px(2026-11-10: 22px에서 낮춤). 경기 수는 범례에 없어 띠 안 숫자를 남기고 글자를 띠 높이에 맞췄다. */
@@ -6954,7 +6948,7 @@ label:has(> select) {
   color: var(--ih-text-secondary);
 }
 .cand-chips li strong {
-  color: var(--text);
+  color: var(--ih-text);
 }
 /* "균형"·"반복 0번"처럼 좋은 값은 초록으로 띄운다. */
 .cand-chips li.chip-good strong {
@@ -7105,7 +7099,7 @@ label:has(> select) {
   bottom: 0;
   width: 2px;
   margin-left: -1px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
 }
 .forecast .hint {
   margin: 0;
@@ -7146,7 +7140,7 @@ label:has(> select) {
   border: 1px solid var(--ih-border-subtle);
   font-size: 0.875rem;
   white-space: nowrap;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 /* 우세 칩: 테두리는 옅은 무채색 그대로, 진영 색은 글자에만(2026-11-09 2단계 채도 정리). */
 .fc-edge.fc-tone-A,
@@ -7182,7 +7176,7 @@ label:has(> select) {
 }
 .fc-sub,
 .fc-h2h {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   /* 판이 좁은 PC 오른쪽 단(약 430px)에서 "3경기" 같은 말이 중간에 끊기지 않게 띄어쓰기에서만 줄을 바꾼다. */
   word-break: keep-all;
@@ -7246,7 +7240,7 @@ label:has(> select) {
 }
 .lane-chip.hard {
   background: var(--ih-loss-bg);
-  color: var(--danger);
+  color: var(--ih-danger);
 }
 .lane-chip.easy {
   background: var(--ok-bg);
@@ -7342,12 +7336,12 @@ label:has(> select) {
   font-weight: 600;
 }
 .filter-bar select {
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 500;
 }
 .filter-meta {
   margin-left: auto;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
 }
@@ -7380,8 +7374,8 @@ input[type="search"].filter-search {
 /* 고른 칸: 붙은 탭이라 테두리 대신 안쪽 1px 윤곽(outline)으로 둘러 칸 폭이 변하지 않게 한다. */
 .filter-bar .segmented > button[aria-pressed="true"],
 .filter-bar .segmented > select.chosen {
-  background: var(--picked);
-  color: var(--text);
+  background: var(--ih-selected);
+  color: var(--ih-text);
   font-weight: 700;
   outline: 1px solid var(--ih-brand-primary);
   outline-offset: -1px;
@@ -7421,7 +7415,7 @@ input[type="search"].filter-search {
   gap: 2px;
   min-width: 0;
   padding: 12px 14px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
 }
@@ -7474,12 +7468,12 @@ input[type="search"].filter-search {
 .stat-card > .form-dots {
   margin-top: 6px;
 }
-/* 채운 카드(랭킹 1위): 포인트 색 바탕 위 글자 색 하나(--ih-on-brand-fill, theme-contrast가 4.5:1 검사).
+/* 채운 카드(랭킹 1위): 포인트 색 바탕 위 글자 색 하나(--ih-on-primary, theme-contrast가 4.5:1 검사).
    변동·승패의 원래 색은 채운 바탕에서 대비가 깨지므로 글자 색으로 바꾸고 ▲·▼, "승"·"패" 글자로 구분한다. */
 .stat-card.is-lead {
-  background: var(--ih-brand-fill);
-  border-color: var(--ih-brand-fill);
-  color: var(--ih-on-brand-fill);
+  background: var(--ih-primary);
+  border-color: var(--ih-primary);
+  color: var(--ih-on-primary);
 }
 .stat-card.is-lead :is(.stat-card-title, .stat-card-unit, .stat-card-rows dt, .delta-chip) {
   color: inherit;
@@ -7501,17 +7495,17 @@ input[type="search"].filter-search {
   text-decoration: underline;
 }
 .stat-card.is-lead :focus-visible {
-  outline-color: var(--ih-on-brand-fill);
+  outline-color: var(--ih-on-primary);
 }
 .stat-card.is-lead .form-dot.win {
-  border-color: var(--ih-on-brand-fill);
-  background: var(--ih-on-brand-fill);
-  color: var(--ih-brand-fill);
+  border-color: var(--ih-on-primary);
+  background: var(--ih-on-primary);
+  color: var(--ih-primary);
 }
 .stat-card.is-lead .form-dot.loss {
-  border-color: var(--ih-on-brand-fill);
+  border-color: var(--ih-on-primary);
   background: transparent;
-  color: var(--ih-on-brand-fill);
+  color: var(--ih-on-primary);
 }
 
 /* 기록이 없을 때의 안내 칸: 다음 입력으로 가는 버튼(운영자) 또는 안내 글만(조회자). */
@@ -7570,14 +7564,14 @@ input[type="search"].filter-search {
   font-weight: 600;
 }
 .dt-sort:not(:disabled):hover {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .dt-sort.is-active {
-  color: var(--text);
+  color: var(--ih-text);
   border-bottom-color: var(--ih-brand-primary);
 }
 .dt-arrow {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.75rem;
 }
 .dt-sort.is-active .dt-arrow {
@@ -7614,11 +7608,11 @@ input[type="search"].filter-search {
     padding: 4px 10px;
     border: 1px solid var(--ih-border-subtle);
     border-radius: var(--ih-radius-sm);
-    background: var(--ih-bg-surface);
+    background: var(--ih-panel);
   }
   .dt-head .dt-sort.is-active {
     border-color: var(--ih-brand-primary);
-    background: var(--picked);
+    background: var(--ih-selected);
   }
 }
 
@@ -7628,7 +7622,7 @@ input[type="search"].filter-search {
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
   font-size: 0.9375rem;
@@ -7750,7 +7744,7 @@ input[type="search"].filter-search {
   align-items: center;
   gap: 4px 8px;
   padding-bottom: 6px;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
 }
@@ -7793,7 +7787,7 @@ input[type="search"].filter-search {
   gap: 8px;
 }
 .mmr-placing {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   white-space: nowrap;
 }
@@ -7807,7 +7801,7 @@ input[type="search"].filter-search {
   padding: 0;
   border: none;
   background: none;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 1rem;
 }
 .mmr-trend {
@@ -7821,7 +7815,7 @@ input[type="search"].filter-search {
   position: relative;
   display: block;
   height: 1.4rem;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -7841,7 +7835,7 @@ input[type="search"].filter-search {
 .mmr-axis-start {
   left: calc(var(--at) * 100%);
   transform: translateX(calc(var(--at) * -100%));
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 600;
 }
 @media (min-width: 720px) {
@@ -7880,7 +7874,7 @@ input[type="search"].filter-search {
   }
   .mmr-row .c-games,
   .mmr-row .c-rate {
-    color: var(--text);
+    color: var(--ih-text);
     font-size: 0.9375rem;
   }
 }
@@ -7960,7 +7954,7 @@ input[type="search"].filter-search {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 6px;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.875rem;
 }
 @media (min-width: 720px) {
@@ -8026,7 +8020,7 @@ input[type="search"].filter-search {
 .recent-table .rm-open:not(:disabled):hover {
   min-height: 32px;
   padding: 0;
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 700;
   text-decoration: none;
 }
@@ -8057,7 +8051,7 @@ input[type="search"].filter-search {
   color: var(--ih-loss-text);
 }
 .rm-tone.tone-none {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 .rm-names {
   display: flex;
@@ -8087,14 +8081,14 @@ input[type="search"].filter-search {
   text-decoration: underline;
 }
 .rm-names.is-win {
-  color: var(--text);
+  color: var(--ih-text);
   font-weight: 700;
 }
 .rm-names.is-loss {
   color: var(--ih-text-secondary);
 }
 .recent-table tr.is-excluded td {
-  color: var(--muted);
+  color: var(--ih-text-secondary);
 }
 
 /* 그래프 분석의 도구 띠도 다른 화면의 필터 줄처럼 카드 없이 한 줄로 둔다. */
@@ -8148,7 +8142,7 @@ input[type="search"].filter-search {
   margin: 0;
 }
 .champ-coverage strong {
-  color: var(--text);
+  color: var(--ih-text);
 }
 .ct-body {
   display: grid;
@@ -8171,7 +8165,7 @@ input[type="search"].filter-search {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  background: var(--ih-bg-surface);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-border-subtle);
   border-radius: var(--ih-radius-md);
 }
@@ -8199,8 +8193,8 @@ input[type="search"].filter-search {
   border-radius: var(--ih-radius-sm);
 }
 .ct-initials button[aria-pressed="true"] {
-  background: var(--picked);
-  color: var(--text);
+  background: var(--ih-selected);
+  color: var(--ih-text);
   font-weight: 700;
   outline: 1px solid var(--ih-brand-primary);
   outline-offset: -1px;
@@ -8250,11 +8244,11 @@ input[type="search"].filter-search {
 }
 .ct-cell:not(:disabled):hover {
   background: var(--ih-bg-elevated);
-  color: var(--text);
+  color: var(--ih-text);
 }
 .ct-cell[aria-pressed="true"] {
   border-color: var(--ih-brand-primary);
-  color: var(--text);
+  color: var(--ih-text);
 }
 .ct-main {
   display: flex;
@@ -8277,7 +8271,7 @@ input[type="search"].filter-search {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--text);
+  color: var(--ih-text);
   font: inherit;
   font-weight: 600;
   text-align: left;
@@ -8287,7 +8281,7 @@ input[type="search"].filter-search {
   text-decoration: underline;
 }
 .ct-table tr.is-open td {
-  background: var(--picked);
+  background: var(--ih-selected);
 }
 .ct-player-list {
   display: flex;
@@ -8312,16 +8306,16 @@ input[type="search"].filter-search {
   font-variant-numeric: tabular-nums;
 }
 .ct-tier-mark.t1 {
-  background: var(--ih-brand-fill);
-  color: var(--ih-on-brand-fill);
+  background: var(--ih-primary);
+  color: var(--ih-on-primary);
 }
 .ct-tier-mark.t2 {
   border-color: var(--ih-brand-primary);
-  color: var(--text);
+  color: var(--ih-text);
 }
 .ct-tier-mark.t3 {
   background: var(--ih-bg-subtle);
-  color: var(--text);
+  color: var(--ih-text);
 }
 .ct-tier-mark.t4 {
   background: var(--ih-bg-subtle);
@@ -8454,7 +8448,7 @@ input[type="search"].filter-search {
 /* 분석 코멘트 문장 아래 근거(2026-11-10): 예전에는 title 풍선이라 터치 화면에서 보이지 않았다. */
 .commentary-remarks .remark-basis {
   display: block;
-  color: var(--muted);
+  color: var(--ih-text-secondary);
   font-size: 0.8125rem;
   line-height: 1.4;
 }
