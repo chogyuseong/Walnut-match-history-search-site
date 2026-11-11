@@ -7225,6 +7225,32 @@ input[type="search"].filter-search {
 .mmr-cards {
   margin-bottom: var(--space-1);
 }
+/* 요약 카드 셋의 제목 색(CLAUDE.md 5절의 명시 예외): 1위 연두, 최고 상승 분홍, 최고 MMR 연보라. 이야기 카드 색 토큰을
+   다시 쓰고 새 색은 만들지 않는다. 색은 제목 글자와 앞 8px 점에만 두고 카드 바탕·테두리·수치는 중립색 그대로다.
+   카드 바탕(--ih-panel) 위 대비는 test/theme-contrast.test.ts가 지킨다. 파랑·빨강(진영)·골드(강조)로 바꾸지 않는다. */
+.mmr-cards > .mmr-lead-card {
+  --mmr-card: var(--story-streak);
+}
+.mmr-cards > .mmr-rise-card {
+  --mmr-card: var(--story-upset);
+}
+.mmr-cards > .mmr-peak-card {
+  --mmr-card: var(--story-attendance);
+}
+.mmr-cards .stat-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--mmr-card, var(--ih-text-secondary));
+}
+.mmr-cards .stat-card-title::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mmr-card, transparent);
+}
 @media (max-width: 767px) {
   /* 폰 2칸: 1위 칸은 한 줄을 다 쓰고 나머지 두 카드가 아래 한 줄에 나란히. */
   .mmr-cards > .mmr-lead-card {

@@ -1,10 +1,16 @@
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { personForms, RANKING_GROUP_LABEL, rankingGroup, recentResults, type RankedRow } from "../../shared/insights";
+import {
+  personForms,
+  RANKING_GROUP_LABEL,
+  RANKING_VETERAN_GAMES,
+  rankingGroup,
+  recentResults,
+  type RankedRow,
+} from "../../shared/insights";
 import {
   divergingBar,
   mmrRanking,
   mmrScale,
-  podiumOf,
   rankingGroupSizes,
   rankingHighlights,
   ratingTierCounts,
@@ -145,13 +151,6 @@ export function Ranking(props: {
     () => mmrScale(ranking.ranked, table, placement, ratingOptions.start),
     [ranking, table, placement, ratingOptions.start],
   );
-  // 1위 칸은 시상대 규칙(podiumOf: 누적 50경기 이상 묶음)의 1위를 먼저 세운다. 그런 사람이 아직 없으면(새 모임)
-  // 배치를 마친 사람 중 맨 위(highlights.leader)를 "1위"로 두되 경기 수를 함께 적어 표본이 작다는 것을 숨기지 않는다.
-  const veteranLeader = useMemo(
-    () => podiumOf(ranking.ranked, placement).find((row) => row.rank === 1) ?? null,
-    [ranking, placement],
-  );
-  const leaderRow = veteranLeader ?? highlights.leader?.row ?? null;
   const tierCounts = useMemo(() => ratingTierCounts(ranking.ranked, table, placement), [ranking, table, placement]);
   const rows = useMemo(() => {
     if (sort.key === "rating") return ranking.shown;
@@ -189,8 +188,8 @@ export function Ranking(props: {
     );
   }
 
-  const leaderRating = leaderRow ? table.get(leaderRow.participantId) : undefined;
-  const leaderStanding = leaderRow ? placement.get(leaderRow.participantId) : undefined;
+  const { leader, riser, peak } = highlights;
+  const leaderStanding = leader ? placement.get(leader.row.participantId) : undefined;
 
   return (
     <div className="screen page-wide mmr-ranking">
@@ -211,54 +210,57 @@ export function Ranking(props: {
 
       <section aria-label="랭킹 요약">
         <h2 className="sr-only">요약</h2>
+        {/* 세 카드 모두 누적 50경기 이상인 사람만 후보다(rankingHighlights). 그런 사람이 없으면 셋 다 비고,
+            까닭은 1위 카드에만 한 번 적는다. 카드별 제목 색은 styles.css .mmr-cards(CLAUDE.md 5절 예외). */}
         <div className="stat-cards mmr-cards">
-          {leaderRow && leaderRating ? (
+          {leader ? (
             <StatCard
               className="mmr-lead-card"
               title={
                 <>
                   1위
                   {leaderStanding?.title && <> · {leaderStanding.title}</>}
-                  {!veteranLeader && <> · 배치 완료자 중</>}
                 </>
               }
               lead={
-                <button type="button" className="link stat-card-name" onClick={() => props.openPerson(leaderRow.participantId)}>
-                  {leaderRow.name}
+                <button type="button" className="link stat-card-name" onClick={() => props.openPerson(leader.row.participantId)}>
+                  {leader.row.name}
                 </button>
               }
               value={
                 <>
-                  {shownRating(leaderRating.rating)}
-                  <span className="stat-card-unit"> MMR</span> <DeltaChip delta={leaderRating.delta10} />
+                  {shownRating(leader.rating.rating)}
+                  <span className="stat-card-unit"> MMR</span> <DeltaChip delta={leader.rating.delta10} />
                 </>
               }
               rows={[
-                ["경기 · 승률", `${leaderRow.games}경기 · ${rateText(leaderRow.wins, leaderRow.games)}`],
-                ["최고", shownRating(leaderRating.peak)],
+                ["경기 · 승률", `${leader.row.games}경기 · ${rateText(leader.row.wins, leader.row.games)}`],
+                ["최고", shownRating(leader.rating.peak)],
               ]}
             >
               <FormDots
-                results={recentResults(forms.get(leaderRow.participantId), RATING_RECENT_GAMES)}
+                results={recentResults(forms.get(leader.row.participantId), RATING_RECENT_GAMES)}
                 label={`최근 ${RATING_RECENT_GAMES}경기(왼쪽이 최근)`}
               />
             </StatCard>
           ) : (
-            <StatCard title="1위" value="—" rows={[["배치", `${placementGames}경기를 마치면 순위가 생겨요`]]} />
+            <StatCard className="mmr-lead-card" title="1위" value="—">
+              <p className="hint">누적 {RANKING_VETERAN_GAMES}경기를 채운 사람부터 요약 카드 셋에 올라요.</p>
+            </StatCard>
           )}
           <StatCard
+            className="mmr-rise-card"
             title={`최근 ${RATING_RECENT_GAMES}경기 최고 상승`}
-            lead={highlights.riser?.row.name}
-            value={
-              highlights.riser ? <span className="mmr-delta up">{signedDelta(highlights.riser.rating.delta10)}</span> : "—"
-            }
-            rows={highlights.riser ? [["지금 MMR", shownRating(highlights.riser.rating.rating)]] : []}
+            lead={riser?.row.name}
+            value={riser ? <span className="mmr-delta up">{signedDelta(riser.rating.delta10)}</span> : "—"}
+            rows={riser ? [["지금 MMR", shownRating(riser.rating.rating)]] : []}
           />
           <StatCard
+            className="mmr-peak-card"
             title="최고 MMR 기록"
-            lead={highlights.peak?.row.name}
-            value={highlights.peak ? shownRating(highlights.peak.rating.peak) : "—"}
-            rows={highlights.peak ? [["지금 MMR", shownRating(highlights.peak.rating.rating)]] : []}
+            lead={peak?.row.name}
+            value={peak ? shownRating(peak.rating.peak) : "—"}
+            rows={peak ? [["지금 MMR", shownRating(peak.rating.rating)]] : []}
           />
         </div>
       </section>
@@ -387,7 +389,7 @@ export function Ranking(props: {
           순서는{" "}
           {RANKING_GROUP_LABEL[0]} → 배치 완료 → 배치 진행 중이고, 묶음 안에서는 MMR → 승률 → 경기 수 → 이름입니다.
           MMR·최근 변동·경기·승률 머리를 누르면 묶음은 그대로 둔 채 묶음 안에서 그 열의 큰 값부터 다시 세웁니다(순위 숫자는 MMR 순위 그대로).
-          맨 위 1위 칸은 {RANKING_GROUP_LABEL[0]}인 사람의 1위이고, 그런 사람이 아직 없으면 배치를 마친 사람 중 1위예요. 막대는 시작 {ratingOptions.start}을 세로 기준선으로 두고
+          맨 위 요약 카드 셋(1위·최고 상승·최고 MMR)은 {RANKING_GROUP_LABEL[0]}인 사람 중에서만 뽑고, 그런 사람이 아직 없으면 비워 둡니다. 막대는 시작 {ratingOptions.start}을 세로 기준선으로 두고
           오른쪽은 그보다 오른 만큼, 왼쪽은 내린 만큼이며 양 끝은 순위표의 가장 낮은·높은 MMR입니다. 배치 진행 중({placementGames}경기 미만)은 점수가 크게 흔들려 MMR 대신 배치 판수를 보여 주고
           요약 카드·강조에서도 뺍니다. 이름을 검색해도 순위 숫자는 그대로예요. ▾를 누르면 그 사람의 MMR 추이가 펼쳐집니다.
         </Help>

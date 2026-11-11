@@ -93,30 +93,36 @@ describe("MMR 랭킹", () => {
     expect(found.shown[0]!.rank).toBe(all.ranked.find((r) => r.participantId === "id12")!.rank);
   });
 
-  it("요약 타일: 1위는 순위표 맨 위, 최고 상승·최고 MMR은 배치 완료자 중에서 고른다", () => {
+  it("요약 타일: 세 칸 모두 누적 50경기 이상인 사람 중에서 고르고, 1위는 순위표 맨 위다", () => {
     const matches = season();
     const table = computeRatings(matches);
     const placement = placements(matches);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
+    // 50경기 미만(id10 배치 완료, id12 배치 진행 중)의 최근 상승·최고 MMR을 누구보다 크게 만든다.
+    for (const id of ["id10", "id12"]) {
+      table.get(id)!.delta10 = 999;
+      table.get(id)!.peak = 9999;
+    }
     const highlights = rankingHighlights(ranked, table, placement);
     expect(highlights.leader?.row.participantId).toBe(ranked[0]!.participantId);
+    expect(rankingGroup(placement, ranked[0]!.participantId)).toBe(0);
 
-    const placed = [...table.values()].filter((p) => placement.get(p.participantId)!.done);
-    const topRise = Math.max(...placed.map((p) => p.delta10));
-    const topPeak = Math.max(...placed.map((p) => p.peak));
-    expect(highlights.riser?.rating.delta10).toBe(topRise);
-    expect(highlights.peak?.rating.peak).toBe(topPeak);
-    // id12는 배치 중 K=40으로 여덟 판에 크게 올라 누구보다 상승 폭이 크지만 후보가 아니다.
-    expect(table.get("id12")!.delta10).toBeGreaterThan(topRise);
-    expect(highlights.riser?.row.participantId).not.toBe("id12");
+    const veterans = [...table.values()].filter((p) => rankingGroup(placement, p.participantId) === 0);
+    expect(veterans).toHaveLength(10);
+    expect(highlights.riser?.rating.delta10).toBe(Math.max(...veterans.map((p) => p.delta10)));
+    expect(highlights.peak?.rating.peak).toBe(Math.max(...veterans.map((p) => p.peak)));
+    for (const pick of [highlights.leader, highlights.riser, highlights.peak])
+      expect(rankingGroup(placement, pick!.row.participantId)).toBe(0);
   });
 
-  it("배치 완료자가 없으면 요약 타일은 모두 빈다", () => {
-    const matches = [match(1, [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], "A")];
+  it("누적 50경기 이상인 사람이 없으면 배치를 마친 사람이 있어도 요약 타일은 모두 빈다", () => {
+    // 열 명이 12경기씩: 모두 배치 완료(50경기 미만)다.
+    const matches = Array.from({ length: 12 }, (_, i) => match(i + 1, [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], i % 3 === 0 ? "B" : "A"));
     const table = computeRatings(matches);
     const placement = placements(matches);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
     expect(ranked).toHaveLength(10);
+    expect(ranked.every((r) => rankingGroup(placement, r.participantId) === 1)).toBe(true);
     expect(rankingHighlights(ranked, table, placement)).toEqual({ leader: null, riser: null, peak: null });
   });
 

@@ -153,6 +153,11 @@ describe("테마 색 대비", () => {
         for (const kind of ["streak", "upset", "pair", "attendance"])
           for (const bg of ["--ih-subtle", "--ih-selected"]) atLeast(`--story-${kind}`, bg, 4.5);
       });
+
+      // 랭킹 요약 카드 제목이 이야기 카드 색 셋을 다시 쓴다(.mmr-cards). 그 카드 바탕은 패널이다.
+      it("랭킹 요약 카드 제목 색 vs 카드 바탕(패널) 4.5:1", () => {
+        for (const kind of ["streak", "upset", "attendance"]) atLeast(`--story-${kind}`, "--ih-panel", 4.5);
+      });
     });
   }
 });

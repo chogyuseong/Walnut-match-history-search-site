@@ -390,12 +390,14 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
   // 배치 진행 중 두 사람은 맨 아래이고 MMR 대신 배치 판수를 보여 준다.
   await expect(table.getByRole("listitem").nth(10)).toContainText("배치 1/10");
   await expect(table.getByRole("listitem").nth(11)).toContainText("배치 1/10");
-  // 요약 카드 줄: 1위(누적 50경기 이상인 사람이 없어 배치 완료자 중 1위) · 최근 상승 · 최고 기록.
-  // 티어 분포는 순위표 아래 한 줄로 내렸다(요약은 셋까지, 디자인 4단계).
+  // 요약 카드 줄: 1위 · 최근 상승 · 최고 기록. 후보는 누적 50경기 이상뿐이라 여기서는 셋 다 비고,
+  // 까닭은 1위 카드에만 한 번 적는다. 티어 분포는 순위표 아래 한 줄로 내렸다(요약은 셋까지, 디자인 4단계).
   const cards = page.getByRole("region", { name: "랭킹 요약" }).locator(".stat-card");
   await expect(cards).toHaveCount(3);
   await expect(page.getByRole("region", { name: "MMR 순위표" })).toContainText("티어 분포");
-  await expect(cards.first()).toContainText("배치 완료자 중");
+  await expect(cards.first()).toContainText("누적 50경기를 채운 사람부터 요약 카드 셋에 올라요");
+  await expect(cards.locator(".stat-card-value")).toHaveText(["—", "—", "—"]);
+  await expect(page.getByRole("region", { name: "랭킹 요약" })).not.toContainText("선수");
 
   // 추이는 한 번에 하나만 펼친다.
   const firstRow = table.getByRole("listitem").first();

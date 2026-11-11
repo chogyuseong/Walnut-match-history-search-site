@@ -9,7 +9,9 @@ import type { MatchView } from "./types";
  * MMR 자체가 모임 전체 누적이라 범위(오늘·시즌·연도)를 두지 않는다. 배치와 MMR 모두 유효 확정 경기만 센다.
  */
 
-/** 배치 진행 중 묶음. 이 묶음은 MMR이 아직 크게 흔들려(배치 중 K) 요약 타일 후보에서 뺀다. */
+/** 누적 50경기 이상 묶음(insights.RANKING_VETERAN_GAMES). 요약 타일 후보는 이 묶음뿐이다. */
+const VETERANS: RankingGroup = 0;
+/** 배치 진행 중 묶음. MMR이 아직 크게 흔들려(배치 중 K) 막대 눈금·티어 분포에서 뺀다. */
 const STILL_PLACING: RankingGroup = 2;
 
 /** 모임 전체 누적 MMR 순위. 순위 숫자는 검색 전 기준이라 검색해도 바뀌지 않는다. */
@@ -29,16 +31,17 @@ export interface RankingHighlight {
 }
 
 export interface RankingHighlights {
-  /** 순위표 1위(배치 완료자 중 맨 위). */
+  /** 누적 50경기 이상인 사람 중 맨 위. 그 묶음이 순위표 맨 위라 순위표 1위이자 시상대 1위(podiumOf)와 같다. */
   leader: RankingHighlight | null;
-  /** 최근 10경기 MMR이 가장 많이 오른 사람. 반올림해 +1 이상인 사람만 후보다. */
+  /** 누적 50경기 이상 중 최근 10경기 MMR이 가장 많이 오른 사람. 반올림해 +1 이상인 사람만 후보다. */
   riser: RankingHighlight | null;
-  /** 지금까지의 최고 MMR(peak)이 가장 높은 사람. */
+  /** 누적 50경기 이상 중 지금까지의 최고 MMR(peak)이 가장 높은 사람. */
   peak: RankingHighlight | null;
 }
 
 /**
- * 요약 타일 세 칸. 후보는 배치 완료자뿐이다(배치 중 K가 커서 최근 상승이 부풀려 보인다).
+ * 요약 타일 세 칸. 후보는 누적 50경기 이상 묶음뿐이다. 배치 중에는 K가 커서 최근 상승이 부풀려 보이고,
+ * 배치를 막 마친 사람도 판수가 적어 몇 판 운으로 최고 MMR·최고 상승을 차지하기 쉽다. 그런 사람이 없으면 셋 다 null.
  * 값이 같으면 순위표에서 위에 있는 사람이 이긴다(ranked 순서대로 보고 더 클 때만 바꾼다).
  */
 export function rankingHighlights(
@@ -46,20 +49,20 @@ export function rankingHighlights(
   table: RatingTable,
   placement: ReadonlyMap<string, Placement>,
 ): RankingHighlights {
-  const placed: RankingHighlight[] = [];
+  const veterans: RankingHighlight[] = [];
   for (const row of ranked) {
     const rating = table.get(row.participantId);
-    if (rating && rankingGroup(placement, row.participantId) !== STILL_PLACING) placed.push({ row, rating });
+    if (rating && rankingGroup(placement, row.participantId) === VETERANS) veterans.push({ row, rating });
   }
   const best = (score: (entry: RankingHighlight) => number, eligible: (entry: RankingHighlight) => boolean) => {
     let top: RankingHighlight | null = null;
-    for (const entry of placed) {
+    for (const entry of veterans) {
       if (eligible(entry) && (!top || score(entry) > score(top))) top = entry;
     }
     return top;
   };
   return {
-    leader: placed[0] ?? null,
+    leader: veterans[0] ?? null,
     riser: best((entry) => entry.rating.delta10, (entry) => Math.round(entry.rating.delta10) > 0),
     peak: best((entry) => entry.rating.peak, () => true),
   };
