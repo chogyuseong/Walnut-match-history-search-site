@@ -7,7 +7,7 @@ import { formatDate, formatRange, formatTime, nameMap, viewLink } from "../forma
 import { rotationContext, supportCounts } from "../../shared/rotation";
 import { SupportCountEditor } from "../supportCountEditor";
 import { Help } from "../screenKit";
-import { CopyButton, Dialog, ErrorNote } from "../ui";
+import { CopyButton, Dialog, ErrorNote, useSearchJump } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { TitleSettings } from "./TitleSettings";
 import { NewGroupFromBackup, RestoreSection } from "./Restore";
@@ -37,6 +37,7 @@ export function Group() {
   const [editName, setEditName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [peopleQuery, setPeopleQuery] = useState("");
+  const peopleJump = useSearchJump<HTMLUListElement>();
   const [allPeople, setAllPeople] = useState(false);
   const [seasonForm, setSeasonForm] = useState({ name: "", startsOn: "", endsOn: "" });
   const [transferOpen, setTransferOpen] = useState(false);
@@ -202,11 +203,13 @@ export function Group() {
               aria-label="참가자 이름으로 찾기"
               placeholder="이름으로 찾기"
               autoComplete="off"
+              enterKeyHint="search"
               value={peopleQuery}
               onChange={(e) => setPeopleQuery(e.target.value)}
+              onKeyDown={peopleJump.onSearchKey}
             />
           )}
-          <ul className="list list-card">
+          <ul ref={peopleJump.results} tabIndex={-1} className="list list-card search-results">
             {listedPeople.map((p) =>
               p.mergedInto ? (
                 // 합쳐진 이름: 기록은 모두 남은 사람에게 옮겨졌다. 되돌리기는 합치기 화면에서 한다.

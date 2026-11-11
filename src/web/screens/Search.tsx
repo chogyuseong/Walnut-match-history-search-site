@@ -14,6 +14,7 @@ import {
   takeSearchFocus,
 } from "../searchRoute";
 import { RateBar, ScreenHead, StandingNote } from "../screenKit";
+import { useSearchJump } from "../ui";
 
 /** 경기 결과를 처음에 보여주는 수와 "더 보기"로 더 여는 수. */
 const MATCH_PAGE = 20;
@@ -52,6 +53,7 @@ export function Search(props: {
   const [recent, setRecent] = useState<string[]>(() => loadRecentSearches(groupId));
   const [matchShown, setMatchShown] = useState(MATCH_PAGE);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultJump = useSearchJump<HTMLDivElement>();
   const records = useMemo(() => personRecords(snapshot.matches), [snapshot]);
   const standing = useMemo(() => standingsOf(snapshot), [snapshot]);
   const placementGames = placementGamesOf(snapshot.group.settings);
@@ -189,6 +191,7 @@ export function Search(props: {
             enterKeyHint="search"
             autoComplete="off"
             placeholder="이름 일부만 넣어도 찾아요"
+            onKeyDown={resultJump.onSearchKey}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -226,90 +229,92 @@ export function Search(props: {
         </div>
       )}
 
-      {people.length === 0 ? (
-        <p className="hint">아직 참가자가 없어요. 경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
-      ) : blank ? (
-        <p className="hint">참가자 {people.length}명 중에서 찾습니다.</p>
-      ) : found.length === 0 ? (
-        // 날짜로 경기를 찾을 때는 이름이 없다는 안내가 군더더기라 뺀다.
-        date ? null : (
-          <p className="hint">일치하는 이름이 없어요. 초성(ㄱㅅ)으로도 찾을 수 있어요.</p>
-        )
-      ) : (
-        <section aria-label="검색 결과">
-          <h2>검색 결과 {found.length}명</h2>
-          <ul className="list list-card">
-            {found.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  className={picked.includes(r.id) ? "list-row has-bar selected" : "list-row has-bar"}
-                  aria-pressed={comparing ? picked.includes(r.id) : undefined}
-                  onClick={() => choose(r.id)}
-                >
-                  <span className="name">{r.name}</span>
-                  <span className="stat">
-                    {r.games === 0 ? (
-                      "확정된 경기 없음"
-                    ) : (
-                      <>
-                        <span className={rateTier(r.wins, r.games)}>
-                          {rateText(r.wins, r.games)}
-                        </span>{" "}
-                        · {r.wins}승 {r.losses}패 ({r.games}경기)
-                      </>
-                    )}
-                    <br />
-                    <span className="hint">
-                      <StandingNote standing={standing.get(r.id)} placementGames={placementGames} compact />
+      <div ref={resultJump.results} tabIndex={-1} className="search-results">
+        {people.length === 0 ? (
+          <p className="hint">아직 참가자가 없어요. 경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
+        ) : blank ? (
+          <p className="hint">참가자 {people.length}명 중에서 찾습니다.</p>
+        ) : found.length === 0 ? (
+          // 날짜로 경기를 찾을 때는 이름이 없다는 안내가 군더더기라 뺀다.
+          date ? null : (
+            <p className="hint">일치하는 이름이 없어요. 초성(ㄱㅅ)으로도 찾을 수 있어요.</p>
+          )
+        ) : (
+          <section aria-label="검색 결과">
+            <h2>검색 결과 {found.length}명</h2>
+            <ul className="list list-card">
+              {found.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    className={picked.includes(r.id) ? "list-row has-bar selected" : "list-row has-bar"}
+                    aria-pressed={comparing ? picked.includes(r.id) : undefined}
+                    onClick={() => choose(r.id)}
+                  >
+                    <span className="name">{r.name}</span>
+                    <span className="stat">
+                      {r.games === 0 ? (
+                        "확정된 경기 없음"
+                      ) : (
+                        <>
+                          <span className={rateTier(r.wins, r.games)}>
+                            {rateText(r.wins, r.games)}
+                          </span>{" "}
+                          · {r.wins}승 {r.losses}패 ({r.games}경기)
+                        </>
+                      )}
+                      <br />
+                      <span className="hint">
+                        <StandingNote standing={standing.get(r.id)} placementGames={placementGames} compact />
+                      </span>
                     </span>
-                  </span>
-                  {r.games > 0 && <RateBar wins={r.wins} games={r.games} small />}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {props.openMatch && !blank && !comparing && (date || matchHits.length > 0) && (
-        // 영역 이름은 사람 결과("검색 결과")와 부분 일치로 겹치지 않게 따로 짓는다.
-        <section aria-label="찾은 경기">
-          <h2>
-            {date ? `${dateTitle(date, today)} 경기` : "메모로 찾은 경기"} · {matchHits.length}경기
-          </h2>
-          {matchHits.length === 0 ? (
-            <p className="hint">그날은 기록된 경기가 없어요.</p>
-          ) : (
-            <ul className="list match-cards">
-              {visibleMatches.map((m) => (
-                <MatchCard
-                  key={m.id}
-                  match={m}
-                  nameOf={nameOfId}
-                  timeZone={tz}
-                  showDate
-                  upset={expectation.get(m.id)?.upset}
-                  onOpen={() => {
-                    remember(query);
-                    props.openMatch!(m.id);
-                  }}
-                  onPerson={(id) => {
-                    remember(query);
-                    props.openPerson(id);
-                  }}
-                />
+                    {r.games > 0 && <RateBar wins={r.wins} games={r.games} small />}
+                  </button>
+                </li>
               ))}
             </ul>
-          )}
-          {matchHits.length > visibleMatches.length && (
-            <button type="button" className="link more" onClick={() => setMatchShown(matchShown + MATCH_PAGE)}>
-              나머지 {matchHits.length - visibleMatches.length}경기 중{" "}
-              {Math.min(MATCH_PAGE, matchHits.length - visibleMatches.length)}경기 더 보기
-            </button>
-          )}
-        </section>
-      )}
+          </section>
+        )}
+
+        {props.openMatch && !blank && !comparing && (date || matchHits.length > 0) && (
+          // 영역 이름은 사람 결과("검색 결과")와 부분 일치로 겹치지 않게 따로 짓는다.
+          <section aria-label="찾은 경기">
+            <h2>
+              {date ? `${dateTitle(date, today)} 경기` : "메모로 찾은 경기"} · {matchHits.length}경기
+            </h2>
+            {matchHits.length === 0 ? (
+              <p className="hint">그날은 기록된 경기가 없어요.</p>
+            ) : (
+              <ul className="list match-cards">
+                {visibleMatches.map((m) => (
+                  <MatchCard
+                    key={m.id}
+                    match={m}
+                    nameOf={nameOfId}
+                    timeZone={tz}
+                    showDate
+                    upset={expectation.get(m.id)?.upset}
+                    onOpen={() => {
+                      remember(query);
+                      props.openMatch!(m.id);
+                    }}
+                    onPerson={(id) => {
+                      remember(query);
+                      props.openPerson(id);
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+            {matchHits.length > visibleMatches.length && (
+              <button type="button" className="link more" onClick={() => setMatchShown(matchShown + MATCH_PAGE)}>
+                나머지 {matchHits.length - visibleMatches.length}경기 중{" "}
+                {Math.min(MATCH_PAGE, matchHits.length - visibleMatches.length)}경기 더 보기
+              </button>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

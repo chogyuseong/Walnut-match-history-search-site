@@ -5,7 +5,7 @@ import type { TeamCandidate } from "../../../shared/recommend";
 import { matchesName } from "../../../shared/search";
 import type { Team } from "../../../shared/types";
 import { TEAM_MARK } from "../../format";
-import { Dialog } from "../../ui";
+import { Dialog, useSearchJump } from "../../ui";
 import { prepTeamName } from "./common";
 import type { PrepEditing } from "./usePrepEditing";
 
@@ -142,6 +142,7 @@ export function ReplaceDialog(props: { selectedKey: string; others: DraftPerson[
  */
 export function LateDialog(props: { others: DraftPerson[]; onPick: (person: DraftPerson) => void; onClose: () => void }) {
   const [query, setQuery] = useState("");
+  const lateJump = useSearchJump<HTMLDivElement>();
   // 공백·대소문자를 무시하고 초성("ㄱㅅ")으로도 찾는다(전적 검색과 같은 규칙).
   const shown = props.others
     .filter((p) => matchesName(p.name, query))
@@ -150,24 +151,33 @@ export function LateDialog(props: { others: DraftPerson[]; onPick: (person: Draf
     <Dialog title="늦게 온 사람" onClose={props.onClose}>
       <label>
         이름 찾기
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={lateJump.onSearchKey}
+          enterKeyHint="search"
+          autoComplete="off"
+        />
       </label>
-      {shown.length === 0 ? (
-        <p className="hint">
-          {query.trim() === "" ? "넣을 수 있는 다른 참가자가 없어요." : "일치하는 이름이 없어요."} 처음 온 사람은 참가자 고르기에서
-          이름을 넣어 주세요.
-        </p>
-      ) : (
-        <ul className="list" aria-label="늦게 온 사람 후보">
-          {shown.map((p) => (
-            <li key={p.key}>
-              <button type="button" className="list-row" onClick={() => props.onPick(p)}>
-                {p.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div ref={lateJump.results} tabIndex={-1} className="search-results">
+        {shown.length === 0 ? (
+          <p className="hint">
+            {query.trim() === "" ? "넣을 수 있는 다른 참가자가 없어요." : "일치하는 이름이 없어요."} 처음 온 사람은 참가자 고르기에서
+            이름을 넣어 주세요.
+          </p>
+        ) : (
+          <ul className="list" aria-label="늦게 온 사람 후보">
+            {shown.map((p) => (
+              <li key={p.key}>
+                <button type="button" className="list-row" onClick={() => props.onPick(p)}>
+                  {p.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Dialog>
   );
 }

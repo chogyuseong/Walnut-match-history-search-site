@@ -998,6 +998,17 @@ details > *:not(summary) {
 input[type="search"] {
   margin-bottom: var(--space-2);
 }
+/* 검색 결과를 감싼 자리(ui.tsx useSearchJump). 검색 키를 누르면 초점이 여기로 온다. 누르는 컨트롤이 아니라
+   도착 표시라 테두리를 그리지 않는다. 안의 줄·버튼은 Tab으로 가면 각자 포커스 테두리가 보인다. */
+.search-results:focus {
+  outline: none;
+}
+/* 전적 검색은 사람 결과와 찾은 경기를 한 자리로 감쌌다. 화면(.screen)의 구역 사이 간격을 안에서도 그대로 둔다. */
+.search-screen > .search-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
 
 .season-form {
   display: flex;

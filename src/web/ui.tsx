@@ -1,7 +1,7 @@
 // 첫 화면 껍데기(App·상단 바·로그인 상태·모임 바꾸기·오류 화면)가 쓰는 화면 부품만 둔다.
 // 이 파일은 index.html의 진입 묶음에 그대로 실리므로, 통계·칭호·날짜 형식처럼 화면에서만 쓰는 계산을 부르지 않는다.
 // 화면 전용 부품(머리·표·막대·배지 등)은 screenKit.tsx에 있다. 껍데기에 들어가도 되는 파일 목록은 scripts/shell-modules.mjs.
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { ApiFailure } from "./api";
 import { SessionExpiredNote } from "./sessionExpiredNote";
 
@@ -226,6 +226,104 @@ export function useKeyboardFlag(): void {
     if (open) document.documentElement.dataset.keyboard = "open";
     else delete document.documentElement.dataset.keyboard;
   }, [open]);
+}
+
+/** 키보드가 내려가며 화면 높이가 바뀌는 동안 resize가 여러 번 온다. 마지막 resize 뒤 이만큼 조용하면 다 내려갔다고 본다(ms). */
+const KEYBOARD_SETTLE_MS = 100;
+/** resize가 아예 오지 않는 기기(외장 키보드 등)에서 더 기다리지 않고 움직이는 한도(ms). */
+const KEYBOARD_CLOSE_LIMIT_MS = 600;
+/** 결과 첫머리가 "보인다"고 칠 높이: 머리 줄 + 첫 줄 정도(px). 이만큼 보이면 화면을 움직이지 않는다. */
+const RESULT_PEEK = 96;
+
+/** 키보드가 열려 있었으면 다 내려간 뒤(보이는 화면 높이가 자리 잡은 뒤)에 run을 부른다. */
+function afterKeyboardCloses(run: () => void) {
+  if (document.documentElement.dataset.keyboard !== "open") {
+    run();
+    return;
+  }
+  const viewport = window.visualViewport;
+  let settle = 0;
+  const finish = () => {
+    clearTimeout(settle);
+    clearTimeout(limit);
+    viewport?.removeEventListener("resize", onResize);
+    window.removeEventListener("resize", onResize);
+    run();
+  };
+  const onResize = () => {
+    clearTimeout(settle);
+    settle = window.setTimeout(finish, KEYBOARD_SETTLE_MS);
+  };
+  const limit = window.setTimeout(finish, KEYBOARD_CLOSE_LIMIT_MS);
+  viewport?.addEventListener("resize", onResize);
+  window.addEventListener("resize", onResize);
+}
+
+/**
+ * results가 이미 보이면 그대로 두고, 아니면 첫머리가 화면 위쪽에 오게 올린다.
+ * 위아래 가림 여백은 html의 scroll-padding(상단 고정 머리·하단 탭·고정 버튼 몫)을 그대로 쓴다.
+ * 대화 상자 안에서는 창 안 스크롤 상자 기준으로 최소한만 움직인다(뒤 화면을 끌고 가지 않게).
+ */
+function revealResults(results: HTMLElement) {
+  const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const behavior: ScrollBehavior = smooth ? "smooth" : "auto";
+  if (results.closest('[role="dialog"]')) {
+    results.scrollIntoView({ block: "nearest", behavior });
+    return;
+  }
+  const root = getComputedStyle(document.documentElement);
+  const padTop = parseFloat(root.scrollPaddingTop) || 0;
+  const padBottom = parseFloat(root.scrollPaddingBottom) || 0;
+  const viewHeight = window.visualViewport?.height ?? window.innerHeight;
+  const box = results.getBoundingClientRect();
+  const seen = box.top >= padTop && box.top + Math.min(box.height, RESULT_PEEK) <= viewHeight - padBottom;
+  if (!seen) results.scrollIntoView({ block: "start", behavior });
+}
+
+/**
+ * 검색 칸에서 검색 키(Enter)를 누르면 키보드를 내리고 결과 첫머리로 옮긴다. 휴대폰에서 검색 뒤 손으로 내려야 결과가
+ * 보이던 것을 없애려는 것이다. 글자를 치는 동안에는 아무것도 하지 않는다(입력할 때마다 화면이 튀지 않게).
+ * 쓰는 법: 결과 목록과 "일치하는 이름이 없어요" 안내를 함께 감싼 요소에 ref={results}, tabIndex={-1}을 달고
+ * 검색 칸에 onKeyDown={onSearchKey}, enterKeyHint="search"를 단다.
+ * 초점은 결과 감싼 요소로 옮긴다. 그래야 키보드가 내려가고 화면 읽기 사용자가 결과 첫머리부터 듣는다.
+ * tabIndex -1이라 Tab 순서에는 끼지 않는다. Enter가 이미 다른 일을 하는 칸(새 이름 넣기·챔피언 고르기)에는 쓰지 않는다.
+ */
+export function useSearchJump<T extends HTMLElement>() {
+  const results = useRef<T>(null);
+  const frame = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
+  // 한 프레임 미룬다: 폼 제출(전적 검색)과 React 다시 그리기가 먼저 끝나야 결과 요소가 제자리에 있다.
+  // 같은 Enter가 두 번 와도(조합 확정 Enter를 두 번 내보내는 브라우저) 앞의 예약을 지우므로 한 번만 움직인다.
+  function scheduleJump(input: HTMLInputElement) {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const target = results.current;
+      if (input.value.trim() === "" || !target?.isConnected) {
+        input.blur();
+        return;
+      }
+      target.focus({ preventScroll: true });
+      afterKeyboardCloses(() => {
+        if (target.isConnected) revealResults(target);
+      });
+    });
+  }
+
+  function onSearchKey(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    const input = event.currentTarget;
+    // 한글 조합 중 Enter: 이 순간에는 마지막 글자가 아직 입력값에 없다. 조합이 끝난 뒤에 옮겨야 글자가 빠지지 않는다.
+    // 자판에 따라 검색 키 한 번이 곧 이 Enter라서, 무시하면 검색 키를 두 번 눌러야 하는 기기가 생긴다.
+    if (event.nativeEvent.isComposing) {
+      input.addEventListener("compositionend", () => scheduleJump(input), { once: true });
+      return;
+    }
+    // Safari는 조합이 끝난 직후의 Enter를 keyCode 229로 보낸다. 이미 입력값에 들어간 뒤라 그대로 옮긴다.
+    scheduleJump(input);
+  }
+
+  return { results, onSearchKey };
 }
 
 /** 클립보드에 복사한다. 실패하면 false를 돌려주고 호출한 쪽이 글 상자를 보여준다. */

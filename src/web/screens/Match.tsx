@@ -8,7 +8,7 @@ import type { MatchView, Snapshot } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
 import { formatTime, matchRosterText, nameMap, POSITION_LABEL, teamName, viewLink } from "../format";
 import { BackLink, MatchTeams, StickyAction } from "../screenKit";
-import { CopyButton, Dialog, ErrorNote } from "../ui";
+import { CopyButton, Dialog, ErrorNote, useSearchJump } from "../ui";
 import { liveNightPool, readCarry, writeNightPool } from "../nightPoolStore";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
@@ -344,6 +344,7 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
   const snapshot = app.snapshot!;
   const nameOf = nameMap(snapshot);
   const [query, setQuery] = useState("");
+  const candidateJump = useSearchJump<HTMLDivElement>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [repeatAsk, setRepeatAsk] = useState<string | null>(null);
@@ -421,28 +422,37 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
         <>
           <label>
             이름 찾기
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={candidateJump.onSearchKey}
+              enterKeyHint="search"
+              autoComplete="off"
+            />
           </label>
-          {candidates.length === 0 ? (
-            <p className="hint">
-              {query.trim() === "" ? "바꿀 수 있는 다른 참가자가 없어요. 모임 탭에서 참가자를 먼저 넣어 주세요." : "일치하는 이름이 없어요."}
-            </p>
-          ) : (
-            <ul className="list" aria-label="들어갈 사람">
-              {candidates.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className="list-row"
-                    disabled={busy}
-                    onClick={() => void replace(p.id, false)}
-                  >
-                    <span className="name">{p.name}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div ref={candidateJump.results} tabIndex={-1} className="search-results">
+            {candidates.length === 0 ? (
+              <p className="hint">
+                {query.trim() === "" ? "바꿀 수 있는 다른 참가자가 없어요. 모임 탭에서 참가자를 먼저 넣어 주세요." : "일치하는 이름이 없어요."}
+              </p>
+            ) : (
+              <ul className="list" aria-label="들어갈 사람">
+                {candidates.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      className="list-row"
+                      disabled={busy}
+                      onClick={() => void replace(p.id, false)}
+                    >
+                      <span className="name">{p.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </>
       )}
       <ErrorNote error={error} onCheck={() => void app.refresh()} />

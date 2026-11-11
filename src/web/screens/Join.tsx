@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MAX_NAME_LENGTH, nameKey } from "../../shared/names";
 import { matchesName } from "../../shared/search";
 import { ApiFailure, call } from "../api";
-import { ErrorNote } from "../ui";
+import { ErrorNote, useSearchJump } from "../ui";
 import { go } from "../useApp";
 import { Privacy } from "./Privacy";
 
@@ -32,6 +32,7 @@ export function Join(props: { token: string; rest: string[] }) {
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
+  const rosterJump = useSearchJump<HTMLUListElement>();
   const [newName, setNewName] = useState("");
   const [done, setDone] = useState<string | null>(null);
 
@@ -209,10 +210,12 @@ export function Join(props: { token: string; rest: string[] }) {
               aria-label="이름 검색"
               placeholder="이름 검색"
               autoComplete="off"
+              enterKeyHint="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={rosterJump.onSearchKey}
             />
-            <ul className="list">
+            <ul ref={rosterJump.results} tabIndex={-1} className="list search-results">
               {listed.map((p) => {
                 const isJoined = joined.has(`p:${p.id}`);
                 return (

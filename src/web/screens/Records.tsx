@@ -79,7 +79,7 @@ import {
   SortHead,
   StandingNote,
 } from "../screenKit";
-import { Dialog, ErrorNote } from "../ui";
+import { Dialog, ErrorNote, useSearchJump } from "../ui";
 import type { AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
@@ -309,6 +309,7 @@ export function Records(props: {
   );
   const [shown, setShown] = useState(PAGE);
   const [query, setQuery] = useState("");
+  const rankJump = useSearchJump<HTMLDivElement>();
   const [filter, setFilterState] = useState<MatchFilter>(EMPTY_FILTER);
   const [sort, setSort] = useState<RankingSort>("rate");
   const [line, setLine] = useState<Position | null>(null);
@@ -495,8 +496,10 @@ export function Records(props: {
             className="filter-search"
             aria-label="이름 검색"
             placeholder="이름 검색"
+            enterKeyHint="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={rankJump.onSearchKey}
           />
           <label className="rank-line">
             라인별
@@ -531,102 +534,104 @@ export function Records(props: {
             </button>
           </p>
         )}
-        {ranking.ranked.length === 0 ? (
-          <p className="hint">
-            {line
-              ? `이 범위에는 ${POSITION_LABEL[line]}(으)로 뛴 확정 경기가 없어요.`
-              : "이 범위에는 확정된 경기가 없어요."}
-          </p>
-        ) : records.length === 0 ? (
-          <p className="hint">일치하는 이름이 없어요.</p>
-        ) : (
-          <div className="dt-list rank-table">
-            <SortHead
-              label="랭킹 정렬"
-              className="rank-grid"
-              sort={{ key: sort, dir: "desc" }}
-              onSort={setSort}
-              cells={[
-                { cls: "c-rank", label: "#" },
-                { cls: "c-who", label: "이름 · 최근 승패" },
-                { cls: "c-rate", label: RANK_COLUMN_LABEL.rate, sort: "rate", num: true },
-                { cls: "c-wins", label: RANK_COLUMN_LABEL.wins, sort: "wins", num: true },
-                { cls: "c-games", label: RANK_COLUMN_LABEL.games, sort: "games", num: true },
-                { cls: "c-mmr", label: RANK_COLUMN_LABEL.rating, sort: "rating", num: true },
-              ]}
-            />
-            <ul className="list list-card">
-              {records.map((r, i) => {
-                const form = forms.get(r.participantId);
-                const streak = form?.currentStreak ?? 0;
-                const standing = placement.get(r.participantId);
-                const rating = ratings.get(r.participantId);
-                // 검색하지 않을 때만 묶음이 바뀌는 자리에 얇은 소제목을 둔다(검색 결과는 일치도 순이라 섞인다).
-                const group = rankingGroup(placement, r.participantId);
-                const prev = i > 0 ? rankingGroup(placement, records[i - 1]!.participantId) : null;
-                const showGroup = groupHeads && group !== prev;
-                return (
-                  <Fragment key={r.participantId}>
-                    {showGroup && (
-                      // 순위 줄 개수(listitem)에 섞이지 않도록 소제목은 목록 항목 역할을 갖지 않는다.
-                      <li className="rank-group" role="presentation">
-                        {RANKING_GROUP_LABEL[group]}
-                      </li>
-                    )}
-                    <li>
-                      {/* 줄 전체가 개인 통계로 가는 버튼. 칸 사이 이음 글자(Glue) 덕에 버튼 이름과 글자 내용은
-                          "70% · 7승 3패 (10경기)"처럼 예전 한 줄 모양 그대로 읽힌다. */}
-                      <button
-                        type="button"
-                        className="list-row rank-row rank-grid"
-                        onClick={() => props.openPerson(r.participantId)}
-                      >
-                        <span className={`c-rank ${rankClass(r.rank)}`}>{r.rank}</span>
-                        <span className="c-who">
-                          <span className="rank-line1">
-                            <span className="rank-person">{r.name}</span>
-                            <FormDots results={recentResults(form)} />
-                            {Math.abs(streak) >= 2 && (
-                              <span className={streak > 0 ? "streak win" : "streak loss"}>{streakText(streak)}</span>
+        <div ref={rankJump.results} tabIndex={-1} className="search-results">
+          {ranking.ranked.length === 0 ? (
+            <p className="hint">
+              {line
+                ? `이 범위에는 ${POSITION_LABEL[line]}(으)로 뛴 확정 경기가 없어요.`
+                : "이 범위에는 확정된 경기가 없어요."}
+            </p>
+          ) : records.length === 0 ? (
+            <p className="hint">일치하는 이름이 없어요.</p>
+          ) : (
+            <div className="dt-list rank-table">
+              <SortHead
+                label="랭킹 정렬"
+                className="rank-grid"
+                sort={{ key: sort, dir: "desc" }}
+                onSort={setSort}
+                cells={[
+                  { cls: "c-rank", label: "#" },
+                  { cls: "c-who", label: "이름 · 최근 승패" },
+                  { cls: "c-rate", label: RANK_COLUMN_LABEL.rate, sort: "rate", num: true },
+                  { cls: "c-wins", label: RANK_COLUMN_LABEL.wins, sort: "wins", num: true },
+                  { cls: "c-games", label: RANK_COLUMN_LABEL.games, sort: "games", num: true },
+                  { cls: "c-mmr", label: RANK_COLUMN_LABEL.rating, sort: "rating", num: true },
+                ]}
+              />
+              <ul className="list list-card">
+                {records.map((r, i) => {
+                  const form = forms.get(r.participantId);
+                  const streak = form?.currentStreak ?? 0;
+                  const standing = placement.get(r.participantId);
+                  const rating = ratings.get(r.participantId);
+                  // 검색하지 않을 때만 묶음이 바뀌는 자리에 얇은 소제목을 둔다(검색 결과는 일치도 순이라 섞인다).
+                  const group = rankingGroup(placement, r.participantId);
+                  const prev = i > 0 ? rankingGroup(placement, records[i - 1]!.participantId) : null;
+                  const showGroup = groupHeads && group !== prev;
+                  return (
+                    <Fragment key={r.participantId}>
+                      {showGroup && (
+                        // 순위 줄 개수(listitem)에 섞이지 않도록 소제목은 목록 항목 역할을 갖지 않는다.
+                        <li className="rank-group" role="presentation">
+                          {RANKING_GROUP_LABEL[group]}
+                        </li>
+                      )}
+                      <li>
+                        {/* 줄 전체가 개인 통계로 가는 버튼. 칸 사이 이음 글자(Glue) 덕에 버튼 이름과 글자 내용은
+                            "70% · 7승 3패 (10경기)"처럼 예전 한 줄 모양 그대로 읽힌다. */}
+                        <button
+                          type="button"
+                          className="list-row rank-row rank-grid"
+                          onClick={() => props.openPerson(r.participantId)}
+                        >
+                          <span className={`c-rank ${rankClass(r.rank)}`}>{r.rank}</span>
+                          <span className="c-who">
+                            <span className="rank-line1">
+                              <span className="rank-person">{r.name}</span>
+                              <FormDots results={recentResults(form)} />
+                              {Math.abs(streak) >= 2 && (
+                                <span className={streak > 0 ? "streak win" : "streak loss"}>{streakText(streak)}</span>
+                              )}
+                            </span>
+                            <span className="rank-sub">
+                              <StandingNote standing={standing} placementGames={placementGames} compact />
+                            </span>
+                          </span>
+                          <span className="rank-stat">
+                            <span className="c-rate num">
+                              <span className={rateTier(r.wins, r.games)}>{rateText(r.wins, r.games)}</span>
+                              <Glue> · </Glue>
+                            </span>
+                            <span className="c-wins num">
+                              {r.wins}승 {r.losses}패<Glue> (</Glue>
+                            </span>
+                            <span className="c-games num">
+                              {r.games}
+                              <Glue>경기)</Glue>
+                            </span>
+                          </span>
+                          <span className="c-mmr num">
+                            {rating !== undefined && (
+                              <>
+                                {/* 누적 MMR. 배치 진행 중이면 흐리게 둔다(아직 많이 흔들리는 값). */}
+                                <span className={standing?.done ? "rating-num" : "rating-num hint"}>
+                                  <Glue>MMR </Glue>
+                                  {shownRating(rating)}
+                                </span>{" "}
+                                <RatingTierBadge rating={rating} placed={standing?.done === true} />
+                              </>
                             )}
                           </span>
-                          <span className="rank-sub">
-                            <StandingNote standing={standing} placementGames={placementGames} compact />
-                          </span>
-                        </span>
-                        <span className="rank-stat">
-                          <span className="c-rate num">
-                            <span className={rateTier(r.wins, r.games)}>{rateText(r.wins, r.games)}</span>
-                            <Glue> · </Glue>
-                          </span>
-                          <span className="c-wins num">
-                            {r.wins}승 {r.losses}패<Glue> (</Glue>
-                          </span>
-                          <span className="c-games num">
-                            {r.games}
-                            <Glue>경기)</Glue>
-                          </span>
-                        </span>
-                        <span className="c-mmr num">
-                          {rating !== undefined && (
-                            <>
-                              {/* 누적 MMR. 배치 진행 중이면 흐리게 둔다(아직 많이 흔들리는 값). */}
-                              <span className={standing?.done ? "rating-num" : "rating-num hint"}>
-                                <Glue>MMR </Glue>
-                                {shownRating(rating)}
-                              </span>{" "}
-                              <RatingTierBadge rating={rating} placed={standing?.done === true} />
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  </Fragment>
-                );
-              })}
-            </ul>
-          </div>
-        )}
+                        </button>
+                      </li>
+                    </Fragment>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
         {records.length > 0 && (
           <p className="hint csv-row">
             <button
