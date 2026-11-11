@@ -144,3 +144,21 @@ export function patchParticipant(
     "PATCH",
   );
 }
+
+/**
+ * 여러 사람의 티어를 한 요청으로(POST /api/groups/:gid/participants/skill-groups). 사람마다 화면이 본 버전을
+ * baseVersion으로 실어 보내므로, 한 사람이라도 그 사이 다른 기기에서 고쳤으면 409로 아무것도 저장되지 않는다.
+ */
+export function saveSkillGroups(
+  snapshot: { group: { id: string }; participants: { id: string; version?: number }[] },
+  changes: { participantId: string; skillGroup: number | null }[],
+): Promise<unknown> {
+  const versionOf = new Map(snapshot.participants.map((p) => [p.id, p.version]));
+  return mutate(`/api/groups/${snapshot.group.id}/participants/skill-groups`, {
+    requestId: newRequestId(),
+    changes: changes.map((c) => {
+      const baseVersion = versionOf.get(c.participantId);
+      return baseVersion === undefined ? c : { ...c, baseVersion };
+    }),
+  });
+}

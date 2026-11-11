@@ -110,6 +110,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
     expect(box.height).toBeGreaterThanOrEqual(44);
   }
   await noHorizontalOverflow(page);
+  await expect(page.locator(".priority-saving")).toBeHidden();
   await page.reload();
   await expect(toggle("기피01", "원딜")).toHaveAttribute("aria-pressed", "true");
   await expect(toggle("기피06", "서폿")).toHaveAttribute("aria-pressed", "true");

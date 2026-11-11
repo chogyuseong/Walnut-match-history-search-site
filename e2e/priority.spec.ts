@@ -86,7 +86,8 @@ test("티어 배정(1~5티어) → 팀·라인 모두 섞기 여러 번: 1티어
     }
   }
   await noHorizontalOverflow(page);
-  // 다시 읽어도 저장돼 있다.
+  // 다시 읽어도 저장돼 있다. 저장은 뒤에서 가므로 "저장 중…"이 사라진 뒤에 새로 고친다.
+  await expect(page.locator(".priority-saving")).toBeHidden();
   await page.reload();
   await expect(section("1티어").getByRole("listitem")).toHaveCount(2);
 

@@ -327,6 +327,101 @@ export async function updateParticipant(
   }
 }
 
+/** 티어 일괄 저장의 본문 상한. 200명이면 약 15KB라 기본 16KB에 빠듯해서 이 경로만 넉넉히 받는다. */
+export const SKILL_GROUPS_BODY_BYTES = 32 * 1024;
+
+/**
+ * 여러 참가자의 티어(skill_group)를 한 요청으로 바꾼다. 화면 "기록으로 제안받기 → 선택한 N명 적용"이 쓴다.
+ * 예전에는 사람마다 PATCH를 차례로 보내 30명이면 요청 30번에 쓰기 요청 수 제한(분당 60)에도 걸릴 수 있었다.
+ * 규칙은 updateParticipant와 같다: baseVersion을 보낸 사람은 화면이 본 버전과 비교하고(다르면 409, 아무것도
+ * 저장하지 않음), batch 안의 보호 문장이 "읽은 뒤 그 사이 고친 사람이 없는지"를 다시 본다. 버전은 사람마다 1 오른다.
+ * 질의 수는 인원과 상관없이 읽기 1회 + batch 1회다(json_each로 한꺼번에).
+ */
+export async function saveSkillGroups(env: Env, groupId: string, body: Body): Promise<void> {
+  assertOnlyKeys(body, ["requestId", "changes"]);
+  const requestId = requireRequestId(body);
+  if (!Array.isArray(body.changes) || body.changes.length === 0 || body.changes.length > MAX_PARTICIPANTS_PER_GROUP) {
+    throw new ApiError(400, "INVALID_FIELD", "changes 값이 올바르지 않습니다.");
+  }
+  const changes = body.changes.map((entry: unknown) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      throw new ApiError(400, "INVALID_FIELD", "changes 값이 올바르지 않습니다.");
+    }
+    const e = entry as Body;
+    assertOnlyKeys(e, ["participantId", "skillGroup", "baseVersion"]);
+    let skillGroup: number | null = null;
+    if (e.skillGroup !== null) {
+      skillGroup = requireInt(e.skillGroup, "skillGroup");
+      if (skillGroup < 1 || skillGroup > MAX_SKILL_GROUP) {
+        throw new ApiError(400, "INVALID_FIELD", "skillGroup 값이 올바르지 않습니다.");
+      }
+    }
+    return {
+      participantId: requireString(e.participantId, "participantId", 1, 64),
+      skillGroup,
+      baseVersion: e.baseVersion === undefined ? null : requireInt(e.baseVersion, "baseVersion"),
+    };
+  });
+  const ids = changes.map((c) => c.participantId);
+  if (new Set(ids).size !== ids.length) {
+    throw new ApiError(400, "INVALID_FIELD", "같은 사람이 두 번 들어 있습니다.");
+  }
+
+  await runMutation(env, {
+    groupId,
+    requestId,
+    op: "set-skill-groups",
+    payload: { changes },
+    build: async () => {
+      const rows = await env.DB.prepare(
+        `SELECT id, version FROM participants
+         WHERE group_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
+      )
+        .bind(groupId, JSON.stringify(ids))
+        .all<{ id: string; version: number }>();
+      const versionOf = new Map(rows.results.map((r) => [r.id, r.version]));
+      for (const c of changes) {
+        const version = versionOf.get(c.participantId);
+        // 다른 모임의 참가자는 없는 것과 같은 답을 준다.
+        if (version === undefined) throw new ApiError(404, "NOT_FOUND", "참가자를 찾을 수 없습니다.");
+        if (c.baseVersion !== null && c.baseVersion !== version) {
+          throw new ApiError(
+            409,
+            "VERSION_CONFLICT",
+            "그 사이 다른 기기에서 참가자를 고쳤습니다. 최신 상태를 확인해 주세요.",
+            { participantId: c.participantId, version },
+          );
+        }
+      }
+      // 보호 문장과 UPDATE가 같은 목록을 본다: id·읽은 버전(v)·새 티어(g).
+      const plan = JSON.stringify(
+        changes.map((c) => ({ id: c.participantId, v: versionOf.get(c.participantId), g: c.skillGroup })),
+      );
+      return {
+        stored: {},
+        statements: [
+          env.DB.prepare(
+            `INSERT INTO guard (version_conflict)
+             SELECT 1 FROM json_each(?2) AS j
+             WHERE NOT EXISTS (
+               SELECT 1 FROM participants p
+               WHERE p.group_id = ?1 AND p.id = json_extract(j.value, '$.id') AND p.version = json_extract(j.value, '$.v')
+             )
+             LIMIT 1`,
+          ).bind(groupId, plan),
+          env.DB.prepare(
+            `UPDATE participants
+             SET skill_group = (SELECT json_extract(j.value, '$.g') FROM json_each(?2) AS j
+                                WHERE json_extract(j.value, '$.id') = participants.id),
+                 version = version + 1
+             WHERE group_id = ?1 AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?2))`,
+          ).bind(groupId, plan),
+        ],
+      };
+    },
+  });
+}
+
 async function participantPlan(
   env: Env,
   groupId: string,

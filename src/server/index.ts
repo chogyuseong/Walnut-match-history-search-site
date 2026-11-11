@@ -36,6 +36,8 @@ import {
   regenerateViewToken,
   renameGroup,
   saveSettings,
+  saveSkillGroups,
+  SKILL_GROUPS_BODY_BYTES,
   startNewCycle,
   updateParticipant,
 } from "./groups";
@@ -489,6 +491,14 @@ app.post("/api/groups/:gid/participants", async (c) => {
   return c.json({
     participants: await ensureParticipants(c.env, gid, await readJsonBody(c.req.raw)),
   });
+});
+
+// 여러 사람의 티어를 한 번에(src/server/groups.ts saveSkillGroups). 화면 "티어 배정 → 기록으로 제안받기"의 적용.
+app.post("/api/groups/:gid/participants/skill-groups", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await saveSkillGroups(c.env, gid, await readJsonBody(c.req.raw, SKILL_GROUPS_BODY_BYTES));
+  return c.json({ ok: true });
 });
 
 app.patch("/api/groups/:gid/participants/:pid", async (c) => {

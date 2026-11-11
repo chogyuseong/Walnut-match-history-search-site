@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MAX_AVOID } from "../../shared/avoid";
 import { normalizePriority, priorityLabel, PRIORITY_CLASSES, type Priority } from "../../shared/priority";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../shared/priorityReview";
 import { placementGamesOf, ratePercent, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
-import { patchParticipant } from "../api";
+import { patchParticipant, saveSkillGroups } from "../api";
 import { POSITION_LABEL } from "../format";
 import { Help, PosLabel } from "../screenKit";
 import { Dialog, ErrorNote } from "../ui";
@@ -23,6 +23,8 @@ import { go, useAppValue, type AppValue } from "../useApp";
  * 티어 배정(#/priority)과 기피 라인(#/priority/avoid). 로그인한 운영자·공동 운영자만(App.tsx LOGIN_ONLY). 조회 링크에는 없다.
  * 티어: 1·2·3·4·5티어·미지정 여섯 칸에 활성 참가자를 보여 주고, 사람마다 버튼으로 칸을 바꾼다.
  *   저장은 모임 탭과 같은 참가자 수정 API(PATCH …/participants/:id, skillGroup)다. 공개 설정(groupsPublic)은 모임 탭에 있다.
+ *   연달아 눌러도 기다리지 않는다. 다시 읽기는 마지막 저장이 끝나고 잠깐 더 누르지 않을 때 한 번(useQueuedSaves).
+ *   "기록으로 제안받기"의 여러 명 적용은 일괄 저장 API(POST …/participants/skill-groups) 한 번이다.
  *   "기록으로 제안받기"(승률로 5등분한 참고값, 고른 사람만 적용)와 "티어 점검"(지금 티어를 지난 경기에 적용한 계산)이 함께 있다.
  * 기피 라인: 사람마다 탑·정글·미드·원딜·서폿 토글(0~4개). 같은 API의 avoidPositions로 바로 저장한다.
  */
@@ -157,32 +159,124 @@ function PrioritySide(props: {
   );
 }
 
-function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
-  // 누른 즉시 칸을 옮겨 보이고(저장 중), 저장이 끝나 다시 읽으면 지운다.
-  const [pending, setPending] = useState<Record<string, Priority>>({});
+/** 마지막 저장이 끝난 뒤 이만큼 더 누르지 않으면 모임 스냅숏을 다시 읽는다(useQueuedSaves). */
+const REFRESH_DELAY_MS = 1200;
+
+/**
+ * 누른 값을 바로 화면에 보이고(pending) 저장은 뒤에서 보내는 사람별 저장 줄. 티어·기피 라인 패널이 같이 쓴다.
+ * - 모임 스냅숏 다시 읽기는 저장이 하나도 남지 않고 REFRESH_DELAY_MS 동안 더 누르지 않았을 때 한 번만 한다.
+ *   예전에는 누를 때마다 모임 전체를 다시 읽어 522경기 모임에서 한 명 바꿀 때마다 몇 초씩 기다렸고 D1 하루 읽기 한도도
+ *   그만큼 썼다. 저장은 금방 끝나므로 기다림 없이 "남은 저장이 0"만 보면 사람 손 빠르기로는 거의 매번 다시 읽게 된다.
+ * - 같은 사람의 저장은 차례로 보낸다. 저장마다 참가자 버전이 1 오르므로 겹쳐 보내면 뒤 요청이 409가 된다.
+ *   앞 저장이 도는 동안 같은 사람을 여러 번 누르면 마지막 값만 이어서 보낸다.
+ * - 아직 다시 읽지 않은 스냅숏의 버전은 낡았으므로, 이 화면이 저장해 올린 버전(savedVersion)과 큰 쪽을 baseVersion으로 쓴다.
+ *   다른 기기가 먼저 고쳤으면 지금처럼 409로 거절되고, 오류를 보인 뒤 다시 읽는다.
+ */
+function useQueuedSaves<T>(app: AppValue, snapshot: Snapshot, field: "skillGroup" | "avoidPositions") {
+  const [pending, setPending] = useState<Record<string, T>>({});
   const [error, setError] = useState<unknown>(null);
+  // 저장 줄은 여러 번 그려지는 동안 이어서 돌므로 최신 스냅숏을 ref로 본다.
+  const snapshotRef = useRef(snapshot);
+  const appRef = useRef(app);
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+    appRef.current = app;
+  }, [snapshot, app]);
+  // 사람 ID → 그 사람의 저장 줄. 줄이 있으면 저장이 진행 중이고, next는 지금 저장이 끝난 뒤 보낼 값이다.
+  const lines = useRef(new Map<string, SaveLine<T>>());
+  const savedVersion = useRef(new Map<string, number>());
+  const failed = useRef(false);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 다시 읽기를 기다리는 중에 다른 화면으로 가면 그 화면이 낡은 스냅숏을 보지 않게 바로 읽는다.
+  useEffect(
+    () => () => {
+      if (refreshTimer.current === null) return;
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+      void appRef.current.refreshAfterOwnChange();
+    },
+    [],
+  );
+
+  async function refreshNow() {
+    refreshTimer.current = null;
+    const hadError = failed.current;
+    failed.current = false;
+    try {
+      if (hadError) await appRef.current.refresh();
+      else await appRef.current.refreshAfterOwnChange();
+    } catch (e) {
+      setError(e);
+    }
+    // 다시 읽는 사이 또 누른 사람이 있으면 지우지 않는다. 그 줄이 끝나면 다시 읽고 그때 지운다.
+    if (lines.current.size === 0 && refreshTimer.current === null) setPending({});
+  }
+
+  async function drain(id: string, line: SaveLine<T>) {
+    while (line.next) {
+      const { value, notice } = line.next;
+      line.next = undefined;
+      const snap = snapshotRef.current;
+      const seen = snap.participants.find((p) => p.id === id)?.version;
+      const base = seen === undefined ? undefined : Math.max(seen, savedVersion.current.get(id) ?? seen);
+      try {
+        await patchParticipant(
+          { group: snap.group, participants: base === undefined ? [] : [{ id, version: base }] },
+          id,
+          { [field]: value },
+        );
+        if (base !== undefined) savedVersion.current.set(id, base + 1);
+        appRef.current.setNotice(notice);
+      } catch (e) {
+        setError(e);
+        failed.current = true;
+        // 실패한 사람은 다시 읽은 저장 값으로 돌려 보인다. 그 사이 더 누른 값도 버린다.
+        line.next = undefined;
+        setPending((prev) => {
+          const { [id]: _failed, ...rest } = prev;
+          return rest;
+        });
+      }
+    }
+    lines.current.delete(id);
+    if (lines.current.size > 0) return;
+    // 실패했으면 기다리지 않고 바로 다시 읽어 저장된 값을 보인다.
+    if (failed.current) void refreshNow();
+    else refreshTimer.current = setTimeout(() => void refreshNow(), REFRESH_DELAY_MS);
+  }
+
+  function save(id: string, value: T, notice: string) {
+    setError(null);
+    setPending((prev) => ({ ...prev, [id]: value }));
+    if (refreshTimer.current !== null) {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+    const running = lines.current.get(id);
+    if (running) {
+      running.next = { value, notice };
+      return;
+    }
+    const line: SaveLine<T> = { next: { value, notice } };
+    lines.current.set(id, line);
+    void drain(id, line);
+  }
+
+  // 저장 줄이 남았거나 마지막 다시 읽기 전이면 pending이 남아 있다("저장 중…" 표시). 저장 줄이 도는 중에 새로 고치면 보내지 못한 값이 사라진다.
+  return { pending, error, save, saving: Object.keys(pending).length > 0 };
+}
+
+interface SaveLine<T> {
+  next?: { value: T; notice: string };
+}
+
+function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
+  const { pending, error, save, saving } = useQueuedSaves<Priority>(app, snapshot, "skillGroup");
   const [suggesting, setSuggesting] = useState(false);
 
   const valueOf = (id: string, saved: number | null | undefined): Priority =>
     id in pending ? pending[id]! : normalizePriority(saved);
-
-  async function choose(id: string, name: string, value: Priority) {
-    setError(null);
-    setPending((prev) => ({ ...prev, [id]: value }));
-    try {
-      await patchParticipant(snapshot, id, { skillGroup: value });
-      await app.refreshAfterOwnChange();
-      app.setNotice(`${name}: ${priorityLabel(value)}`);
-    } catch (e) {
-      setError(e);
-      void app.refresh();
-    } finally {
-      setPending((prev) => {
-        const { [id]: _done, ...rest } = prev;
-        return rest;
-      });
-    }
-  }
 
   return (
     <div className="priority-layout">
@@ -198,6 +292,7 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
           </button>
         </div>
         <ErrorNote error={error} />
+        {saving && <p className="hint priority-saving">저장 중…</p>}
         {people.length === 0 && <p>참가자가 없어요.</p>}
         {PRIORITY_CLASSES.map((cls) => {
           const members = people.filter((p) => valueOf(p.id, p.skillGroup) === cls);
@@ -224,9 +319,8 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
                             type="button"
                             aria-label={`${p.name} ${priorityLabel(value)}`}
                             aria-pressed={valueOf(p.id, p.skillGroup) === value}
-                            disabled={p.id in pending}
                             onClick={() => {
-                              if (valueOf(p.id, p.skillGroup) !== value) void choose(p.id, p.name, value);
+                              if (valueOf(p.id, p.skillGroup) !== value) save(p.id, value, `${p.name}: ${priorityLabel(value)}`);
                             }}
                           >
                             {value === null ? "미정" : value}
@@ -285,16 +379,14 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
     setBusy(true);
     setError(null);
     const targets = suggested.filter((r) => checked.has(r.participantId));
-    let done = 0;
     try {
-      for (const row of targets) {
-        await patchParticipant(snapshot, row.participantId, {
-          skillGroup: row.suggested,
-        });
-        done += 1;
-      }
+      // 고른 사람 모두를 요청 한 번으로 저장한다(한 명이라도 그 사이 바뀌었으면 아무도 저장되지 않는다).
+      await saveSkillGroups(
+        snapshot,
+        targets.map((row) => ({ participantId: row.participantId, skillGroup: row.suggested })),
+      );
       await app.refreshAfterOwnChange();
-      app.setNotice(`${done}명의 티어를 바꿨어요.`);
+      app.setNotice(`${targets.length}명의 티어를 바꿨어요.`);
       props.onClose();
     } catch (e) {
       setError(e);
@@ -456,13 +548,12 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
 
 /** 기피 라인: 사람마다 다섯 라인 토글. 누르면 바로 저장. 다섯 개 모두는 고를 수 없다. */
 function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
-  const [pending, setPending] = useState<Record<string, Position[]>>({});
-  const [error, setError] = useState<unknown>(null);
+  const { pending, error, save, saving } = useQueuedSaves<Position[]>(app, snapshot, "avoidPositions");
   const listOf = (p: ParticipantView): Position[] => pending[p.id] ?? p.avoidPositions ?? [];
   // 본인과 연결한 참가자가 직접 정한 기피 라인(migrations/0019). 운영자가 고치면 표시가 사라진다.
   const selfSet = new Set((snapshot.memberLinks ?? []).filter((l) => l.avoidBySelf).map((l) => l.participantId));
 
-  async function toggle(p: ParticipantView, position: Position) {
+  function toggle(p: ParticipantView, position: Position) {
     const current = listOf(p);
     const on = current.includes(position);
     if (!on && current.length >= MAX_AVOID) {
@@ -472,25 +563,11 @@ function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
     const next = on
       ? current.filter((x) => x !== position)
       : POSITIONS.filter((x) => x === position || current.includes(x));
-    setError(null);
-    setPending((prev) => ({ ...prev, [p.id]: next }));
-    try {
-      await patchParticipant(snapshot, p.id, { avoidPositions: next });
-      await app.refreshAfterOwnChange();
-      app.setNotice(
-        next.length === 0
-          ? `${p.name}: 기피 라인 없음`
-          : `${p.name}: ${next.map((x) => POSITION_LABEL[x]).join("·")} 기피`,
-      );
-    } catch (e) {
-      setError(e);
-      void app.refresh();
-    } finally {
-      setPending((prev) => {
-        const { [p.id]: _done, ...rest } = prev;
-        return rest;
-      });
-    }
+    save(
+      p.id,
+      next,
+      next.length === 0 ? `${p.name}: 기피 라인 없음` : `${p.name}: ${next.map((x) => POSITION_LABEL[x]).join("·")} 기피`,
+    );
   }
 
   return (
@@ -506,6 +583,7 @@ function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
           저장돼요. 운영자만 봐요.
         </p>
         <ErrorNote error={error} />
+        {saving && <p className="hint priority-saving">저장 중…</p>}
         {people.length === 0 && <p>참가자가 없어요.</p>}
         <ul className="list" aria-label="기피 라인 목록">
           {people.map((p) => {
@@ -531,8 +609,7 @@ function AvoidPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
                         aria-pressed={on}
                         aria-disabled={blocked || undefined}
                         title={blocked ? `기피 라인은 ${MAX_AVOID}개까지예요.` : undefined}
-                        disabled={p.id in pending}
-                        onClick={() => void toggle(p, position)}
+                        onClick={() => toggle(p, position)}
                       >
                         <PosLabel position={position} />
                       </button>
