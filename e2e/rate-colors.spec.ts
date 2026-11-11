@@ -307,3 +307,34 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await expect(lowChip).toHaveClass(/grade-8/);
   await expect(lowChip.locator("svg.title-emblem")).toHaveCount(1);
 });
+
+// 5경기 미만(자료 적음) 막대는 두 테마 모두 색 없이 속 빈 테두리 막대다. 예전 라이트 전용 덮어쓰기가 회색으로 채워
+// "낮음" 막대와 같아 보였던 것을 다시 막는다. 모두 2경기씩만 뛴 모임에서 그래프 분석 개인별 승률 막대를 본다.
+test("자료 적음 막대는 라이트·다크 모두 속 빈 테두리 막대", async ({ page }) => {
+  const s = await setup(page);
+  for (let m = 0; m < 2; m++) {
+    const snapshot = await (await page.request.get(`/api/groups/${s.groupId}/snapshot`)).json();
+    const started = await post(page.request, `/api/groups/${s.groupId}/matches/start`, {
+      requestId: requestId(),
+      baseLiveVersion: snapshot.group.liveVersion,
+      roster: s.people.slice(0, 10).map((p, k) => ({ participantId: p.id, team: k < 5 ? "A" : "B", position: POSITIONS[k % 5] })),
+    });
+    await post(page.request, `/api/groups/${s.groupId}/matches/${started.match.id}/result`, {
+      requestId: requestId(),
+      baseMatchVersion: started.match.version,
+      winnerTeam: "A",
+      winnerSide: "blue",
+    });
+  }
+  await page.goto("/#/graphs");
+  const muted = page.getByRole("region", { name: "개인별 승률" }).locator(".bar-fill.tone-muted").first();
+  for (const theme of ["light", "dark"]) {
+    await setTheme(page, theme);
+    await expect(muted).toBeVisible();
+    const look = await muted.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, border: cs.borderTopWidth };
+    });
+    expect(look, theme).toEqual({ bg: "rgba(0, 0, 0, 0)", border: "1px" });
+  }
+});

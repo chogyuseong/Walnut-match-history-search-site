@@ -131,8 +131,9 @@ describe("테마 색 대비", () => {
         }
       });
 
-      it("승률 3단 글자 vs 패널·표 칸 바탕(보조 면) 4.5:1, 세 단이 서로 다른 색", () => {
-        for (const token of Object.values(HEAT_TIERS)) for (const bg of ["--ih-panel", "--ih-subtle"]) atLeast(token, bg, 4.5);
+      it("승률 3단 글자 vs 패널·표 칸 바탕(보조 면)·고른 사람 줄 바탕(선택 배경) 4.5:1, 세 단이 서로 다른 색", () => {
+        for (const token of Object.values(HEAT_TIERS))
+          for (const bg of ["--ih-panel", "--ih-subtle", "--ih-selected"]) atLeast(token, bg, 4.5);
         expect(new Set(Object.values(HEAT_TIERS).map(get)).size).toBe(3);
       });
 

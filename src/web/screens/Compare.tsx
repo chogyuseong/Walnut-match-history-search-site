@@ -304,9 +304,10 @@ export function Compare(props: {
           </div>
         )}
         <p className="cmp-card-mmr">
+          {/* "MMR 826 · 1100 미만 · 누적": 점수와 구간 숫자가 붙어 읽히지 않게 · 로 나눈다(나란히 보기 표와 같은 꼴). */}
           <span className="cmp-card-cap">MMR</span> <span className="rating-num">{shownRating(rating)}</span>{" "}
           <span className="cmp-card-cap">
-            {ratingBandOf(rating, ratingOptions.start)} · 누적
+            · {ratingBandOf(rating, ratingOptions.start)} · 누적
           </span>
         </p>
       </article>

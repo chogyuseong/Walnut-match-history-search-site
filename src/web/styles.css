@@ -5620,10 +5620,6 @@ label:has(> select) {
   align-items: center;
 }
 
-[data-theme="light"] .bar-fill.tone-muted {
-  background: var(--ih-text-secondary);
-}
-
 /* 날짜 점검(DateCheck.tsx): 중복 가능성 표식 */
 .tag.warn-tag {
   color: var(--warn-line);
