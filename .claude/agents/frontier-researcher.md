@@ -1,6 +1,6 @@
 ---
 name: frontier-researcher
-description: Fable 5.2 조사 담당. 깊은 조사와 어려운 전문 질문에만 쓴다. 여러 출처를 대조해야 하는 기술·법률·정책 조사(라이선스·약관 원문 확인 포함), 근거가 갈리는 전문 판단, 논문·공식 문서 수준의 깊이가 필요한 질문. 파일을 수정하지 않는다. 단순 검색이나 코드 위치 찾기에는 쓰지 말 것.
+description: Fable 5.2 조사 담당. 사용자가 Fable을 직접 지정한 깊은 조사에만 쓴다(기본 조사는 Opus가 한다). 여러 출처를 대조해야 하는 기술·법률·정책 조사, 근거가 갈리는 전문 판단. 파일을 수정하지 않는다. 단순 검색이나 코드 위치 찾기에는 쓰지 말 것.
 model: claude-fable-5-2
 effort: medium
 tools: Read, Glob, Grep, Bash, PowerShell, WebSearch, WebFetch
