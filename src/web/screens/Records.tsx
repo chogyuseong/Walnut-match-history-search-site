@@ -399,7 +399,7 @@ export function Records(props: {
 
       <KpiStrip snapshot={snapshot} />
 
-      <section aria-label="경기 목록">
+      <section className="rec-matches" aria-label="경기 목록">
         <h2>
           {scope.kind === "today" ? "오늘의 결과" : `${scopeLabel} 경기`} · {confirmed}경기 확정
           {awaiting > 0 ? ` · 결과 미입력 ${awaiting}` : ""}

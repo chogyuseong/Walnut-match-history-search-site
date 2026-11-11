@@ -7777,6 +7777,14 @@ input[type="search"].filter-search {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   }
 }
+/* 한 단 화면(2단이 되기 전 폭): 경기 목록을 맨 아래로 내린다. 경기가 수백 개까지 길어져 그 아래 소환사 랭킹·시리즈·
+   변경 내역에 닿으려면 끝까지 내려야 했다. 보이는 순서만 바꾸는 것이라 키보드 초점은 경기 목록을 먼저 지난다.
+   위 2단 기준(1024px)을 바꾸면 이 기준도 같이 바꾼다. */
+@media (max-width: 1023px) {
+  .records-screen > .rec-matches {
+    order: 1;
+  }
+}
 .rank-controls .filter-search {
   flex: 1 1 10rem;
 }
