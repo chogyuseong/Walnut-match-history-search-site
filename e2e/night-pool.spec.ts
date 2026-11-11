@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 // 오늘 명단 이어가기(docs/개선-오늘명단-설계-2026-11-10.md ④·⑥): 12명이 온 밤에 쉬던 사람이 다음 판 초안에 들어가고,
 // 쉬는 사람 구역에서 빼기·되돌리기·늦게 온 사람을 다룬다. 정확히 10명인 밤은 예전과 같다.
-// NIGHT_SHOTS 환경 변수를 주면 상태별 캡처(390px 다크·바이올렛·라이트, 1440px 다크)를 그 폴더에 남긴다.
+// NIGHT_SHOTS 환경 변수를 주면 상태별 캡처(390px 다크·라이트, 1440px 다크)를 그 폴더에 남긴다.
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -62,7 +62,7 @@ async function shot(page: Page, stage: string, all = false) {
   if (!dir) return;
   mkdirSync(dir, { recursive: true });
   const runs: [string, number][] = all
-    ? [["dark", 390], ["dark", 1440], ["violet", 390], ["light", 390]]
+    ? [["dark", 390], ["dark", 1440], ["light", 390]]
     : [["dark", 390]];
   for (const [theme, width] of runs) {
     await page.setViewportSize({ width, height: 900 });

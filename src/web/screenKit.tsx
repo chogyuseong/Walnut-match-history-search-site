@@ -729,7 +729,7 @@ export function FilterBar(props: { label: string; children: ReactNode; meta?: Re
 /**
  * 요약 카드: 제목 → (이름 같은 한 줄) → 큰 수치 하나 → "라벨 … 값" 줄 몇 개. 여러 장을 .stat-cards로 감싸 한 줄에 놓는다.
  * 값이 없을 때(기록이 적은 새 모임)는 value에 "—"를 넘기고 rows를 비우면 카드 높이만 유지된다.
- * tone="lead"는 포인트 색으로 채운 칸(랭킹 1위). 채운 바탕 위에서는 글자 색이 하나(--ih-on-brand-fill)다.
+ * tone="lead"는 포인트 색으로 채운 칸(랭킹 1위). 채운 바탕 위에서는 글자 색이 하나(--ih-on-primary)다.
  */
 export function StatCard(props: {
   title: ReactNode;

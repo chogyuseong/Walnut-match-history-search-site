@@ -39,13 +39,13 @@ function palette(): Palette {
   const style = getComputedStyle(document.documentElement);
   const v = (name: string) => style.getPropertyValue(name).trim();
   return {
-    bg: v("--ih-bg-canvas"),
-    surface: v("--ih-bg-surface"),
-    elevated: v("--ih-bg-elevated"),
-    text: v("--ih-text-primary"),
+    bg: v("--ih-bg"),
+    surface: v("--ih-panel"),
+    elevated: v("--ih-subtle"),
+    text: v("--ih-text"),
     muted: v("--ih-text-secondary"),
-    line: v("--ih-border-strong"),
-    brand: v("--ih-brand-primary"),
+    line: v("--ih-line"),
+    brand: v("--ih-accent"),
     winBg: v("--ih-win-bg"),
     winText: v("--ih-win-text"),
     winAccent: v("--ih-win-accent"),
