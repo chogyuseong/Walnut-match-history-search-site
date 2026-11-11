@@ -59,7 +59,8 @@
   --pos-support: #d48edf;
   /* 이야기 카드 색: 그래프 분석 맨 위 카드 넷의 라벨·점 색(연두·분홍·청록·연보라). CLAUDE.md 5절의 명시 예외다.
      파랑(블루 진영)·빨강(레드·패)·골드(강조·고른 카드)와 겹치는 색상은 피했다. 값을 바꿀 때는 카드 바탕(--ih-subtle)과
-     고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts). */
+     고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts).
+     청록(pair)·연보라(attendance)는 누적 승률·MMR 추이 선(.trend-rate, .trend-rating)도 같이 쓴다. */
   --story-streak: #b4d66b;
   --story-upset: #f29dbb;
   --story-pair: #4fcfc4;
@@ -2963,10 +2964,18 @@ main:focus {
   stroke-width: 1;
   stroke-dasharray: 4 3;
 }
-/* 추이 선은 단일 값이라 중립색 하나다(CLAUDE.md 5절). 누적 승률·MMR 두 그림은 아래 제목 글자로 구분한다. */
+/* 추이 선 색: 누적 승률은 청록, MMR은 연보라(CLAUDE.md 5절의 명시 예외). 이야기 카드 색 토큰을 다시 쓴다.
+   그림 바탕(--ih-subtle) 위 대비는 그 토큰의 검사(test/theme-contrast.test.ts)가 지킨다.
+   색만으로 구분하지 않도록 제목 글자 앞에 같은 색 점을 둔다. 파랑·빨강(진영)·골드(강조)로 바꾸지 않는다. */
+.trend-rate {
+  --trend: var(--story-pair);
+}
+.trend-rating {
+  --trend: var(--story-attendance);
+}
 .trend-path {
   fill: none;
-  stroke: var(--ih-text);
+  stroke: var(--trend, var(--ih-text));
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -2981,6 +2990,19 @@ main:focus {
 }
 .trend-caption strong {
   color: var(--ih-text);
+}
+.trend-caption > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.trend-caption > span:first-child::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--trend, transparent);
 }
 
 /* 개인 통계·검색의 작은 막대와 승률 고리. 그림은 보조이고 값은 옆 숫자로 함께 적는다.
