@@ -41,7 +41,7 @@ import { CHAMPION_PORTRAITS } from "./portraits";
 import { stripRouteQuery, useSearchShortcut } from "./searchRoute";
 import { seasonRoutePart, seasonScopeFromRoute } from "./seasonRoute";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
-import { useKeyboardFlag } from "./ui";
+import { LineIcon, useKeyboardFlag, type LineIconName } from "./ui";
 import { AppContext, go, useApp, useAppValue, useRoute, type AppValue } from "./useApp";
 
 /** 화면 코드를 받는 동안 보여 주는 표시. 모임 기록을 받는 동안의 표시와 같다. */
@@ -130,6 +130,10 @@ export function App() {
   return (
     <AppContext.Provider value={app}>
       <TopBar homeLink actions={<AccountControl />} />
+      {/* 참가 중인 모임(#/mine/...)은 자기 메뉴(조회 메뉴)를 쓴다. 운영 탭은 다른 모임을 가리키므로 숨긴다.
+          <main> 앞에 둔다: 넓은 화면에서 상단 바 바로 아래 한 줄이고, Tab 순서도 상단 바 → 주 메뉴 → 본문이다.
+          좁은 화면에서는 CSS가 아래에 고정한다(순서는 같다). */}
+      {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
       <main>
         {!app.ready || app.switching ? (
           LOADING
@@ -141,8 +145,6 @@ export function App() {
         )}
         <LegalFooter />
       </main>
-      {/* 참가 중인 모임(#/mine/...)은 자기 메뉴(조회 메뉴)를 쓴다. 운영 탭은 다른 모임을 가리키므로 숨긴다. */}
-      {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
       {app.notice && (
         <p className="toast" role="status">
           {app.notice}
@@ -254,20 +256,15 @@ function NotFound() {
 }
 
 /**
- * 상단 바: 로고, 테마 고르기, 로그인 상태(운영 화면만). 넓은 화면에서는 주 메뉴가 이 바에 겹쳐 놓인다(CSS).
+ * 상단 바: 사이트 이름, 테마 고르기, 로그인 상태(운영 화면만). 주 메뉴는 이 바 아래 한 줄(넓은 화면) 또는 화면 아래(좁은 화면).
+ * 사이트 이름은 중립색 글자다(CLAUDE.md 5절: 로고를 강조색으로 칠하지 않는다).
  * 조회 링크로 들어온 사람에게는 운영 화면으로 가는 로고 링크와 로그인 버튼을 주지 않는다.
  */
 function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
-  const mark = (
-    <>
-      <span>
-        내전 <em>운영</em>
-      </span>
-    </>
-  );
+  const mark = <span>{SITE_NAME}</span>;
   return (
-    <header className={props.actions ? "topbar topbar-operator" : "topbar"}>
+    <header className="topbar">
       <div className="topbar-inner">
         {props.homeLink ? (
           <a className="brand" href="#/" aria-label={`${SITE_NAME} 첫 화면`}>
@@ -576,56 +573,29 @@ function Tabs(props: { current: string }) {
           : props.current === "search"
             ? "search"
             : "today";
+  const item = (name: typeof tab, path: string, label: string, icon: LineIconName, wideOnly = false) => (
+    <button
+      type="button"
+      className={wideOnly ? "nav-wide-only" : undefined}
+      aria-current={tab === name ? "page" : undefined}
+      onClick={() => go(path)}
+    >
+      <LineIcon name={icon} />
+      {label}
+    </button>
+  );
   return (
     <nav className="tabs" aria-label="주 메뉴">
-      <button type="button" aria-current={tab === "today" ? "page" : undefined} onClick={() => go("/")}>
-        오늘
-      </button>
-      <button
-        type="button"
-        aria-current={tab === "search" ? "page" : undefined}
-        onClick={() => go("/search")}
-      >
-        검색
-      </button>
-      <button
-        type="button"
-        aria-current={tab === "records" ? "page" : undefined}
-        onClick={() => go("/records")}
-      >
-        기록
-      </button>
-      <button
-        type="button"
-        aria-current={tab === "ranking" ? "page" : undefined}
-        onClick={() => go("/ranking")}
-      >
-        랭킹
-      </button>
-      <button
-        type="button"
-        className="nav-wide-only"
-        aria-current={tab === "champions" ? "page" : undefined}
-        onClick={() => go("/champions")}
-      >
-        챔피언
-      </button>
-      <button
-        type="button"
-        aria-current={tab === "graphs" ? "page" : undefined}
-        onClick={() => go("/graphs")}
-      >
-        분석
-      </button>
-      {app.me?.accountId && (
-        <button
-          type="button"
-          aria-current={tab === "group" ? "page" : undefined}
-          onClick={() => go("/group")}
-        >
-          모임
-        </button>
-      )}
+      {/* 넓은 화면에서 줄 테두리는 창 폭 전체, 칸은 본문 폭(--content-max) 안에 맞추려고 안쪽 묶음을 둔다. */}
+      <div className="tabs-inner">
+        {item("today", "/", "오늘", "today")}
+        {item("search", "/search", "검색", "search")}
+        {item("records", "/records", "기록", "records")}
+        {item("ranking", "/ranking", "랭킹", "ranking")}
+        {item("champions", "/champions", "챔피언", "champions", true)}
+        {item("graphs", "/graphs", "분석", "graphs")}
+        {app.me?.accountId && item("group", "/group", "모임", "group")}
+      </div>
     </nav>
   );
 }

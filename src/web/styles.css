@@ -182,9 +182,9 @@
   --reading-max: 720px;
   --page-gutter: var(--space-4);
   /* 상단 바 높이. 768px 이상에서는 위에 붙어 따라오므로 따라오는 머리·판의 top과 앵커 이동 여백이 이 값에서 출발한다. */
-  --topbar-height: 56px;
+  --topbar-height: 64px;
   /* 768px 미만의 하단 고정 메뉴 높이. 기기 아래 안전 영역은 따로 더한다. */
-  --tabs-height: 56px;
+  --tabs-height: 64px;
 
   /* 간격 척도(CLAUDE.md 1절). margin·padding·gap은 0, auto, 안전 영역 env()와 이 여덟 값만 쓴다.
      scripts/design-audit.mjs가 이 밖의 값을 센다. 테마마다 바꾸지 않으므로 테마 블록이 아니라 여기에 둔다. */
@@ -880,37 +880,6 @@ details > *:not(summary) {
   }
 }
 
-.tabs {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: calc(var(--tabs-height) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-  display: flex;
-  background: var(--ih-panel);
-  border-top: 1px solid var(--ih-line);
-  z-index: 3;
-}
-.tabs button {
-  flex: 1;
-  border: none;
-  border-radius: 0;
-  background: none;
-  min-height: var(--tabs-height);
-}
-.tabs button[aria-current="page"] {
-  font-weight: 500;
-}
-.viewer-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: var(--space-1) var(--page-gutter);
-  border-bottom: 1px solid var(--ih-line);
-  background: var(--ih-panel);
-}
 
 /* 확인 창: 하단 탭과 고정 버튼 위를 덮는다. 뒤 화면은 누를 수 없다. 흐림(blur) 없이 단색으로 가린다. */
 .overlay {
@@ -1392,8 +1361,7 @@ button.bar-row:hover {
 .secondary,
 .danger,
 .link,
-.segmented button,
-.tabs button {
+.segmented button {
   white-space: nowrap;
 }
 .input-row > :first-child {
@@ -2065,8 +2033,10 @@ table {
   background: var(--ih-loss-accent);
 }
 
-/* 상단 바: 좁은 화면에서는 본문과 함께 흐르고, 넓은 화면에서는 위에 붙는다. 바탕은 본문보다 한 단계 밝은 면. */
+/* 상단 바: 768px 미만은 본문과 함께 흐르고, 768px 이상은 위에 붙는다. 바탕은 화면 배경과 같고 아래 1px 구분선으로만 나눈다.
+   높이(--topbar-height)를 바꾸면 따라오는 머리·판의 top과 html scroll-padding이 같이 움직인다. */
 .topbar {
+  height: var(--topbar-height);
   background: var(--ih-bg);
   border-bottom: 1px solid var(--ih-line);
 }
@@ -2075,16 +2045,16 @@ table {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  height: var(--topbar-height);
+  height: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
   padding: 0 var(--page-gutter);
 }
+/* 사이트 이름: 16px/600 중립색. 로고·제목은 강조색으로 칠하지 않는다(CLAUDE.md 5절). */
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
+  min-height: var(--control-height);
   color: var(--ih-text);
   text-decoration: none;
   font-size: var(--text-body);
@@ -2096,123 +2066,119 @@ table {
   outline-offset: 2px;
   border-radius: var(--radius-control);
 }
-/* 로고 마크: 상자 없이 포인트 색 단색 선. */
-.brand em {
-  font-style: normal;
-  color: var(--ih-accent);
-}
 .theme-select {
   width: auto;
-  /* 터치 대상 44px */
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-2);
   font-size: var(--text-label);
-  font-weight: 600;
+  font-weight: 500;
   border-color: var(--ih-control-border);
 }
 
-/* 주 메뉴: 좁은 화면에서는 아래에 붙고, 넓은 화면에서는 상단 바 가운데에 겹쳐 놓는다. */
-.tabs {
-  background: var(--ih-panel);
-  border-top: 1px solid var(--ih-line);
+/* 선 아이콘(ui.tsx LineIcon): 20px, 선 1.5px. */
+.line-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
+
+/* 주 메뉴(운영자 .tabs)와 조회·예시 메뉴(.viewer-nav > span)의 칸. 둘이 같은 모양이다.
+   :not(:disabled):hover까지 함께 적는 것은 공통 버튼·.link의 호버 색을 덮으려는 것이다. */
 .tabs button,
-.tabs button:not(:disabled):hover {
+.tabs button:not(:disabled):hover,
+.viewer-nav > span > .link,
+.viewer-nav > span > .link:not(:disabled):hover {
+  min-height: var(--control-height);
   border: none;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
-}
-/* 지금 화면 탭(운영자 탭·조회 메뉴 모두, 좁은 화면 하단·넓은 화면 상단 공통): 옅은 선택 배경 + 강조 글자.
-   주 버튼처럼 채우지 않는다(CLAUDE.md 5절). 색 쌍은 --ih-accent / --ih-selected이라 대비 검사를 함께 받는다.
-   좁은 화면 하단에서는 위아래 4px를 띄워(바 56 − 8 = 48px 누름 영역) 칸이 바 가장자리에 붙지 않게 한다.
-   좌우는 띄우지 않는다. 6칸이 360px 안에 들어가야 해서 글자 칸 폭을 줄일 여유가 없다. */
-.tabs button[aria-current="page"],
-.tabs button[aria-current="page"]:hover,
-.viewer-nav .link[aria-current="page"],
-.viewer-nav .link[aria-current="page"]:hover {
-  background: var(--ih-selected);
-  color: var(--ih-accent);
   font-weight: 500;
   text-decoration: none;
-  border-radius: var(--radius-control);
+  white-space: nowrap;
 }
-@media (max-width: 767px) {
-  .tabs button,
-  .tabs button:not(:disabled):hover {
-    min-height: calc(var(--tabs-height) - 12px);
-    margin: var(--space-1) 0;
-  }
-}
-.viewer-nav {
-  background: var(--ih-panel);
-  border-bottom-color: var(--ih-line);
-}
-/* 조회·예시 메뉴 링크: 짧은 글자("요약"·"검색")도 누르기 쉬운 크기(44px). 메뉴라서 링크 색·밑줄 대신 탭 모양을 쓴다. */
-.viewer-nav button.link,
-.viewer-nav button.link:not(:disabled):hover {
-  min-width: 44px;
-  min-height: 44px;
-  padding-left: var(--space-3);
-  padding-right: var(--space-3);
-  border-radius: var(--radius-control);
-  text-decoration: none;
-}
-.viewer-nav button.link:not([aria-current="page"]) {
-  color: var(--ih-text-secondary);
-}
-.viewer-nav button.link:not(:disabled):not([aria-current="page"]):hover {
+.tabs button:not(:disabled):not([aria-current="page"]):hover,
+.viewer-nav > span > .link:not(:disabled):not([aria-current="page"]):hover {
   color: var(--ih-text);
   background: var(--ih-subtle);
 }
-/* 좁은 화면: 조회·예시 메뉴의 화면 링크 묶음(> span)을 운영자 하단 탭(.tabs)과 같은 자리·모양으로 아래에 고정한다
-   (2026-11-10 시안). 모임 이름은 위에 남는다. DOM은 그대로라 넓은 화면에서는 예전처럼 위 줄 오른쪽에 있다.
-   본문 아래 여백(main padding-bottom)은 이미 하단 탭 높이만큼이라 따로 띄우지 않는다. */
+/* 지금 화면 칸: 옅은 선택 배경 + 강조 글자. 주 버튼처럼 채우지 않는다(CLAUDE.md 5절).
+   색 쌍은 --ih-accent / --ih-selected이라 대비 검사를 함께 받는다. */
+.tabs button[aria-current="page"],
+.tabs button[aria-current="page"]:hover,
+.viewer-nav > span > .link[aria-current="page"],
+.viewer-nav > span > .link[aria-current="page"]:hover {
+  background: var(--ih-selected);
+  color: var(--ih-accent);
+}
+/* 조회·예시 메뉴 줄: 모임 이름 + 화면 칸. 좁은 화면에서는 화면 칸 묶음(> span)만 아래 메뉴로 내려가고 이름은 위에 남는다. */
+.viewer-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--page-gutter);
+  border-bottom: 1px solid var(--ih-line);
+  background: var(--ih-panel);
+}
+
+/* 768px 미만: 화면 아래 고정 64px(+기기 안전 영역). 칸마다 20px 아이콘 + 12px 글자를 세로로 쌓는다.
+   칸은 위아래 4px를 띄운 56px라 누르는 영역이 44px를 넘는다. 좌우 틈 없이 똑같이 나눠 6칸이 360px에 들어간다
+   (칸 폭 약 59px, 가장 긴 "현재 경기"가 12px 글자로 약 50px). 7칸은 넘치므로 "챔피언"을 빼는 .nav-wide-only를 둔다.
+   본문 아래 여백(main padding-bottom)과 고정 버튼·토스트 위치가 --tabs-height를 따른다. */
 @media (max-width: 767px) {
+  .tabs,
   .viewer-nav > span {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 3;
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
     height: calc(var(--tabs-height) + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
+    padding: 0 var(--space-1) env(safe-area-inset-bottom);
     background: var(--ih-panel);
     border-top: 1px solid var(--ih-line);
   }
-  /* 하단 탭(.tabs)과 같게 위아래 4px를 띄운 48px 칸. 지금 화면 칸의 채움은 위 공통 규칙이 정한다. */
+  .tabs-inner,
+  .viewer-nav > span {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .tabs-inner {
+    height: 100%;
+  }
+  .tabs button,
+  .tabs button:not(:disabled):hover,
   .viewer-nav > span > .link,
   .viewer-nav > span > .link:not(:disabled):hover {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 0;
     min-width: 0;
-    min-height: calc(var(--tabs-height) - 12px);
     margin: var(--space-1) 0;
-    padding: 0 var(--space-1);
-    border: none;
-    font-size: var(--text-label);
-    text-decoration: none;
-  }
-  .viewer-nav > span > .link:not([aria-current="page"]),
-  .viewer-nav > span > .link:not([aria-current="page"]):hover {
-    color: var(--ih-text-secondary);
-    font-weight: 500;
-  }
-  .viewer-nav {
-    min-height: 44px;
+    padding: 0;
+    font-size: var(--text-meta);
   }
   html[data-keyboard="open"] .viewer-nav > span {
     display: none;
   }
+  .tabs button.nav-wide-only,
+  .viewer-nav > span > .link.nav-wide-only {
+    display: none;
+  }
 }
-/* 조회 화면의 점검 안내: 본문(.screen)과 같은 좌우 여백. */
-.viewer-note {
-  margin: var(--space-3) var(--page-gutter) 0;
-}
+/* 768px 이상: 주 메뉴는 상단 바 아래 한 줄(글자만). 줄 테두리는 창 폭 전체, 칸은 본문과 같은 왼쪽 정렬선.
+   상단 바만 따라오고 메뉴 줄은 본문과 함께 올라간다(따라오는 높이를 64px로 묶어 좁은 창·확대에서 본문을 덜 가리게). */
 @media (min-width: 768px) {
   .topbar {
     position: sticky;
@@ -2220,32 +2186,36 @@ table {
     z-index: 3;
   }
   .tabs {
-    top: 0;
-    bottom: auto;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    height: 56px;
-    padding: 0;
-    align-items: center;
+    border-bottom: 1px solid var(--ih-line);
+  }
+  .tabs-inner {
+    display: flex;
     gap: var(--space-1);
-    background: none;
-    border-top: none;
-    z-index: 4;
+    max-width: var(--content-max);
+    margin: 0 auto;
+    padding: var(--space-2) var(--page-gutter);
   }
   .tabs button,
-  .tabs button:not(:disabled):hover {
-    flex: none;
-    min-width: 76px;
-    min-height: 44px;
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-control);
-    font-size: var(--text-label);
+  .tabs button:not(:disabled):hover,
+  .viewer-nav > span > .link,
+  .viewer-nav > span > .link:not(:disabled):hover {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-4);
   }
-  .tabs button:not(:disabled):not([aria-current="page"]):hover {
-    color: var(--ih-text);
-    background: var(--ih-subtle);
+  .viewer-nav > span {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
   }
+  .tabs .line-icon,
+  .viewer-nav .line-icon {
+    display: none;
+  }
+}
+/* 조회 화면의 점검 안내: 본문(.screen)과 같은 좌우 여백. */
+.viewer-note {
+  margin: var(--space-3) var(--page-gutter) 0;
 }
 
 /* 푸터: 라이엇 게임즈와 무관함을 알리는 문구 */
@@ -2356,15 +2326,6 @@ table {
   height: 20px;
 }
 
-/* 하단 탭이 6개(랭킹 추가)가 되어도 320px에서 넘치지 않게 좌우 여백을 줄인다. 높이(56px)는 그대로다. */
-@media (max-width: 767px) {
-  .tabs button,
-  .tabs button:not(:disabled):hover {
-    min-width: 0;
-    padding-left: var(--space-1);
-    padding-right: var(--space-1);
-  }
-}
 
 /* 범위 고르기(오늘·시즌·연도·전체): 좁은 화면에서도 한 줄에 들어가게 칸이 줄어들 수 있다.
    긴 시즌 이름은 목록 상자 안에서 잘린다. */
@@ -4396,36 +4357,6 @@ table {
 }
 .account-menu p {
   margin: 0;
-}
-/* 좁은 화면: 로고 글자를 숨겨 테마·로그인이 한 줄에 들어가게 한다. 이름은 로고 링크의 aria-label로 남는다. */
-@media (max-width: 399px) {
-  .topbar-operator .topbar-inner {
-    gap: var(--space-2);
-  }
-  .topbar-operator .brand > span:last-child {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-}
-/* 768~1199px: 주 메뉴를 가운데에 두면 오른쪽의 테마·로그인과 겹치므로 로고 바로 옆으로 붙이고 칸을 줄인다. */
-@media (min-width: 768px) and (max-width: 1199px) {
-  .tabs {
-    left: 160px;
-    transform: none;
-  }
-  /* 탭 6개(랭킹 추가)가 로고와 오른쪽 테마·로그인 사이에 들어가도록 칸을 더 줄인다. 높이 44px는 그대로다. */
-  .tabs button,
-  .tabs button:not(:disabled):hover {
-    min-width: 48px;
-    padding: var(--space-2) var(--space-1);
-  }
-  .tabs {
-    gap: var(--space-1);
-  }
 }
 
 /* 모임이 없는 계정의 모임 탭: 시작하는 길 세 가지 */
@@ -8031,13 +7962,6 @@ input[type="search"].filter-search {
   min-width: 0;
 }
 
-/* 좁은 화면 하단 메뉴에서 빼는 칸(운영자 탭·참가자 메뉴의 "챔피언"). 6칸이 넘으면 "현재 경기" 같은 글자가 칸을 넘친다. */
-@media (max-width: 767px) {
-  .tabs button.nav-wide-only,
-  .viewer-nav > span > .link.nav-wide-only {
-    display: none;
-  }
-}
 
 /* ---------- 챔피언 티어(screens/ChampionTier.tsx) ----------
    PC(1200px 이상): 왼쪽 좁은 격자(초성 줄 + 초성별 초상화) | 오른쪽 표. 그보다 좁으면 한 단, 격자는 접힌 details.

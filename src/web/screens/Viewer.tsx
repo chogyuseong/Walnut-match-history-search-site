@@ -5,7 +5,7 @@ import { ApiFailure, call } from "../api";
 import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
 import { ChampionTier } from "../lazyScreens";
 import { KpiStrip, MatchTeams, ScreenHead } from "../screenKit";
-import { Dialog } from "../ui";
+import { Dialog, LineIcon, type LineIconName } from "../ui";
 import { go } from "../useApp";
 import { Compare } from "./Compare";
 import { Dashboard } from "./Dashboard";
@@ -220,6 +220,17 @@ export function Viewer(props: { token: string; rest: string[] }) {
 
 export type ViewerTab = "now" | "home" | "search" | "records" | "ranking" | "champions";
 
+/** 조회·예시 메뉴 칸의 아이콘. 좁은 화면 하단 메뉴에서만 보인다(운영자 주 메뉴와 같은 모양). */
+export const VIEWER_TAB_ICON: Record<ViewerTab | "me", LineIconName> = {
+  me: "me",
+  now: "now",
+  home: "summary",
+  search: "search",
+  records: "records",
+  ranking: "ranking",
+  champions: "champions",
+};
+
 /**
  * 조회 링크와 예시 모임(#/demo, src/web/screens/Demo.tsx)이 같이 쓰는 읽기 전용 화면들.
  * 주소의 나머지(rest)에 맞는 화면이 없으면 null(조회 링크의 "현재 경기"처럼 각자 그린다).
@@ -401,6 +412,7 @@ export function ViewerNav(props: { base: string; group: string; current: ViewerT
       aria-current={props.current === tab ? "page" : undefined}
       onClick={() => go(`${props.base}/${tab}`)}
     >
+      <LineIcon name={VIEWER_TAB_ICON[tab]} />
       {label}
     </button>
   );

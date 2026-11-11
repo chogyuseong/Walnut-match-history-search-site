@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Snapshot } from "../../shared/types";
 import { go } from "../useApp";
-import { viewerPage, type ViewerTab } from "./Viewer";
+import { LineIcon } from "../ui";
+import { VIEWER_TAB_ICON, viewerPage, type ViewerTab } from "./Viewer";
 
 /**
  * 예시 모임(#/demo, #/demo/records, #/demo/ranking, #/demo/champions, #/demo/p/…, #/demo/season/…). 서버·DB 없이 기기에서 만든 합성 데이터
@@ -80,6 +81,7 @@ function DemoNav(props: { current: ViewerTab }) {
       aria-current={props.current === tab ? "page" : undefined}
       onClick={() => go(`/demo/${tab}`)}
     >
+      <LineIcon name={VIEWER_TAB_ICON[tab]} />
       {label}
     </button>
   );

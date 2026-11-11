@@ -361,3 +361,68 @@ async function copyText(text: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * 메뉴·첫 화면 소개의 선 아이콘. 20×20 칸, 선 1.5px(CLAUDE.md 7절), 색은 글자색을 따른다(styles.css .line-icon).
+ * today·search·records·ranking·graphs·group·link는 확정 시안(docs/design-mockup/home-gold.html)의 symbol을 그대로 옮겼고,
+ * champions·now·summary·me는 시안에 없어 같은 칸·같은 굵기·둥근 끝으로 새로 그렸다. 외부 아이콘 세트를 섞지 않는다.
+ * 아이콘만으로 뜻을 전하지 않는다. 늘 옆에 글자가 있으므로 보조 기기에는 숨긴다.
+ */
+const LINE_ICON_PATHS = {
+  today: (
+    <>
+      <rect x="3" y="4" width="14" height="13" rx="2" />
+      <path d="M3 8h14M7 2.5v3M13 2.5v3" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="9" cy="9" r="5.5" />
+      <path d="M13 13l4 4" />
+    </>
+  ),
+  records: <path d="M7 5h10M7 10h10M7 15h10M3 5h.5M3 10h.5M3 15h.5" />,
+  ranking: <path d="M4 17V11M10 17V4M16 17v-8" />,
+  graphs: <path d="M3 17h14M4 13l4-4 3 3 5-6" />,
+  group: (
+    <>
+      <circle cx="7" cy="7" r="2.5" />
+      <circle cx="14" cy="8" r="2" />
+      <path d="M2.5 16c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M12.5 16c0-1.8 1-3 2.5-3s2.5 1.2 2.5 3" />
+    </>
+  ),
+  link: (
+    <path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2l-1 1M11.5 8.5a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l1-1" />
+  ),
+  champions: <path d="M10 2.5l6 2.5v4.5c0 3.8-2.6 6.4-6 8-3.4-1.6-6-4.2-6-8V5z" />,
+  now: (
+    <>
+      <circle cx="10" cy="10" r="7" />
+      <path d="M8.5 7.5l4 2.5-4 2.5z" />
+    </>
+  ),
+  summary: (
+    <>
+      <rect x="3" y="3" width="6" height="6" rx="1.5" />
+      <rect x="11" y="3" width="6" height="6" rx="1.5" />
+      <rect x="3" y="11" width="6" height="6" rx="1.5" />
+      <rect x="11" y="11" width="6" height="6" rx="1.5" />
+    </>
+  ),
+  me: (
+    <>
+      <circle cx="10" cy="7" r="3" />
+      <path d="M4 17c0-3.3 2.7-5 6-5s6 1.7 6 5" />
+    </>
+  ),
+} satisfies Record<string, ReactNode>;
+
+export type LineIconName = keyof typeof LINE_ICON_PATHS;
+
+export function LineIcon(props: { name: LineIconName }) {
+  return (
+    <svg className="line-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      {LINE_ICON_PATHS[props.name]}
+    </svg>
+  );
+}

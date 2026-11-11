@@ -20,6 +20,7 @@ import {
   teamRoster,
 } from "../format";
 import { PosLabel, ScreenHead } from "../screenKit";
+import { LineIcon } from "../ui";
 
 /**
  * 참가자에게 보내는 편성 화면(#/v/토큰/live, 2026-11-07). 로그인 없이 조회 토큰으로 연다.
@@ -99,9 +100,11 @@ export function ViewerLive(props: { token: string }) {
         <strong>{data.groupName}</strong>
         <span>
           <a className="link" href={`#/v/${token}/now`}>
+            <LineIcon name="records" />
             기록 보기
           </a>{" "}
           <a className="link" href={`#/v/${token}/ranking`}>
+            <LineIcon name="ranking" />
             랭킹
           </a>
         </span>

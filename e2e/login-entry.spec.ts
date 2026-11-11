@@ -145,11 +145,11 @@ test.describe("상단 바 로그인 (390px)", () => {
 });
 
 test.describe("상단 바 배치", () => {
-  /** 상단 바 안의 조작이 서로·주 메뉴와 겹치지 않고, 한 줄(56px)에 들어가며, 44px 이상인지. */
+  /** 상단 바 안의 조작이 서로·주 메뉴와 겹치지 않고, 한 줄(64px)에 들어가며, 44px 이상인지. */
   async function checkTopBar(page: Page, width: number) {
     await noHorizontalOverflow(page);
     const bar = await page.locator(".topbar-inner").boundingBox();
-    expect(bar!.height).toBeLessThanOrEqual(57);
+    expect(bar!.height).toBeLessThanOrEqual(64);
     const controls = await banner(page)
       .locator("a, button, select")
       .evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect()).map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })));
@@ -160,12 +160,9 @@ test.describe("상단 바 배치", () => {
     }
     for (let i = 1; i < controls.length; i++) expect(controls[i]!.x).toBeGreaterThanOrEqual(controls[i - 1]!.x + controls[i - 1]!.w);
     if (width >= 768) {
-      // 넓은 화면에서는 주 메뉴가 상단 바에 겹쳐 놓인다: 로고와 오른쪽 조작 사이에 있어야 한다.
+      // 넓은 화면에서는 주 메뉴가 상단 바 아래 한 줄이다(디자인 3단계 전에는 상단 바에 겹쳐 놓였다).
       const tabs = await menu(page).boundingBox();
-      const brand = controls[0]!;
-      const firstAction = controls[1]!;
-      expect(tabs!.x).toBeGreaterThanOrEqual(brand.x + brand.w);
-      expect(tabs!.x + tabs!.width).toBeLessThanOrEqual(firstAction.x);
+      expect(tabs!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height);
     }
   }
 
