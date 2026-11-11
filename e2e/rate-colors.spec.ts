@@ -2,7 +2,8 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-// 승률 색 단계(45~55% 중립, 높을수록 붉게, 낮을수록 가라앉게)와 칭호 색·엠블럼을 확인한다.
+// 승률 색(3단: 높음 강조색 · 45~55% 주요 글자 · 낮음 보조 글자, 단계 클래스 이름은 heat-h1~h4·0·l1~l4 그대로)과
+// 칭호 등급 클래스·엠블럼을 확인한다. 칭호는 색이 아니라 엠블럼 모양과 이름으로 구분한다(CLAUDE.md 5절).
 // 승률이 20%대~80%대로 고르게 퍼진 모임을 API로 만든다.
 // SHOTS_DIR 환경 변수를 주면 두 테마 × 390·1440px 스크린샷(개인 통계·분석·랭킹·검색·칭호 설정)을 그 폴더에 남긴다.
 
@@ -151,7 +152,7 @@ async function colorOf(page: Page, selector: string, prop: "stroke" | "color") {
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·비중 막대는 그대로다, 칭호는 등급 색·엠블럼", async ({
+test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·비중 막대는 그대로다, 칭호는 등급 클래스·엠블럼", async ({
   page,
 }) => {
   test.setTimeout(400000);
@@ -180,12 +181,12 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   const bg = (el: Element) => getComputedStyle(el).backgroundColor;
   expect(await sides.locator(".meter-fill.tone-blue").evaluate(bg)).toBe("rgb(79, 141, 221)");
   expect(await sides.locator(".meter-fill.tone-red").evaluate(bg)).toBe("rgb(217, 83, 79)");
-  // 승·패 막대도 그대로: 승은 승리 색 #4f8ddd, 패는 패배 색 #d9534f 빗금.
+  // 승·패 막대도 그대로: 승은 승리 색 #4f8ddd 채움, 패는 패배 색 #d9534f 테두리만(속 빈 막대, 빗금 무늬 대신).
   const recent = page.getByRole("region", { name: "최근" });
   expect(await recent.locator(".wl-win").first().evaluate(bg)).toBe("rgb(79, 141, 221)");
-  expect(
-    await recent.locator(".wl-loss").first().evaluate((el) => getComputedStyle(el).backgroundImage),
-  ).toContain("rgb(217, 83, 79)");
+  const lossBar = recent.locator(".wl-loss").first();
+  expect(await lossBar.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgb(217, 83, 79)");
+  expect(await lossBar.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
   // 비중 막대는 중립 색이고 승률 단계를 따르지 않는다.
   const lines = page.getByRole("region", { name: "라인별" });
   await expect(lines.locator(".meter-fill.tone-share")).toHaveCount(5);
@@ -213,7 +214,8 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   expect(await lossDot.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(234, 132, 127)");
   expect(await lossDot.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgba(217, 83, 79, 0.35)");
 
-  // 랭킹: 승률 숫자 글자가 여러 단계로 나뉘고, 높은 줄과 낮은 줄의 글자 색이 다르다. 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
+  // 랭킹: 승률 숫자 글자가 여러 단계 클래스로 나뉘고, 높은 줄(강조색)과 낮은 줄(보조 글자)의 글자 색이 다르다(3단).
+  // 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
   const ranking = page.getByRole("region", { name: "소환사 랭킹" });
@@ -304,4 +306,35 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   const lowChip = page.getByRole("region", { name: "요약" }).locator(".title-chip");
   await expect(lowChip).toHaveClass(/grade-8/);
   await expect(lowChip.locator("svg.title-emblem")).toHaveCount(1);
+});
+
+// 5경기 미만(자료 적음) 막대는 두 테마 모두 색 없이 속 빈 테두리 막대다. 예전 라이트 전용 덮어쓰기가 회색으로 채워
+// "낮음" 막대와 같아 보였던 것을 다시 막는다. 모두 2경기씩만 뛴 모임에서 그래프 분석 개인별 승률 막대를 본다.
+test("자료 적음 막대는 라이트·다크 모두 속 빈 테두리 막대", async ({ page }) => {
+  const s = await setup(page);
+  for (let m = 0; m < 2; m++) {
+    const snapshot = await (await page.request.get(`/api/groups/${s.groupId}/snapshot`)).json();
+    const started = await post(page.request, `/api/groups/${s.groupId}/matches/start`, {
+      requestId: requestId(),
+      baseLiveVersion: snapshot.group.liveVersion,
+      roster: s.people.slice(0, 10).map((p, k) => ({ participantId: p.id, team: k < 5 ? "A" : "B", position: POSITIONS[k % 5] })),
+    });
+    await post(page.request, `/api/groups/${s.groupId}/matches/${started.match.id}/result`, {
+      requestId: requestId(),
+      baseMatchVersion: started.match.version,
+      winnerTeam: "A",
+      winnerSide: "blue",
+    });
+  }
+  await page.goto("/#/graphs");
+  const muted = page.getByRole("region", { name: "개인별 승률" }).locator(".bar-fill.tone-muted").first();
+  for (const theme of ["light", "dark"]) {
+    await setTheme(page, theme);
+    await expect(muted).toBeVisible();
+    const look = await muted.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, border: cs.borderTopWidth };
+    });
+    expect(look, theme).toEqual({ bg: "rgba(0, 0, 0, 0)", border: "1px" });
+  }
 });

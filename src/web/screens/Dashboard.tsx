@@ -118,7 +118,6 @@ export function Dashboard(props: {
                 nameOf={nameOf}
                 timeZone={snapshot.group.timezone}
                 openMatch={props.openMatch}
-                openPerson={props.openPerson}
                 seriesBadge={seriesBadge}
                 upset={(id) => expectation.get(id)?.upset === true}
               />
@@ -250,7 +249,9 @@ function teamInColumn(match: MatchView, column: "blue" | "red"): Team {
 
 /**
  * 이전 경기 표(PC): 한 경기 한 줄. 번호 · 일시(시리즈·이변 표시) · 결과 · 블루 다섯 · 레드 다섯.
- * 줄 아무 데나 누르면 경기 상세(번호 칸 버튼이 키보드 길), 이름은 개인 통계. 이긴 팀 칸은 굵게, 진 팀은 흐리게.
+ * 줄 아무 데나 누르면 경기 상세(번호 칸 버튼이 키보드 길). 이긴 팀 칸은 굵게, 진 팀은 흐리게.
+ * 이름은 버튼이 아니라 글자다: 이름마다 44px 누르는 칸을 두면 다섯 이름이 두 줄로 꺾여 줄이 100px 넘게 높아졌다.
+ * 줄 전체(48px 이상)가 누르는 영역이고, 개인 통계는 경기 상세의 이름이나 오른쪽 랭킹에서 연다.
  * 메모는 없는 경기가 많아 칸을 두지 않는다(빈 칸이 줄줄이 생긴다). 경기 상세에서 본다.
  */
 function RecentMatchTable(props: {
@@ -258,7 +259,6 @@ function RecentMatchTable(props: {
   nameOf: (id: string) => string;
   timeZone: string;
   openMatch: (id: string) => void;
-  openPerson: (id: string) => void;
   seriesBadge: (id: string) => string | null;
   upset: (id: string) => boolean;
 }) {
@@ -278,17 +278,9 @@ function RecentMatchTable(props: {
             </span>
           )}
           {teamRoster(m, t).map((entry) => (
-            <button
-              key={entry.participantId}
-              type="button"
-              className="link rm-name"
-              onClick={(e) => {
-                e.stopPropagation();
-                props.openPerson(entry.participantId);
-              }}
-            >
+            <span key={entry.participantId} className="rm-name">
               {props.nameOf(entry.participantId)}
-            </button>
+            </span>
           ))}
         </span>
       );

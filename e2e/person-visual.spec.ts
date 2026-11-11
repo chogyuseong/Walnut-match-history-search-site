@@ -165,19 +165,21 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   await expect(summary.locator(".ring")).toBeVisible();
   await expect(summary.locator(".ring")).toContainText("33%");
   await expect(summary).toContainText("33% · 20승 40패 (60경기)");
-  await expect(summary.locator(".ps-tiles .meter").first()).toBeVisible();
-  // 라인 타일 두 개: 가장 많이 플레이한 라인 · 가장 승률 높은 라인(정글만 뛰어 같은 라인).
-  const tile = (label: string) => summary.locator(".ps-tiles > div").filter({ hasText: label });
-  await expect(summary.locator(".ps-tiles > div")).toHaveCount(4);
+  // 요약은 핵심 지표 셋(승률·MMR·최근 10경기)만. 라인·동료 칸은 아래 "세부 기록"에 있다(디자인 4단계).
+  const facts = page.getByRole("region", { name: "세부 기록" });
+  await expect(facts.locator(".ps-tiles .meter").first()).toBeVisible();
+  // 라인 칸 두 개: 가장 많이 플레이한 라인 · 가장 승률 높은 라인(정글만 뛰어 같은 라인).
+  const tile = (label: string) => facts.locator(".ps-tiles > div").filter({ hasText: label });
+  await expect(facts.locator(".ps-tiles > div")).toHaveCount(4);
   await expect(tile("가장 많이 플레이한 라인")).toContainText("정글");
   await expect(tile("가장 많이 플레이한 라인")).toContainText("33% · 20승 40패 (60경기)");
   await expect(tile("가장 승률 높은 라인")).toContainText("정글");
   await expect(tile("가장 승률 높은 라인")).toContainText("33% · 20승 40패 (60경기)");
   await expect(summary).not.toContainText("주 라인");
-  // 연속 기록은 요약 머리에 있다(예전 "지금" 타일).
-  await expect(summary.locator(".ps-streak")).toContainText("10연승 중");
 
   const recent = page.getByRole("region", { name: "최근" });
+  // 연속 기록은 "최근" 목록의 연속 줄에 있다(요약에서 내렸다).
+  await expect(recent.getByRole("listitem").filter({ hasText: "연속" })).toContainText("10연승 중");
   await expect(recent.locator(".wl-bar")).toHaveCount(2);
   // 최근 10경기는 선수11·12가 들어온 경기 → 선수02(팀 A) 10승.
   await expect(recent.getByRole("listitem").filter({ hasText: "최근 10경기" })).toContainText(
@@ -252,7 +254,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   const sidesBox = await page.getByRole("region", { name: "진영별" }).boundingBox();
   expect(Math.abs(sidesBox!.x - recentBox!.x)).toBeLessThan(2);
   expect(sidesBox!.y).toBeLessThan(linesBox!.y + linesBox!.height);
-  // 요약 타일 4개가 한 줄에 놓인다.
+  // 세부 기록 칸 4개가 한 줄에 놓인다.
   const tileTops = await page
     .locator(".ps-tiles > div")
     .evaluateAll((nodes) => nodes.map((n) => Math.round(n.getBoundingClientRect().top)));
@@ -265,7 +267,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
     await page.goto(`/#/p/${few.id}`);
     await expect(page.getByRole("heading", { name: "선수11", level: 1 })).toBeVisible();
     const locked = "누적 30경기부터 보여줘요 (지금 10경기)";
-    const fewSummary = page.getByRole("region", { name: "요약" });
+    const fewSummary = page.getByRole("region", { name: "세부 기록" });
     for (const label of ["잘 맞는 동료", "어려운 상대"]) {
       await expect(fewSummary.locator(".ps-tiles > div").filter({ hasText: label })).toContainText(locked);
     }

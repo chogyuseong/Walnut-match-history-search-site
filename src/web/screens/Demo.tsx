@@ -33,6 +33,7 @@ export function Demo(props: { rest: string[] }) {
     <>
       <DemoBanner />
       <DemoNav current={page?.tab ?? "home"} />
+      <div className="bleed-body">
       {!snapshot ? (
         // 불러오는 동안 자리를 잡아 두어 아래 푸터가 크게 튀지 않게 한다.
         <div className="screen demo-loading">
@@ -54,6 +55,7 @@ export function Demo(props: { rest: string[] }) {
           </div>
         ))
       )}
+      </div>
     </>
   );
 }

@@ -291,11 +291,6 @@ export function ChampionTier(props: {
             value={most ? `${most.games}판` : "—"}
             rows={most ? [["승률", rateText(most.wins, most.games)]] : []}
           />
-          <StatCard
-            title="입력률"
-            value={`${result.countedMatches === 0 ? 0 : roundRatio(result.recordedMatches, result.countedMatches)}%`}
-            rows={[["기록된 경기", `${result.recordedMatches} / ${result.countedMatches}`]]}
-          />
           <StatCard title="티어 분포" value={`${result.rows.length}개`}>
             <p className="ct-tier-counts">
               {tierCounts.map((count, i) => (
@@ -306,6 +301,11 @@ export function ChampionTier(props: {
             </p>
           </StatCard>
         </div>
+        {/* 입력률은 표의 믿을 만한 정도를 알리는 보조 정보라 요약 카드(최대 셋)에서 이 줄로 내렸다. */}
+        <p className="hint">
+          챔피언 입력률 {result.countedMatches === 0 ? 0 : roundRatio(result.recordedMatches, result.countedMatches)}% · 기록된 경기{" "}
+          {result.recordedMatches} / {result.countedMatches}
+        </p>
       </section>
 
       <div className="ct-body">

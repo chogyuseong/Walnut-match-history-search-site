@@ -71,6 +71,8 @@ async function measure(page: Page): Promise<Layout> {
     const under44: string[] = [];
     for (const el of controls) {
       if (!el.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
+      // 초점을 받을 때만 보이는 건너뛰기 버튼처럼 clip으로 숨긴 컨트롤은 세지 않는다(보이지 않는 1px).
+      if (getComputedStyle(el).clip.startsWith("rect(0")) continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0 || (r.width >= 44 && r.height >= 44)) continue;
       const label = (el.getAttribute("aria-label") ?? el.textContent ?? (el as HTMLInputElement).name ?? "")

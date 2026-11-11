@@ -179,7 +179,7 @@ export function SeasonSummaryScreen(props: {
         </div>
       </div>
 
-      <section aria-label="요약">
+      <section className="graph-summary" aria-label="요약">
         <h2>요약</h2>
         {summary.games === 0 ? (
           <p className="hint">이 범위에는 확정된 경기가 없어요.</p>
@@ -197,13 +197,6 @@ export function SeasonSummaryScreen(props: {
               <dd className="season-stat">
                 {summary.participants}
                 <span className="season-unit">명</span>
-              </dd>
-            </div>
-            <div>
-              <dt className="tile-label">내전한 날</dt>
-              <dd className="season-stat">
-                {summary.days}
-                <span className="season-unit">일</span>
               </dd>
             </div>
             <div>
@@ -229,10 +222,12 @@ export function SeasonSummaryScreen(props: {
             </div>
           </dl>
         )}
-        {showBusiest && (
+        {/* 내전한 날 수는 요약 칸(최대 셋)에서 이 줄로 내렸다. */}
+        {summary.games > 0 && (
           <p className="hint">
-            가장 경기가 많았던 날: {summary.busiestDays.map((d) => formatDate(d.date, tz)).join(", ")} (
-            {summary.busiestDays[0]!.games}경기)
+            내전한 날 {summary.days}일
+            {showBusiest &&
+              ` · 가장 경기가 많았던 날: ${summary.busiestDays.map((d) => formatDate(d.date, tz)).join(", ")} (${summary.busiestDays[0]!.games}경기)`}
           </p>
         )}
         {summary.sides.unknown > 0 && (

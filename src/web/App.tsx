@@ -83,7 +83,7 @@ export function App() {
     return (
       <>
         <TopBar />
-        <main>
+        <main tabIndex={-1}>
           <Suspense fallback={LOADING}>
             <Join token={route[1]!} rest={route.slice(2)} />
           </Suspense>
@@ -97,11 +97,14 @@ export function App() {
     return (
       <>
         <TopBar homeLink />
-        <main>
+        {/* bleed: 예시 안내 띠·메뉴 줄의 바탕과 선이 창 폭 전체로 그어지게 main의 폭 제한을 풀고, 나머지는 .bleed-body가 1200px로 묶는다. */}
+        <main className="bleed" tabIndex={-1}>
           <Suspense fallback={LOADING}>
             <Demo rest={route.slice(1)} />
           </Suspense>
-          <LegalFooter />
+          <div className="bleed-body">
+            <LegalFooter />
+          </div>
         </main>
       </>
     );
@@ -111,7 +114,7 @@ export function App() {
     return (
       <>
         <TopBar />
-        <main>
+        <main className="bleed" tabIndex={-1}>
           <Suspense fallback={LOADING}>
             {/* 참가자 편성(#/v/토큰/live)은 진행 중 편성만 보여 주는 작은 화면이라 조회 화면 묶음을 받지 않는다. */}
             {route[2] === "live" ? (
@@ -121,7 +124,9 @@ export function App() {
             )}
           </Suspense>
           {/* 조회 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
-          <LegalFooter privacyHref={`#/v/${route[1]}/privacy`} />
+          <div className="bleed-body">
+            <LegalFooter privacyHref={`#/v/${route[1]}/privacy`} />
+          </div>
         </main>
       </>
     );
@@ -134,7 +139,7 @@ export function App() {
           <main> 앞에 둔다: 넓은 화면에서 상단 바 바로 아래 한 줄이고, Tab 순서도 상단 바 → 주 메뉴 → 본문이다.
           좁은 화면에서는 CSS가 아래에 고정한다(순서는 같다). */}
       {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
-      <main>
+      <main tabIndex={-1}>
         {!app.ready || app.switching ? (
           LOADING
         ) : (
@@ -264,6 +269,16 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const mark = <span>{SITE_NAME}</span>;
   return (
+    <>
+    {/* 키보드로 들어오면 첫 칸. 상단 바·메뉴 6~7칸을 건너 본문(main)에 초점을 둔다. 주소가 해시 라우팅(#/…)이라
+        href="#main" 링크는 화면을 바꿔 버리므로 버튼으로 main에 직접 초점을 준다. 화면이 바뀌어도 main은 그대로라 늘 동작한다. */}
+    <button
+      type="button"
+      className="skip-link"
+      onClick={() => document.querySelector<HTMLElement>("main")?.focus()}
+    >
+      본문으로 건너뛰기
+    </button>
     <header className="topbar">
       <div className="topbar-inner">
         {props.homeLink ? (
@@ -294,6 +309,7 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
         </div>
       </div>
     </header>
+    </>
   );
 }
 
@@ -477,6 +493,11 @@ function OperatorScreen(props: { route: string[] }) {
         back={() => go("/records")}
         player={id ?? ""}
         choosePlayer={(personId) => go(personId ? `/graphs/${personId}` : "/graphs")}
+        emptyAction={
+          <button type="button" className="primary" onClick={() => go("/pick")}>
+            이름 넣고 팀 짜기
+          </button>
+        }
       />
     );
   }

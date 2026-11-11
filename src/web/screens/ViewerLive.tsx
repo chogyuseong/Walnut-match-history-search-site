@@ -109,6 +109,7 @@ export function ViewerLive(props: { token: string }) {
           </a>
         </span>
       </nav>
+      <div className="bleed-body">
       {data.maintenance && (
         <p className="note warn viewer-note" role="status">
           운영자가 모임 기록을 점검하는 중이에요. 잠시 뒤 새로 고쳐 주세요.
@@ -168,6 +169,7 @@ export function ViewerLive(props: { token: string }) {
             지금 확인
           </button>
         </p>
+      </div>
       </div>
     </>
   );

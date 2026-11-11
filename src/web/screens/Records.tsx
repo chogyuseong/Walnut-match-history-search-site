@@ -364,6 +364,10 @@ export function Records(props: {
     ["correction", "exclude", "restore", "merge", "merge_undo"].includes(r.kind),
   );
 
+  // 경기가 한 번도 없으면(지운 경기의 변경 내역도 없으면) 빈 순위표·시리즈·변경 내역 대신 안내 하나만 둔다.
+  // 행동은 머리의 "지난 경기 입력"(운영자) 하나다(CLAUDE.md 8절).
+  const neverPlayed = snapshot.matches.length === 0 && changeLog.length === 0;
+
   return (
     <div className="screen cols records-screen">
       <ScreenHead
@@ -397,6 +401,14 @@ export function Records(props: {
         }
       />
 
+      {neverPlayed ? (
+        <div className="empty-state full">
+          <p>
+            아직 저장한 경기가 없어요. 경기 결과를 저장하면 경기 목록과 소환사 랭킹이 여기에 쌓여요.
+          </p>
+        </div>
+      ) : (
+      <>
       <FilterBar label="보기 조건">
         <ScopePicker
           snapshot={snapshot}
@@ -721,6 +733,8 @@ export function Records(props: {
           수치가 달라 보이면 범위(오늘·전체)를 바꿨거나 위 목록처럼 경기 자체가 바뀐 것입니다.
         </p>
       </details>
+      </>
+      )}
     </div>
   );
 }

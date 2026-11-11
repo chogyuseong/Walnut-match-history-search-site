@@ -17,7 +17,7 @@ import type { TitleGrade } from "../shared/titles";
 import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/types";
 import {
   formatTime,
-  heatBarClass,
+  heatClass,
   type ShownStanding,
   POSITION_LABEL,
   rateTier,
@@ -575,8 +575,8 @@ export type MeterTone = "rate" | "blue" | "red" | "share";
 
 /**
  * 가로 막대 하나. value는 0~1.
- * tone: rate(승률) · blue/red(진영 색) · share(비중, 중립색). muted면 색 없이 회색으로 그린다.
- * heat: 승률 색 단계 클래스(heatBarClass). 승률 막대만 준다.
+ * tone: rate(승률) · blue/red(진영 색) · share(비중, 중립색). muted면 색 없이 속 빈 막대로 그린다.
+ * heat: 승률 3단 클래스(heatClass). 승률 막대만 준다.
  * mid: 50% 기준선.
  */
 export function Meter(props: {
@@ -600,8 +600,8 @@ export function Meter(props: {
 
 /**
  * 승률 막대(50% 기준선 포함). 기록이 없으면 빈 막대다.
- * 승률 막대는 승률 색 단계(heatBarClass: 45~55% 기본 색, 높을수록 붉게, 낮을수록 가라앉게)를 따르고,
- * SMALL_SAMPLE경기 미만이면 색으로 강조하지 않는다(rateTier·"자료 적음"과 같은 규칙).
+ * 승률 막대는 승률 3단(heatClass: 높음 강조색 · 45~55% 주요 글자 · 낮음 보조 글자)을 따르고,
+ * SMALL_SAMPLE경기 미만이면 속 빈 막대로 그린다(rateTier·"자료 적음"과 같은 규칙).
  * 진영 막대(blue·red)는 진영을 가리키는 색이라 표본·승률과 관계없이 진영 색을 쓴다.
  */
 export function RateBar(props: { wins: number; games: number; tone?: MeterTone; small?: boolean }) {
@@ -611,7 +611,7 @@ export function RateBar(props: { wins: number; games: number; tone?: MeterTone; 
     <Meter
       value={games === 0 ? 0 : wins / games}
       tone={tone}
-      heat={tone === "rate" ? heatBarClass(wins, games) : undefined}
+      heat={tone === "rate" ? heatClass(wins, games) : undefined}
       mid
       muted={tone === "rate" && games < SMALL_SAMPLE}
       small={props.small}
@@ -619,7 +619,7 @@ export function RateBar(props: { wins: number; games: number; tone?: MeterTone; 
   );
 }
 
-/** 승·패 비율 막대. 왼쪽이 승(승리 색), 오른쪽이 패(패배 색, 빗금). 가운데 50% 기준선. */
+/** 승·패 비율 막대. 왼쪽이 승(승리 색 채움), 오른쪽이 패(패배 색 테두리만, 속 빈 막대). 가운데 50% 기준선. */
 export function WinLossBar(props: { wins: number; losses: number }) {
   const { wins, losses } = props;
   if (wins + losses === 0) return <Meter value={0} mid />;
@@ -648,7 +648,7 @@ export function RateRing(props: { wins: number; games: number }) {
       <svg viewBox="0 0 68 68">
         <circle className="ring-track" cx="34" cy="34" r={R} />
         <circle
-          className={muted ? "ring-fill tone-muted" : `ring-fill ${heatBarClass(wins, games)}`}
+          className={muted ? "ring-fill tone-muted" : `ring-fill ${heatClass(wins, games)}`}
           cx="34"
           cy="34"
           r={R}
@@ -729,20 +729,17 @@ export function FilterBar(props: { label: string; children: ReactNode; meta?: Re
 /**
  * 요약 카드: 제목 → (이름 같은 한 줄) → 큰 수치 하나 → "라벨 … 값" 줄 몇 개. 여러 장을 .stat-cards로 감싸 한 줄에 놓는다.
  * 값이 없을 때(기록이 적은 새 모임)는 value에 "—"를 넘기고 rows를 비우면 카드 높이만 유지된다.
- * tone="lead"는 포인트 색으로 채운 칸(랭킹 1위). 채운 바탕 위에서는 글자 색이 하나(--ih-on-primary)다.
  */
 export function StatCard(props: {
   title: ReactNode;
   lead?: ReactNode;
   value: ReactNode;
   rows?: readonly (readonly [ReactNode, ReactNode])[];
-  tone?: "lead";
   className?: string;
   children?: ReactNode;
 }) {
-  const cls = ["stat-card", props.tone === "lead" ? "is-lead" : "", props.className ?? ""].filter(Boolean).join(" ");
   return (
-    <div className={cls}>
+    <div className={props.className ? `stat-card ${props.className}` : "stat-card"}>
       <p className="stat-card-title">{props.title}</p>
       {props.lead && <p className="stat-card-lead">{props.lead}</p>}
       <p className="stat-card-value">{props.value}</p>
@@ -810,8 +807,11 @@ export function SortHead<K extends string>(props: {
               aria-pressed={active}
               onClick={() => props.onSort(cell.sort!)}
             >
-              {cell.label}
-              <SortArrow active={active} dir={props.sort.dir} />
+              {/* 선택 밑줄은 이 글자 묶음에만 긋는다. 버튼은 44px 누르는 폭이라 버튼에 그으면 글자보다 넓다. */}
+              <span className="dt-sort-text">
+                {cell.label}
+                <SortArrow active={active} dir={props.sort.dir} />
+              </span>
             </button>
           </span>
         );

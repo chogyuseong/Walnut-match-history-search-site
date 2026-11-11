@@ -96,8 +96,10 @@ export function Viewer(props: { token: string; rest: string[] }) {
   const shell = (current: ViewerTab, body: React.ReactNode) => (
     <>
       <ViewerNav base={base} group={snapshot.group.name} current={current} />
-      {snapshot.group.maintenance && <MaintenanceNote />}
-      {body}
+      <div className="bleed-body">
+        {snapshot.group.maintenance && <MaintenanceNote />}
+        {body}
+      </div>
     </>
   );
 
@@ -121,6 +123,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
   return (
     <>
       <ViewerNav base={base} group={snapshot.group.name} current="now" />
+      <div className="bleed-body">
       {snapshot.group.maintenance && <MaintenanceNote />}
       <div className={match ? "screen" : "screen page-wide home-screen"}>
         {!match ? (
@@ -214,6 +217,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
           </ul>
         </Dialog>
       )}
+      </div>
     </>
   );
 }

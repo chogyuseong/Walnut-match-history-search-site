@@ -1,8 +1,8 @@
 import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGroup, resultsOf, sortRankingBy, streakOf, streakText } from "../../shared/insights";
 import { useMemo, useState, type ReactNode } from "react";
-import { fractionPercent, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
+import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { heatBarClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
+import { heatClass, nameMap, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
 import {
   Meter,
   BackLink,
@@ -69,8 +69,8 @@ function percentText(wins: number, games: number): string {
 
 /**
  * 승률 막대 한 줄. 0~100% 한 축이고 50% 위치에 기준선을 둔다.
- * 값은 글자로 함께 쓰고(색에만 의존하지 않음), 글자는 막대와 같은 승률 색 단계를 따른다.
- * series(승률) 막대만 색 단계를 따르고 5경기 미만은 회색이다. 진영 막대(blue·red)는 진영 색 그대로.
+ * 값은 글자로 함께 쓰고(색에만 의존하지 않음), 글자는 막대와 같은 승률 3단 색을 따른다.
+ * series(승률) 막대만 3단 색을 따르고 5경기 미만은 속 빈 테두리 막대 + "자료 적음" 글자다. 진영 막대(blue·red)는 진영 색 그대로.
  */
 function RateBar(props: {
   label: string;
@@ -84,7 +84,7 @@ function RateBar(props: {
 }) {
   const { wins, games } = props;
   const tone = props.tone ?? "series";
-  const fill = tone !== "series" ? `tone-${tone}` : games < SMALL_SAMPLE ? "tone-muted" : `tone-series ${heatBarClass(wins, games)}`;
+  const fill = tone !== "series" ? `tone-${tone}` : games < SMALL_SAMPLE ? "tone-muted" : `tone-series ${heatClass(wins, games)}`;
   const detail = `${props.label}: ${percentText(wins, games)} · ${wins}승 ${games - wins}패 (${games}경기)`;
   const body = (
     <>
@@ -135,9 +135,9 @@ function RateBar(props: {
   );
 }
 
-/** 표 칸의 색: 막대와 같은 승률 색 단계(heatBarClass). 5경기 미만은 색을 칠하지 않는다. */
+/** 표 칸의 승률 글자 색: 막대와 같은 3단(heatClass). 5경기 미만은 색을 입히지 않는다. */
 function cellBand(tally: Tally): string {
-  return heatBarClass(tally.wins, tally.games) || "band-none";
+  return heatClass(tally.wins, tally.games) || "band-none";
 }
 
 /** 보기 전환: 한 번에 하나만 전체 폭으로 그린다(2026-11-08 재구성). */
@@ -195,6 +195,8 @@ export function Graphs(props: {
   player?: string;
   /** 플레이어 고르기·해제(""). 주지 않으면 화면 안에서만 기억한다. */
   choosePlayer?: (id: string) => void;
+  /** 확정 경기가 하나도 없을 때 안내 아래에 둘 행동 하나(운영자: 팀 짜기). 조회 링크는 비운다. */
+  emptyAction?: ReactNode;
 }) {
   const { snapshot } = props;
   const timeZone = snapshot.group.timezone;
@@ -309,6 +311,24 @@ export function Graphs(props: {
             : []),
         ];
 
+  // 모임에 확정 경기가 하나도 없으면 빈 그림·빈 칸 여러 개 대신 안내 하나와 행동 하나만 둔다(CLAUDE.md 8절).
+  // 범위를 좁혀 비는 경우는 고르기 줄이 필요하므로 여기에 들지 않는다(누적 기준으로 판단).
+  if (!snapshot.matches.some(isCounted)) {
+    return (
+      <div className="screen page-wide viz-root">
+        <ScreenHead
+          back={<BackLink label="← 기록" fallback={props.back} />}
+          title="그래프 분석"
+          desc="범위·플레이어를 골라 승률·라인·진영·편성 흐름을 봅니다"
+        />
+        <div className="empty-state">
+          <p>결과를 저장한 경기가 쌓이면 승률·라인·진영·섞기 공정성 분석이 보여요.</p>
+          {props.emptyAction}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="screen cols viz-root">
       <ScreenHead
@@ -371,7 +391,8 @@ export function Graphs(props: {
         </div>
         <div className="graph-meta">
           <p className="hint">
-            {scopeLabel} · 확정 {counted}경기 · 참가자 {matrixRows.length}명
+            {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. */}
+            {scopeLabel} · 확정 {counted}경기 · 참가자 {matrixRows.length}명 · 자료 적음({SMALL_SAMPLE}경기 미만) {fewCount}명
           </p>
         </div>
       </div>
@@ -431,13 +452,6 @@ export function Graphs(props: {
                 <span className="tile-sub">진영 기록 없음</span>
               </dd>
             )}
-          </div>
-          <div>
-            <dt className="tile-label">자료 적음({SMALL_SAMPLE}경기 미만)</dt>
-            <dd className="season-stat">
-              {fewCount}
-              <span className="season-unit">명</span>
-            </dd>
           </div>
         </dl>
         {/* 예전 "진영별 누적 승률" 카드의 내용: 진영마다 전적 글 한 줄과 미상 안내. */}
@@ -971,41 +985,36 @@ function CommentaryCard(props: { notes: Commentary }) {
 }
 
 
-/** 승률 색 범례: 한 줄 띠. 낮은 쪽(30%↓)에서 높은 쪽(70%↑)까지 열 칸, 그 뒤 5경기 미만. 막대 그래프와 표가 같이 쓴다. */
+/**
+ * 승률 색 범례: 3단(낮음·기준·높음)과 5경기 미만. 막대 그래프와 표가 같이 쓴다.
+ * 경계 글자는 format.ts의 rateHeat 경계에서 만든다. 높은 쪽은 화면 정수 승률이 경계(55)를 넘어야 하므로 "56% 이상"이다.
+ * 클래스는 각 단의 대표(heat-l4·heat-0·heat-h4)를 쓴다. 세 단 안에서는 h1~h4, l1~l4가 같은 색이다.
+ */
 function HeatLegend() {
-  const bands: { cls: string; label: string }[] = [
-    { cls: "heat-l4", label: `${RATE_HEAT_COLD[3]}%↓` },
-    { cls: "heat-l3", label: "" },
-    { cls: "heat-l2", label: "" },
-    { cls: "heat-l1", label: "" },
-    { cls: "heat-0 mid-lo", label: `${RATE_HEAT_COLD[0]}%` },
-    { cls: "heat-0 mid-hi", label: "50%" },
-    { cls: "heat-h1", label: `${RATE_HEAT_HOT[0]}%` },
-    { cls: "heat-h2", label: "" },
-    { cls: "heat-h3", label: "" },
-    { cls: "heat-h4", label: `${RATE_HEAT_HOT[3]}%↑` },
+  const bands = [
+    { cls: "heat-l4", label: `${RATE_HEAT_COLD[0]}% 미만` },
+    { cls: "heat-0", label: `${RATE_HEAT_COLD[0]}~${RATE_HEAT_HOT[0]}%` },
+    { cls: "heat-h4", label: `${RATE_HEAT_HOT[0] + 1}% 이상` },
   ];
   return (
-    <div className="legend-strip" role="img" aria-label="색 범례: 낮은 승률은 회색·갈색·자주·보라, 기준은 파랑·청록, 높은 승률은 연두·노랑·주황·빨강. 5경기 미만은 색 없음">
-      <span className="legend-low">낮음</span>
-      <span className="legend-bands">
-        {bands.map((b) => (
-          <span key={b.cls} className={`swatch ${b.cls}`} title={b.label || undefined}>
-            {b.label && <span className="legend-tick">{b.label}</span>}
-          </span>
-        ))}
-      </span>
-      <span className="legend-high">높음</span>
-      <span className="legend-none">
-        <span className="swatch band-none" /> {SMALL_SAMPLE}경기 미만
-      </span>
-    </div>
+    <ul className="legend" aria-label="승률 색 범례">
+      {bands.map((b) => (
+        <li key={b.cls}>
+          <span className={`swatch ${b.cls}`} aria-hidden="true" />
+          {b.label}
+        </li>
+      ))}
+      <li>
+        <span className="swatch band-none" aria-hidden="true" />
+        {SMALL_SAMPLE}경기 미만 (색 없음)
+      </li>
+    </ul>
   );
 }
 
 /**
  * 플레이어 × 라인 표. 머리 행은 화면을 내려도 붙어 있고(sticky), 라인에는 아이콘, 이름은 개인 통계로 가는 버튼이다.
- * 칸은 승률(굵게)과 경기 수(작게). 색은 막대와 같은 단계(heatBarClass): 옅은 바탕 + 왼쪽 진한 띠.
+ * 칸은 승률(굵게)과 경기 수(작게). 바탕은 모든 칸이 같은 중립색이고 승률 글자만 막대와 같은 3단 색이다.
  */
 function MatrixTable(props: {
   rows: PersonRecord[];

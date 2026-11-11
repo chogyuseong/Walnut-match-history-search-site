@@ -29,11 +29,6 @@
   --ih-selected: #3a3220;
   --ih-danger: #ea847f;
 
-  /* MMR 랭킹 금·은·동(4단계에서 중립화 예정). */
-  --ih-accent-medal-gold: #e3b04b;
-  --ih-accent-silver: #b5b9c0;
-  --ih-accent-bronze: #c48a5e;
-
   /* 승리·블루 / 패배·레드. e2e/rate-colors.spec.ts가 이 값을 rgb로 확인한다. */
   --ih-win-accent: #4f8ddd;
   --ih-win-bg: rgba(79, 141, 221, 0.12);
@@ -46,45 +41,6 @@
   --ih-loss-bg-hover: rgba(217, 83, 79, 0.18);
   --ih-loss-border: rgba(217, 83, 79, 0.35);
   --ih-loss-text: #ea847f;
-
-  /* 승률 색 단계(format.ts의 rateHeat). 0은 기준(45~55%, 파랑), h1~h4는 높을수록 노랑 → 주황 → 다홍 → 빨강,
-     l1~l4는 낮을수록 연보라 → 보라 → 자주 → 회색. 막대(bar)는 막대 바탕(--viz-track) 대비 3:1 이상,
-     글자(text)는 바탕 대비 4.5:1 이상. 바꿀 때는 light 토큰도 함께.
-     열 단계가 모두 서로 다른 색이다:
-     70%↑ 빨강 · 65~70 주황 · 60~65 노랑 · 55~60 연두 · 50~55 청록 · 45~50 파랑 · 40~45 보라 · 35~40 자주 · 30~35 갈색 · 30%↓ 회색
-     (2026-11-09 "기록지" 테마: 색상은 그대로 두고 채도를 12% 낮췄다. 2026-11-10 "차콜": 0·낮은 쪽 글자를 무채색 회색으로.) */
-  --heat-bar-h4: #f45858;
-  --heat-bar-h3: #f28b37;
-  --heat-bar-h2: #e3b90f;
-  --heat-bar-h1: #a4cd43;
-  --heat-bar-0: #4a8fe5;
-  --heat-bar-0h: #38bbab;
-  --heat-bar-0l: #4a8fe5;
-  --heat-bar-l1: #8174ee;
-  --heat-bar-l2: #bf62cc;
-  --heat-bar-l3: #aa7a50;
-  --heat-bar-l4: #8d94a3;
-  --heat-text-h4: #f37e46;
-  --heat-text-h3: #f08d50;
-  --heat-text-h2: #f0a769;
-  --heat-text-h1: #efc390;
-  --heat-text-0: #eceef1;
-  --heat-text-l1: #cfd2d8;
-  --heat-text-l2: #babec5;
-  --heat-text-l3: #a7abb3;
-  --heat-text-l4: #979ba3;
-
-  /* 칭호 등급 색(titles.ts의 titleGrade, 1~8). 1(최상)부터 금 → 주황 → 장미 → 보라 → 파랑 → 청록 → 초록 → 회청.
-     따뜻한 색일수록 높은 구간으로 읽히고(승률 색 단계와 같은 방향), 구간마다 색이 다르다.
-     카드 바탕 대비 글자 4.5:1 이상. 바꿀 때는 아래 light 테마 토큰도 함께 바꾼다. */
-  --grade-1: #e8bd58;
-  --grade-2: #f6a16f;
-  --grade-3: #ef92a4;
-  --grade-4: #c2adfa;
-  --grade-5: #7cb9f7;
-  --grade-6: #66ccc2;
-  --grade-7: #84cf8f;
-  --grade-8: #abb4c2;
 
   --ih-font-sans: "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, system-ui,
     "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
@@ -126,41 +82,6 @@
   --ih-loss-bg-hover: #f6dcda;
   --ih-loss-border: #ecb8b5;
   --ih-loss-text: #a92f2b;
-  /* 흰 바탕에서 글자 대비 4.5:1 이상. */
-  --ih-accent-medal-gold: #8f6414;
-  --ih-accent-silver: #5a5853;
-  --ih-accent-bronze: #8a4b2a;
-  /* 밝은 테마의 승률 색 단계. 막대는 바탕 막대(--viz-track) 대비 3:1 이상, 글자는 흰 바탕 대비 4.5:1 이상이고
-     낮은 쪽 글자는 먹색에서 회색으로 가라앉는다. 같은 순서를 흰 바탕에서 진하게, 채도는 12% 낮춤(2026-11-09). */
-  --heat-bar-h4: #c73939;
-  --heat-bar-h3: #c0641c;
-  --heat-bar-h2: #957e0a;
-  --heat-bar-h1: #668a20;
-  --heat-bar-0: #3479cc;
-  --heat-bar-0h: #178c81;
-  --heat-bar-0l: #3479cc;
-  --heat-bar-l1: #6150cd;
-  --heat-bar-l2: #9746a9;
-  --heat-bar-l3: #765537;
-  --heat-bar-l4: #5c6472;
-  --heat-text-h4: #a64714;
-  --heat-text-h3: #a14d14;
-  --heat-text-h2: #955215;
-  --heat-text-h1: #875916;
-  --heat-text-0: #1b1a17;
-  --heat-text-l1: #3a3833;
-  --heat-text-l2: #4d4a44;
-  --heat-text-l3: #5c5a54;
-  --heat-text-l4: #66635c;
-  /* 칭호 등급 색(라이트): 같은 순서(금 → 주황 → 장미 → 보라 → 파랑 → 청록 → 초록 → 회청)를 흰 바탕에서 4.5:1 이상으로 어둡게. */
-  --grade-1: #8b6609;
-  --grade-2: #aa4914;
-  --grade-3: #a9375d;
-  --grade-4: #6052bd;
-  --grade-5: #2769b8;
-  --grade-6: #15756e;
-  --grade-7: #1b7444;
-  --grade-8: #5b6271;
   --ih-ok-bg: #eaf6ef;
   --ih-ok-text: #1f7a4d;
   --ih-warn-bg: #fdf6e6;
@@ -181,6 +102,9 @@
   /* 양식·읽기 화면의 글줄 폭. 좌우 여백은 이 값 바깥에 더한다(.screen 폭 규칙). */
   --reading-max: 720px;
   --page-gutter: var(--space-4);
+  /* 창 폭 전체로 그은 줄(예시 안내 띠·조회 메뉴 줄) 안 글자의 좌우 여백. 창이 본문 폭보다 넓으면 남는 폭의 반을 더해
+     글자가 본문 칸의 왼쪽 정렬선(--page-gutter)에 놓인다. 100%는 줄 자신의 폭(창 폭)이다. */
+  --bleed-inline: max(var(--page-gutter), calc((100% - var(--content-max)) / 2 + var(--page-gutter)));
   /* 상단 바 높이. 768px 이상에서는 위에 붙어 따라오므로 따라오는 머리·판의 top과 앵커 이동 여백이 이 값에서 출발한다. */
   --topbar-height: 64px;
   /* 768px 미만의 하단 고정 메뉴 높이. 기기 아래 안전 영역은 따로 더한다. */
@@ -271,6 +195,15 @@ main {
   margin: 0 auto;
   /* 하단 메뉴와 기기 하단 안전 영역만큼 띄운다. */
   padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + var(--space-4));
+}
+/* 예시 모임·조회 링크: 맨 위 안내 띠와 메뉴 줄(main 안에 있다)의 바탕·선이 상단 바처럼 창 폭 전체로 그어지게
+   main의 폭 제한을 풀고, 그 아래 본문과 푸터는 .bleed-body가 본문 폭으로 묶는다(App.tsx·Demo·Viewer). */
+main.bleed {
+  max-width: none;
+}
+.bleed-body {
+  max-width: var(--content-max);
+  margin: 0 auto;
 }
 
 /* 화면 본문. 좌우 여백이 곧 페이지 안전 여백(--page-gutter)이라 main에는 좌우 여백이 없다. */
@@ -1025,24 +958,21 @@ input[type="search"] {
 }
 
 /* ---------- 그래프 분석 ----------
-   색은 역할로 쓴다. 승률 막대·표 칸은 승률 색 단계(heat-*), 진영은 블루·레드(글자와 함께). */
-/* 진영 막대(블루·레드)는 승·패 색 토큰을 그대로 쓴다(2026-11-09 "기록지" 테마: 채도 낮춘 승패 색과 한 벌).
-   막대 바탕(--viz-track)은 다크에서 화면 배경색, 라이트에서 보조 면 색이다(보조 면 #334155 위에서는 막대 일부가 3:1 미달). 승률 막대(heat-bar)는 이 바탕 대비 3:1 이상(test/theme-contrast.test.ts). */
-/* 기본 계열색(--viz-series)은 2단계(2026-11-09)에서 채도를 15% 낮췄다(명도 그대로). */
+   색은 역할로 쓴다. 승률 막대·표 칸 글자는 승률 3단(heat-*), 진영은 블루·레드(글자와 함께), 단일 값 막대는 중립색(--viz-series).
+   여러 범주를 구별해야 하는 그림(순위 변동·라인 모양)만 범례와 함께 --viz-cat-*을 쓴다(CLAUDE.md 5절).
+   막대 바탕(--viz-track)은 다크에서 화면 배경색, 라이트에서 보조 면 색이다(보조 면 #334155 위에서는 막대 일부가 3:1 미달).
+   승률 막대 세 색과 --viz-series는 이 바탕 대비 3:1 이상(test/theme-contrast.test.ts). */
 .viz-root {
   --viz-surface: var(--ih-panel);
-  --viz-series: #5690d9;
+  --viz-series: var(--ih-text-secondary);
   --viz-blue: var(--ih-win-accent);
   --viz-red: var(--ih-loss-accent);
-  --viz-orange: #e8913f;
   --viz-mid: var(--ih-subtle);
   --viz-track: #0f172a;
   --viz-axis: var(--ih-text-secondary);
 }
 /* 그래프 색은 기기 설정이 아니라 고른 테마를 따른다. */
 [data-theme="light"] .viz-root {
-  --viz-series: #3f7ac1;
-  --viz-orange: #c96a1f;
   --viz-track: #f1f5f9;
 }
 .filter-row {
@@ -1198,10 +1128,11 @@ button.bar-row:hover {
   font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
+/* 숫자 칸(라인별 승률)은 오른쪽, 이름 칸은 왼쪽 정렬(CLAUDE.md 7절). */
 .matrix th,
 .matrix td {
   padding: var(--space-1) 0;
-  text-align: center;
+  text-align: right;
   border-radius: 4px;
   color: var(--ih-text);
   line-height: 1.25;
@@ -1212,6 +1143,7 @@ button.bar-row:hover {
 }
 .matrix th:first-child {
   width: 29%;
+  text-align: left;
 }
 @media (min-width: 1200px) {
   .matrix th:first-child {
@@ -1228,13 +1160,17 @@ button.bar-row:hover {
 .matrix tr.picked th[scope="row"] {
   font-weight: 500;
 }
-/* 표 칸(2026-11-08 재설계): 옅은 바탕(막대 색 22%). 색이 탁해지지 않고 글자 대비도 지킨다.
-   승률은 굵게, 경기 수는 작고 흐리게. */
-.matrix td[class*="heat-"] {
-  background: color-mix(in oklab, var(--heat-bar) 22%, var(--viz-surface));
-}
+/* 표 칸: 모든 칸이 같은 옅은 중립 바탕이고(칸마다 다른 색을 칠하지 않는다, CLAUDE.md 7절) 승률 글자만 3단 색을 따른다.
+   승률은 굵게, 경기 수는 작고 흐리게. 5경기 미만 칸(band-none)은 바탕 없이 둔다. */
 .matrix td {
   display: table-cell;
+  padding-right: var(--space-1);
+}
+.matrix td[class*="heat-"] {
+  background: var(--viz-mid);
+}
+.matrix td[class*="heat-"] .cell-rate {
+  color: var(--heat);
 }
 .cell-rate {
   display: block;
@@ -1256,7 +1192,7 @@ button.bar-row:hover {
   background: var(--ih-subtle);
 }
 .matrix thead th .pos {
-  justify-content: center;
+  justify-content: flex-end;
   width: auto;
   color: var(--ih-text-secondary);
 }
@@ -1288,7 +1224,7 @@ button.bar-row:hover {
   color: var(--ih-accent);
   text-decoration: underline;
 }
-/* 플레이어 필터로 고른 사람의 행: 칸마다 1px 강조 선(칸 바탕은 승률 색이라 비워 둔다), 이름 칸만 선택 바탕. */
+/* 플레이어 필터로 고른 사람의 행: 칸마다 1px 강조 선, 이름 칸만 선택 바탕(승률 칸 바탕은 다른 줄과 같게 둔다). */
 .matrix tr.picked > th,
 .matrix tr.picked > td {
   outline: 1px solid var(--ih-accent);
@@ -1305,55 +1241,6 @@ button.bar-row:hover {
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
 }
-/* 승률 색 범례 띠(HeatLegend) */
-.legend-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-2);
-  margin: var(--space-1) 0 var(--space-2);
-  font-size: var(--text-label);
-  color: var(--ih-text-secondary);
-}
-.legend-bands {
-  display: flex;
-  gap: var(--space-1);
-}
-.legend-bands .swatch {
-  position: relative;
-  width: 30px;
-  height: 12px;
-  border-radius: 4px;
-}
-.legend-tick {
-  position: absolute;
-  top: 14px;
-  left: 0;
-  white-space: nowrap;
-  font-size: var(--text-meta);
-}
-.legend-bands .swatch:last-child .legend-tick {
-  left: auto;
-  right: 0;
-}
-.legend-strip {
-  max-width: 100%;
-  overflow: hidden;
-}
-@media (max-width: 419px) {
-  .legend-bands .swatch {
-    width: 24px;
-  }
-}
-.legend-bands {
-  margin-bottom: var(--space-4);
-}
-.legend-none {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
 /* ---------- 배치 보정 ---------- */
 
 /* 동작 버튼의 글자는 줄바꿈하지 않는다(입력 칸 옆에서 한 글자씩 꺾이던 문제). */
@@ -1551,13 +1438,6 @@ button:not([class]):not(:disabled):hover,
   border-color: var(--ih-control-border);
 }
 
-/* 카드 안의 카드: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다. 명시도는 :where()로 낮춘다. */
-.card :where(.card) {
-  border-width: 1px 0 0;
-  border-radius: 0;
-  padding: var(--space-3) 0 0;
-  background: transparent;
-}
 .note {
   background: var(--ih-panel);
   border-color: var(--ih-line);
@@ -1735,7 +1615,7 @@ button.row.picked:hover {
    2단계(2026-11-09): 색상은 그대로 두고 채도를 15% 낮췄다. 카드·바탕 대비 글자 4.5:1 이상(라이트는 그래서 더 진해졌다,
    test/theme-contrast.test.ts가 검사).
    신호 색(--sig-*): 섞기 공정성 분포 띠·판정, 분석 코멘트 점처럼 "좋음(초록)·조금(노랑)·나쁨(주황)" 뜻을 가진 칠.
-   칠 위 글자는 --on-sig. 팀 추천 창 티어 이름표(--cand-t1~5)는 테마와 무관하게 같은 다섯 단계다.
+   칠 위 글자는 --on-sig.
    이야기 카드 색(--story-*): 그래프 분석 맨 위 카드 넷의 라벨 색(연두·분홍·청록·연보라). CLAUDE.md 5절의 명시 예외다.
    파랑(블루 진영)·빨강(레드·패)·골드(강조·고른 카드)와 겹치는 색상은 피했다. 값을 바꿀 때는 카드 바탕(--ih-subtle)과
    고른 카드 바탕(--ih-selected) 위 4.5:1을 지킨다(test/theme-contrast.test.ts). */
@@ -1750,14 +1630,6 @@ button.row.picked:hover {
   --sig-warn: #d5ad47;
   --sig-bad: #da7c3d;
   --on-sig: #1b1a17;
-  --cand-t1: #f2d15a;
-  --cand-t2: #97d1f7;
-  --cand-t3: #87a8e0;
-  --cand-t4: #627195;
-  --cand-t5: #424b63;
-  --on-cand-light: #1b1a17;
-  --on-cand-dark: #ffffff;
-  --on-cand-deep: #d8dce8;
   --story-streak: #b4d66b;
   --story-upset: #f29dbb;
   --story-pair: #4fcfc4;
@@ -1776,19 +1648,6 @@ button.row.picked:hover {
   --sig-good: #369d66;
   --sig-warn: #ab8627;
   --sig-bad: #d7702c;
-}
-/* MMR 티어 색(브론즈 적갈 · 실버 회은 · 골드 금 · 플래티넘 청록 · 다이아몬드 하늘파랑).
-   이름표는 이 색 10% 틴트 바탕 + 같은 색 글자라, 색이 카드 바탕 대비 글자 4.5:1 이상이어야 한다. */
-:root {
-  --tier-bronze: var(--ih-accent-bronze);
-  --tier-silver: var(--ih-accent-silver);
-  --tier-gold: var(--ih-accent-medal-gold);
-  --tier-platinum: #4fc7b4;
-  --tier-diamond: #8ccbef;
-}
-[data-theme="light"] {
-  --tier-platinum: #0f766e;
-  --tier-diamond: #0369a1;
 }
 /* 글자와 아이콘(currentColor) 모두에 라인 색. 표·비교 화면의 `.xxx .pos { color }` 규칙(명시도 0,2,0)을 이기도록
    선택자를 겹쳐 명시도를 0,3,0으로 올렸다. 라인 색을 끄고 싶은 곳은 같은 명시도 이상으로 덮는다. */
@@ -1907,15 +1766,13 @@ table {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
-/* 순위 숫자 색(format.ts rankClass): 1위 포인트 색 · 2위 은 · 3위 동 · 4~10위 본문 · 11위~ 흐림. 색 띠는 쓰지 않는다. */
-.rank.rank-1 {
-  color: var(--ih-accent);
-}
-.rank.rank-2 {
-  color: var(--ih-accent-silver);
-}
+/* 순위 숫자(format.ts rankClass): 색을 쓰지 않고 굵기·명도로만 가른다(CLAUDE.md 5절, 금은동 색 없음).
+   1~3위는 본문 글자 600, 4~10위 본문 글자, 11위~ 보조 글자. 순번 숫자 자체가 뜻을 전한다. */
+.rank.rank-1,
+.rank.rank-2,
 .rank.rank-3 {
-  color: var(--ih-accent-bronze);
+  color: var(--ih-text);
+  font-weight: 600;
 }
 .rank.rank-mid {
   color: var(--ih-text);
@@ -1927,59 +1784,34 @@ table {
 .rate {
   font-weight: 500;
 }
-/* 승률 색 단계(format.ts의 heatClass). 한 클래스가 막대 색과 글자 색을 함께 정한다. */
+/* 승률 3단(CLAUDE.md 5절, format.ts heatClass): 높음(heat-h1~h4) 강조색 · 기준(heat-0, 45~55%) 주요 글자 ·
+   낮음(heat-l1~l4) 보조 글자. 클래스 이름은 예전 아홉 단계를 그대로 두고(테스트·화면 코드가 단계 이름을 쓴다)
+   색만 세 값으로 모았다. 한 변수(--heat)가 글자·막대·고리 색을 함께 정한다. 대비는 test/theme-contrast.test.ts. */
+.heat-h1,
+.heat-h2,
+.heat-h3,
 .heat-h4 {
-  --heat-bar: var(--heat-bar-h4);
-  --heat-text: var(--heat-text-h4);
-}
-.heat-h3 {
-  --heat-bar: var(--heat-bar-h3);
-  --heat-text: var(--heat-text-h3);
-}
-.heat-h2 {
-  --heat-bar: var(--heat-bar-h2);
-  --heat-text: var(--heat-text-h2);
-}
-.heat-h1 {
-  --heat-bar: var(--heat-bar-h1);
-  --heat-text: var(--heat-text-h1);
-}
-.heat-0.mid-hi {
-  --heat-bar: var(--heat-bar-0h);
-}
-.heat-0.mid-lo {
-  --heat-bar: var(--heat-bar-0l);
+  --heat: var(--ih-accent);
 }
 .heat-0 {
-  --heat-bar: var(--heat-bar-0);
-  --heat-text: var(--heat-text-0);
+  --heat: var(--ih-text);
 }
-.heat-l1 {
-  --heat-bar: var(--heat-bar-l1);
-  --heat-text: var(--heat-text-l1);
-}
-.heat-l2 {
-  --heat-bar: var(--heat-bar-l2);
-  --heat-text: var(--heat-text-l2);
-}
-.heat-l3 {
-  --heat-bar: var(--heat-bar-l3);
-  --heat-text: var(--heat-text-l3);
-}
+.heat-l1,
+.heat-l2,
+.heat-l3,
 .heat-l4 {
-  --heat-bar: var(--heat-bar-l4);
-  --heat-text: var(--heat-text-l4);
+  --heat: var(--ih-text-secondary);
 }
 .rate[class*="heat-"] {
-  color: var(--heat-text);
+  color: var(--heat);
 }
 .meter-fill[class*="heat-"],
 .bar-fill[class*="heat-"],
 .swatch[class*="heat-"] {
-  background: var(--heat-bar);
+  background: var(--heat);
 }
 .ring-fill[class*="heat-"] {
-  stroke: var(--heat-bar);
+  stroke: var(--heat);
 }
 .summary-line {
   font-size: var(--text-body);
@@ -2117,14 +1949,15 @@ table {
   background: var(--ih-selected);
   color: var(--ih-accent);
 }
-/* 조회·예시 메뉴 줄: 모임 이름 + 화면 칸. 좁은 화면에서는 화면 칸 묶음(> span)만 아래 메뉴로 내려가고 이름은 위에 남는다. */
+/* 조회·예시 메뉴 줄: 모임 이름 + 화면 칸. 좁은 화면에서는 화면 칸 묶음(> span)만 아래 메뉴로 내려가고 이름은 위에 남는다.
+   줄은 창 폭 전체(main.bleed)이고, 좌우 여백 --bleed-inline이 글자를 본문(1200px 칸 + 여백)의 정렬선에 맞춘다. */
 .viewer-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   min-height: var(--control-height);
-  padding: var(--space-1) var(--page-gutter);
+  padding: var(--space-1) var(--bleed-inline);
   border-bottom: 1px solid var(--ih-line);
   background: var(--ih-panel);
 }
@@ -2233,9 +2066,9 @@ table {
 }
 
 /* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
-/* 칭호 표식: 엠블럼 + 이름. 등급(grade-1~8, 구간 순서로 정함)이 있으면 글자·테두리·엠블럼을 등급 색으로,
-   바탕은 비운다(글자 대비 4.5:1, 테두리 3:1 이상). 등급이 없으면 본문 글자 + 옅은 테두리.
-   모양은 알약이 아니라 모서리 4px 네모(2026-11-09 "기록지" 테마). */
+/* 칭호 표식: 엠블럼 + 이름, 바탕 없이 1px 테두리. 등급(grade-1~8, 구간 순서로 정함)은 색이 아니라 엠블럼 도형
+   (screenKit.tsx TITLE_EMBLEMS, 등급마다 다른 모양)과 이름 글자로 구분하고, 명도만 위 네 등급은 본문 글자,
+   아래 네 등급은 보조 글자로 나눈다(CLAUDE.md 5절: 칭호 무지개색 없음). 모서리 4px 네모. */
 .title-chip {
   display: inline-flex;
   align-items: center;
@@ -2259,37 +2092,14 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.grade-1 {
-  --grade: var(--grade-1);
-}
-.grade-2 {
-  --grade: var(--grade-2);
-}
-.grade-3 {
-  --grade: var(--grade-3);
-}
-.grade-4 {
-  --grade: var(--grade-4);
-}
-.grade-5 {
-  --grade: var(--grade-5);
-}
-.grade-6 {
-  --grade: var(--grade-6);
-}
-.grade-7 {
-  --grade: var(--grade-7);
-}
-.grade-8 {
-  --grade: var(--grade-8);
-}
 .title-chip[class*="grade-"] {
   padding-left: var(--space-1);
-  border-color: var(--grade);
-  background: transparent;
-  color: var(--grade);
+  color: var(--ih-text);
 }
-/* 목록 줄의 칭호(TitleBadge compact): 테두리·바탕 없이 등급 색 글자 + 작은 엠블럼만(2026-11-09 2단계 밀도 정리). */
+:is(.title-chip, .title-preview):is(.grade-5, .grade-6, .grade-7, .grade-8) {
+  color: var(--ih-text-secondary);
+}
+/* 목록 줄의 칭호(TitleBadge compact): 테두리·바탕 없이 글자 + 작은 엠블럼만(2026-11-09 2단계 밀도 정리). */
 .title-chip.compact,
 .title-chip.compact[class*="grade-"] {
   gap: var(--space-1);
@@ -2314,13 +2124,12 @@ table {
 .title-preview {
   display: inline-flex;
   flex: none;
-  color: var(--grade);
+  color: var(--ih-text);
 }
 .title-preview .title-emblem {
   width: 20px;
   height: 20px;
 }
-
 
 /* 범위 고르기(오늘·시즌·연도·전체): 좁은 화면에서도 한 줄에 들어가게 칸이 줄어들 수 있다.
    긴 시즌 이름은 목록 상자 안에서 잘린다. */
@@ -2530,6 +2339,28 @@ table {
 
 /* ---------- C: 경기 카드·대시보드·랭킹·비교·이미지 ---------- */
 /* 새 색을 만들지 않고 키트 토큰만 쓴다. 승·패는 색과 함께 글자(승/패)로 적는다. */
+/* 본문으로 건너뛰기(App.tsx TopBar 앞): 평소에는 화면 읽기 전용처럼 숨고, 키보드 초점을 받으면 상단 바 왼쪽 위에 보인다. */
+.skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link:focus {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--page-gutter);
+  z-index: 10;
+  background: var(--ih-panel);
+}
+/* 건너뛰기로 초점을 받은 main 전체에 테두리를 그리지 않는다(초점 목적지일 뿐 누르는 것이 아니다). */
+main:focus {
+  outline: none;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -2641,10 +2472,11 @@ table {
   pointer-events: none;
   min-width: 0;
 }
+/* 첫 칸(진영·승패 "레드 패")은 두 낱말이 한 줄에 들어가는 고정 폭. 라인 머리 줄(.mc-roles)과 같은 폭이어야 칸이 맞는다. */
 .mc-roles,
 .mc-team {
   display: grid;
-  grid-template-columns: 2.25rem repeat(5, minmax(0, 1fr));
+  grid-template-columns: 3rem repeat(5, minmax(0, 1fr));
   gap: var(--space-1);
   align-items: center;
   min-width: 0;
@@ -2669,8 +2501,10 @@ table {
 }
 .mc-team-label {
   display: flex;
-  flex-direction: column;
-  line-height: 1.15;
+  align-items: baseline;
+  gap: var(--space-1);
+  white-space: nowrap;
+  line-height: 1.5;
   font-size: var(--text-label);
   font-weight: 500;
   color: var(--ih-text-secondary);
@@ -2714,11 +2548,6 @@ table {
   text-decoration: underline;
 }
 @media (max-width: 419px) {
-  .mc-roles,
-  .mc-team {
-    /* 진영 칸은 "블루"·"레드"(14px 두 글자)가 한 줄로 들어가는 최소 폭. 1.6rem에서는 칸 밖으로 비어져 나왔다. */
-    grid-template-columns: 2rem repeat(5, minmax(0, 1fr));
-  }
   .match-card {
     padding: 0 var(--space-1) var(--space-2) var(--space-2);
   }
@@ -2753,10 +2582,6 @@ table {
   .mc-name,
   .mc-name:not(:disabled):hover {
     font-size: var(--text-label);
-  }
-  .mc-roles,
-  .mc-team {
-    grid-template-columns: 2.5rem repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -2941,10 +2766,20 @@ table {
   font-weight: 500;
   color: var(--ih-text-secondary);
 }
+/* 개인 통계 "세부 기록": 요약 카드에서 내린 라인·동료 칸과 이변·출석 줄. */
+.person-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.person-facts > h2 {
+  margin: 0;
+}
+/* 지표 묶음(개인 세부 기록·시즌 요약·섞기 공정성): 상자로 감싸지 않고 칸마다 위 1px 구분선만 둔다(CLAUDE.md 2절). */
 .ps-tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: var(--space-4);
   margin: 0;
 }
 .ps-tiles > div {
@@ -2952,10 +2787,8 @@ table {
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--ih-subtle);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--radius-panel);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ih-line);
 }
 .ps-tiles dd {
   display: flex;
@@ -2992,13 +2825,6 @@ table {
   .ps-tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-}
-/* 요약 머리의 연속 기록 줄(예전 "지금" 타일). */
-.ps-streak {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-2);
 }
 /* 개인 통계: 768px부터 두 단. 키 큰 "라인별"이 오른쪽에서 두 줄을 차지하고
    왼쪽에 짧은 "최근"·"진영별"을 쌓아 한쪽 아래가 길게 비지 않게 한다.
@@ -3093,16 +2919,10 @@ table {
   stroke-width: 1;
   stroke-dasharray: 4 3;
 }
-/* 두 추이 그래프를 색으로 구분한다: 누적 승률은 주황, MMR은 빨강(사용자 요청). 선과 끝값 글자가 같은 색이다. */
-.trend-rate {
-  --trend-color: var(--viz-orange);
-}
-.trend-rating {
-  --trend-color: var(--viz-red);
-}
+/* 추이 선은 단일 값이라 중립색 하나다(CLAUDE.md 5절). 누적 승률·MMR 두 그림은 아래 제목 글자로 구분한다. */
 .trend-path {
   fill: none;
-  stroke: var(--trend-color, var(--viz-series));
+  stroke: var(--ih-text);
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -3116,11 +2936,11 @@ table {
   color: var(--ih-text-secondary);
 }
 .trend-caption strong {
-  color: var(--trend-color, var(--ih-text));
+  color: var(--ih-text);
 }
 
 /* 개인 통계·검색의 작은 막대와 승률 고리. 그림은 보조이고 값은 옆 숫자로 함께 적는다.
-   승률 막대는 한 가지 색 + 50% 기준선, 5경기 미만은 회색(강조하지 않음). */
+   승률 막대는 3단 색 + 50% 기준선, 5경기 미만은 속 빈 테두리 막대(색이 아니라 모양으로 "자료 적음"). */
 /* 막대 높이 5px(작은 막대 4px). 2026-11-09 2단계: 8px → 5px로 낮춰 숫자 옆 보조 그림답게. */
 .meter {
   position: relative;
@@ -3148,15 +2968,12 @@ table {
 .meter-fill.tone-share {
   background: var(--ih-text-secondary);
 }
-.meter-fill.tone-muted {
-  background: var(--viz-axis);
-}
-/* 밝은 테마에서는 회색 막대가 바탕 막대와 3:1 이상 구분되도록 조금 더 어둡게 둔다. */
-[data-theme="light"] .meter-fill.tone-muted {
-  background: var(--ih-text-secondary);
-}
-[data-theme="light"] .ring-fill.tone-muted {
-  stroke: var(--ih-text-secondary);
+/* 속 빈 막대: 5경기 미만 승률(tone-muted, 그래프 .bar-fill도 같은 모양)과 패·비교 두 번째 사람(.wl-loss·.cmp-bar-b).
+   예전 빗금 무늬(그라데이션) 대신 1px 테두리만 그린다. 테두리는 막대 바탕 대비 3:1 이상인 보조 글자 색. */
+.meter-fill.tone-muted,
+.bar-fill.tone-muted {
+  background: transparent;
+  border: 1px solid var(--ih-text-secondary);
 }
 .meter-mid {
   position: absolute;
@@ -3167,7 +2984,7 @@ table {
   background: var(--ih-text);
   opacity: 0.55;
 }
-/* 승·패 비율: 승은 승리 색, 패는 패배 색에 빗금(색이 아니라 무늬로도 구분). */
+/* 승·패 비율: 승은 승리 색 채움, 패는 패배 색 테두리만(속 빈 막대, 색이 아니라 모양으로도 구분). */
 .wl-bar {
   position: relative;
   display: flex;
@@ -3185,11 +3002,8 @@ table {
   background: var(--ih-win-accent);
 }
 .wl-loss {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--ih-loss-accent) 0 3px,
-    color-mix(in oklab, var(--ih-loss-accent) 45%, var(--ih-panel)) 3px 5px
-  );
+  border: 1px solid var(--ih-loss-accent);
+  border-left-width: 0;
 }
 .wl-bar .meter-mid {
   top: 0;
@@ -3307,34 +3121,19 @@ table {
   border-top: 0;
 }
 
-/* MMR 티어 이름표(RatingTierBadge): 티어 색 10% 틴트 바탕 + 같은 색 글자. 칭호(.title-chip)는 바탕 없이
-   테두리만이라 모양으로 갈린다. */
+/* MMR 티어 이름표(RatingTierBadge): 색 없이 보조 면 바탕 + 본문 글자. 티어는 이름 글자(브론즈~다이아몬드)로 읽고,
+   칭호(.title-chip, 바탕 없이 테두리만)와는 채움·테두리 모양으로 갈린다. 티어마다 색을 주지 않는다(CLAUDE.md 5절). */
 .mmr-tier {
   display: inline-block;
   padding: 0 var(--space-2);
   border-radius: var(--radius-badge);
-  background: color-mix(in srgb, var(--tier-fill) 10%, transparent);
-  color: var(--tier-fill);
+  background: var(--ih-subtle);
+  color: var(--ih-text);
   font-size: var(--text-label);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.5;
   white-space: nowrap;
   vertical-align: middle;
-}
-.mmr-tier-bronze {
-  --tier-fill: var(--tier-bronze);
-}
-.mmr-tier-silver {
-  --tier-fill: var(--tier-silver);
-}
-.mmr-tier-gold {
-  --tier-fill: var(--tier-gold);
-}
-.mmr-tier-platinum {
-  --tier-fill: var(--tier-platinum);
-}
-.mmr-tier-diamond {
-  --tier-fill: var(--tier-diamond);
 }
 /* 모임 탭 MMR 설정: 숫자 칸 넷과 저장 버튼. 좁은 화면에서는 줄을 바꾼다. */
 .rating-settings {
@@ -3343,7 +3142,8 @@ table {
   align-items: center;
   gap: var(--space-2) var(--space-4);
 }
-/* 최근 변화(▲48·▼7): 바탕 없이 오름 초록·내림 빨강 글자. 색만이 아니라 ▲·▼ 기호로도 오르내림을 구분한다. */
+/* 최근 변화(▲48·▼7): 바탕 없이 오름은 본문 글자, 내림은 보조 글자. 오르내림은 ▲·▼ 기호가 전한다
+   (초록·빨강은 성공·패배 뜻이라 쓰지 않는다, CLAUDE.md 5절). */
 .delta-chip {
   display: inline-flex;
   align-items: center;
@@ -3354,10 +3154,7 @@ table {
   font-variant-numeric: tabular-nums;
 }
 .delta-chip.up {
-  color: var(--ok-text);
-}
-.delta-chip.down {
-  color: var(--ih-danger);
+  color: var(--ih-text);
 }
 /* 랭킹 화면 안의 작은 글자는 0.875rem 아래로 내리지 않는다(공용 기본값이 더 작은 부품 포함). */
 .mmr-ranking .tile-label,
@@ -3367,7 +3164,7 @@ table {
 }
 
 /* 시작값 기준 막대(Ranking.tsx StartBar): 가는 바탕 선 위에 기준선(시작 MMR)에서 오른쪽(올랐다, 본문 색)·왼쪽(내렸다,
-   패배 색)으로 뻗는 막대. 1위 줄만 포인트 색. 위치는 0~1 비율 CSS 변수(--at·--left·--width)로 받는다.
+   속 빈 보조 글자 색)으로 뻗는 막대. 방향이 오르내림을 전한다. 위치는 0~1 비율 CSS 변수(--at·--left·--width)로 받는다.
    시작값 그대로인 사람도 막대가 사라지지 않게 최소 2px. */
 .mmr-start-bar {
   grid-area: bar;
@@ -3399,11 +3196,9 @@ table {
 .mmr-start-fill.up {
   background: var(--ih-text);
 }
-.mmr-start-fill.up.top {
-  background: var(--ih-primary);
-}
 .mmr-start-fill.down {
-  background: var(--ih-loss-text);
+  border: 1px solid var(--ih-text-secondary);
+  background: var(--ih-bg);
 }
 .mmr-start-line {
   position: absolute;
@@ -3460,18 +3255,12 @@ table {
 }
 /* 두 사람 비교(src/web/screens/Compare.tsx, 2026-11-08 재설계).
    머리 카드 두 장(요약) + 가운데 VS → 도구 줄 → 나란히 보기(자세한 수치)·라인별·같은 팀·상대 → 경기 목록.
-   두 사람 구분 색은 진영(블루·레드)과 겹치지 않게 칭호 등급 색을 빌린다: 첫 번째 사람 보라(--grade-4),
-   두 번째 사람 청록(--grade-6). 두 번째 사람 쪽은 빗금 무늬를 더해 색만으로 구분하지 않는다. */
+   두 사람은 색이 아니라 모양으로 가른다(CLAUDE.md 5절: 장식 색 없음, 파랑·빨강은 진영 뜻): 첫 번째 사람은 꽉 찬 표식·막대,
+   두 번째 사람은 속 빈(1px 테두리) 표식·막대. 둘 다 보조 글자 색(--cmp-mark)이고, 이름이 늘 옆에 붙는다. */
 .compare-screen {
-  --cmp-a: var(--grade-4);
-  --cmp-b: var(--grade-6);
-  --cmp-b-fill: repeating-linear-gradient(
-    135deg,
-    var(--cmp-b) 0 3px,
-    color-mix(in oklab, var(--cmp-b) 55%, var(--ih-panel)) 3px 5px
-  );
+  --cmp-mark: var(--ih-text-secondary);
 }
-/* 표 머리·이름 옆의 작은 색 표식(첫 번째 = 꽉 찬 네모, 두 번째 = 빗금 네모). */
+/* 표 머리·이름 옆의 작은 표식(첫 번째 = 꽉 찬 네모, 두 번째 = 속 빈 네모). */
 .cmp-col-a::before,
 .cmp-face-name.cmp-a::before,
 .cmp-col-b::before,
@@ -3481,21 +3270,20 @@ table {
   flex: none;
   width: 8px;
   height: 8px;
+  border: 1px solid var(--cmp-mark);
   border-radius: 4px;
   vertical-align: 0.05em;
 }
 .cmp-col-a::before,
 .cmp-face-name.cmp-a::before {
   margin-right: var(--space-2);
-  background: var(--cmp-a);
+  background: var(--cmp-mark);
 }
 .cmp-col-b::before {
   margin-right: var(--space-2);
-  background: var(--cmp-b-fill);
 }
 .cmp-face-name.cmp-b::after {
   margin-left: var(--space-2);
-  background: var(--cmp-b-fill);
 }
 
 /* 머리 카드: 두 사람이 마주 본다. 좁은 화면에서도 두 장을 나란히 두고 내용은 줄을 바꿔 쌓는다. */
@@ -3506,7 +3294,6 @@ table {
   gap: var(--space-2);
 }
 .cmp-card {
-  --cmp-tone: var(--cmp-a);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -3516,10 +3303,8 @@ table {
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-panel);
   background: var(--ih-panel);
-  border-top-color: var(--cmp-tone);
 }
 .cmp-card.cmp-b {
-  --cmp-tone: var(--cmp-b);
   align-items: flex-end;
   text-align: right;
 }
@@ -3538,7 +3323,6 @@ table {
   font-size: var(--text-body);
   font-weight: 500;
   color: var(--ih-text);
-  text-decoration-color: var(--cmp-tone);
   text-underline-offset: 4px;
 }
 .cmp-card-rate {
@@ -3584,47 +3368,16 @@ table {
   height: 1.1875rem;
   font-size: var(--text-meta);
 }
-.cmp-card-facts {
-  display: flex;
-  flex-direction: column;
-  align-items: inherit;
-  gap: var(--space-2);
-  align-self: stretch;
+.cmp-card-mmr {
   /* .cmp-card > *의 margin: 0보다 뒤에 있어 이긴다. 카드 높이가 달라도 아래 줄을 맞춘다. */
   margin-top: auto;
+  align-self: stretch;
   padding-top: var(--space-2);
   border-top: 1px solid var(--ih-line);
-}
-.cmp-card-facts > div {
-  display: flex;
-  flex-direction: column;
-  align-items: inherit;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.cmp-card-facts dt {
-  font-size: var(--text-meta);
-  font-weight: 500;
-  color: var(--ih-text-secondary);
-}
-.cmp-card-facts dd {
-  margin: 0;
-  min-width: 0;
   font-size: var(--text-label);
-  word-break: keep-all;
-  overflow-wrap: anywhere;
 }
-.cmp-card-facts .standing {
-  font-size: var(--text-label);
-  color: var(--ih-text-secondary);
-}
-.cmp-card-facts .rating-num {
+.cmp-card-mmr .rating-num {
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.cmp-card-facts .pos {
-  width: auto;
-  color: var(--ih-text);
 }
 .cmp-vs-mark {
   align-self: center;
@@ -3724,14 +3477,6 @@ table {
   .cmp-card-rate .rate {
     font-size: var(--text-hero);
   }
-  .cmp-card-facts {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-5);
-  }
-  .cmp-b .cmp-card-facts {
-    justify-content: flex-end;
-  }
   .cmp-vs-mark {
     width: 40px;
     height: 40px;
@@ -3746,7 +3491,19 @@ table {
   }
 }
 
-/* 표(나란히 보기·라인별). 앞선 쪽 칸은 ▲ + 굵게 + 옅은 바탕(색만으로 구분하지 않음). */
+/* 비교 구역(나란히 보기·라인별·맞대결·같은 팀·상대): 카드로 감싸지 않고 제목 + 위 1px 구분선으로 나눈다(CLAUDE.md 2절). */
+.cmp-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--ih-line);
+}
+.cmp-section > h2 {
+  margin: 0;
+}
+/* 표(나란히 보기·라인별). 앞선 쪽 칸은 ▲ + 굵게(칸 바탕은 칠하지 않는다, CLAUDE.md 7절). */
 .cmp-table {
   width: 100%;
   table-layout: fixed;
@@ -3789,12 +3546,10 @@ table {
 }
 .cmp-table td.cmp-lead {
   font-weight: 500;
-  background: color-mix(in oklab, var(--ih-text) 6%, transparent);
 }
 .cmp-lead-mark {
   margin-right: var(--space-1);
   font-size: var(--text-meta);
-  color: var(--ih-ok-text);
   vertical-align: 0.15em;
 }
 .cmp-value {
@@ -3900,10 +3655,10 @@ table {
   min-width: 0;
 }
 .cmp-bar-a {
-  background: var(--cmp-a);
+  background: var(--cmp-mark);
 }
 .cmp-bar-b {
-  background: var(--cmp-b-fill);
+  border: 1px solid var(--cmp-mark);
 }
 .cmp-together-bar {
   display: block;
@@ -3924,10 +3679,10 @@ table {
   font-weight: 500;
 }
 .cmp-up {
-  color: var(--ih-ok-text);
+  color: var(--ih-text);
 }
 .cmp-down {
-  color: var(--ih-loss-text);
+  color: var(--ih-text-secondary);
 }
 /* "상대일 때": 승 수 아래 첫 번째 사람 기준 승률 한 줄 */
 .cmp-h2h-rate {
@@ -3953,11 +3708,11 @@ table {
     column-gap: var(--space-5);
   }
 }
-/* 같은 라인으로 맞붙었을 때(두 사람 비교): 왼쪽 A 승률 · 가운데 라인·경기 수 · 오른쪽 B 승률, 아래 A:B 막대. */
+/* 같은 라인으로 맞붙었을 때(두 사람 비교): 왼쪽 A 승률 · 가운데 라인·경기 수 · 오른쪽 B 승률, 아래 A:B 막대.
+   카드 안이라 줄마다 상자를 두르지 않고 위 1px 구분선으로만 나눈다(CLAUDE.md 2절 카드 중첩 금지). */
 .cmp-lane-duels {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3969,10 +3724,8 @@ table {
   align-items: center;
   column-gap: var(--space-2);
   row-gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--radius-panel);
-  background: var(--ih-subtle);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--ih-line);
 }
 .cmp-duel-side {
   display: flex;
@@ -3998,14 +3751,10 @@ table {
 .cmp-duel-mid .pos {
   width: auto;
 }
-/* 비교 화면의 B 쪽 줄무늬(색약 구분용)는 이 짧은 막대에서는 지저분해 보여(사용자 피드백) 민색으로 두고 조금 두껍게. */
 .cmp-duel-bar {
   grid-column: 1 / -1;
   height: 12px;
   gap: var(--space-1);
-}
-.cmp-duel-bar .cmp-bar-b {
-  background: var(--cmp-b);
 }
 .cmp-duel-bar > span {
   border-radius: 4px;
@@ -4687,7 +4436,7 @@ table {
 .sb-side.sb-red .sb-side-name {
   color: var(--ih-loss-text);
 }
-/* 승리는 포인트 색으로 채운 각진 라벨, 패배는 테두리만. */
+/* 승리·패배 라벨: 글자가 뜻을 전하고, 승리는 본문 글자·진한 테두리, 패배는 보조 글자·옅은 테두리(골드 채움은 장식이라 뺐다). */
 .sb-verdict {
   padding: 0 var(--space-3);
   line-height: 1.7;
@@ -4698,9 +4447,8 @@ table {
   font-weight: 500;
 }
 .sb-verdict.win {
-  border-color: var(--ih-primary);
-  background: var(--ih-primary);
-  color: var(--ih-on-primary);
+  border-color: var(--ih-control-border);
+  color: var(--ih-text);
 }
 .sb-series {
   display: flex;
@@ -4926,11 +4674,18 @@ table {
 .season-tools > .button-row {
   min-width: 0;
 }
-/* 통계 타일: 숫자는 크게, 단위는 같은 칸 안에서 작게("10경기"가 한 덩어리로 읽히게). */
-.season-tiles > div {
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-3);
-  background: var(--ih-panel);
+/* 통계 칸(시즌 요약·그래프 분석 요약, 셋): 폰은 두 칸에 셋째(진영 승률)가 한 줄을 다 쓰고, 768px부터 세 칸 한 줄.
+   숫자는 크게, 단위는 같은 칸 안에서 작게("10경기"가 한 덩어리로 읽히게). */
+.season-tiles:not(.fair-tiles) > div:last-child:nth-child(3) {
+  grid-column: 1 / -1;
+}
+@media (min-width: 768px) {
+  .ps-tiles.season-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .season-tiles:not(.fair-tiles) > div:last-child:nth-child(3) {
+    grid-column: auto;
+  }
 }
 .season-tiles dd.season-stat {
   display: block;
@@ -4994,8 +4749,8 @@ table {
   font-weight: 500;
 }
 
-/* 시상 카드. 모든 상이 같은 카드(바탕·테두리)이고, 상 종류마다 --award-tone은 상 이름 옆 기호 색에만 쓴다
-   (칭호 등급 색을 빌려 두 테마 대비를 맞춘다. 2026-11-09 2단계: 상마다 다른 띠·테두리·옅은 바탕을 뺐다). */
+/* 시상 카드. 모든 상이 같은 카드(바탕·테두리)이고, 상 이름 옆 기호는 상마다 모양이 다르고 색은 보조 글자 하나다
+   (상마다 다른 색은 장식이라 뺐다, CLAUDE.md 5절). */
 .season-awards .row-label {
   margin: var(--space-2) 0 var(--space-2);
 }
@@ -5028,7 +4783,6 @@ table {
   }
 }
 .award {
-  --award-tone: var(--ih-text-secondary);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -5037,30 +4791,6 @@ table {
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-panel);
   background: var(--ih-panel);
-}
-.award-k-bestRate {
-  --award-tone: var(--grade-1);
-}
-.award-k-mostWins {
-  --award-tone: var(--grade-5);
-}
-.award-k-mostGames {
-  --award-tone: var(--grade-6);
-}
-.award-k-longestStreak {
-  --award-tone: var(--grade-2);
-}
-.award-k-bestDuo {
-  --award-tone: var(--grade-4);
-}
-.award-k-nemesis {
-  --award-tone: var(--grade-3);
-}
-.award-k-mostImproved {
-  --award-tone: var(--grade-7);
-}
-.award-k-mostSupport {
-  --award-tone: var(--grade-6);
 }
 /* 라인별 최고 승률은 라인 아이콘(RoleIcon)이 라인 색(--pos-*)을 스스로 갖는다. */
 .award-head {
@@ -5083,7 +4813,7 @@ table {
   place-items: center;
   width: 26px;
   height: 26px;
-  color: var(--award-tone);
+  color: var(--ih-text-secondary);
 }
 .award-mark-svg,
 .award-mark .role-icon {
@@ -5191,7 +4921,6 @@ table {
 }
 /* 해당 없음: 점선 테두리, 바탕 없이 옅게. */
 .award.is-none {
-  --award-tone: var(--ih-text-secondary);
   background: transparent;
   border: 1px dashed var(--ih-line);
   box-shadow: none;
@@ -5321,7 +5050,7 @@ table {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--bleed-inline);
   background: var(--ih-warn-bg);
   border-bottom: 1px solid var(--ih-line);
 }
@@ -5891,17 +5620,6 @@ label:has(> select) {
   align-items: center;
 }
 
-/* 그래프 막대 5경기 미만(tone-muted): 작은 막대(meter)와 같이 회색. 예전에는 기본 파랑이라 45~55% 구간과 헷갈렸다(2026-11-08). */
-.bar-fill.tone-muted {
-  /* 5경기 미만: 승률 색을 칠하지 않는다. 검게 보이지 않게 밝은 회색 + 빗금으로 "자료 적음"을 나타낸다. */
-  background-color: var(--viz-axis);
-  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255, 255, 255, 0.22) 4px 7px);
-  opacity: 0.8;
-}
-[data-theme="light"] .bar-fill.tone-muted {
-  background: var(--ih-text-secondary);
-}
-
 /* 날짜 점검(DateCheck.tsx): 중복 가능성 표식 */
 .tag.warn-tag {
   color: var(--warn-line);
@@ -6065,7 +5783,7 @@ label:has(> select) {
   margin: 0;
   max-width: none;
 }
-/* 분석 요약 타일 4칸은 숫자 크기를 같게(1.5rem/600). 진영 칸도 다른 칸과 같은 크기. */
+/* 요약 칸(그래프 분석·시즌 요약 셋)은 숫자 크기를 같게(1.5rem/600). 진영 칸도 다른 칸과 같은 크기. */
 .graph-summary .season-tiles dd.season-sides {
   font-size: var(--text-screen);
   font-weight: 600;
@@ -6405,6 +6123,9 @@ label:has(> select) {
   stroke: var(--cat);
   stroke-width: 2;
   stroke-linejoin: round;
+}
+.radar-shape.solo {
+  --cat: var(--ih-text);
 }
 /* 두 번째 사람은 점선(색만으로 구분하지 않게). */
 .radar-shape.cat-2 .radar-area {
@@ -6857,39 +6578,25 @@ label:has(> select) {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-/* 티어 이름표("1티어"~"5티어"): 높은 티어일수록 밝다. 1티어 밝은 금색 → 5티어 어두운 회청색(채도 15% 낮춤).
-   글자색은 밝은 바탕엔 먹색(3티어도 흰 글자는 대비가 모자라 먹색), 어두운 바탕엔 흰색. 색은 --cand-t1~5 토큰에서 고친다. */
+/* 티어 이름표("1티어"~"5티어"): 색 없이 1px 테두리 + 글자. 티어는 숫자 글자로 읽고, 1~2티어는 본문 글자,
+   3티어 이하는 보조 글자로 명도만 조금 낮춘다(CLAUDE.md 5절: 등급 무지개색 없음). 티어 없음은 점선 테두리. */
 .cand-tier {
   flex: none;
   padding: 0 var(--space-2);
+  border: 1px solid var(--ih-line);
   border-radius: var(--radius-badge);
   font-size: var(--text-meta);
   font-weight: 500;
-  line-height: 1.65;
+  line-height: 1.5;
   white-space: nowrap;
-  color: var(--on-cand-light);
+  color: var(--ih-text-secondary);
 }
-.cand-tier.t1 {
-  background: var(--cand-t1);
-}
+.cand-tier.t1,
 .cand-tier.t2 {
-  background: var(--cand-t2);
-}
-.cand-tier.t3 {
-  background: var(--cand-t3);
-}
-.cand-tier.t4 {
-  background: var(--cand-t4);
-  color: var(--on-cand-dark);
-}
-.cand-tier.t5 {
-  background: var(--cand-t5);
-  color: var(--on-cand-deep);
+  color: var(--ih-text);
 }
 .cand-tier.none {
-  background: transparent;
-  color: var(--ih-text-secondary);
-  border: 1px dashed var(--ih-line);
+  border-style: dashed;
 }
 .cand-reason {
   margin: var(--space-2) 0 0;
@@ -7237,11 +6944,17 @@ input[type="search"].filter-search {
   }
 }
 
-/* 요약 카드 줄(StatCard). 폰 2칸, 넓은 화면은 들어가는 만큼 한 줄. */
+/* 요약 카드 줄(StatCard, 화면마다 셋까지). 폰 2칸이고 셋째 카드는 혼자 반 칸에 남지 않게 한 줄을 다 쓴다
+   (랭킹은 1위 카드가 먼저 한 줄을 써서 따로 정한다, .mmr-cards). 넓은 화면은 들어가는 만큼 한 줄. */
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
+}
+@media (max-width: 767px) {
+  .stat-cards:not(.mmr-cards) > :last-child:nth-child(3) {
+    grid-column: 1 / -1;
+  }
 }
 @media (min-width: 768px) {
   .stat-cards {
@@ -7308,43 +7021,13 @@ input[type="search"].filter-search {
 .stat-card > .form-dots {
   margin-top: var(--space-2);
 }
-/* 채운 카드(랭킹 1위): 포인트 색 바탕 위 글자 색 하나(--ih-on-primary, theme-contrast가 4.5:1 검사).
-   변동·승패의 원래 색은 채운 바탕에서 대비가 깨지므로 글자 색으로 바꾸고 ▲·▼, "승"·"패" 글자로 구분한다. */
-.stat-card.is-lead {
-  background: var(--ih-primary);
-  border-color: var(--ih-primary);
-  color: var(--ih-on-primary);
-}
-.stat-card.is-lead :is(.stat-card-title, .stat-card-unit, .stat-card-rows dt, .delta-chip) {
-  color: inherit;
-}
-.stat-card.is-lead .stat-card-rows {
-  border-top-color: currentColor;
-}
-.stat-card.is-lead .stat-card-name,
-.stat-card.is-lead .stat-card-name:not(:disabled):hover {
+/* 카드 안 이름 링크(랭킹 1위): 일반 패널 그대로이고, 1위라는 뜻은 카드 제목 "1위" 글자가 전한다(채운 강조 없음). */
+.stat-card-name,
+.stat-card-name:not(:disabled):hover {
   padding: 0;
-  color: inherit;
-  font-size: var(--text-section);
-  font-weight: 600;
+  font-size: var(--text-body);
+  font-weight: 500;
   text-align: left;
-  text-decoration: none;
-}
-.stat-card.is-lead .stat-card-name:not(:disabled):hover {
-  text-decoration: underline;
-}
-.stat-card.is-lead :focus-visible {
-  outline-color: var(--ih-on-primary);
-}
-.stat-card.is-lead .form-dot.win {
-  border-color: var(--ih-on-primary);
-  background: var(--ih-on-primary);
-  color: var(--ih-primary);
-}
-.stat-card.is-lead .form-dot.loss {
-  border-color: var(--ih-on-primary);
-  background: transparent;
-  color: var(--ih-on-primary);
 }
 
 /* 기록이 없을 때의 안내 칸: 다음 입력으로 가는 버튼(운영자) 또는 안내 글만(조회자). */
@@ -7394,12 +7077,10 @@ input[type="search"].filter-search {
 .dt-sort:not(:disabled):hover {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
   min-height: var(--control-height);
   min-width: var(--control-height);
   padding: var(--space-1) 0;
   border: 0;
-  border-bottom: 1px solid transparent;
   border-radius: 0;
   background: none;
   color: inherit;
@@ -7412,8 +7093,17 @@ input[type="search"].filter-search {
 .dt-sort:not(:disabled):hover {
   color: var(--ih-text);
 }
+/* 글자·화살표 묶음. 지금 정렬 열은 이 묶음 아래에만 강조색 밑줄(글자 폭만큼). */
+.dt-sort-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-bottom: 1px solid transparent;
+}
 .dt-sort.is-active {
   color: var(--ih-text);
+}
+.dt-sort.is-active .dt-sort-text {
   border-bottom-color: var(--ih-accent);
 }
 .dt-arrow {
@@ -7458,6 +7148,10 @@ input[type="search"].filter-search {
   .dt-head .dt-sort.is-active {
     border-color: var(--ih-accent);
     background: var(--ih-selected);
+  }
+  /* 칩 모양에서는 테두리·바탕이 선택을 보이므로 글자 밑줄은 긋지 않는다. */
+  .dt-head .dt-sort.is-active .dt-sort-text {
+    border-bottom-color: transparent;
   }
 }
 
@@ -7524,44 +7218,22 @@ input[type="search"].filter-search {
   margin-bottom: var(--space-1);
 }
 @media (max-width: 767px) {
-  /* 폰 2칸: 1위 칸은 한 줄을 다 쓰고, 그 뒤 카드가 셋이면 마지막 카드도 혼자 남지 않게 한 줄을 다 쓴다. */
-  .mmr-cards > .mmr-lead-card,
-  .mmr-cards > .mmr-lead-card ~ :nth-child(4):last-child {
+  /* 폰 2칸: 1위 칸은 한 줄을 다 쓰고 나머지 두 카드가 아래 한 줄에 나란히. */
+  .mmr-cards > .mmr-lead-card {
     grid-column: 1 / -1;
   }
 }
 @media (min-width: 1200px) {
   .mmr-cards {
-    grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
   }
 }
 .mmr-tier-counts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--ih-line);
-  font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
-}
-.mmr-tier-count {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-.mmr-tier-count > :first-child {
-  color: var(--ih-text-secondary);
-}
-.mmr-tier-count > :last-child {
-  font-weight: 600;
 }
 .mmr-delta {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-}
-.mmr-delta.up {
-  color: var(--ok-text);
 }
 .mmr-table .mmr-row {
   padding: var(--space-1) var(--space-3);
@@ -7935,6 +7607,7 @@ input[type="search"].filter-search {
   flex-wrap: wrap;
   align-items: center;
   gap: 0 var(--space-2);
+  line-height: 1.5;
 }
 /* 진영 미정 경기의 "●A"/"■B" 표시. 팀 A는 블루 칸, B는 레드 칸에 놓이므로 칸의 진영 색을 따른다(팀 상자 윗선과 같은 색). */
 .rm-mark {
@@ -7946,15 +7619,9 @@ input[type="search"].filter-search {
 .rm-red .rm-mark {
   color: var(--ih-loss-text);
 }
-.rm-name,
-.rm-name:not(:disabled):hover {
-  padding: 0;
-  color: inherit;
+.rm-name {
   font-size: var(--text-label);
-  text-decoration: none;
-}
-.rm-name:not(:disabled):hover {
-  text-decoration: underline;
+  white-space: nowrap;
 }
 .rm-names.is-win {
   color: var(--ih-text);
@@ -8172,7 +7839,8 @@ input[type="search"].filter-search {
 .ct-player {
   white-space: nowrap;
 }
-/* 티어 칸: 숫자 하나가 든 각진 칸. 1티어만 포인트 색으로 채우고, 아래로 갈수록 테두리·글자가 옅어진다. */
+/* 티어 칸: 숫자 하나가 든 각진 칸. 색 없이 명도로만 단계를 보인다(CLAUDE.md 5절): 1티어는 본문 글자 색으로 채운 칸,
+   2티어는 컨트롤 경계 테두리, 3·4티어는 보조 면, 5티어는 옅은 테두리. 숫자 글자가 늘 뜻을 전한다. */
 .ct-tier-mark {
   display: inline-flex;
   align-items: center;
@@ -8186,11 +7854,11 @@ input[type="search"].filter-search {
   font-variant-numeric: tabular-nums;
 }
 .ct-tier-mark.t1 {
-  background: var(--ih-primary);
-  color: var(--ih-on-primary);
+  background: var(--ih-text);
+  color: var(--ih-bg);
 }
 .ct-tier-mark.t2 {
-  border-color: var(--ih-accent);
+  border-color: var(--ih-control-border);
   color: var(--ih-text);
 }
 .ct-tier-mark.t3 {
