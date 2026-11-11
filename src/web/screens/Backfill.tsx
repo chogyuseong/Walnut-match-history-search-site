@@ -306,7 +306,7 @@ export function Backfill() {
         </fieldset>
 
         {tried && problems.length > 0 && (
-          <div className="note warn" role="alert">
+          <div className="note error" role="alert">
             <p>
               <strong>아직 저장할 수 없어요.</strong>
             </p>

@@ -181,7 +181,7 @@ export function TitleSettings(props: {
             </button>
           </div>
           {message && (
-            <p className="note warn" role="alert">
+            <p className="note error" role="alert">
               {message}
             </p>
           )}

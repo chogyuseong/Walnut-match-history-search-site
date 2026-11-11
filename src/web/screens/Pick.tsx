@@ -11,6 +11,7 @@ import { diversityFor, recommendTeams } from "../../shared/recommend";
 import { latestSessionId } from "../../shared/stats";
 import { formatDate } from "../format";
 import { StickyAction } from "../screenKit";
+import { LineIcon } from "../ui";
 import { JoinPanel, type JoinEntryView } from "../joinPanel";
 import { liveNightPool, startNightPool } from "../nightPoolStore";
 import { go, pickKey, useAppValue } from "../useApp";
@@ -422,7 +423,7 @@ export function Pick() {
                   onClick={() => setSelected(selected.filter((s) => s.key !== p.key))}
                   aria-label={`${p.name} 빼기`}
                 >
-                  ✓ {p.name}
+                  <LineIcon name="check" small /> {p.name}
                   {i >= TEAM_SIZE_TOTAL && <span className="tag">대기</span>} <span aria-hidden="true">×</span>
                 </button>
               </li>
@@ -467,7 +468,10 @@ export function Pick() {
                     }}
                   >
                     <span className="pick-text">
-                      <span className="name">{isSelected ? "✓ " : ""}{p.name}</span>
+                      <span className="name">
+                        {isSelected && <LineIcon name="check" small />}
+                        {p.name}
+                      </span>
                       <span className="pick-meta">{seenText(p.participantId)}</span>
                     </span>
                     {isSelected && <span className="tag">선택됨</span>}

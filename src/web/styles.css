@@ -48,11 +48,6 @@
   /* 승리 색으로 채운 작은 칸(최근 승패 점) 위의 글자. 패배 색 칸 위는 --ih-on-loss(예상 승률 막대). */
   --ih-on-win: #0f172a;
   --ih-on-loss: #0f172a;
-  /* 저장됨·주의 표시(5단계에서 중립색 + 아이콘으로 바꿀 예정). */
-  --ih-ok-bg: rgba(93, 184, 138, 0.14);
-  --ih-ok-text: #6cc595;
-  --ih-warn-bg: rgba(216, 167, 66, 0.12);
-  --ih-warn-line: #d8a742;
 }
 
 [data-theme="light"] {
@@ -82,19 +77,10 @@
   --ih-loss-bg-hover: #f6dcda;
   --ih-loss-border: #ecb8b5;
   --ih-loss-text: #a92f2b;
-  --ih-ok-bg: #eaf6ef;
-  --ih-ok-text: #1f7a4d;
-  --ih-warn-bg: #fdf6e6;
-  --ih-warn-line: #9a6c12;
 }
 
 /* 화면 규칙이 쓰는 이름. 값은 모두 위 토큰에서 온다. */
 :root {
-  --warn-bg: var(--ih-warn-bg);
-  --warn-line: var(--ih-warn-line);
-  --ok-bg: var(--ih-ok-bg);
-  --ok-text: var(--ih-ok-text);
-
   /* 화면 틀(CLAUDE.md 2절). 반응형 기준은 768px(하단 메뉴 ↔ 위 메뉴, 패널 여백 16 ↔ 24)과 1200px(두 단 배치) 둘이다.
      --page-gutter는 본문 좌우 안전 여백이라 아래 미디어 쿼리에서 16 → 24 → 32로 바뀐다. 상단 바·위 메뉴·본문(.screen)·
      법적 고지가 같은 값을 써야 왼쪽 정렬선이 맞는다. */
@@ -151,6 +137,19 @@
   :root {
     --page-gutter: var(--space-6);
   }
+}
+
+/* 상태 아이콘(CLAUDE.md 5절: 성공·주의는 색 대신 아이콘과 문구). ui.tsx LineIcon의 check·alert와 같은 20칸 그림을
+   CSS 가림판(mask)으로 그리고 색은 currentColor를 따른다. .note·.saved·배지는 백 곳 넘게 쓰이고 사진 스펙이 배지 글자를
+   통째로 바꿔 써서, 아이콘을 마크업이 아니라 클래스에 붙였다. 그림을 바꾸면 LineIcon도 같이 바꾼다.
+   -16은 16px로 그릴 때 쓰는 벌이다. 20칸을 16px로 줄이면 선이 1.2px가 되므로 선을 1.875로 그려 화면에서 1.5px를 맞춘다. */
+:root {
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
+  --icon-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
+  --icon-error: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
+  --icon-check-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
+  --icon-alert-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
+  --icon-error-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
 }
 
 * {
@@ -538,19 +537,85 @@ details.help > .help-body p {
 .nowrap {
   white-space: nowrap;
 }
-.warn-text {
-  color: var(--warn-line);
-  font-weight: 500;
-}
-.note {
+/* 안내 상자. 바탕·테두리는 중립색이고 뜻은 앞머리 아이콘과 문구가 전한다.
+   .warn(주의): 컨트롤 경계색 테두리 + 경고 아이콘. 주의를 골드·노랑으로 칠하면 강조색(주 버튼·고른 칸)과 헷갈려 쓰지 않는다.
+   .error(저장 실패·입력이 틀림): 오류 색 테두리 + 오류 아이콘. 색만으로 전하지 않게 아이콘과 문구를 같이 둔다.
+   .saved(저장됨): 중립 상자 + 체크 아이콘.
+   아이콘이 붙는 상자는 왼쪽 여백 32px(앞 8 + 아이콘 20 + 뒤 4)에 아이콘을 띄워 둔다. 글이 여러 줄이어도 아이콘 아래로 감기지 않는다. */
+.note,
+.saved {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-panel);
   padding: var(--space-2) var(--space-3);
 }
+.saved {
+  margin-bottom: var(--space-3);
+}
+.note.warn,
+.note.error,
+.saved {
+  position: relative;
+  padding-left: var(--space-6);
+}
 .note.warn {
-  background: var(--warn-bg);
-  border-color: var(--warn-line);
+  border-color: var(--ih-control-border);
+}
+.note.error {
+  border-color: var(--ih-danger);
+}
+/* top 10px: 위 여백 8 + (첫 줄 높이 24 - 아이콘 20) / 2. 아이콘을 첫 줄 가운데에 둔다. */
+.note.warn::before,
+.note.error::before,
+.saved::before {
+  content: "";
+  position: absolute;
+  left: var(--space-2);
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  mask: var(--icon-alert) center / contain no-repeat;
+}
+.note.error::before {
+  color: var(--ih-danger);
+  mask-image: var(--icon-error);
+}
+.saved::before {
+  mask-image: var(--icon-check);
+}
+/* 글줄·이름표 앞의 16px 아이콘: 확인(.badge.ok), 주의(.warn-badge·.warn-tag·.warn-text), 입력 칸 아래 오류(.field-problem). */
+.badge.ok,
+.badge.warn-badge,
+.tag.warn-tag,
+.warn-text,
+.field-problem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.badge.ok::before,
+.badge.warn-badge::before,
+.tag.warn-tag::before,
+.warn-text::before,
+.field-problem::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  mask: var(--icon-alert-16) center / contain no-repeat;
+}
+.badge.ok::before {
+  mask-image: var(--icon-check-16);
+}
+.field-problem::before {
+  mask-image: var(--icon-error-16);
+}
+.warn-text {
+  display: flex;
+  color: var(--ih-text);
+  font-weight: 500;
 }
 /* 작은 이름표(.badge·.tag): 12px/500, 모서리 4, 옅은 테두리, 바탕 없음. 뜻 색은 글자와 테두리에만. */
 .badge {
@@ -566,16 +631,12 @@ details.help > .help-body p {
   color: var(--ih-text-secondary);
 }
 .badge.ok {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--ok-text) 45%, transparent);
-  color: var(--ok-text);
+  color: var(--ih-text);
 }
-/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). */
+/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). 아이콘은 위 규칙. */
 .badge.warn-badge {
   margin-left: var(--space-2);
-  background: transparent;
-  border-color: var(--warn-line);
-  color: var(--warn-line);
+  color: var(--ih-text);
 }
 .tag {
   border: 1px solid var(--ih-line);
@@ -596,13 +657,6 @@ details.help > .help-body p {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-.saved {
-  background: var(--ok-bg);
-  color: var(--ok-text);
-  border-radius: var(--radius-panel);
-  padding: var(--space-3);
-  margin-bottom: var(--space-3);
 }
 
 /* 두 팀: 기본은 좌우 2열, 360px 미만에서는 위아래로 쌓는다. */
@@ -1438,18 +1492,6 @@ button:not([class]):not(:disabled):hover,
   border-color: var(--ih-control-border);
 }
 
-.note {
-  background: var(--ih-panel);
-  border-color: var(--ih-line);
-}
-.note.warn {
-  background: var(--warn-bg);
-  border-color: var(--warn-line);
-}
-.saved {
-  border: 1px solid var(--ih-ok-text);
-}
-
 /* 목록 줄 */
 .list {
   gap: var(--space-2);
@@ -1917,6 +1959,18 @@ table {
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+/* 16px: 20칸 그림을 0.8배로 줄이므로 선을 1.875로 두어 화면에서 1.5px를 맞춘다. */
+.line-icon.small {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.875;
+}
+/* 고른 사람 표시(고르기 화면의 칩·전체 목록 줄): 이름 앞 체크. 글자 줄 안에 놓여 아래 끝을 글자에 맞춘다. */
+.chip > .line-icon,
+.pick-item .name > .line-icon {
+  vertical-align: text-bottom;
+  margin-right: var(--space-1);
 }
 
 /* 주 메뉴(운영자 .tabs)와 조회·예시 메뉴(.viewer-nav > span)의 칸. 둘이 같은 모양이다.
@@ -4031,12 +4085,10 @@ main:focus {
   color: var(--ih-text-secondary);
   text-decoration: line-through;
 }
-.sheet-row-error th,
-.sheet-row-error td {
-  background: var(--warn-bg);
-}
+/* 틀린 줄: 칸 바탕은 칠하지 않고(7절) 줄 번호 칸의 오류 색 글자 + ⚠ 기호(SheetImport)로 알린다. */
 .sheet-row-error th {
-  color: var(--ih-text);
+  color: var(--ih-danger);
+  font-weight: 500;
 }
 .check-line {
   display: flex;
@@ -4090,7 +4142,7 @@ main:focus {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ih-ok-text);
+  background: var(--ih-text-secondary);
 }
 .account-menu {
   position: absolute;
@@ -4128,7 +4180,7 @@ main:focus {
 }
 
 /* ---------- 자체 계정: 로그인·회원가입 창, 복구 코드 ---------- */
-/* 새 색 없이 키트 토큰만 쓴다. 틀린 이유는 경고 색(--warn-line) 글자 + 기호로 적는다(세 테마 4.5:1 이상). */
+/* 새 색 없이 키트 토큰만 쓴다. 틀린 이유는 칸 바로 아래에 오류 색 글자 + 오류 아이콘으로 적는다(.field-problem). */
 .local-login {
   display: grid;
   gap: var(--space-2);
@@ -4167,12 +4219,9 @@ main:focus {
 }
 .field-problem {
   margin: 0;
-  color: var(--warn-line);
+  color: var(--ih-danger);
   font-size: var(--text-label);
   font-weight: 500;
-}
-.field-problem::before {
-  content: "! ";
 }
 .password-row {
   display: flex;
@@ -5060,7 +5109,7 @@ main:focus {
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
   padding: var(--space-3) var(--bleed-inline);
-  background: var(--ih-warn-bg);
+  background: var(--ih-subtle);
   border-bottom: 1px solid var(--ih-line);
 }
 .demo-banner p {
@@ -5631,9 +5680,7 @@ label:has(> select) {
 
 /* 날짜 점검(DateCheck.tsx): 중복 가능성 표식 */
 .tag.warn-tag {
-  color: var(--warn-line);
-  border: 1px solid var(--warn-line);
-  background: var(--warn-bg);
+  color: var(--ih-text);
 }
 .same-time .button-row {
   flex: none;
@@ -6539,10 +6586,6 @@ label:has(> select) {
 .cand-chips li strong {
   color: var(--ih-text);
 }
-/* "균형"·"반복 0번"처럼 좋은 값은 초록으로 띄운다. */
-.cand-chips li.chip-good strong {
-  color: var(--ok-text);
-}
 .cand-teams {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6819,8 +6862,8 @@ label:has(> select) {
   color: var(--ih-danger);
 }
 .lane-chip.easy {
-  background: var(--ok-bg);
-  color: var(--ok-text);
+  background: var(--ih-subtle);
+  color: var(--ih-text);
 }
 .lane-rivals details {
   margin-top: var(--space-2);
@@ -7992,7 +8035,7 @@ input[type="search"].filter-search {
   color: var(--ih-accent);
 }
 .tag.tag-changed {
-  color: var(--warn-line);
+  color: var(--ih-text);
 }
 .live-check {
   margin-top: var(--space-3);

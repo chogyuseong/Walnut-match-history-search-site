@@ -394,7 +394,7 @@ export function SheetImport() {
               </label>
               {/* 주소 오류는 칸 바로 아래(설명 문단보다 위)에 둔다. */}
               {urlCheck && !urlCheck.ok && (
-                <p className="note warn" role="alert">
+                <p className="note error" role="alert">
                   {SHEET_URL_MESSAGES[urlCheck.problem]}
                 </p>
               )}
@@ -498,7 +498,7 @@ export function SheetImport() {
             </>
           )}
           {error instanceof Error && error.message === "empty" ? (
-            <p className="note warn" role="alert">
+            <p className="note error" role="alert">
               읽은 표가 비어 있어요. 가져올 탭의 주소가 맞는지 확인해 주세요.
             </p>
           ) : (

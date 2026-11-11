@@ -95,14 +95,14 @@ export function ErrorNote(props: { error: unknown; onCheck?: () => void }) {
   if (error instanceof ApiFailure) {
     if (error.kind === "offline") {
       return (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           인터넷에 연결돼 있지 않아 저장하지 못했어요. 입력은 그대로 있어요.
         </p>
       );
     }
     if (error.kind === "unknown") {
       return (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           저장됐는지 확인하지 못했어요. 입력은 그대로 있어요.{" "}
           {props.onCheck && (
             <button type="button" className="link" onClick={props.onCheck}>
@@ -115,19 +115,19 @@ export function ErrorNote(props: { error: unknown; onCheck?: () => void }) {
     if (error.status === 401) return <SessionExpiredNote />;
     if (error.code === "VERSION_CONFLICT") {
       return (
-        <p className="note warn" role="alert">
+        <p className="note error" role="alert">
           그 사이 내용이 바뀌었어요. 입력은 그대로 있어요. 최신 상태를 확인한 뒤 다시 저장해 주세요.
         </p>
       );
     }
     return (
-      <p className="note warn" role="alert">
+      <p className="note error" role="alert">
         {error.message}
       </p>
     );
   }
   return (
-    <p className="note warn" role="alert">
+    <p className="note error" role="alert">
       알 수 없는 문제가 생겼어요. 다시 시도해 주세요.
     </p>
   );
@@ -415,13 +415,27 @@ const LINE_ICON_PATHS = {
       <path d="M4 17c0-3.3 2.7-5 6-5s6 1.7 6 5" />
     </>
   ),
+  // check·alert는 styles.css의 --icon-check·--icon-alert(안내 상자·배지 아이콘)와 같은 그림이다. 바꾸면 둘 다 바꾼다.
+  check: (
+    <>
+      <circle cx="10" cy="10" r="7.25" />
+      <path d="M6.75 10.25l2.25 2.25 4.25-4.5" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M10 3.25l7.25 12.5H2.75z" />
+      <path d="M10 8.25v3.25M10 13.75v.01" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type LineIconName = keyof typeof LINE_ICON_PATHS;
 
-export function LineIcon(props: { name: LineIconName }) {
+/** small: 16px(글줄·칩 안). 선 굵기는 CSS가 1.5px로 맞춘다(.line-icon.small). */
+export function LineIcon(props: { name: LineIconName; small?: boolean }) {
   return (
-    <svg className="line-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className={props.small ? "line-icon small" : "line-icon"} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       {LINE_ICON_PATHS[props.name]}
     </svg>
   );

@@ -497,7 +497,7 @@ export function LoginFailed(props: { reason: string }) {
   return (
     <div className="screen">
       <h1>로그인하지 못했어요</h1>
-      <p className="note warn" role="alert">
+      <p className="note error" role="alert">
         {text.title}
       </p>
       <p>{text.next}</p>

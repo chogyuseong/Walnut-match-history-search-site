@@ -81,6 +81,10 @@ describe("테마 색 대비", () => {
     expect(css).not.toMatch(/--ih-accent-(medal-gold|silver|bronze)\s*:/);
   });
 
+  it("저장됨·주의 전용 색 토큰이 없다(중립색 + 아이콘으로 표시)", () => {
+    expect(css).not.toMatch(/--(ih-)?(ok|warn)-(bg|text|line)\s*:/);
+  });
+
   for (const { name, t, viz } of THEMES) {
     describe(name, () => {
       const get = (key: string) => {
@@ -112,8 +116,9 @@ describe("테마 색 대비", () => {
         for (const bg of ["--ih-panel", "--ih-bg"]) atLeast("--ih-control-border", bg, 3);
       });
 
-      it("승·패·오류·저장됨·주의 글자 vs 패널 4.5:1, 승패 색 칸 위 글자 4.5:1", () => {
-        for (const fg of ["--ih-win-text", "--ih-loss-text", "--ih-danger", "--ih-ok-text", "--ih-warn-line"])
+      // 저장됨·주의는 5단계부터 중립색 + 아이콘이라 따로 검사할 색이 없다(본문 글자 검사에 든다).
+      it("승·패·오류 글자 vs 패널 4.5:1, 승패 색 칸 위 글자 4.5:1", () => {
+        for (const fg of ["--ih-win-text", "--ih-loss-text", "--ih-danger"])
           atLeast(fg, "--ih-panel", 4.5);
         atLeast("--ih-on-win", "--ih-win-accent", 4.5);
         atLeast("--ih-on-loss", "--ih-loss-accent", 4.5);

@@ -292,7 +292,7 @@ export function LegacyImport() {
           ) : (
             urlCheck &&
             !urlCheck.ok && (
-              <p className="note warn" role="alert">
+              <p className="note error" role="alert">
                 {LEGACY_URL_MESSAGES[urlCheck.problem]}
               </p>
             )

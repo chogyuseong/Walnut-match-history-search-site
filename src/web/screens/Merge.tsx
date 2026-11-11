@@ -228,7 +228,7 @@ export function Merge() {
       {!preview && <ErrorNote error={error} />}
 
       {preview && !preview.ok && (
-        <div className="note warn" role="alert">
+        <div className="note error" role="alert">
           <p>
             <strong>이 두 이름은 합칠 수 없어요.</strong> 아무것도 바꾸지 않았습니다.
           </p>
