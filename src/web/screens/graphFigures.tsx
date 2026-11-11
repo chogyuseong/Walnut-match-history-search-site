@@ -57,7 +57,7 @@ export function StoryStrip(props: { cards: StoryCard[]; picked: string; onPick: 
             <li key={card.kind}>
               <button
                 type="button"
-                className={picked ? "story-card picked" : "story-card"}
+                className={`story-card kind-${card.kind}${picked ? " picked" : ""}`}
                 title="누르면 이 사람을 플레이어로 골라요"
                 onClick={() => props.onPick(card.people[0]!)}
               >
