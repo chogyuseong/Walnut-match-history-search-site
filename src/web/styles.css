@@ -7271,6 +7271,22 @@ input[type="search"].filter-search {
   align-items: center;
   gap: var(--space-1);
   color: var(--mmr-card, var(--ih-text-secondary));
+  font-size: var(--text-label);
+}
+/* 이 화면의 맨 위 카드라 제목과 이름을 다른 화면의 요약 카드보다 한 단계씩 키운다. 좁은 화면에서 제목을 14px로 두는 것은
+   둘이 나란히 놓이는 카드에서 "최근 10경기 최고 상승"이 16px이면 두 줄로 꺾여 옆 카드와 이름 줄이 어긋나기 때문이다.
+   이름 버튼은 호버 규칙(.stat-card-name:not(:disabled):hover)이 크기를 되돌리지 않게 호버 선택자도 같이 적는다. */
+@media (min-width: 768px) {
+  .mmr-cards .stat-card-title {
+    font-size: var(--text-body);
+  }
+}
+.mmr-cards .stat-card-lead,
+.mmr-cards .stat-card-name,
+.mmr-cards .stat-card-name:not(:disabled):hover {
+  font-size: var(--text-section);
+  font-weight: 600;
+  line-height: 1.4;
 }
 .mmr-cards .stat-card-title::before {
   content: "";
