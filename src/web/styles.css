@@ -7879,6 +7879,17 @@ input[type="search"].filter-search {
   gap: var(--space-3);
   min-width: 0;
 }
+/* 한 단 화면: 이전 경기 목록을 맨 아래로 내려 전광판 → 랭킹 상위 → 요즘 흐름 → 이전 경기 순으로 보인다.
+   이전 경기는 .dash-main 안에 있어서 묶음을 풀어(display: contents) .dashboard의 줄로 올린 뒤 순서를 바꾼다.
+   보이는 순서만 바꾸므로 키보드 초점은 이전 경기를 먼저 지난다. 아래 2단 기준(1024px)을 바꾸면 같이 바꾼다. */
+@media (max-width: 1023px) {
+  .dashboard > .dash-main {
+    display: contents;
+  }
+  .dashboard > .dash-main > .dash-recent {
+    order: 1;
+  }
+}
 @media (min-width: 1024px) {
   .dashboard,
   .home-screen .dashboard {

@@ -105,7 +105,7 @@ export function Dashboard(props: {
           />
         )}
         {recent.length > 0 && (
-          <section aria-label={olderOnly ? "이전 경기" : "최근 경기"}>
+          <section className="dash-recent" aria-label={olderOnly ? "이전 경기" : "최근 경기"}>
             <div className="section-head">
               <h2>{olderOnly ? "이전 경기" : "최근 경기"}</h2>
               <button type="button" className="link" onClick={props.openRanking}>
