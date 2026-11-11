@@ -983,6 +983,14 @@ details > *:not(summary) {
   text-align: center;
   text-align-last: center;
 }
+/* 아이폰(iOS Safari)은 16px보다 작은 입력 컨트롤을 누르면 화면을 확대한다. 이 조건은 iOS WebKit에서만 참이라
+   아이폰에서만 16px로 되돌린다. 지우면 시즌·연도 칸을 누를 때마다 확대가 돌아온다.
+   viewport의 maximum-scale로 막지 않는 이유: 사용자 확대까지 막혀 접근성 규칙에 어긋난다. */
+@supports (-webkit-touch-callout: none) {
+  .segmented select {
+    font-size: var(--text-body);
+  }
+}
 .segmented select.chosen {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
