@@ -2,7 +2,7 @@ import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGro
 import { useMemo, useState, type ReactNode } from "react";
 import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { heatClass, nameMap, PEOPLE_BAR_STEPS, peopleBarStep, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
+import { heatClass, nameMap, PEOPLE_BAR_STEPS, peopleBarStep, rateHueClass, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
 import {
   Meter,
   BackLink,
@@ -78,8 +78,10 @@ function RateBar(props: {
   wins: number;
   games: number;
   tone?: "series" | "blue" | "red";
-  /** 개인별·라인별 승률 막대: 3단 대신 여섯 칸 색(peopleBarStep). 진영 막대에는 넣지 않는다. */
+  /** 개인별 승률 막대: 3단 대신 골드 명도 여섯 칸(peopleBarStep). */
   stepped?: boolean;
+  /** 라인별 승률 막대: 막대와 숫자를 승률 여섯 색(rateHueClass, 플레이어 × 라인 칸과 같다)으로. */
+  hued?: boolean;
   /** 위에서 고른 플레이어의 줄(강조). */
   picked?: boolean;
   onOpen?: () => void;
@@ -91,7 +93,7 @@ function RateBar(props: {
       ? `tone-${tone}`
       : games < SMALL_SAMPLE
         ? "tone-muted"
-        : `tone-series ${props.stepped ? peopleBarStep(wins, games) : heatClass(wins, games)}`;
+        : `tone-series ${props.hued ? rateHueClass(wins, games) : props.stepped ? peopleBarStep(wins, games) : heatClass(wins, games)}`;
   const detail = `${props.label}: ${percentText(wins, games)} · ${wins}승 ${games - wins}패 (${games}경기)`;
   const body = (
     <>
@@ -105,7 +107,7 @@ function RateBar(props: {
             <span className="bar-empty">—</span>
           ) : (
             <>
-              <strong className={tone === "series" ? rateTier(wins, games) : undefined}>
+              <strong className={tone !== "series" ? undefined : props.hued && games >= SMALL_SAMPLE ? `rate ${rateHueClass(wins, games)}` : rateTier(wins, games)}>
                 {percentText(wins, games)}
               </strong>{" "}
               · {wins}승 {games - wins}패 ({games}경기)
@@ -143,10 +145,10 @@ function RateBar(props: {
 }
 
 /** 표 칸의 승률 글자 색: 막대와 같은 3단(heatClass). 5경기 미만은 색을 입히지 않는다. */
-/** 표 칸 클래스: heat(칸 바탕이 있는지)와 여섯 칸 글자색(win-step). 5경기 미만은 band-none(바탕·색 없음). */
+/** 표 칸 클래스: heat(칸 바탕이 있는지)와 승률 여섯 색(rate-hue). 5경기 미만은 band-none(바탕·색 없음). */
 function cellBand(tally: Tally): string {
   const heat = heatClass(tally.wins, tally.games);
-  return heat ? `${heat} ${peopleBarStep(tally.wins, tally.games)}` : "band-none";
+  return heat ? `${heat} ${rateHueClass(tally.wins, tally.games)}` : "band-none";
 }
 
 /** 보기 전환: 한 번에 하나만 전체 폭으로 그린다(2026-11-08 재구성). */
@@ -714,7 +716,7 @@ export function Graphs(props: {
                   return (
                     <li key={position}>
                       {tally ? (
-                        <RateBar label={POSITION_LABEL[position]} wins={tally.wins} games={tally.games} stepped />
+                        <RateBar label={POSITION_LABEL[position]} wins={tally.wins} games={tally.games} hued />
                       ) : (
                         // 기록이 없어도 같은 높이의 빈 막대를 둔다(PC 5칸 가로 배치에서 줄이 깨지지 않게).
                         <RateBar label={POSITION_LABEL[position]} note="기록 없음" wins={0} games={0} />
@@ -997,15 +999,14 @@ function CommentaryCard(props: { notes: Commentary }) {
 
 
 /**
- * 플레이어 × 라인 범례: 승률 여섯 칸(PEOPLE_BAR_STEPS, 개인별·라인별 승률 막대와 같은 색)과 자료 적음.
- * 칸의 숫자 글자는 같은 칸의 글자용 색(--win-text)이고 견본은 막대 색이라, 견본은 "어느 칸인지"만 알려 준다.
+ * 플레이어 × 라인 범례: 승률 여섯 색(rate-hue, 라인별 승률 막대와 같다)과 자료 적음. 견본·칸 숫자·막대가 같은 색이다.
  */
 function StepLegend() {
   const edges = PEOPLE_BAR_STEPS;
   const bands = [
-    { cls: "win-step-1", label: `${edges[0]}% 미만` },
-    ...edges.slice(0, -1).map((edge, i) => ({ cls: `win-step-${i + 2}`, label: `${edge}~${edges[i + 1]! - 1}%` })),
-    { cls: `win-step-${edges.length + 1}`, label: `${edges[edges.length - 1]}% 이상` },
+    { cls: "rate-hue-1", label: `${edges[0]}% 미만` },
+    ...edges.slice(0, -1).map((edge, i) => ({ cls: `rate-hue-${i + 2}`, label: `${edge}~${edges[i + 1]! - 1}%` })),
+    { cls: `rate-hue-${edges.length + 1}`, label: `${edges[edges.length - 1]}% 이상` },
   ];
   return (
     <ul className="legend" aria-label="승률 색 범례">

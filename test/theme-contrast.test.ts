@@ -191,15 +191,16 @@ describe("테마 색 대비", () => {
         }
       });
 
-      // 플레이어 × 라인 칸의 승률 숫자(12~14px 글자): 칸 바탕(보조 면)·패널 위 4.5:1, 막대 색과 같은 방향으로 변한다.
-      it("승률 여섯 칸 글자색 vs 표 칸 바탕·패널 4.5:1, 휘도가 한 방향으로 변한다", () => {
-        const texts = [1, 2, 3, 4, 5, 6].map((n) => `--win-text-${n}`);
-        for (const token of texts) for (const bg of ["--ih-subtle", "--ih-panel"]) atLeast(token, bg, 4.5);
-        const lums = texts.map((t) => luminance(get(t)));
-        for (let i = 1; i < lums.length; i++) {
-          if (name === "dark") expect(lums[i]).toBeGreaterThan(lums[i - 1]!);
-          else expect(lums[i]).toBeLessThan(lums[i - 1]!);
+      // 승률 여섯 색(rate-hue): 플레이어 × 라인 칸 숫자(보조 면 위)·라인별 승률 숫자(패널 위) 4.5:1,
+      // 라인별 승률 막대는 막대 바탕 위 3:1. 여섯 색은 서로 다르다.
+      it("승률 여섯 색 vs 표 칸 바탕·패널 4.5:1, 막대 바탕 3:1, 서로 다른 값", () => {
+        const hues = [1, 2, 3, 4, 5, 6].map((n) => `--rate-hue-${n}`);
+        for (const token of hues) {
+          for (const bg of ["--ih-subtle", "--ih-panel"]) atLeast(token, bg, 4.5);
+          const ratio = contrast(get(token), viz.get("--viz-track")!);
+          expect(ratio, `${name}: ${token} / track`).toBeGreaterThanOrEqual(3);
         }
+        expect(new Set(hues.map(get)).size).toBe(6);
       });
 
       // 높은 등급(1)일수록 밝다. 라이트는 흰 바탕 대비 때문에 폭이 좁지만 같은 방향으로 둔다.

@@ -86,14 +86,14 @@
   --win-step-4: #cba046;
   --win-step-5: #e3b04b;
   --win-step-6: #f7d488;
-  /* 같은 여섯 칸의 글자용 색(플레이어 × 라인 칸의 승률 숫자). 막대 색은 낮은 칸이 어두워 글자로는 4.5:1이 안 돼
-     명도를 올려 따로 둔다. 표 칸 바탕(--ih-subtle)·패널 위 4.5:1, 높을수록 밝다(test/theme-contrast.test.ts). */
-  --win-text-1: #cea75e;
-  --win-text-2: #d6b06a;
-  --win-text-3: #ddb977;
-  --win-text-4: #e4c386;
-  --win-text-5: #ebce99;
-  --win-text-6: #f3dcb3;
+  /* 승률 여섯 색(format.ts rateHueClass): 플레이어 × 라인 칸 숫자·라인별 승률 막대. 낮은 쪽부터 분홍·주황·노랑·연두·초록·청록.
+     글자로도 쓰여 보조 면·패널 위 4.5:1(test/theme-contrast.test.ts). 다크는 밝은 색. */
+  --rate-hue-1: #f59ab0;
+  --rate-hue-2: #f6ad6b;
+  --rate-hue-3: #e8c45a;
+  --rate-hue-4: #b4d66b;
+  --rate-hue-5: #6fd69a;
+  --rate-hue-6: #5cd0d6;
 }
 
 [data-theme="light"] {
@@ -149,13 +149,13 @@
   --win-step-4: #7c5715;
   --win-step-5: #6b4a0c;
   --win-step-6: #573a05;
-  /* 글자용 여섯 칸: 흰 바탕·보조 면 위 4.5:1, 높을수록 진하다. */
-  --win-text-1: #8a6a2f;
-  --win-text-2: #7e5f22;
-  --win-text-3: #715417;
-  --win-text-4: #64490f;
-  --win-text-5: #563e09;
-  --win-text-6: #483305;
+  /* 승률 여섯 색: 흰 바탕·보조 면 위 4.5:1이 되게 진하게. */
+  --rate-hue-1: #a8324f;
+  --rate-hue-2: #9a4a12;
+  --rate-hue-3: #7a5a00;
+  --rate-hue-4: #55701a;
+  --rate-hue-5: #1d7046;
+  --rate-hue-6: #0f6b70;
 }
 
 /* 테마와 상관없는 척도·치수·아이콘. 테마마다 바꾸지 않는다(CLAUDE.md 5절: 테마별로 레이아웃·글자 크기·간격을 바꾸지 않음). */
@@ -1277,33 +1277,26 @@ button.bar-row:hover {
   background: var(--ih-loss-accent);
 }
 /*
- * 승률 여섯 칸(--win-step-1~6, CLAUDE.md 5절 예외): 그래프 분석 개인별·라인별 승률 막대·승률 고리·MMR 랭킹 막대·플레이어 × 라인
- * 칸 글자(--win-text-1~6)가 같이 쓴다.
+ * 승률 여섯 칸(--win-step-1~6, CLAUDE.md 5절 예외): 그래프 분석 개인별 승률 막대·승률 고리·MMR 랭킹 막대가 같이 쓴다.
  * 칸은 format.ts peopleBarStep(40·45·50·55·60% 경계). 숫자 글자는 승률 3단(heat) 그대로다.
  */
 .win-step-1 {
   --win-step: var(--win-step-1);
-  --win-text: var(--win-text-1);
 }
 .win-step-2 {
   --win-step: var(--win-step-2);
-  --win-text: var(--win-text-2);
 }
 .win-step-3 {
   --win-step: var(--win-step-3);
-  --win-text: var(--win-text-3);
 }
 .win-step-4 {
   --win-step: var(--win-step-4);
-  --win-text: var(--win-text-4);
 }
 .win-step-5 {
   --win-step: var(--win-step-5);
-  --win-text: var(--win-text-5);
 }
 .win-step-6 {
   --win-step: var(--win-step-6);
-  --win-text: var(--win-text-6);
 }
 .bar-fill[class*="win-step-"] {
   background: var(--win-step);
@@ -1312,12 +1305,35 @@ button.bar-row:hover {
   stroke: var(--win-step);
 }
 /* 플레이어 × 라인 칸: 승률 숫자 글자만 여섯 칸 글자색(칸 바탕은 모두 같은 보조 면 그대로). 범례 견본은 막대 색. */
-/* 승률 3단 규칙(.matrix td[class*="heat-"] .cell-rate, 뒤쪽)보다 앞서도록 두 클래스를 함께 건다. */
-.matrix td[class*="heat-"][class*="win-step-"] .cell-rate {
-  color: var(--win-text);
+/* 승률 여섯 색(rate-hue-1~6, CLAUDE.md 5절 예외): 플레이어 × 라인 칸 숫자·범례 견본·라인별 승률 막대와 숫자. */
+.rate-hue-1 {
+  --rate-hue: var(--rate-hue-1);
 }
-.swatch[class*="win-step-"] {
-  background: var(--win-step);
+.rate-hue-2 {
+  --rate-hue: var(--rate-hue-2);
+}
+.rate-hue-3 {
+  --rate-hue: var(--rate-hue-3);
+}
+.rate-hue-4 {
+  --rate-hue: var(--rate-hue-4);
+}
+.rate-hue-5 {
+  --rate-hue: var(--rate-hue-5);
+}
+.rate-hue-6 {
+  --rate-hue: var(--rate-hue-6);
+}
+/* 승률 3단 규칙(.matrix td[class*="heat-"] .cell-rate, 뒤쪽)보다 앞서도록 두 클래스를 함께 건다. */
+.matrix td[class*="heat-"][class*="rate-hue-"] .cell-rate {
+  color: var(--rate-hue);
+}
+.swatch[class*="rate-hue-"],
+.bar-fill[class*="rate-hue-"] {
+  background: var(--rate-hue);
+}
+.rate[class*="rate-hue-"] {
+  color: var(--rate-hue);
 }
 /* MMR 랭킹 막대: 시작값보다 위는 채운 막대, 아래는 속 빈 테두리 막대 모양은 그대로 두고 색만 승률 칸을 따른다. */
 .mmr-start-fill.up[class*="win-step-"] {

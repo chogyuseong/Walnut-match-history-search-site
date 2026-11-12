@@ -269,12 +269,26 @@ export function rateTier(wins: number, games: number): string {
  */
 export const PEOPLE_BAR_STEPS = [40, 45, 50, 55, 60] as const;
 
-/** 개인별 승률 막대 색 칸(win-step-1이 가장 낮음 ~ 6이 가장 높음). 경기가 적으면 색 없음(속 빈 막대). */
-export function peopleBarStep(wins: number, games: number): string {
-  if (games < RATE_HEAT_MIN_GAMES) return "";
+/** 승률 여섯 칸 번호(1이 가장 낮음 ~ 6이 가장 높음). 경기가 적으면 null(색 없음). */
+function rateStepOf(wins: number, games: number): number | null {
+  if (games < RATE_HEAT_MIN_GAMES) return null;
   const pct = ratePercent(wins, games);
-  const step = 1 + PEOPLE_BAR_STEPS.filter((edge) => pct >= edge).length;
-  return `win-step-${step}`;
+  return 1 + PEOPLE_BAR_STEPS.filter((edge) => pct >= edge).length;
+}
+
+/** 개인별 승률 막대·승률 고리·MMR 랭킹 막대의 골드 명도 칸(win-step-1~6). 경기가 적으면 색 없음(속 빈 막대). */
+export function peopleBarStep(wins: number, games: number): string {
+  const step = rateStepOf(wins, games);
+  return step === null ? "" : `win-step-${step}`;
+}
+
+/**
+ * 플레이어 × 라인 칸 숫자·라인별 승률 막대의 여섯 색(rate-hue-1~6, 2026-11-12 사용자 요청). 경계는 위와 같고, 칸마다 색 자체가
+ * 다르다(분홍·주황·노랑·연두·초록·청록, 진영 뜻인 파랑·빨강은 쓰지 않는다). 경기가 적으면 색 없음.
+ */
+export function rateHueClass(wins: number, games: number): string {
+  const step = rateStepOf(wins, games);
+  return step === null ? "" : `rate-hue-${step}`;
 }
 
 /**
