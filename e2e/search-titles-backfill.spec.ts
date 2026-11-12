@@ -147,7 +147,7 @@ test("검색 메뉴 → 개인 통계, 칭호가 검색·랭킹·개인·그래�
   await expect(ranking.filter({ hasText: "선수02" })).toContainText("전장의 지배자");
   await expect(ranking.filter({ hasText: "선수11" })).toContainText("배치 진행 중 1/10");
   await menu.getByRole("button", { name: "분석" }).click();
-  const bars = page.getByRole("region", { name: "개인별 승률" }).getByRole("listitem");
+  const bars = page.getByRole("region", { name: "개인별 승률" }).locator(".people-bars > li");
   await expect(bars.filter({ hasText: "선수02" })).toContainText("전장의 지배자");
   await expect(bars.filter({ hasText: "선수11" })).toContainText("배치 진행 중");
 

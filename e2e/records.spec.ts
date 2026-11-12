@@ -251,25 +251,27 @@ test("그래프 분석", async ({ page }) => {
 
   // 개인별 승률: 배치 완료자가 먼저, 값은 글자로도 보인다.
   const people = page.getByRole("region", { name: "개인별 승률" });
-  await expect(people.getByRole("listitem")).toHaveCount(12);
+  // 사람 막대 줄만 센다(위의 승률 색 범례도 목록이라 getByRole("listitem")에 섞인다).
+  const personRows = people.locator(".people-bars > li");
+  await expect(personRows).toHaveCount(12);
   // 묶음 머리글이 보이고 자료 적음 묶음이 맨 아래다.
   const groupHeads = await people.getByRole("heading", { level: 3 }).allInnerTexts();
   expect(groupHeads[groupHeads.length - 1]).toContain("자료 적음(5경기 미만)");
   await expect(people.locator(".bar-group").last().getByRole("listitem").filter({ hasText: "선수11" })).toHaveCount(1);
-  await expect(people.getByRole("listitem").filter({ hasText: "선수02" })).toContainText(
+  await expect(personRows.filter({ hasText: "선수02" })).toContainText(
     "73% · 8승 3패 (11경기)",
   );
-  const order = await people.getByRole("listitem").allInnerTexts();
+  const order = await personRows.allInnerTexts();
   expect(order.findIndex((t) => t.includes("선수11"))).toBeGreaterThan(
     order.findIndex((t) => t.includes("선수10")),
   );
-  await expect(people.getByRole("listitem").filter({ hasText: "선수11" })).toContainText(
+  await expect(personRows.filter({ hasText: "선수11" })).toContainText(
     "배치 진행 중",
   );
 
   // 라인 필터: 정글을 맡은 사람만 남는다(선수02, 선수07).
   await page.getByLabel("라인", { exact: true }).selectOption({ label: "정글" });
-  await expect(people.getByRole("listitem")).toHaveCount(2);
+  await expect(personRows).toHaveCount(2);
   await expect(people).toContainText("선수02");
   await expect(people).toContainText("선수07");
   await page.getByLabel("라인", { exact: true }).selectOption({ label: "전체 라인" });

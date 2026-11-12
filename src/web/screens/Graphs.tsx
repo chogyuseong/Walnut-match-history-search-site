@@ -2,7 +2,7 @@ import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGro
 import { useMemo, useState, type ReactNode } from "react";
 import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { heatClass, nameMap, PEOPLE_BAR_STEPS, peopleBarStep, rateHueClass, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
+import { heatClass, nameMap, PEOPLE_BAR_STEPS, rateHueClass, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
 import {
   Meter,
   BackLink,
@@ -78,9 +78,7 @@ function RateBar(props: {
   wins: number;
   games: number;
   tone?: "series" | "blue" | "red";
-  /** 개인별 승률 막대: 3단 대신 골드 명도 여섯 칸(peopleBarStep). */
-  stepped?: boolean;
-  /** 라인별 승률 막대: 막대와 숫자를 승률 여섯 색(rateHueClass, 플레이어 × 라인 칸과 같다)으로. */
+  /** 개인별·라인별 승률 막대: 막대와 숫자를 승률 여섯 색(rateHueClass, 플레이어 × 라인 칸과 같다)으로. */
   hued?: boolean;
   /** 위에서 고른 플레이어의 줄(강조). */
   picked?: boolean;
@@ -93,7 +91,7 @@ function RateBar(props: {
       ? `tone-${tone}`
       : games < SMALL_SAMPLE
         ? "tone-muted"
-        : `tone-series ${props.hued ? rateHueClass(wins, games) : props.stepped ? peopleBarStep(wins, games) : heatClass(wins, games)}`;
+        : `tone-series ${props.hued ? rateHueClass(wins, games) : heatClass(wins, games)}`;
   const detail = `${props.label}: ${percentText(wins, games)} · ${wins}승 ${games - wins}패 (${games}경기)`;
   const body = (
     <>
@@ -622,9 +620,9 @@ export function Graphs(props: {
             </InfoTip>
           </h2>
           <p className="hint">
-            범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 묶음 안에서 승률순 · 막대 색은
-            승률 40~60%를 5%씩 나눠 높을수록 밝게
+            범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 묶음 안에서 승률순
           </p>
+          <StepLegend />
           {people.length === 0 ? (
             <p className="hint">이 조건에는 기록이 없어요.</p>
           ) : (
@@ -642,7 +640,7 @@ export function Graphs(props: {
                         note={standingText(placement.get(r.participantId))}
                         wins={r.wins}
                         games={r.games}
-                        stepped
+                        hued
                         picked={r.participantId === playerId}
                         onOpen={() => props.openPerson(r.participantId)}
                       />
@@ -999,7 +997,7 @@ function CommentaryCard(props: { notes: Commentary }) {
 
 
 /**
- * 플레이어 × 라인 범례: 승률 여섯 색(rate-hue, 라인별 승률 막대와 같다)과 자료 적음. 견본·칸 숫자·막대가 같은 색이다.
+ * 승률 여섯 색 범례(rate-hue): 개인별 승률·플레이어 × 라인에 둔다. 견본·칸 숫자·막대가 같은 색이다.
  */
 function StepLegend() {
   const edges = PEOPLE_BAR_STEPS;

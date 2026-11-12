@@ -1277,7 +1277,7 @@ button.bar-row:hover {
   background: var(--ih-loss-accent);
 }
 /*
- * 승률 여섯 칸(--win-step-1~6, CLAUDE.md 5절 예외): 그래프 분석 개인별 승률 막대·승률 고리·MMR 랭킹 막대가 같이 쓴다.
+ * 승률 여섯 칸 골드 명도(--win-step-1~6, CLAUDE.md 5절 예외): 승률 고리·MMR 랭킹 막대가 같이 쓴다.
  * 칸은 format.ts peopleBarStep(40·45·50·55·60% 경계). 숫자 글자는 승률 3단(heat) 그대로다.
  */
 .win-step-1 {
@@ -1298,14 +1298,11 @@ button.bar-row:hover {
 .win-step-6 {
   --win-step: var(--win-step-6);
 }
-.bar-fill[class*="win-step-"] {
-  background: var(--win-step);
-}
 .ring-fill[class*="win-step-"] {
   stroke: var(--win-step);
 }
 /* 플레이어 × 라인 칸: 승률 숫자 글자만 여섯 칸 글자색(칸 바탕은 모두 같은 보조 면 그대로). 범례 견본은 막대 색. */
-/* 승률 여섯 색(rate-hue-1~6, CLAUDE.md 5절 예외): 플레이어 × 라인 칸 숫자·범례 견본·라인별 승률 막대와 숫자. */
+/* 승률 여섯 색(rate-hue-1~6, CLAUDE.md 5절 예외): 개인별·라인별 승률 막대와 숫자, 플레이어 × 라인 칸 숫자, 범례 견본. */
 .rate-hue-1 {
   --rate-hue: var(--rate-hue-1);
 }

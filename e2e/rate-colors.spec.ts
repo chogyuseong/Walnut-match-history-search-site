@@ -243,11 +243,11 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
 
   // 분석: 개인별 숫자와 표 칸이 같은 단계를 쓰고, 진영 막대는 진영 색 그대로다.
   await page.goto("/#/graphs");
-  const bars = page.getByRole("region", { name: "개인별 승률" }).getByRole("listitem");
-  // 막대만 2026-11-12부터 승률 여섯 칸(win-step, 40·45·50·55·60% 경계)이고 숫자 글자는 승률 단계 그대로다.
-  await expect(bars.filter({ hasText: "선수12" }).locator(".bar-fill")).toHaveClass(/win-step-6/);
-  await expect(bars.filter({ hasText: "선수12" }).locator(".bar-value strong")).toHaveClass(/heat-h4/);
-  await expect(bars.filter({ hasText: "선수01" }).locator(".bar-fill")).toHaveClass(/win-step-1/);
+  const bars = page.getByRole("region", { name: "개인별 승률" }).locator(".people-bars > li");
+  // 2026-11-12부터 막대와 숫자 모두 승률 여섯 색(rate-hue, 40·45·50·55·60% 경계, 플레이어 × 라인과 같다).
+  await expect(bars.filter({ hasText: "선수12" }).locator(".bar-fill")).toHaveClass(/rate-hue-6/);
+  await expect(bars.filter({ hasText: "선수12" }).locator(".bar-value strong")).toHaveClass(/rate-hue-6/);
+  await expect(bars.filter({ hasText: "선수01" }).locator(".bar-fill")).toHaveClass(/rate-hue-1/);
   await expect(bars.filter({ hasText: "선수12" }).locator(".title-chip")).toHaveClass(/grade-1/);
   // 진영은 요약 타일의 두 색 띠(진영 색 그대로, 승률 단계 클래스 없음).
   const sideBars = page.getByRole("region", { name: "분석 요약" });

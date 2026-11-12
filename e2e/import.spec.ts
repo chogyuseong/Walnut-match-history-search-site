@@ -98,7 +98,7 @@ test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠�
   await expect(sides).toContainText("진영 기록 없음");
   await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
   // 개인별 승률에는 들어간다.
-  await expect(page.getByRole("region", { name: "개인별 승률" }).getByRole("listitem")).toHaveCount(12);
+  await expect(page.getByRole("region", { name: "개인별 승률" }).locator(".people-bars > li")).toHaveCount(12);
 });
 
 test("이미 들어간 경기는 건너뛰고, 아직 오지 않은 날짜는 줄 번호와 함께 알린다", async ({ page }) => {
