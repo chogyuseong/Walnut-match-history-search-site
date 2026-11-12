@@ -966,7 +966,7 @@ function PlayerProfile(props: {
   );
 }
 
-/** 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록. 문장 앞 점 색은 tone(좋음 초록 · 주의 주황 · 보통 회색). */
+/** 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록. 문장 앞 점 모양은 tone(좋음 골드 점 · 주의 골드 속 빈 점 · 보통 회색 점). */
 function CommentaryCard(props: { notes: Commentary }) {
   const { summary, remarks } = props.notes;
   return (

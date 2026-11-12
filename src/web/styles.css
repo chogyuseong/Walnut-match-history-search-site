@@ -6362,14 +6362,17 @@ label:has(> select) {
   border: 1px solid var(--ih-line);
   border-radius: var(--radius-panel);
 }
+/* 제목·총평·문장 앞 점은 골드(사용자 요청, CLAUDE.md 5절 예외). 문장 본문과 근거 줄은 읽기 쉽게 중립색 그대로. */
 .commentary h2 {
   margin: 0;
   font-size: var(--text-body);
+  color: var(--ih-accent);
 }
 .commentary-summary {
   margin: 0;
   font-size: var(--text-body);
   font-weight: 500;
+  color: var(--ih-accent);
 }
 .commentary-remarks {
   margin: 0;
@@ -6399,14 +6402,14 @@ label:has(> select) {
   border-radius: 50%;
   background: var(--ih-text-secondary);
 }
-/* 점은 색 대신 모양으로 가른다(5절: 단일 뜻을 여러 색으로 칠하지 않는다). 보통은 보조 글자색 점, 좋음은 본문 글자색 점,
-   주의는 속 빈 점. 뜻은 문장이 전하고 점은 훑어볼 때의 표시다. */
+/* 점은 모양으로 가른다: 보통은 보조 글자색 점, 좋음은 골드 점, 주의는 골드 속 빈 점.
+   뜻은 문장이 전하고 점은 훑어볼 때의 표시다. */
 .commentary-remarks .remark-good::before {
-  background: var(--ih-text);
+  background: var(--ih-accent);
 }
 .commentary-remarks .remark-warn::before {
   background: transparent;
-  border: 1px solid var(--ih-text);
+  border: 1px solid var(--ih-accent);
 }
 .commentary .commentary-note {
   margin: 0;
