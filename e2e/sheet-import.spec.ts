@@ -170,3 +170,33 @@ test("붙여 넣은 표의 열 순서가 다르면 열 맞추기로 넘어가 �
   ]);
   expect(snap.importBatches[0]).toMatchObject({ kind: "paste", count: 2 });
 });
+
+test("같은 경기가 이미 들어 있어도 한 번 더 한 경기라고 고르면 시트에서 새 경기로 가져온다", async ({ page }) => {
+  const groupId = await setup(page);
+  await page.request.post("/api/test/sheet-fixture", { data: { url: SHEET_URL, csv: playerSheet(1) } });
+  const readSheet = async () => {
+    await page.goto("/#/group");
+    await page.getByRole("button", { name: "구글 시트에서 가져오기" }).click();
+    await page.getByLabel("구글 시트 주소").fill(SHEET_URL);
+    await page.getByRole("button", { name: "시트 읽기" }).click();
+    await page.getByRole("button", { name: "다음: 확인" }).click();
+  };
+  await readSheet();
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "1경기 가져오기" }).click();
+  await expect(page.getByText("1경기 저장됨 · 진영 미상")).toBeVisible();
+
+  // 같은 시트를 다시 읽으면 건너뛴다. 한 번 더 한 경기라고 고르면 새 경기로 들어간다.
+  await readSheet();
+  await expect(page.getByText("새로 넣을 경기가 없어요.")).toBeVisible();
+  await page.getByText("한 번 더 한 경기라면 골라서 넣기").click();
+  await page.getByRole("checkbox", { name: /다른 경기로 넣기/ }).check();
+  const confirm = page.getByRole("region", { name: "확인" });
+  await expect(confirm.getByRole("listitem").filter({ hasText: "새로 넣을 경기" })).toContainText("1경기");
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "1경기 가져오기" }).click();
+  await expect(page.getByText("1경기 저장됨 · 진영 미상")).toBeVisible();
+  await noPageOverflow(page);
+  const snap = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();
+  expect(snap.matches).toHaveLength(2);
+});

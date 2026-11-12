@@ -6,6 +6,7 @@ import {
   classifyImport,
   detectMapping,
   hash64,
+  nextFreeFingerprint,
   LAYOUT_LABELS,
   LAYOUTS,
   mappingProblems,
@@ -27,6 +28,7 @@ import { localDate } from "../../shared/stats";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { handOffLegacyUrl, takePastedText } from "../sheetHandoff";
 import { ImportDateWarnings } from "../importDateWarnings";
+import { ImportAgainPicker } from "../importAgain";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { CreateGroupButton } from "../account";
@@ -149,6 +151,8 @@ export function SheetImport() {
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(0);
   const [done, setDone] = useState(false);
+  // "이미 들어간 경기"로 분류됐지만 한 번 더 한 경기라고 고른 줄(줄 번호). importAgain.tsx 설명.
+  const [asNew, setAsNew] = useState<ReadonlySet<number>>(new Set());
   const plan = useRef<Plan | null>(null);
 
   // 표 일괄 입력에서 넘어온 붙여 넣기.
@@ -173,17 +177,33 @@ export function SheetImport() {
     () => (parsed && existing ? classifyImport(parsed.matches, existing, loaded?.sourceKey ?? null) : null),
     [parsed, existing, loaded],
   );
+  // 고른 줄은 이미 쓰인 지문(모임에 있는 것 + 이번에 넣을 것)을 피한 다음 순번 지문으로 바꿔 새 경기로 보낸다.
+  const promoted: SheetMatch[] = useMemo(() => {
+    if (!classification || !existing) return [];
+    const taken = new Set([
+      ...existing.map((e) => e.fingerprint),
+      ...classification.fresh.map((m) => m.fingerprint),
+      ...classification.changed.map((c) => c.match.fingerprint),
+    ]);
+    return classification.already
+      .filter((m) => asNew.has(m.line))
+      .map((m) => {
+        const fingerprint = nextFreeFingerprint(m, taken);
+        taken.add(fingerprint);
+        return { ...m, fingerprint };
+      });
+  }, [classification, existing, asNew]);
   const links: NameLink[] = useMemo(() => {
     if (!parsed || !snapshot || !classification) return [];
     const used = new Set<string>();
-    for (const m of [...classification.fresh, ...classification.changed.map((c) => c.match)]) {
+    for (const m of [...classification.fresh, ...classification.changed.map((c) => c.match), ...promoted]) {
       for (const p of [...m.teamA, ...m.teamB]) used.add(nameKey(p.name));
     }
     return linkNames(
       parsed.names.filter((n) => used.has(nameKey(n))),
       snapshot.participants,
     );
-  }, [parsed, snapshot, classification]);
+  }, [parsed, snapshot, classification, promoted]);
 
   if (!snapshot) {
     return (
@@ -211,6 +231,7 @@ export function SheetImport() {
     setMappingFromMemory(remembered !== null);
     setSkipText(m.skip.join(", "));
     setExisting(null);
+    setAsNew(new Set());
     setChoices({});
     setSideMode(null);
     setSkipErrors(false);
@@ -280,7 +301,7 @@ export function SheetImport() {
   }
 
   const toSend = classification
-    ? [...classification.fresh, ...(includeChanged ? classification.changed.map((c) => c.match) : [])].sort(
+    ? [...classification.fresh, ...promoted, ...(includeChanged ? classification.changed.map((c) => c.match) : [])].sort(
         (x, y) => x.line - y.line,
       )
     : [];
@@ -541,8 +562,27 @@ export function SheetImport() {
             </li>
             <li className="list-row static">
               <span>이미 들어간 경기(건너뜀)</span>
-              <span>{classification.already.length}경기</span>
+              <span>{classification.already.length - promoted.length}경기</span>
             </li>
+            {classification.already.length > 0 && (
+              <li className="list-row static">
+                <ImportAgainPicker
+                  rows={classification.already.map((m) => ({
+                    line: m.line,
+                    where: m.where,
+                    date: m.date,
+                    winner: m.winner,
+                    firstName: m.teamA[0]?.name ?? "",
+                  }))}
+                  picked={asNew}
+                  disabled={busy || done}
+                  onChange={(next) => {
+                    setAsNew(next);
+                    plan.current = null;
+                  }}
+                />
+              </li>
+            )}
             <li className="list-row static">
               <span>새로 넣을 경기</span>
               <span>

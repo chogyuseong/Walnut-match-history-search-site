@@ -13,6 +13,7 @@ import { parseDelimited } from "../../shared/csv";
 import { classifyImport, isLegacyLayout, type ExistingImport } from "../../shared/sheetTable";
 import { call, mutate, newRequestId } from "../api";
 import { handOffPaste } from "../sheetHandoff";
+import { ImportAgainPicker } from "../importAgain";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { CreateGroupButton } from "../account";
@@ -235,35 +236,16 @@ export function Import() {
                     <span>{skipped}경기</span>
                   </li>
                   {/* 같은 날 같은 10명·같은 결과로 한 번 더 한 경기는 지문이 같아 "이미 있음"으로 잡힌다. 줄마다 따로 넣을 수 있게 한다. */}
-                  <li className="list-row static import-again">
-                    <details>
-                      <summary>한 번 더 한 경기라면 골라서 넣기</summary>
-                      <p className="hint">
-                        같은 날 같은 10명이 같은 결과로 한 경기 더 했다면, 그 줄을 골라 다른 경기로 넣으세요. 같은 표를 다시
-                        붙여 넣은 것이라면 고르지 마세요(같은 경기가 두 번 들어가요).
-                      </p>
-                      <ul className="list">
-                        {already.map((r) => (
-                          <li key={r.line}>
-                            <label className="toggle">
-                              <input
-                                type="checkbox"
-                                checked={asNew.has(r.line)}
-                                disabled={busy || done}
-                                onChange={(e) => {
-                                  const next = new Set(asNew);
-                                  if (e.target.checked) next.add(r.line);
-                                  else next.delete(r.line);
-                                  setAsNew(next);
-                                  plan.current = null;
-                                }}
-                              />{" "}
-                              {r.line}번째 줄 · {r.date} · 팀 {r.winner} 승 · {r.teamA[0]} 외 9명 · 다른 경기로 넣기
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
+                  <li className="list-row static">
+                    <ImportAgainPicker
+                      rows={already.map((r) => ({ line: r.line, date: r.date, winner: r.winner, firstName: r.teamA[0]! }))}
+                      picked={asNew}
+                      disabled={busy || done}
+                      onChange={(next) => {
+                        setAsNew(next);
+                        plan.current = null;
+                      }}
+                    />
                   </li>
                   <li className="list-row static">
                     <span>새로 넣을 경기</span>
