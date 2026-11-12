@@ -125,6 +125,15 @@ test("기존 사이트 주소로 읽어 미래 날짜를 한 해 앞으로 옮�
   await expect(page.getByRole("region", { name: "확인" })).toContainText("새로 넣을 경기0경기");
   await expect(page.getByText("새로 넣을 경기가 없어요.")).toBeVisible();
   await expect(page.getByRole("radio", { name: /한 해 앞으로 옮겨 넣기/ })).toBeChecked();
+
+  // 건너뛴 경기 하나를 "한 번 더 한 경기"로 고르면 새 경기로 들어간다(src/web/importAgain.tsx).
+  await page.getByText("한 번 더 한 경기라면 골라서 넣기").click();
+  await page.getByRole("checkbox", { name: /다른 경기로 넣기/ }).first().check();
+  await expect(page.getByRole("region", { name: "확인" })).toContainText("새로 넣을 경기1경기");
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "1경기 가져오기" }).click();
+  await expect(page.getByText("1경기 저장됨 · 진영 미상")).toBeVisible();
+  await noPageOverflow(page);
 });
 
 test("시트 가져오기 칸에 기존 사이트 주소를 넣으면 알아보고 넘겨 준다", async ({ page }) => {

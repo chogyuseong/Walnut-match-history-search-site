@@ -14,6 +14,7 @@ import {
 import { nameKey } from "../../shared/names";
 import {
   classifyImport,
+  nextFreeFingerprint,
   toSheetPayload,
   type ExistingImport,
   type ImportClassification,
@@ -23,6 +24,7 @@ import { looksLikeSheetUrl } from "../../shared/sheetUrl";
 import { CreateGroupButton } from "../account";
 import { call, mutate, newRequestId } from "../api";
 import { takeLegacyUrl } from "../sheetHandoff";
+import { ImportAgainPicker } from "../importAgain";
 import { ImportDateWarnings } from "../importDateWarnings";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
@@ -81,6 +83,8 @@ export function LegacyImport() {
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(0);
   const [done, setDone] = useState(false);
+  // "이미 들어간 경기"로 분류됐지만 한 번 더 한 경기라고 고른 줄(줄 번호). src/web/importAgain.tsx 설명.
+  const [asNew, setAsNew] = useState<ReadonlySet<number>>(new Set());
   const plan = useRef<Plan | null>(null);
 
   // 시트 가져오기 화면의 주소 칸에서 넘어온 주소.
@@ -105,17 +109,33 @@ export function LegacyImport() {
     () => (conv && existing && read ? classifyImport(conv.matches, existing, read.sourceKey) : null),
     [conv, existing, read],
   );
+  // 고른 줄은 이미 쓰인 지문(모임에 있는 것 + 이번에 넣을 것)을 피한 다음 순번 지문으로 바꿔 새 경기로 보낸다.
+  const promoted: LegacyConverted[] = useMemo(() => {
+    if (!classification || !existing) return [];
+    const taken = new Set([
+      ...existing.map((e) => e.fingerprint),
+      ...classification.fresh.map((m) => m.fingerprint),
+      ...classification.changed.map((c) => c.match.fingerprint),
+    ]);
+    return classification.already
+      .filter((m) => asNew.has(m.line))
+      .map((m) => {
+        const fingerprint = nextFreeFingerprint(m, taken);
+        taken.add(fingerprint);
+        return { ...m, fingerprint };
+      });
+  }, [classification, existing, asNew]);
   const links: NameLink[] = useMemo(() => {
     if (!conv || !snapshot || !classification) return [];
     const used = new Set<string>();
-    for (const m of [...classification.fresh, ...classification.changed.map((c) => c.match)]) {
+    for (const m of [...classification.fresh, ...classification.changed.map((c) => c.match), ...promoted]) {
       for (const p of [...m.teamA, ...m.teamB]) used.add(nameKey(p.name));
     }
     return linkNames(
       conv.names.filter((n) => used.has(nameKey(n))),
       snapshot.participants,
     );
-  }, [conv, snapshot, classification]);
+  }, [conv, snapshot, classification, promoted]);
 
   if (!snapshot) {
     return (
@@ -144,6 +164,7 @@ export function LegacyImport() {
       const fingerprints = await call<{ imports: ExistingImport[] }>("GET", `/api/groups/${gid}/imports/fingerprints`);
       setRead({ ...res, readAt: Date.now() });
       setExisting(fingerprints.imports);
+      setAsNew(new Set());
       // 같은 주소로 전에 가져올 때 고른 날짜 처리를 기본으로 쓴다(다시 고를 수 있다).
       setFutureMode(res.remembered?.futureMode ?? "shift");
       setFrom(res.remembered?.from ?? "");
@@ -168,7 +189,7 @@ export function LegacyImport() {
   const showDates = !!conv && (conv.affected.count > 0 || (base?.future.count ?? 0) > 0 || read?.remembered?.from != null);
 
   const toSend = classification
-    ? [...classification.fresh, ...(includeChanged ? classification.changed.map((c) => c.match) : [])].sort(
+    ? [...classification.fresh, ...promoted, ...(includeChanged ? classification.changed.map((c) => c.match) : [])].sort(
         (x, y) => x.line - y.line,
       )
     : [];
@@ -324,8 +345,27 @@ export function LegacyImport() {
             </li>
             <li className="list-row static">
               <span>이미 들어간 경기(건너뜀)</span>
-              <span>{classification.already.length}경기</span>
+              <span>{classification.already.length - promoted.length}경기</span>
             </li>
+            {classification.already.length > 0 && (
+              <li className="list-row static">
+                <ImportAgainPicker
+                  rows={classification.already.map((m) => ({
+                    line: m.line,
+                    where: m.where,
+                    date: m.date,
+                    winner: m.winner,
+                    firstName: m.teamA[0]?.name ?? "",
+                  }))}
+                  picked={asNew}
+                  disabled={busy || done}
+                  onChange={(next) => {
+                    setAsNew(next);
+                    plan.current = null;
+                  }}
+                />
+              </li>
+            )}
             <li className="list-row static">
               <span>새로 넣을 경기</span>
               <span>
