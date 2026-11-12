@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { attendanceReport } from "../src/shared/attendance";
-import { GROUP_REMARK_MAX, groupCommentary, PLAYER_REMARK_MAX, playerCommentary } from "../src/shared/commentary";
+import { COACHING_MAX, GROUP_REMARK_MAX, groupCommentary, PLAYER_REMARK_MAX, playerCommentary } from "../src/shared/commentary";
 import { computeRatings } from "../src/shared/rating";
 import type { MatchView, Position, Side, Team } from "../src/shared/types";
 import { matchExpectations } from "../src/shared/upset";
@@ -124,22 +124,40 @@ describe("playerCommentary", () => {
   });
 
   it("코칭 한 줄: 자료 부족 → 몇 경기 더, 라인 강약 → 강한 라인부터, 전담 → 다른 라인도, 하락 → 감 되찾기", () => {
-    expect(player(range(6, (i) => match(i)), "p0").coaching?.text).toContain("4경기를 더 하면");
+    expect(player(range(6, (i) => match(i)), "p0").coaching?.map((t) => t.text)).toEqual([expect.stringContaining("4경기를 더 하면")]);
 
     const mid = range(10, (i) => match(i, { teamA: [1, 2, 0, 3, 4], winner: "A" }));
     const top = range(10, (i) => match(100 + i, { teamA: [5, 6, 7, 8, 9], teamB: [0, 1, 2, 3, 4], winner: i <= 2 ? "B" : "A" }));
     const lines = player([...mid, ...top], "p0").coaching!;
-    // 마지막 7판을 연속으로 져 "흐름 하락"이 먼저일 수도 있어, 둘 중 하나가 미드를 권하는지만 본다.
-    expect(lines.text).toContain("미드");
+    expect(lines.length).toBeLessThanOrEqual(COACHING_MAX);
+    expect(lines.some((t) => t.text.includes("미드"))).toBe(true);
 
     const only = player(range(12, (i) => match(i, { winner: i % 2 ? "A" : "B" })), "p0").coaching!;
-    expect(only.text).toContain("거의 탑만");
+    expect(only.some((t) => t.text.includes("거의 탑만"))).toBe(true);
 
     const falling = [...range(10, (i) => match(i, { winner: "A" })), ...range(10, (i) => match(20 + i, { winner: "B" }))];
     const down = player(falling, "p0").coaching!;
-    expect(down.text).toContain("흐름이 내려가");
-    expect(down.tone).toBe("warn");
-    expect(down.basis).toBeTruthy();
+    // 10연승 뒤 10연패라 "진 다음 판이 약해요"(같은 날 다음 경기)가 맨 앞이다. 흐름 하락은 내용이 겹쳐 같이 쓰지 않는다.
+    expect(down[0]!.text).toMatch(/진 다음 판이 약해요|흐름이 내려가/);
+    expect(down[0]!.tone).toBe("warn");
+    expect(down.every((t) => t.basis)).toBe(true);
+    expect(down.filter((t) => /진 다음 판이 약해요|흐름이 내려가/.test(t.text))).toHaveLength(1);
+  });
+
+  it("진 다음 판: 같은 날 진 다음 경기가 이긴 다음 경기보다 15%p 이상 낮으면 경고", () => {
+    // 4승 4패를 번갈아 묶어 이긴 다음은 대개 이기고, 진 다음은 대개 진다. 시각은 한 시간 간격이라 날이 바뀌면 끊긴다.
+    const pattern = range(32, (i) => match(i, { winner: Math.floor((i - 1) / 4) % 2 === 0 ? "A" : "B" }));
+    const r = player(pattern, "p0").remarks.find((x) => x.text.includes("진 다음 판 승률이"));
+    expect(r?.tone).toBe("warn");
+  });
+
+  it("챔피언: 5판 이상 쓴 챔피언 중 60% 이상이면 이름과 승률", () => {
+    const withAhri = range(12, (i) => {
+      const m = match(i, { winner: i <= 5 || i % 3 === 0 ? "A" : "B" });
+      if (i <= 6) m.roster[0] = { ...m.roster[0]!, champion: "Ahri" };
+      return m;
+    });
+    expect(player(withAhri, "p0").remarks.some((r) => r.text.startsWith("아리로 6판"))).toBe(true);
   });
 
   it("문장 수는 상한을 넘지 않는다", () => {
@@ -162,10 +180,20 @@ describe("groupCommentary", () => {
   });
 
   it("모임 코칭 한 줄: 판정 경기가 적으면 결과 입력 안내, 고르게 섞였으면 유지", () => {
-    expect(group(range(3, (i) => match(i))).coaching?.text).toContain("결과를 빠짐없이 입력");
+    expect(group(range(3, (i) => match(i))).coaching?.map((t) => t.text)).toEqual([expect.stringContaining("결과를 빠짐없이 입력")]);
     const c = group(range(30, (i) => match(i, { winner: i % 2 ? "A" : "B", side: i % 4 < 2 ? "blue" : "red" })));
-    expect(c.coaching?.text).toBeTruthy();
-    expect(c.coaching?.basis).toBeTruthy();
+    expect(c.coaching!.length).toBeGreaterThanOrEqual(1);
+    expect(c.coaching!.length).toBeLessThanOrEqual(COACHING_MAX);
+    expect(c.coaching!.every((t) => t.basis)).toBe(true);
+  });
+
+  it("모임 새 규칙: 서폿 쏠림·연승 행진·챔피언 기록률", () => {
+    // 라인은 팀 안 순서라 p4·p9가 늘 서폿, 팀 A가 6연승으로 끝난다, 챔피언은 아무도 기록하지 않았다.
+    const matches = range(24, (i) => match(i, { winner: i > 18 || i % 2 ? "A" : "B" }));
+    const t = texts(group(matches));
+    expect(t.some((x) => x.includes("서폿을 많이 맡아요(자기 경기의 100%)"))).toBe(true);
+    expect(t.some((x) => /6연승 중이에요/.test(x))).toBe(true);
+    expect(t.some((x) => x.startsWith("챔피언 기록이 0%뿐이에요"))).toBe(true);
   });
 
   it("진영 편차: 블루가 15%p 이상 많이 이기면 진영 랜덤 권유", () => {

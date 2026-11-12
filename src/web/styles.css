@@ -6446,7 +6446,7 @@ label:has(> select) {
   margin: 0;
   max-width: none;
 }
-/* 코칭 한 줄: 문장 목록 아래 1px 구분선으로 나눈다. 라벨은 제목처럼 골드(분석 코멘트 예외 범위), 문장은 본문색. */
+/* 코칭(최대 세 줄): 문장 목록 아래 1px 구분선으로 나눈다. 라벨은 제목처럼 골드(분석 코멘트 예외 범위), 문장은 본문색. */
 .commentary-coaching {
   display: flex;
   flex-direction: column;
@@ -6461,10 +6461,19 @@ label:has(> select) {
   font-weight: 500;
   color: var(--ih-accent);
 }
-.commentary-coaching p {
+.commentary-coaching ol {
   margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   font-size: var(--text-body);
   line-height: 1.55;
+}
+/* 번호(1·2·3)는 우선순위라 골드로 둔다(분석 코멘트 예외 범위). 문장은 본문색. */
+.commentary-coaching li::marker {
+  color: var(--ih-accent);
+  font-weight: 500;
 }
 .commentary-coaching .remark-basis {
   display: block;

@@ -877,8 +877,18 @@ function PlayerProfile(props: {
   const { ratings, expectations, attendance, cumulative, nameOf } = props;
   const notes = useMemo(
     () =>
-      playerCommentary({ scoped, participantId: id, nameOf, ratings, expectations, attendance, cumulative, placementGames }),
-    [scoped, id, nameOf, ratings, expectations, attendance, cumulative, placementGames],
+      playerCommentary({
+        scoped,
+        participantId: id,
+        nameOf,
+        ratings,
+        expectations,
+        attendance,
+        cumulative,
+        placementGames,
+        timeZone: props.snapshot.group.timezone,
+      }),
+    [scoped, id, nameOf, ratings, expectations, attendance, cumulative, placementGames, props.snapshot.group.timezone],
   );
   return (
     <section className="graph-profile" aria-label="고른 플레이어">
@@ -969,7 +979,7 @@ function PlayerProfile(props: {
 }
 
 /**
- * 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록 + 코칭 한 줄. 문장 앞 점 모양은 tone(좋음 골드 점 · 주의 골드 속 빈 점 · 보통 회색 점).
+ * 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록 + 코칭(우선순위 순 번호 목록, 최대 COACHING_MAX줄). 문장 앞 점 모양은 tone(좋음 골드 점 · 주의 골드 속 빈 점 · 보통 회색 점).
  * 코칭은 카드 안 1px 구분선 아래 "코칭" 라벨과 함께 둔다(카드 안 카드를 만들지 않는다).
  */
 function CommentaryCard(props: { notes: Commentary }) {
@@ -991,13 +1001,17 @@ function CommentaryCard(props: { notes: Commentary }) {
               </li>
             ))}
           </ul>
-          {coaching && (
+          {coaching && coaching.length > 0 && (
             <div className="commentary-coaching">
               <h3>코칭</h3>
-              <p>
-                {coaching.text}
-                {coaching.basis && <span className="remark-basis">기준: {coaching.basis}</span>}
-              </p>
+              <ol>
+                {coaching.map((tip) => (
+                  <li key={tip.text}>
+                    {tip.text}
+                    {tip.basis && <span className="remark-basis">기준: {tip.basis}</span>}
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
         </>
