@@ -9,7 +9,7 @@ import { diversityFor } from "../../shared/recommend";
 import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
 import { DEFAULT_SETTINGS } from "../../shared/types";
 import { draftRosterText, josa, POSITION_LABEL } from "../format";
-import { BackLink, StickyAction } from "../screenKit";
+import { BackLink, StickyAction, useMediaQuery } from "../screenKit";
 import { CopyButton, ErrorNote } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 import { LoginDialog } from "./Login";
@@ -144,6 +144,34 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
   const undoSteps = historyOf(draft).length;
   const complete = isCompleteDraft(draft);
   const needsReset = resetCountsReady(draft, ctx);
+  // styles.css의 .prep-layout 두 단 기준과 같은 값이어야 한다.
+  const twoColumns = useMediaQuery("(min-width: 1200px)");
+  const shuffle = (
+    <ShuffleSection
+      ctx={ctx}
+      edit={edit}
+      support={
+        ctx.enabled
+          ? {
+              label: supportCountLabel(app, ctx),
+              open: supportOpen,
+              needsReset,
+              onToggle: () => setSupportOpen(!supportOpen),
+              panel: (
+                <SupportCountSection
+                  app={app}
+                  draft={draft}
+                  ctx={ctx}
+                  status={status}
+                  clearDrawNote={() => edit.setDrawNote(null)}
+                  open={supportOpen}
+                />
+              ),
+            }
+          : undefined
+      }
+    />
+  );
 
   return (
     <div className="screen prep-screen">
@@ -201,14 +229,18 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
         )
       )}
 
-      {/* 순서(2026-11-08): 편성 판 바로 아래에 섞기·진영을 두어 섞은 결과를 보면서 다시 누를 수 있다.
-          PC(1200px 이상)에서는 .prep-layout이 두 단이 되고 왼쪽 편성 판이 따라 내려온다(styles.css). */}
+      {/* 섞기 버튼의 자리는 폭에 따라 DOM에서 옮긴다(CSS order로 바꾸면 키보드·읽기 순서가 화면과 어긋난다).
+          - 1200px 미만(한 단): 두 팀 상자 바로 아래, 쉬는 사람보다 앞. 쉬는 사람 명단 뒤에 두었을 때 5명이 쉬면
+            폰(390×844)에서 섞기 버튼이 보이는 위치에 두 팀 10명 중 6명만 보여, 누른 결과를 보려고 위로 올라가야 했다.
+          - 1200px 이상(두 단): 오른쪽 단 맨 위, 두 팀 상자 옆. 왼쪽 단(두 팀·쉬는 사람)은 따라 내려와(sticky) 두 팀에서
+            쉬는 사람으로 끌어다 놓을 수 있어야 하므로, 섞기를 왼쪽에 넣어 단을 화면보다 길게 만들지 않는다.
+          섞은 결과 줄(DeltaNote·DrawSummary)은 두 경우 모두 쉬는 사람보다 앞에 둔다. */}
       <div className="prep-layout">
         <div className="prep-boards">
           <TeamBoards draft={draft} ctx={ctx} edit={edit} />
           <SelectionBar draft={draft} edit={edit} canReplace={others.length > 0} />
+          {!twoColumns && shuffle}
           <DeltaNote lines={delta} onUndo={() => edit.stepHistory("undo")} />
-          <BenchSection edit={edit} night={night} onAddLate={() => setLateOpen(true)} />
           {edit.drawNote && (
             <DrawSummary
               result={edit.drawNote}
@@ -219,32 +251,10 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
               }}
             />
           )}
+          <BenchSection edit={edit} night={night} onAddLate={() => setLateOpen(true)} />
         </div>
         <div className="prep-tools-col">
-          <ShuffleSection
-            ctx={ctx}
-            edit={edit}
-            support={
-              ctx.enabled
-                ? {
-                    label: supportCountLabel(app, ctx),
-                    open: supportOpen,
-                    needsReset,
-                    onToggle: () => setSupportOpen(!supportOpen),
-                    panel: (
-                      <SupportCountSection
-                        app={app}
-                        draft={draft}
-                        ctx={ctx}
-                        status={status}
-                        clearDrawNote={() => edit.setDrawNote(null)}
-                        open={supportOpen}
-                      />
-                    ),
-                  }
-                : undefined
-            }
-          />
+          {twoColumns && shuffle}
           <SideSection edit={edit} />
           {forecast && (
             <ForecastSection

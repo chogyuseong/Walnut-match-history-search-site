@@ -4027,11 +4027,22 @@ main:focus {
   font-size: var(--text-section);
 }
 /* 긴 세로 목록의 리듬: 구역마다 위쪽 옅은 구분선 + 그 아래 24px 뒤에 구역 제목(h2),
-   첫 구역은 선 없이. 구역 설명문(.hint)은 제목 바로 아래 8px. 접는 묶음 머리(summary)는 44px 그대로다. */
+   첫 구역은 선 없이. 접는 묶음 머리(summary)는 44px 그대로다.
+   구역 안 요소는 모두 8px씩 띄운다(제목→설명도 8px). p의 기본 여백이 0이라 이 간격이 없으면 연달아 놓인 버튼
+   (표 일괄 입력의 세 버튼, 티어 배정·중복 참가자 합치기)과 설명 글이 위아래로 맞붙어 폰에서 겹친 버튼처럼 보였다.
+   구역에 바로 놓인 버튼은 글자 폭만 차지하게 왼쪽에 둔다(늘이면 목록 줄처럼 보인다). */
 .group-block-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+.group-block-body > section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.group-block-body > section > button {
+  align-self: flex-start;
 }
 .group-block-body > section + section {
   margin-top: var(--space-1);
@@ -4039,10 +4050,7 @@ main:focus {
   padding-top: var(--space-5);
 }
 .group-block-body h2 {
-  margin: 0 0 var(--space-2);
-}
-.group-block-body h2 + .hint {
-  margin-top: 0;
+  margin: 0;
 }
 .danger-block {
   border-color: var(--ih-danger);
@@ -5242,8 +5250,16 @@ main:focus {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* 운영자 화면의 요청 줄은 오른쪽에 버튼이 넷까지 붙는다. 한 줄에 두면 폰에서 이름·요청 글이 몇 글자 폭으로
+   눌려 잘리므로, 글이 15rem보다 좁아지면 버튼 줄을 글 아래로 내린다. 요청 글은 운영자가 다 읽어야 하므로
+   공통 .name의 한 줄 말줄임을 풀어 줄을 바꾼다. */
+.request-row {
+  flex-wrap: wrap;
+}
 .request-row .name {
+  flex: 1 1 15rem;
   min-width: 0;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 .tag.muted {
@@ -5462,8 +5478,9 @@ main:focus {
 }
 
 /* ---------- 준비 화면 두 단 ----------
-   섞기 버튼이 편성 판에서 멀어 섞은 결과를 보려면 위로 올라가야 했다. 모든 폭에서 섞기를 편성 바로 아래로 옮기고,
-   PC(1200px 이상)에서는 왼쪽 편성 판이 화면을 내려도 따라오게(sticky) 두 단으로 놓는다. */
+   1200px 미만은 한 단: 두 팀 → 섞기 → 섞은 결과 줄 → 쉬는 사람 → 진영·예상 승률…
+   1200px 이상은 두 단: 왼쪽(.prep-boards)은 두 팀·쉬는 사람이 화면을 내려도 따라오고(sticky), 오른쪽 맨 위에 섞기.
+   섞기의 DOM 자리는 Prep.tsx가 같은 1200px 기준(useMediaQuery)으로 옮긴다. 기준을 바꾸면 둘 다 바꾼다. */
 .prep-layout {
   display: grid;
   gap: var(--space-4);

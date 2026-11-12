@@ -511,13 +511,17 @@ export function Group() {
             시트에 적어 둔 지난 경기를 붙여 넣어 한꺼번에 넣습니다. 현재 경기와 서포터 횟수에는 영향이
             없습니다.
           </p>
-          <button type="button" className="secondary" onClick={() => go("/import")}>
-            지난 기록 한꺼번에 넣기
-          </button>
-          <button type="button" className="secondary" onClick={() => go("/sheet-import")}>구글 시트에서 가져오기</button>
-          <button type="button" className="secondary" onClick={() => go("/legacy-import")}>
-            기존 사이트 기록 가져오기
-          </button>
+          <div className="button-row">
+            <button type="button" className="secondary" onClick={() => go("/import")}>
+              지난 기록 한꺼번에 넣기
+            </button>
+            <button type="button" className="secondary" onClick={() => go("/sheet-import")}>
+              구글 시트에서 가져오기
+            </button>
+            <button type="button" className="secondary" onClick={() => go("/legacy-import")}>
+              기존 사이트 기록 가져오기
+            </button>
+          </div>
           <p className="hint">
             기존 사이트(구글 시트 + 연결 주소)를 쓰던 모임은 그때 쓰던 연결 주소(script.google.com/macros/s/…/exec)로
             기록을 그대로 옮길 수 있어요. 구글 시트 주소와는 다른 주소예요.
