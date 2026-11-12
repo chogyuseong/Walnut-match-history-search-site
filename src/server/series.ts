@@ -125,27 +125,63 @@ function seriesStillGuard(env: Env, groupId: string, series: SeriesView): D1Prep
  * 시리즈에 없는 경기거나, 시리즈의 나머지 판이 모두 지워져 시리즈가 보이지 않으면 아무 확인도 하지 않는다.
  */
 export async function seriesUndeleteGuards(env: Env, groupId: string, match: MatchView): Promise<D1PreparedStatement[]> {
-  const seriesId = (await seriesOfMatches(env, groupId, [match.id])).get(match.id);
-  if (!seriesId) return [];
-  const series = (await loadSeries(env, groupId)).find((s) => s.id === seriesId);
-  if (!series) return [];
-  const members = await loadMatchesByIds(env, groupId, series.matchIds);
+  const found = await seriesWith(env, groupId, match.id);
+  if (!found) return [];
+  const { series, members } = found;
   const after: SeriesView = { ...series, matchIds: [...series.matchIds, match.id] };
   const need = SERIES_WINS_NEEDED[series.format];
   const maxGames = need === null ? MAX_SERIES_GAMES : need * 2 - 1;
-  const score = seriesScore(after, [...members, match]);
-  if (after.matchIds.length > maxGames || score.overflow) {
-    const which = series.name ? `"${series.name}" 시리즈` : "시리즈";
+  const tooMany = after.matchIds.length > maxGames;
+  if (tooMany || seriesScore(after, [...members, match]).overflow) {
     // 둘 다 해당하면 판 수가 더 알아보기 쉬워 먼저 쓴다.
-    const why = after.matchIds.length > maxGames ? `이미 ${series.matchIds.length}판이에요` : "이미 승부가 났어요";
-    throw new ApiError(
-      409,
-      "SERIES_FULL",
-      `이 경기가 든 ${which}(${SERIES_FORMAT_LABEL[series.format]})는 ${why}. 되살리면 형식보다 길어져요. 지운 사이 새로 넣은 판을 먼저 지우거나 시리즈에서 뺀 뒤 되살리세요.`,
-      { seriesId: series.id },
-    );
+    throw seriesOverflow(series, tooMany ? `이미 ${series.matchIds.length}판이에요` : "이미 승부가 났어요", "되살리면");
   }
   return [seriesStillGuard(env, groupId, series)];
+}
+
+/**
+ * 전적 제외한 경기를 복구할 때 그 경기가 든 시리즈를 확인한다(matches.ts restoreMatch).
+ * 제외한 판은 시리즈 점수에서 빠지므로(seriesScore "dropped") 그 사이 판을 더 넣어 승부가 났을 수 있다. 복구로 승부가 난 뒤에
+ * 판이 생기면(overflow가 새로 생기면) 되살리기와 같은 까닭으로 거절한다. 원래 넘쳐 있던 시리즈는 이 복구 탓이 아니라 막지 않는다.
+ * 판 수는 그대로라(제외한 판도 시리즈 소속) 판 수 상한은 보지 않는다.
+ */
+export async function seriesRestoreGuards(
+  env: Env,
+  groupId: string,
+  match: MatchView,
+  restoredState: MatchView["state"],
+): Promise<D1PreparedStatement[]> {
+  const found = await seriesWith(env, groupId, match.id);
+  if (!found) return [];
+  const { series, members } = found;
+  const restored = members.map((m) => (m.id === match.id ? { ...m, state: restoredState } : m));
+  if (seriesScore(series, restored).overflow && !seriesScore(series, members).overflow) {
+    throw seriesOverflow(series, "이미 승부가 났어요", "복구하면");
+  }
+  return [seriesStillGuard(env, groupId, series)];
+}
+
+/** 경기가 든 시리즈와 그 시리즈의 지우지 않은 경기. 시리즈에 없거나 시리즈가 보이지 않으면 null. */
+async function seriesWith(
+  env: Env,
+  groupId: string,
+  matchId: string,
+): Promise<{ series: SeriesView; members: MatchView[] } | null> {
+  const seriesId = (await seriesOfMatches(env, groupId, [matchId])).get(matchId);
+  if (!seriesId) return null;
+  const series = (await loadSeries(env, groupId)).find((s) => s.id === seriesId);
+  if (!series) return null;
+  return { series, members: await loadMatchesByIds(env, groupId, series.matchIds) };
+}
+
+function seriesOverflow(series: SeriesView, why: string, doing: string): ApiError {
+  const which = series.name ? `"${series.name}" 시리즈` : "시리즈";
+  return new ApiError(
+    409,
+    "SERIES_FULL",
+    `이 경기가 든 ${which}(${SERIES_FORMAT_LABEL[series.format]})는 ${why}. ${doing} 형식보다 길어져요. 그 사이 새로 넣은 판을 먼저 지우거나 시리즈에서 뺀 뒤 다시 해 주세요.`,
+    { seriesId: series.id },
+  );
 }
 
 function insertMember(env: Env, groupId: string, seriesId: string, matchId: string, at: string): D1PreparedStatement {

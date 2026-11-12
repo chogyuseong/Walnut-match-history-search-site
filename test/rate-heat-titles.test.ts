@@ -29,7 +29,7 @@ const loadFormat = (): Promise<FormatModule> => {
 };
 
 describe("승률 색 단계", () => {
-  it("구간 숫자: 45~55% 기준, 55·60·65·70 / 45·40·35·30, 5경기부터", async () => {
+  it("구간 숫자: 45~54% 기준, 55·60·65·70 / 45·40·35·30, 5경기부터", async () => {
     const f = await loadFormat();
     expect(f.RATE_HEAT_HOT).toEqual([55, 60, 65, 70]);
     expect(f.RATE_HEAT_COLD).toEqual([45, 40, 35, 30]);
@@ -42,10 +42,10 @@ describe("승률 색 단계", () => {
     // 2026-11-08: 경계를 정확한 분수가 아니라 화면에 보이는 정수 승률(ratePercent, 0.5 올림)로 비교한다.
     // 그래서 55.1%("55%"로 보임)는 이제 기준 구간이고(예전 1), 69.5%("70%")는 4단계(예전 3),
     // 44.9%("45%")는 기준 구간(예전 -1)이다. 보이는 숫자와 색이 어긋나지 않게 하려는 변경이다.
-    // 높은 쪽: 보이는 값이 55 이하면 기준, 56 이상부터 붉어진다. 60·65·70은 "이상".
-    expect(at(54.9)).toBe(0);
-    expect(at(55)).toBe(0);
-    expect(at(55.4)).toBe(0);
+    // 높은 쪽: 보이는 값이 54 이하면 기준, 55 이상부터 강조(2026-11-12 사용자 결정 "55% 이상", 전에는 56부터).
+    expect(at(54.4)).toBe(0);
+    expect(at(54.5)).toBe(1);
+    expect(at(55)).toBe(1);
     expect(at(55.5)).toBe(1);
     expect(at(59.4)).toBe(1);
     expect(at(59.5)).toBe(2);
@@ -74,15 +74,15 @@ describe("승률 색 단계", () => {
     const { rateHeat } = await loadFormat();
     expect(rateHeat(39, 56)).toBe(4); // 69.64% → "70%" (예전 3)
     expect(rateHeat(23, 33)).toBe(4); // 69.70% → "70%" (예전 3)
-    expect(rateHeat(31, 56)).toBe(0); // 55.36% → "55%" (예전 1)
+    expect(rateHeat(31, 56)).toBe(1); // 55.36% → "55%" (55% 이상이라 높음)
     expect(rateHeat(40, 89)).toBe(0); // 44.94% → "45%" (예전 -1)
-    expect(rateHeat(6, 11)).toBe(0); // 54.55% → "55%"
+    expect(rateHeat(6, 11)).toBe(1); // 54.55% → "55%"(보이는 값으로 비교)
   });
 
   it("나누어떨어지지 않는 승률도 곱셈으로 정확히 비교한다", async () => {
     const { rateHeat } = await loadFormat();
     expect(rateHeat(7, 10)).toBe(4); // 정확히 70%
-    expect(rateHeat(11, 20)).toBe(0); // 정확히 55%
+    expect(rateHeat(11, 20)).toBe(1); // 정확히 55%(55% 이상)
     expect(rateHeat(9, 20)).toBe(0); // 정확히 45%
     expect(rateHeat(3, 10)).toBe(-4); // 정확히 30%
   });

@@ -508,6 +508,27 @@ describe("시리즈에 든 경기", () => {
     expect(series.matchIds).toEqual([first.id, second.id, added[0]!.id]);
     expect(seriesScore(series, snap.matches)).toMatchObject({ wins: [1, 2], winner: 1, overflow: false });
   });
+
+  it("전적 제외한 판을 복구하면 승부가 난 뒤에 판이 붙게 될 때는 거절한다", async () => {
+    // 1판 A 승, 2판 B 승, 3판 A 승(2:1). 1판을 전적 제외하면 1:1이라 4판(A 승)을 더 넣을 수 있다.
+    // 그 뒤 1판을 복구하면 3판에서 승부가 나고 4판이 남는다(overflow) → 거절.
+    const { g, first, seriesId } = await seriesOfTwo();
+    const add = async (winner: "A" | "B") => {
+      const m = await play(g, rosterOf(g.people), winner);
+      const res = await api(g.cookie, "POST", `/api/groups/${g.gid}/series/${seriesId}/add`, { requestId: requestId(), matchId: m.id });
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+    };
+    await add("A");
+    const excluded = (await matchAction(g, first, "exclude")).body.match as MatchView;
+    expect(excluded.state).toBe("excluded");
+    await add("A");
+
+    const blocked = await matchAction(g, excluded, "restore");
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error.code).toBe("SERIES_FULL");
+    expect(blocked.body.error.message).toContain("복구하면");
+    expect((await snapshot(g)).matches.find((m) => m.id === first.id)!.state).toBe("excluded");
+  });
 });
 
 describe("백업과 복원", () => {

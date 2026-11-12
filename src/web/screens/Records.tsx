@@ -844,7 +844,12 @@ function ExpectationLine(props: { expectation: MatchExpectation | undefined }) {
         <span className="expectation-note"> · 지금 기록과 설정으로 다시 계산한 값</span>
       </p>
       {/* 이변 배지의 기준은 title 풍선이라 터치 화면에서 보이지 않아 접힌 도움말에도 둔다. */}
-      {e.upset && <Help label="이변 기준">{upsetRule}. 목록의 "이변" 배지도 같은 기준이에요.</Help>}
+      {e.upset && (
+        <Help label="이변 기준">
+          {/* 2026-11-12 실제 모임 522경기 검증: 경기 전 예상이 항상 50%보다 낫지 않았다(docs/구현현황.md). */}
+          {upsetRule}. 목록의 "이변" 배지도 같은 기준이에요. 팀을 실력에 맞춰 나누는 모임에서는 경기 전 예상이 잘 맞지 않을 수 있어 참고로만 보세요.
+        </Help>
+      )}
     </>
   );
 }

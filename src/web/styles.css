@@ -1861,7 +1861,7 @@ table {
 .rate {
   font-weight: 500;
 }
-/* 승률 3단(CLAUDE.md 5절, format.ts heatClass): 높음(heat-h1~h4) 강조색 · 기준(heat-0, 45~55%) 주요 글자 ·
+/* 승률 3단(CLAUDE.md 5절, format.ts heatClass): 높음(heat-h1~h4) 강조색 · 기준(heat-0, 45~54%) 주요 글자 ·
    낮음(heat-l1~l4) 보조 글자. 클래스 이름은 예전 아홉 단계를 그대로 두고(테스트·화면 코드가 단계 이름을 쓴다)
    색만 세 값으로 모았다. 한 변수(--heat)가 글자·막대·고리 색을 함께 정한다. 대비는 test/theme-contrast.test.ts. */
 .heat-h1,

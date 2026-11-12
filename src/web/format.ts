@@ -208,10 +208,10 @@ export function matchTone(match: MatchView): "blue" | "red" | "none" {
 export const RATE_HEAT_MIN_GAMES = SMALL_SAMPLE;
 
 /**
- * 승률 색 단계의 경계(%). 45~55%는 기준 구간(기본 색)이다.
- * - 높은 쪽: 55 초과 → 1단계, 60 이상 → 2, 65 이상 → 3, 70 이상 → 4.
+ * 승률 색 단계의 경계(%). 45~54%는 기준 구간(기본 색)이다.
+ * - 높은 쪽: 55 이상 → 1단계, 60 이상 → 2, 65 이상 → 3, 70 이상 → 4.
  * - 낮은 쪽: 45 미만 → -1단계, 40 이하 → -2, 35 이하 → -3, 30 이하 → -4.
- * 경계값 자체(정확히 45%·55%)는 기준 구간에 든다. 화면 색은 세 단뿐이라(styles.css .heat-*: 높음 강조색 · 기준 주요 글자 ·
+ * 정확히 55%는 높음(2026-11-12 사용자 결정: "55% 이상"), 정확히 45%는 기준 구간이다. 화면 색은 세 단뿐이라(styles.css .heat-*: 높음 강조색 · 기준 주요 글자 ·
  * 낮음 보조 글자) 1~4단계는 같은 색이다. 단계 수를 남긴 것은 시험·정렬 없는 비교(rate-colors e2e)가 단계 이름을 쓰기 때문이다.
  */
 export const RATE_HEAT_HOT = [55, 60, 65, 70] as const;
@@ -233,7 +233,7 @@ export function rateHeat(wins: number, games: number): RateHeat | null {
   if (pct >= h4) return 4;
   if (pct >= h3) return 3;
   if (pct >= h2) return 2;
-  if (pct > h1) return 1;
+  if (pct >= h1) return 1;
   if (pct <= c4) return -4;
   if (pct <= c3) return -3;
   if (pct <= c2) return -2;

@@ -35,7 +35,7 @@ import {
   type Plan,
 } from "./mutation";
 import { spendBulkRows, type BulkActor } from "./ratelimit";
-import { parseSeriesContinue, seriesContinuePlan, seriesUndeleteGuards, type SeriesContinue } from "./series";
+import { parseSeriesContinue, seriesContinuePlan, seriesRestoreGuards, seriesUndeleteGuards, type SeriesContinue } from "./series";
 import { groupFingerprints } from "./sheets";
 import { loadGroup, loadMatch, loadOpenSession, loadSettings } from "./snapshot";
 
@@ -987,6 +987,8 @@ export async function restoreMatch(
         }
         guards.push(fingerprintScopeGuard(env, groupId, stamp), storedFingerprintRestoreGuard(env, groupId, [matchId]));
       }
+      // 시리즈: 제외한 사이 판을 더 넣어 승부가 났으면 복구로 승부 뒤에 판이 붙는다(거절).
+      guards.push(...(await seriesRestoreGuards(env, groupId, match, target as MatchView["state"])));
       const now = nowIso();
       return {
         stored: { matchId },
