@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import {
   IMPORT_COLUMNS,
+  importRowFingerprintAgain,
   parseMatchTable,
   toImportMatches,
   type ImportMatchPayload,
@@ -44,6 +45,8 @@ export function Import() {
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(0);
   const [done, setDone] = useState(false);
+  // "이미 들어간 경기"로 분류됐지만 사용자가 같은 날 같은 10명·같은 결과로 한 번 더 한 경기라고 고른 줄(줄 번호).
+  const [asNew, setAsNew] = useState<ReadonlySet<number>>(new Set());
   // 저장 계획은 한 번 만들면 다시 만들지 않는다. 중간에 끊겨도 같은 요청 ID로 이어서 보내
   // 이미 들어간 묶음이 두 번 들어가지 않게 한다.
   const plan = useRef<Plan | null>(null);
@@ -70,8 +73,19 @@ export function Import() {
   // 이미 들어간 경기(같은 지문)는 건너뛴다. 시트 가져오기와 같은 기준이다.
   const classification =
     parsed && existing && parsed.errors.length === 0 ? classifyImport(parsed.rows, existing, null) : null;
-  const fresh = classification?.fresh ?? [];
-  const skipped = classification?.already.length ?? 0;
+  const already = classification?.already ?? [];
+  // 고른 줄은 이미 쓰인 지문(모임에 있는 것 + 이번에 새로 넣을 것)과 겹치지 않는 다음 순번 지문을 받아 새 경기로 넣는다.
+  // 두 번 넣어도 같은 지문을 다시 쓰지 않도록 고른 줄끼리도 차례로 taken에 더한다.
+  const taken = new Set([...(existing ?? []).map((e) => e.fingerprint), ...(classification?.fresh ?? []).map((r) => r.fingerprint)]);
+  const promoted = already
+    .filter((r) => asNew.has(r.line))
+    .map((r) => {
+      const fingerprint = importRowFingerprintAgain(r, taken);
+      taken.add(fingerprint);
+      return { ...r, fingerprint };
+    });
+  const fresh = [...(classification?.fresh ?? []), ...promoted].sort((a, b) => a.line - b.line);
+  const skipped = already.length - promoted.length;
   // 새로 만들 참가자는 실제로 넣을 경기의 이름만 센다(확인 전에는 표 전체).
   const usedKeys = new Set(fresh.flatMap((r) => [...r.teamA, ...r.teamB].map(nameKey)));
   const usedNames = classification
@@ -95,6 +109,7 @@ export function Import() {
     setDone(false);
     setError(null);
     setExisting(null);
+    setAsNew(new Set());
     // 아직 오지 않은 날짜의 줄은 틀린 줄로 알려 준다(서버도 거절한다).
     const result = parseMatchTable(text, { now: Date.now(), timeZone });
     setParsed(result);
@@ -212,11 +227,43 @@ export function Import() {
                 <span>경기</span>
                 <span>{parsed.rows.length}경기</span>
               </li>
-              {skipped > 0 && (
+              {/* 줄을 골라 다시 넣어도(skipped가 0이 돼도) 고르기 칸이 사라지지 않게 분류 결과로 보인다. */}
+              {already.length > 0 && (
                 <>
                   <li className="list-row static">
                     <span>이미 들어간 경기(건너뜀)</span>
                     <span>{skipped}경기</span>
+                  </li>
+                  {/* 같은 날 같은 10명·같은 결과로 한 번 더 한 경기는 지문이 같아 "이미 있음"으로 잡힌다. 줄마다 따로 넣을 수 있게 한다. */}
+                  <li className="list-row static import-again">
+                    <details>
+                      <summary>한 번 더 한 경기라면 골라서 넣기</summary>
+                      <p className="hint">
+                        같은 날 같은 10명이 같은 결과로 한 경기 더 했다면, 그 줄을 골라 다른 경기로 넣으세요. 같은 표를 다시
+                        붙여 넣은 것이라면 고르지 마세요(같은 경기가 두 번 들어가요).
+                      </p>
+                      <ul className="list">
+                        {already.map((r) => (
+                          <li key={r.line}>
+                            <label className="toggle">
+                              <input
+                                type="checkbox"
+                                checked={asNew.has(r.line)}
+                                disabled={busy || done}
+                                onChange={(e) => {
+                                  const next = new Set(asNew);
+                                  if (e.target.checked) next.add(r.line);
+                                  else next.delete(r.line);
+                                  setAsNew(next);
+                                  plan.current = null;
+                                }}
+                              />{" "}
+                              {r.line}번째 줄 · {r.date} · 팀 {r.winner} 승 · {r.teamA[0]} 외 9명 · 다른 경기로 넣기
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
                   </li>
                   <li className="list-row static">
                     <span>새로 넣을 경기</span>

@@ -139,3 +139,30 @@ test("이미 들어간 경기는 건너뛰고, 아직 오지 않은 날짜는 �
   await expect(page.getByText(`2번째 줄: ${tomorrow}는 아직 오지 않은 날짜예요.`, { exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: /경기 넣기/ })).toHaveCount(0);
 });
+
+test("같은 날 같은 10명·같은 결과의 두 번째 경기만 따로 붙여 넣으면 '이미 들어간 경기'로 잡히고, 골라서 다른 경기로 넣을 수 있다", async ({ page }) => {
+  const groupId = await openImport(page);
+  const one = table(1);
+  await page.getByLabel("붙여 넣을 표").fill(one.join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "1경기 넣기" }).click();
+  await expect(page.getByText("1경기 저장됨 · 진영 미상")).toBeVisible();
+
+  // 같은 줄을 다시 붙여 넣으면 건너뛴다. 한 번 더 한 경기라고 고르면 새 경기로 들어간다.
+  await page.goto("/#/group");
+  await page.getByRole("button", { name: "지난 기록 한꺼번에 넣기" }).click();
+  await page.getByLabel("붙여 넣을 표").fill(one.join("\n"));
+  await page.getByRole("button", { name: "표 읽기" }).click();
+  await expect(page.getByText("새로 넣을 경기가 없어요.", { exact: false })).toBeVisible();
+  await page.getByText("한 번 더 한 경기라면 골라서 넣기").click();
+  await page.getByRole("checkbox", { name: /다른 경기로 넣기/ }).check();
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "1경기 넣기" }).click();
+  await expect(page.getByText("1경기 저장됨 · 진영 미상")).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+
+  const snapshot = await (await page.request.get(`/api/groups/${groupId}/snapshot`)).json();
+  expect(snapshot.matches.filter((m: { state: string }) => m.state === "confirmed")).toHaveLength(2);
+});

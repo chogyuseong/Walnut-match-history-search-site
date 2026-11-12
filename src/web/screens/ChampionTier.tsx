@@ -17,7 +17,7 @@ import { championInitial, championName, INITIAL_GROUPS, searchChampions } from "
 import { fractionPercent, ratePercent, roundRatio, type Scope } from "../../shared/stats";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { ChampionPortrait } from "../championPortrait";
-import { formatDate, nameMap, POSITION_LABEL, rateText, rateTier } from "../format";
+import { formatDate, nameMap, POSITION_LABEL, rateHueText, rateText } from "../format";
 import { DataTable, type TableColumn } from "../dataTable";
 import {
   FilterBar,
@@ -187,7 +187,7 @@ export function ChampionTier(props: {
       label: "승률",
       num: true,
       sortable: true,
-      cell: (row) => <span className={rateTier(row.wins, row.games)}>{rateText(row.wins, row.games)}</span>,
+      cell: (row) => <span className={rateHueText(row.wins, row.games)}>{rateText(row.wins, row.games)}</span>,
     },
     { key: "pick", label: "픽률", num: true, sortable: true, cell: (row) => percent(row.pickRate) },
     { key: "games", label: "판", num: true, sortable: true, cell: (row) => row.games },
@@ -295,7 +295,7 @@ export function ChampionTier(props: {
             <p className="ct-tier-counts">
               {tierCounts.map((count, i) => (
                 <span key={i}>
-                  <TierMark tier={(i + 1) as Tier} /> {count}
+                  <TierMark tier={(i + 1) as Tier} /> {count}개
                 </span>
               ))}
             </p>
@@ -461,7 +461,7 @@ function ChampionDetail(props: {
                 {props.nameOf(p.participantId)}
               </button>
               <span className="num">
-                {p.games}판 · <span className={rateTier(p.wins, p.games)}>{ratePercent(p.wins, p.games)}%</span>
+                {p.games}판 · <span className={rateHueText(p.wins, p.games)}>{ratePercent(p.wins, p.games)}%</span>
               </span>
             </li>
           ))}

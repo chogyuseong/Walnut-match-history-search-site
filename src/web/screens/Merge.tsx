@@ -34,6 +34,8 @@ interface Preview {
   source: { id: string; name: string; status: string };
   target: { id: string; name: string; status: string };
   movedMatches: number;
+  /** 함께 옮겨지는 지운 경기 수(movedMatches에는 들지 않는다). */
+  deletedMatches?: number;
   byState: Partial<Record<MatchState, number>>;
   overlaps: { matchId: string; matchNo: number }[];
   inProgress: { matchId: string; matchNo: number }[];
@@ -260,6 +262,7 @@ export function Merge() {
               ` (${Object.entries(preview.byState)
                 .map(([state, n]) => `${STATE_TEXT[state as MatchState]} ${n}`)
                 .join(", ")})`}
+            {(preview.deletedMatches ?? 0) > 0 && ` · 지운 경기 ${preview.deletedMatches}개도 함께 옮겨져요`}
             {preview.rotation.moved > 0 && ` · 서포터 횟수 기록 ${preview.rotation.moved}건`}
           </p>
           {preview.rotation.converted > 0 && (

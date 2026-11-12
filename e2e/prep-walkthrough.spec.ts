@@ -126,7 +126,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   }
   // 팀 추천 적용: 조건을 지키고 고정은 유지된다.
   await tools.getByRole("button", { name: "팀 추천" }).click();
-  await page.getByRole("dialog", { name: "팀 추천" }).getByRole("button", { name: "적용" }).first().click();
+  await page.getByRole("dialog", { name: "팀 추천" }).getByRole("button", { name: "이 편성으로 바꾸기" }).first().click();
   const a = (await readTeam(page, "A")).map((r) => r.name);
   expect(a.includes(p1)).toBe(a.includes(p2));
   await page.getByRole("button", { name: "조건 지우기" }).click();

@@ -143,7 +143,7 @@ test("같은 팀·다른 팀 조건이 팀 추천에 적용된다", async ({ pag
 
   // 팀 추천을 적용하면 조건을 만족하는 편성이 된다.
   await page.getByRole("button", { name: "팀 추천" }).click();
-  await page.getByRole("dialog", { name: "팀 추천" }).getByRole("button", { name: "적용" }).first().click();
+  await page.getByRole("dialog", { name: "팀 추천" }).getByRole("button", { name: "이 편성으로 바꾸기" }).first().click();
   await expect(conditions).not.toContainText("지금 편성과 다름");
   const teamOf = async (name: string) =>
     (await teamA.getByRole("button").filter({ hasText: name }).count()) > 0 ? "A" : "B";
@@ -205,7 +205,7 @@ test("경기 시각만 고치면 승패는 그대로이고 이력이 남는다",
   const dialog = page.getByRole("dialog", { name: "경기 시각 수정" });
   await expect(dialog).toContainText("승패와 명단은 그대로");
   await dialog.getByLabel("경기 시각").fill("2025-01-15T20:30");
-  await dialog.getByRole("button", { name: "변경" }).click();
+  await dialog.getByRole("button", { name: "시각 저장" }).click();
   // 올해가 아닌 날짜는 연도를 붙인다(2026-11-08 날짜 표기 통일).
   await expect(page.getByText(/경기 시각: 2025년 1월 15일 오후 8:30/)).toBeVisible();
   await expect(page.getByText("승리 팀: 레드팀")).toBeVisible();

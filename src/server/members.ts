@@ -630,7 +630,8 @@ export async function anonymizeParticipant(
       }
       // 옛 이름이 그대로 들어 있는 메모(운영자에게 알려만 준다).
       const memos = await env.DB.prepare(
-        "SELECT match_no, memo FROM matches WHERE group_id = ?1 AND memo IS NOT NULL ORDER BY match_no",
+        // 지운 경기는 화면에 없어 운영자가 찾아 고칠 수 없으므로 알리지 않는다(번호만 섞여 헷갈렸다).
+        "SELECT match_no, memo FROM matches WHERE group_id = ?1 AND memo IS NOT NULL AND deleted_at IS NULL ORDER BY match_no",
       )
         .bind(groupId)
         .all<{ match_no: number; memo: string }>();

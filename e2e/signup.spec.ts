@@ -30,7 +30,7 @@ async function signUp(page: Page, username: string, password: string) {
   const code = await codeDialog.getByLabel("복구 코드").innerText();
   expect(code.trim()).toMatch(/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/);
   await codeDialog.getByLabel("코드를 안전한 곳에 적어 뒀어요").check();
-  await codeDialog.getByRole("button", { name: "계속" }).click();
+  await codeDialog.getByRole("button", { name: "가입 마치기" }).click();
   await expect(codeDialog).toBeHidden();
   return code.trim();
 }
@@ -75,12 +75,12 @@ test.describe("회원가입 (390px)", () => {
     await dialog.getByRole("button", { name: "가입하고 시작하기" }).click();
     const codeDialog = page.getByRole("dialog", { name: "복구 코드" });
     await expect(codeDialog).toContainText("비밀번호를 잊으면 이 코드로만 다시 정할 수 있어요");
-    await expect(codeDialog.getByRole("button", { name: "계속" })).toBeDisabled();
+    await expect(codeDialog.getByRole("button", { name: "가입 마치기" })).toBeDisabled();
     await codeDialog.getByRole("button", { name: "적지 않고 넘어가기" }).click();
     await expect(codeDialog.getByRole("alert")).toContainText("그래도 넘어갈까요?");
     await codeDialog.getByRole("button", { name: "돌아가서 적기" }).click();
     await codeDialog.getByLabel("코드를 안전한 곳에 적어 뒀어요").check();
-    await codeDialog.getByRole("button", { name: "계속" }).click();
+    await codeDialog.getByRole("button", { name: "가입 마치기" }).click();
 
     // 가입하면 바로 로그인된다.
     await expect(banner(page).getByRole("button", { name: "로그인됨" })).toBeVisible();
@@ -144,7 +144,7 @@ test.describe("회원가입 (390px)", () => {
     const fresh = (await codeDialog.getByLabel("복구 코드").innerText()).trim();
     expect(fresh).not.toBe(code);
     await codeDialog.getByLabel("코드를 안전한 곳에 적어 뒀어요").check();
-    await codeDialog.getByRole("button", { name: "계속" }).click();
+    await codeDialog.getByRole("button", { name: "가입 마치기" }).click();
     await expect(banner(page).getByRole("button", { name: "로그인됨" })).toBeVisible();
 
     // 모임 탭 → 계정 관리: 비밀번호 바꾸기.

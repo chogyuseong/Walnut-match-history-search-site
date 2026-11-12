@@ -1,5 +1,5 @@
 import { cleanName, MAX_NAME_LENGTH, nameKey } from "./names";
-import { fingerprinter, futureIndexes, futureMessage, playedAtTimes, type SheetPlayer } from "./sheetTable";
+import { fingerprinter, futureIndexes, futureMessage, nextFreeFingerprint, playedAtTimes, type SheetPlayer } from "./sheetTable";
 import { localDate } from "./stats";
 import { POSITIONS, type Position, type RosterEntry, type Side, type Team } from "./types";
 
@@ -85,6 +85,17 @@ export interface ImportParseOptions {
 }
 
 /** 붙여 넣은 표 전체를 읽는다. 오류가 하나라도 있으면 호출한 쪽이 저장을 막아야 한다. */
+/**
+ * "이미 들어간 경기"로 잡힌 줄을 사용자가 "다른 경기로 넣기"로 고를 때의 지문(sheetTable nextFreeFingerprint).
+ * taken에 없는 다음 순번(#2, #3, …)을 쓰므로 같은 날 같은 10명·같은 결과의 두 번째 경기로 들어간다. 라인은 이름 칸 순서다.
+ */
+export function importRowFingerprintAgain(row: ImportRow, taken: ReadonlySet<string>): string {
+  return nextFreeFingerprint(
+    { date: row.date, time: null, teamA: withLanes(row.teamA), teamB: withLanes(row.teamB), winner: row.winner },
+    taken,
+  );
+}
+
 export function parseMatchTable(text: string, options?: ImportParseOptions): ImportParse {
   let rows: ImportRow[] = [];
   const errors: ImportError[] = [];

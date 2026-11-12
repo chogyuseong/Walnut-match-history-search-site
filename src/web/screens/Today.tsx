@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { sessionSummary, sessionSummaryText } from "../../shared/sessionSummary";
 import { isCounted, personRecords, searchByName, todayMatches, placementGamesOf } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
-import { formatDate, formatTime, nameMap, rateText, rateTier, standingsOf } from "../format";
+import { formatDate, formatTime, nameMap, rateHueText, rateText, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
@@ -203,7 +203,7 @@ export function Today() {
                     <button type="button" className="list-row" onClick={() => go(`/p/${r.participantId}`)}>
                       <span className="name">{r.name}</span>
                       <span className="stat">
-                        <span className={rateTier(r.wins, r.games)}>{rateText(r.wins, r.games)}</span> · {r.wins}승{" "}
+                        <span className={rateHueText(r.wins, r.games)}>{rateText(r.wins, r.games)}</span> · {r.wins}승{" "}
                         {r.losses}패 ({r.games}경기)
                         <br />
                         <span className="hint">

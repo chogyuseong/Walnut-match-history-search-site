@@ -350,6 +350,11 @@ describe("지운 경기가 새지 않는 곳", () => {
     await play(g, rosterOf(g.people), "B");
     expect((await remove(g, dupGame)).status).toBe(200);
 
+    // 미리보기의 "옮겨질 경기"는 보이는 경기만 세고, 지운 경기는 따로 알린다.
+    const pv = await api(g.cookie, "GET", `/api/groups/${g.gid}/merges/preview?source=${dup.id}&target=${g.people[0]!.id}`);
+    expect(pv.status, JSON.stringify(pv.body)).toBe(200);
+    expect(pv.body).toMatchObject({ movedMatches: 0, byState: {}, deletedMatches: 1 });
+
     const merged = await api(g.cookie, "POST", `/api/groups/${g.gid}/merges`, {
       requestId: requestId(),
       sourceId: dup.id,

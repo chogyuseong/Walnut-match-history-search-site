@@ -100,9 +100,11 @@ export interface MergePreview {
   problems: string[];
   source: { id: string; name: string; status: string };
   target: { id: string; name: string; status: string };
-  /** 옮길 경기 수와 상태별 수. */
+  /** 옮길 경기 수와 상태별 수(지운 경기 제외: 화면에 보이는 경기만 센다). */
   movedMatches: number;
   byState: Partial<Record<MatchState, number>>;
+  /** 함께 옮겨지는 지운 경기 수. 되돌리거나 되살릴 때 맞게 돌아오도록 지운 경기도 옮긴다(아래 loadContext). */
+  deletedMatches: number;
   /** 두 사람이 함께 있는 경기(있으면 합칠 수 없다). */
   overlaps: { matchId: string; matchNo: number }[];
   /** 합칠 대상이 들어 있는 진행 중 경기. */
@@ -268,14 +270,16 @@ export async function previewMerge(
   const { sourceId, targetId } = parseIds(query);
   const ctx = await loadContext(env, groupId, sourceId, targetId);
   const byState: Partial<Record<MatchState, number>> = {};
-  for (const m of ctx.moved) byState[m.state] = (byState[m.state] ?? 0) + 1;
+  const alive = ctx.moved.filter((m) => m.deletedAt === undefined);
+  for (const m of alive) byState[m.state] = (byState[m.state] ?? 0) + 1;
   return {
     ok: ctx.problems.length === 0,
     problems: ctx.problems,
     source: { id: ctx.source.id, name: ctx.source.name, status: ctx.source.status },
     target: { id: ctx.target.id, name: ctx.target.name, status: ctx.target.status },
-    movedMatches: ctx.moved.length,
+    movedMatches: alive.length,
     byState,
+    deletedMatches: ctx.moved.length - alive.length,
     overlaps: ctx.overlaps.map((m) => ({ matchId: m.id, matchNo: m.matchNo })),
     inProgress: ctx.inProgress.map((m) => ({ matchId: m.id, matchNo: m.matchNo })),
     rotation: {

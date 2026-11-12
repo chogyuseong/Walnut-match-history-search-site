@@ -86,6 +86,7 @@ export function LocalAccountSettings() {
             code={code}
             askSkip={askSkip}
             setAskSkip={setAskSkip}
+            doneLabel="닫기"
             onDone={() => {
               setCode(null);
               setAskSkip(false);

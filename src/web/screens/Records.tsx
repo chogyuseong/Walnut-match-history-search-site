@@ -1221,7 +1221,7 @@ export function MatchDetail(props: {
             disabled={busy || side === null || side === winnerSide}
             onClick={() => void send("correct", { field: "side", winnerSide: side })}
           >
-            {busy ? "저장 중" : "변경"}
+            {busy ? "저장 중" : "진영 저장"}
           </button>
         </Dialog>
       )}
@@ -1251,7 +1251,7 @@ export function MatchDetail(props: {
               if (playedAt) void send("correct", { field: "playedAt", playedAt });
             }}
           >
-            {busy ? "저장 중" : "변경"}
+            {busy ? "저장 중" : "시각 저장"}
           </button>
         </Dialog>
       )}

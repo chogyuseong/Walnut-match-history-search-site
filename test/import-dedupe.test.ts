@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FUTURE_TOLERANCE_MS, winnerSideOf } from "../src/shared/backfill";
 import { parseDelimited } from "../src/shared/csv";
-import { parseMatchTable, toImportMatches } from "../src/shared/importTable";
+import { importRowFingerprintAgain, parseMatchTable, toImportMatches } from "../src/shared/importTable";
 import { nameKey } from "../src/shared/names";
 import {
   classifyImport,
@@ -74,6 +74,24 @@ describe("붙여 넣기와 시트 가져오기의 지문", () => {
       "2026-10-01T03:00:01.000Z",
       "2026-10-01T03:00:02.000Z",
     ]);
+  });
+
+  it("같은 날 같은 경기의 두 번째 줄만 따로 붙여 넣으면 첫 경기와 같은 지문 → 다른 경기로 넣기는 두 번째 지문을 쓴다", () => {
+    const paste = parseMatchTable(TABLE);
+    const same = (a: (typeof paste.rows)[number], b: (typeof paste.rows)[number]) =>
+      a.date === b.date && a.winner === b.winner && a.teamA.join() === b.teamA.join() && a.teamB.join() === b.teamB.join();
+    // 표의 1·3번째 경기가 같은 내용이다(TABLE 주석).
+    const i = paste.rows.findIndex((r, k) => paste.rows.slice(0, k).some((p) => same(p, r)));
+    expect(i).toBeGreaterThan(0);
+    const second = paste.rows[i]!;
+    const first = paste.rows.find((p) => same(p, second))!;
+    // 두 번째 줄만 붙여 넣으면 #1 지문이라 "이미 들어간 경기"로 잡힌다.
+    const lines = TABLE.split(/\r?\n/);
+    const alone = parseMatchTable([lines[0], lines[second.line - 1]].join("\n")).rows.at(-1)!;
+    expect(alone.fingerprint).toBe(first.fingerprint);
+    // 다른 경기로 넣기: 이미 있는 지문을 피해 #2 지문 = 한 표로 넣었을 때 두 번째 줄의 지문.
+    expect(importRowFingerprintAgain(alone, new Set([first.fingerprint]))).toBe(second.fingerprint);
+    expect(importRowFingerprintAgain(alone, new Set([first.fingerprint, second.fingerprint]))).not.toBe(second.fingerprint);
   });
 
   it("열 순서·이름 표기(대소문자·공백)가 달라도 같은 지문이고, 시각·라인·결과가 다르면 다른 지문이다", () => {

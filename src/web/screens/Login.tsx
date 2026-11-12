@@ -427,6 +427,8 @@ export function RecoveryCodeStep(props: {
   askSkip: boolean;
   setAskSkip: (ask: boolean) => void;
   onDone: () => void;
+  /** 마침 버튼 이름(결과를 적는다). 가입은 "가입 마치기", 설정에서 새로 받을 때는 "닫기". */
+  doneLabel?: string;
 }) {
   const [saved, setSaved] = useState(false);
   return (
@@ -444,7 +446,7 @@ export function RecoveryCodeStep(props: {
         뒀어요
       </label>
       <button type="button" className="primary wide" disabled={!saved} onClick={props.onDone}>
-        계속
+        {props.doneLabel ?? "가입 마치기"}
       </button>
       {!props.askSkip ? (
         <button type="button" className="link" onClick={() => props.setAskSkip(true)}>
