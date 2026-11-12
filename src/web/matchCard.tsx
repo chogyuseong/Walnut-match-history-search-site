@@ -8,6 +8,7 @@ import {
   formatDate,
   formatTime,
   knownSideOf,
+  sideColorOf,
   matchTone,
   POSITION_LABEL,
   resultLine,
@@ -138,7 +139,7 @@ function TeamLine(props: {
       aria-label={label}
     >
       <span className="mc-team-label" aria-hidden="true">
-        <span className="mc-team-name">
+        <span className={`mc-team-name side-${sideColorOf(team, match.teamASide)}`}>
           {side ? (
             SIDE_LABEL[side]
           ) : (
@@ -197,7 +198,7 @@ export function MatchScoreboard(props: {
     const won = isCounted(match) ? match.winnerTeam === team : null;
     const known = knownSideOf(team, match.teamASide);
     return (
-      <div className={`sb-side ${end}${known ? ` sb-${known}` : ""}`} aria-hidden="true">
+      <div className={`sb-side ${end} sb-${sideColorOf(team, match.teamASide)}`} aria-hidden="true">
         <span className="sb-side-name">
           {known ? (
             SIDE_LABEL[known]
@@ -241,8 +242,8 @@ export function MatchScoreboard(props: {
   return (
     <article className={`scoreboard tone-${matchTone(match)}`} aria-label={`최근 경기 ${match.matchNo}경기`}>
       <div className="sb-stripe" aria-hidden="true">
-        <span className={knownSideOf(left, match.teamASide) ? "sb-stripe-blue" : ""} />
-        <span className={knownSideOf(right, match.teamASide) ? "sb-stripe-red" : ""} />
+        <span className="sb-stripe-blue" />
+        <span className="sb-stripe-red" />
       </div>
       <button type="button" className="sb-main" onClick={props.onOpen}>
         <span className="sb-kicker">

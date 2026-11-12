@@ -48,6 +48,15 @@ export function knownSideOf(team: Team, teamASide: Side | null | undefined): "bl
 }
 
 /**
+ * 팀 머리 글자에 칠할 진영 색. 진영을 아는 경기는 그 진영, 모르는 경기는 팀 A를 블루·B를 레드 색으로 칠한다
+ * (사용자 요청 2026-11-12: 요약 화면의 "●A"/"■B"에도 진영 색). 이름은 teamName 규칙 그대로 "●A"/"■B"라 진영을 지어내지는 않는다.
+ * 표의 블루 칸에 A, 레드 칸에 B를 놓는 규칙(Dashboard teamInColumn)과 같은 짝이다.
+ */
+export function sideColorOf(team: Team, teamASide: Side | null | undefined): "blue" | "red" {
+  return knownSideOf(team, teamASide) ?? (team === "A" ? "blue" : "red");
+}
+
+/**
  * 팀 이름 규칙(모든 화면 공통). 진영이 정해져 있으면 "블루팀"/"레드팀", 모르면 "팀 A"/"팀 B".
  * 좌우(A가 왼쪽·위)는 바꾸지 않는다: A가 레드인 경기는 왼쪽 팀이 "레드팀"이다.
  */

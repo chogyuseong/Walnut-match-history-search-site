@@ -1261,23 +1261,40 @@ button.bar-row:hover {
 .bar-fill.tone-red {
   background: var(--ih-loss-accent);
 }
-.bar-fill.win-step-1 {
-  background: var(--win-step-1);
+/*
+ * 승률 여섯 칸(--win-step-1~6, CLAUDE.md 5절 예외): 그래프 분석 개인별 승률 막대·승률 고리·MMR 랭킹 막대가 같이 쓴다.
+ * 칸은 format.ts peopleBarStep(40·45·50·55·60% 경계). 숫자 글자는 승률 3단(heat) 그대로다.
+ */
+.win-step-1 {
+  --win-step: var(--win-step-1);
 }
-.bar-fill.win-step-2 {
-  background: var(--win-step-2);
+.win-step-2 {
+  --win-step: var(--win-step-2);
 }
-.bar-fill.win-step-3 {
-  background: var(--win-step-3);
+.win-step-3 {
+  --win-step: var(--win-step-3);
 }
-.bar-fill.win-step-4 {
-  background: var(--win-step-4);
+.win-step-4 {
+  --win-step: var(--win-step-4);
 }
-.bar-fill.win-step-5 {
-  background: var(--win-step-5);
+.win-step-5 {
+  --win-step: var(--win-step-5);
 }
-.bar-fill.win-step-6 {
-  background: var(--win-step-6);
+.win-step-6 {
+  --win-step: var(--win-step-6);
+}
+.bar-fill[class*="win-step-"] {
+  background: var(--win-step);
+}
+.ring-fill[class*="win-step-"] {
+  stroke: var(--win-step);
+}
+/* MMR 랭킹 막대: 시작값보다 위는 채운 막대, 아래는 속 빈 테두리 막대 모양은 그대로 두고 색만 승률 칸을 따른다. */
+.mmr-start-fill.up[class*="win-step-"] {
+  background: var(--win-step);
+}
+.mmr-start-fill.down[class*="win-step-"] {
+  border-color: var(--win-step);
 }
 /* 50% 기준선 */
 .bar-mid {
@@ -2618,6 +2635,13 @@ main:focus {
 }
 .mc-team-name {
   white-space: nowrap;
+}
+/* 팀 머리 글자의 진영 색. 진영 미상 경기는 A 블루·B 레드(format.ts sideColorOf). */
+.mc-team-name.side-blue {
+  color: var(--ih-win-text);
+}
+.mc-team-name.side-red {
+  color: var(--ih-loss-text);
 }
 .mc-team.is-win .mc-team-label {
   color: var(--ih-text);
@@ -4471,7 +4495,7 @@ main:focus {
   gap: var(--space-1);
   height: 4px;
 }
-/* 진영을 모르는 경기는 띠를 무채색으로 둔다. */
+/* 진영을 모르는 경기도 왼쪽(팀 A) 블루·오른쪽(팀 B) 레드 색 띠(format.ts sideColorOf). */
 .sb-stripe > span {
   flex: 1;
   background: var(--ih-line);

@@ -18,6 +18,7 @@ import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/t
 import {
   formatTime,
   heatClass,
+  peopleBarStep,
   type ShownStanding,
   POSITION_LABEL,
   rateTier,
@@ -634,6 +635,7 @@ export function WinLossBar(props: { wins: number; losses: number }) {
 
 /**
  * 승률 고리(도넛). 채운 호가 승률이고 아래쪽 눈금이 50%다. 가운데에 승률을 크게 적는다.
+ * 호 색은 승률 여섯 칸(peopleBarStep, 개인별 승률 막대와 같다), 가운데 숫자는 승률 3단 글자색.
  * 숫자는 바로 옆 요약 줄에도 그대로 있으므로 고리 전체를 화면 읽기에서 숨긴다.
  */
 export function RateRing(props: { wins: number; games: number }) {
@@ -648,7 +650,7 @@ export function RateRing(props: { wins: number; games: number }) {
       <svg viewBox="0 0 68 68">
         <circle className="ring-track" cx="34" cy="34" r={R} />
         <circle
-          className={muted ? "ring-fill tone-muted" : `ring-fill ${heatClass(wins, games)}`}
+          className={muted ? "ring-fill tone-muted" : `ring-fill ${peopleBarStep(wins, games) || heatClass(wins, games)}`}
           cx="34"
           cy="34"
           r={R}
