@@ -254,6 +254,21 @@ export function rateTier(wins: number, games: number): string {
 }
 
 /**
+ * 그래프 분석 "개인별 승률" 막대만 쓰는 여섯 칸 색 경계(사용자 요청 예외, CLAUDE.md 5절).
+ * 40% 미만 · 40~44 · 45~49 · 50~54 · 55~59 · 60% 이상. 사람이 몰리는 40~60%를 5%씩 나눠 막대끼리 구별되게 했다.
+ * 숫자 글자색은 여전히 승률 3단(rateTier)이라, 경계를 바꿔도 글자 쪽은 따라 바뀌지 않는다.
+ */
+export const PEOPLE_BAR_STEPS = [40, 45, 50, 55, 60] as const;
+
+/** 개인별 승률 막대 색 칸(win-step-1이 가장 낮음 ~ 6이 가장 높음). 경기가 적으면 색 없음(속 빈 막대). */
+export function peopleBarStep(wins: number, games: number): string {
+  if (games < RATE_HEAT_MIN_GAMES) return "";
+  const pct = ratePercent(wins, games);
+  const step = 1 + PEOPLE_BAR_STEPS.filter((edge) => pct >= edge).length;
+  return `win-step-${step}`;
+}
+
+/**
  * 명단 텍스트(docs/P1 후보 C). 복사한 시점의 내용이며 끝에 기준 시각을 붙인다.
  * 팀 이름은 teamName 규칙(진영이 정해졌으면 블루팀·레드팀, 아니면 팀 A·B). 실력 그룹은 넣지 않는다.
  */

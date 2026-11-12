@@ -78,6 +78,14 @@
   --title-6: #e89fea;
   --title-7: #bba4fe;
   --title-8: #bba6b8;
+  /* 개인별 승률 막대 여섯 칸(format.ts peopleBarStep, CLAUDE.md 5절의 사용자 요청 예외). 골드 한 계열의 명도만 바꾼다.
+     다크는 승률이 높을수록 밝고, 가장 어두운 1칸도 막대 바탕(--viz-track) 위 3:1이다(test/theme-contrast.test.ts). */
+  --win-step-1: #8a6e36;
+  --win-step-2: #a07f3c;
+  --win-step-3: #b58f41;
+  --win-step-4: #cba046;
+  --win-step-5: #e3b04b;
+  --win-step-6: #f7d488;
 }
 
 [data-theme="light"] {
@@ -126,6 +134,13 @@
   --title-6: #774079;
   --title-7: #53477f;
   --title-8: #554553;
+  /* 흰 바탕에서는 밝은 골드가 바탕에 묻혀 방향을 뒤집었다: 높을수록 진하다. 가장 옅은 1칸도 막대 바탕 위 3:1. */
+  --win-step-1: #a3844c;
+  --win-step-2: #977434;
+  --win-step-3: #8a6524;
+  --win-step-4: #7c5715;
+  --win-step-5: #6b4a0c;
+  --win-step-6: #573a05;
 }
 
 /* 테마와 상관없는 척도·치수·아이콘. 테마마다 바꾸지 않는다(CLAUDE.md 5절: 테마별로 레이아웃·글자 크기·간격을 바꾸지 않음). */
@@ -1245,6 +1260,24 @@ button.bar-row:hover {
 }
 .bar-fill.tone-red {
   background: var(--ih-loss-accent);
+}
+.bar-fill.win-step-1 {
+  background: var(--win-step-1);
+}
+.bar-fill.win-step-2 {
+  background: var(--win-step-2);
+}
+.bar-fill.win-step-3 {
+  background: var(--win-step-3);
+}
+.bar-fill.win-step-4 {
+  background: var(--win-step-4);
+}
+.bar-fill.win-step-5 {
+  background: var(--win-step-5);
+}
+.bar-fill.win-step-6 {
+  background: var(--win-step-6);
 }
 /* 50% 기준선 */
 .bar-mid {
@@ -6172,8 +6205,12 @@ label:has(> select) {
   stroke-width: 2;
   stroke-linejoin: round;
 }
-.radar-shape.solo {
-  --cat: var(--ih-text);
+/* 라인 오각형은 골드(사용자 요청, CLAUDE.md 5절 예외). 두 사람 비교의 첫 사람도 골드이고(범례 막대 포함),
+   두 번째 사람은 범주색 주황 + 점선으로 남겨 겹쳐도 구별되게 했다. */
+.radar-shape.solo,
+.radar-shape.cat-1,
+.radar-key.cat-1 {
+  --cat: var(--ih-accent);
 }
 /* 두 번째 사람은 점선(색만으로 구분하지 않게). */
 .radar-shape.cat-2 .radar-area {
