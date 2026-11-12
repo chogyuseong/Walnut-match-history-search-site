@@ -479,6 +479,35 @@ describe("시리즈에 든 경기", () => {
     expect((await undelete(g, second.id)).status).toBe(200);
     expect((await snapshot(g)).series!.map((s) => [s.id, s.matchIds])).toEqual([[seriesId, [second.id]]]);
   });
+
+  it("지운 사이 새 판을 넣어 3판 2선승이 꽉 찼으면 되살리기를 거절하고(4판 방지), 새 판을 지우면 되살린다", async () => {
+    // 1판 A 승, 2판 B 승으로 시작. 2판을 지우고 3·4판(B 승·A 승)을 넣으면 보이는 판이 셋으로 꽉 찬다.
+    const { g, first, second, seriesId } = await seriesOfTwo();
+    expect((await remove(g, second)).status).toBe(200);
+    const added: MatchView[] = [];
+    for (const winner of ["B", "A"] as const) {
+      const m = await play(g, rosterOf(g.people), winner);
+      const res = await api(g.cookie, "POST", `/api/groups/${g.gid}/series/${seriesId}/add`, { requestId: requestId(), matchId: m.id });
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      added.push(m);
+    }
+
+    const blocked = await undelete(g, second.id);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error.code).toBe("SERIES_FULL");
+    expect(blocked.body.error.message).toContain("이미 3판");
+    let snap = await snapshot(g);
+    expect(snap.matches.some((m) => m.id === second.id)).toBe(false);
+    expect(snap.series!.find((s) => s.id === seriesId)!.matchIds).toEqual([first.id, ...added.map((m) => m.id)]);
+
+    // 넣었던 4판(A 승)을 지우면 1·2·3판이 되어 B가 2:1로 이긴다.
+    expect((await remove(g, added[1]!)).status).toBe(200);
+    expect((await undelete(g, second.id)).status).toBe(200);
+    snap = await snapshot(g);
+    const series = snap.series!.find((s) => s.id === seriesId)!;
+    expect(series.matchIds).toEqual([first.id, second.id, added[0]!.id]);
+    expect(seriesScore(series, snap.matches)).toMatchObject({ wins: [1, 2], winner: 1, overflow: false });
+  });
 });
 
 describe("백업과 복원", () => {

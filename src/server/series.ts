@@ -12,7 +12,15 @@
  * - 경기 버전·진행 상태 버전은 올리지 않는다(시리즈는 기록을 묶어 보여 주는 것뿐이고 승패·명단은 그대로다).
  *   대신 확인한 때의 경기 버전·상태가 저장할 때도 같은지 보호 문장으로 확인한다(그 사이 참가자 교체 정정 등).
  */
-import { compositionKey, SERIES_NAME_MAX, SERIES_TEAMS_DIFFER_TEXT, seriesReferenceOf } from "../shared/series";
+import {
+  compositionKey,
+  SERIES_FORMAT_LABEL,
+  SERIES_NAME_MAX,
+  SERIES_TEAMS_DIFFER_TEXT,
+  SERIES_WINS_NEEDED,
+  seriesReferenceOf,
+  seriesScore,
+} from "../shared/series";
 import { cleanName } from "../shared/names";
 import { SERIES_FORMATS, type MatchView, type RosterEntry, type SeriesFormat, type SeriesView } from "../shared/types";
 import type { Env } from "./env";
@@ -106,6 +114,38 @@ function seriesStillGuard(env: Env, groupId: string, series: SeriesView): D1Prep
                      WHERE s.group_id = ?1 AND s.series_id = ?2 AND m.deleted_at IS NULL) <> ?3
        OR NOT EXISTS (SELECT 1 FROM match_series WHERE group_id = ?1 AND id = ?2)`,
   ).bind(groupId, series.id, series.matchIds.length);
+}
+
+/**
+ * 지운 경기를 되살릴 때 그 경기가 든 시리즈를 확인한다(matches.ts undeleteMatch).
+ * 지운 경기는 시리즈 소속(match_series_members)이 남아 있어, 지운 사이 시리즈에 새 판을 넣고 되살리면 3판 2선승이 4판이
+ * 되거나 승부가 난 뒤에 판이 붙었다(2026-11-12 사용자 결정: 이럴 때는 되살리기를 거절한다).
+ * 되살린 뒤의 판 수가 형식의 최대 판 수(3판 2선승 3, 5판 3선승 5, 자유 MAX_SERIES_GAMES)를 넘거나, 승부가 난 뒤 판이
+ * 생기면(seriesScore.overflow) 거절한다. 괜찮으면 확인한 때의 판 수를 저장 때도 확인하는 보호 문장을 돌려준다.
+ * 시리즈에 없는 경기거나, 시리즈의 나머지 판이 모두 지워져 시리즈가 보이지 않으면 아무 확인도 하지 않는다.
+ */
+export async function seriesUndeleteGuards(env: Env, groupId: string, match: MatchView): Promise<D1PreparedStatement[]> {
+  const seriesId = (await seriesOfMatches(env, groupId, [match.id])).get(match.id);
+  if (!seriesId) return [];
+  const series = (await loadSeries(env, groupId)).find((s) => s.id === seriesId);
+  if (!series) return [];
+  const members = await loadMatchesByIds(env, groupId, series.matchIds);
+  const after: SeriesView = { ...series, matchIds: [...series.matchIds, match.id] };
+  const need = SERIES_WINS_NEEDED[series.format];
+  const maxGames = need === null ? MAX_SERIES_GAMES : need * 2 - 1;
+  const score = seriesScore(after, [...members, match]);
+  if (after.matchIds.length > maxGames || score.overflow) {
+    const which = series.name ? `"${series.name}" 시리즈` : "시리즈";
+    // 둘 다 해당하면 판 수가 더 알아보기 쉬워 먼저 쓴다.
+    const why = after.matchIds.length > maxGames ? `이미 ${series.matchIds.length}판이에요` : "이미 승부가 났어요";
+    throw new ApiError(
+      409,
+      "SERIES_FULL",
+      `이 경기가 든 ${which}(${SERIES_FORMAT_LABEL[series.format]})는 ${why}. 되살리면 형식보다 길어져요. 지운 사이 새로 넣은 판을 먼저 지우거나 시리즈에서 뺀 뒤 되살리세요.`,
+      { seriesId: series.id },
+    );
+  }
+  return [seriesStillGuard(env, groupId, series)];
 }
 
 function insertMember(env: Env, groupId: string, seriesId: string, matchId: string, at: string): D1PreparedStatement {

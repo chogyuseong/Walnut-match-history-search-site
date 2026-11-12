@@ -35,7 +35,7 @@ import {
   type Plan,
 } from "./mutation";
 import { spendBulkRows, type BulkActor } from "./ratelimit";
-import { parseSeriesContinue, seriesContinuePlan, type SeriesContinue } from "./series";
+import { parseSeriesContinue, seriesContinuePlan, seriesUndeleteGuards, type SeriesContinue } from "./series";
 import { groupFingerprints } from "./sheets";
 import { loadGroup, loadMatch, loadOpenSession, loadSettings } from "./snapshot";
 
@@ -1143,6 +1143,8 @@ export async function undeleteMatch(
         }
         guards.push(fingerprintScopeGuard(env, groupId, stamp), storedFingerprintRestoreGuard(env, groupId, [matchId]));
       }
+      // 시리즈 판 수: 지운 사이 새 판을 넣었으면 되살렸을 때 형식보다 길어진다(거절).
+      guards.push(...(await seriesUndeleteGuards(env, groupId, match)));
       const by = (await operatorRole(env, groupId, accountId)) ?? "owner";
       const now = nowIso();
       return {
