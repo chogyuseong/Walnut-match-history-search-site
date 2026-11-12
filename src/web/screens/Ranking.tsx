@@ -33,7 +33,7 @@ import {
   type RatingOptions,
 } from "../../shared/rating";
 import type { Snapshot } from "../../shared/types";
-import { nameMap, rankClass, rateHueClass, rateText, rateTier, standingsOf } from "../format";
+import { nameMap, rankClass, rateHueClass, rateHueText, rateText, standingsOf } from "../format";
 import {
   FilterBar,
   FormDots,
@@ -357,7 +357,7 @@ export function Ranking(props: {
                             <Glue>경기 · </Glue>
                           </span>
                           <span className="c-rate num">
-                            <span className={rateTier(row.wins, row.games)}>{rateText(row.wins, row.games)}</span>
+                            <span className={rateHueText(row.wins, row.games)}>{rateText(row.wins, row.games)}</span>
                           </span>
                           <span className="c-form">
                             <FormDots

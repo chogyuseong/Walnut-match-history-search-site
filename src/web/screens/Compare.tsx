@@ -34,7 +34,7 @@ import {
   ratingOptionsOf,
 } from "../../shared/rating";
 import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
-import { heatClass, nameMap, rateTier, standingsOf } from "../format";
+import { nameMap, rateHueClass, rateHueText, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, FormDots, PosLabel, ScopePicker, ScreenHead, StandingNote } from "../screenKit";
@@ -76,10 +76,10 @@ function LeadMark() {
   );
 }
 
-/** 승률 막대(작게). 5경기 미만은 승률 색 없이 속 빈 막대(그래프·개인 통계와 같은 규칙). */
+/** 승률 막대(작게). 색은 승률 여섯 색(rateHueClass), 5경기 미만은 색 없이 속 빈 막대(그래프·개인 통계와 같은 규칙). */
 function RateMeter(props: { tally: Tally; className?: string }) {
   const { tally } = props;
-  const heat = heatClass(tally.wins, tally.games);
+  const heat = rateHueClass(tally.wins, tally.games);
   return (
     <span className={`meter meter-sm ${props.className ?? ""}`} aria-hidden="true">
       <span
@@ -226,7 +226,7 @@ export function Compare(props: {
       <span className="cmp-value">
         <span className="cmp-value-num">
           {mark}
-          <span className={rateTier(t.wins, t.games)}>{rateText(t)}</span>
+          <span className={rateHueText(t.wins, t.games)}>{rateText(t)}</span>
         </span>
         {meter && t.games > 0 && <RateMeter tally={t} className="cmp-meter" />}
       </span>
@@ -285,7 +285,7 @@ export function Compare(props: {
           {name}
         </button>
         <p className="cmp-card-rate">
-          <span className={rateTier(summary.wins, summary.games)}>{rateText(summary)}</span>
+          <span className={rateHueText(summary.wins, summary.games)}>{rateText(summary)}</span>
           <span className="cmp-card-cap">{scopeLabel} 승률</span>
         </p>
         <p className="cmp-card-wl">
@@ -499,7 +499,7 @@ export function Compare(props: {
                 return (
                   <li key={d.position} className={lead === "a" ? "lead-a" : lead === "b" ? "lead-b" : undefined}>
                     <span className="cmp-duel-side cmp-duel-a">
-                      <span className={rateTier(d.wins, d.games)}>{rateText({ wins: d.wins, games: d.games })}</span>
+                      <span className={rateHueText(d.wins, d.games)}>{rateText({ wins: d.wins, games: d.games })}</span>
                       <span className="hint">{d.wins}승 {d.losses}패</span>
                     </span>
                     <span className="cmp-duel-mid">
@@ -507,7 +507,7 @@ export function Compare(props: {
                       <span className="hint">{d.games}경기</span>
                     </span>
                     <span className="cmp-duel-side cmp-duel-b">
-                      <span className={rateTier(d.losses, d.games)}>{rateText({ wins: d.losses, games: d.games })}</span>
+                      <span className={rateHueText(d.losses, d.games)}>{rateText({ wins: d.losses, games: d.games })}</span>
                       <span className="hint">{d.losses}승 {d.wins}패</span>
                     </span>
                     <span className="cmp-bar cmp-duel-bar" role="img" aria-label={`${d.games}경기 중 ${nameA} ${d.wins}승, ${nameB} ${d.losses}승`}>
@@ -531,7 +531,7 @@ export function Compare(props: {
             <div className="cmp-face">
               <span className="cmp-face-name cmp-a">{nameA}</span>
               <p className="cmp-face-mid">
-                <span className={`${rateTier(h2h.together.wins, h2h.together.games)} cmp-face-big`}>
+                <span className={`${rateHueText(h2h.together.wins, h2h.together.games)} cmp-face-big`}>
                   {rateText(h2h.together)}
                 </span>{" "}
                 <span className="cmp-face-sub">
@@ -598,7 +598,7 @@ export function Compare(props: {
             {/* 다른 화면과 같은 꼴 "승률 · N승 M패 (G경기)"(첫 번째 사람 기준). 승 수만으로는 승률이 한눈에 안 들어온다는 요청(2026-11-08). */}
             <p className="cmp-h2h-rate">
               {nameA} 기준{" "}
-              <span className={rateTier(against.aWins, against.games)}>
+              <span className={rateHueText(against.aWins, against.games)}>
                 {rateText({ wins: against.aWins, games: against.games })}
               </span>{" "}
               · {wl({ wins: against.aWins, games: against.games })} ({against.games}경기)
