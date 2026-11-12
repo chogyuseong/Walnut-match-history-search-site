@@ -31,7 +31,7 @@ import {
 } from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
-import { formatDate, nameMap, rateText, rateTier, standingsOf } from "../format";
+import { formatDate, nameMap, rateHueText, rateText, standingsOf } from "../format";
 import { attendanceReport } from "../../shared/attendance";
 import { personUpsets, UPSET_THRESHOLD } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
@@ -64,11 +64,11 @@ function line(tally: Tally): string {
   return `${rate(tally)} · ${tally.wins}승 ${tally.games - tally.wins}패 (${tally.games}경기)`;
 }
 
-/** 승률 숫자에 승률 색 단계(rateTier)를 입힌 글자. 기록이 없으면 "기록 없음". */
+/** 승률 숫자에 승률 여섯 색(rateHueText)을 입힌 글자. 기록이 없으면 "기록 없음". */
 function RateText(props: { tally: Tally }) {
   const { tally } = props;
   if (tally.games === 0) return <>기록 없음</>;
-  return <span className={rateTier(tally.wins, tally.games)}>{rate(tally)}</span>;
+  return <span className={rateHueText(tally.wins, tally.games)}>{rate(tally)}</span>;
 }
 
 /** line()과 같은 글이고 승률 숫자만 색 단계를 따른다. */
@@ -259,7 +259,7 @@ export function Person(props: {
                   <RateLine tally={pair} />
                   {pair.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
                 </span>
-                <RateBar wins={pair.wins} games={pair.games} small />
+                <RateBar wins={pair.wins} games={pair.games} small hued />
               </button>
             </li>
           ))}
@@ -304,7 +304,7 @@ export function Person(props: {
         <span className="tile-sub">
           {sub} <RateLine tally={pair} />
         </span>
-        <RateBar wins={pair.wins} games={pair.games} small />
+        <RateBar wins={pair.wins} games={pair.games} small hued />
       </>
     ) : (
       <span className="tile-sub">
@@ -324,7 +324,7 @@ export function Person(props: {
           <RateLine tally={picked.tally} />
           {picked.tally.games < SMALL_SAMPLE ? " · 자료 적음" : ""}
         </span>
-        <RateBar wins={picked.tally.wins} games={picked.tally.games} small />
+        <RateBar wins={picked.tally.wins} games={picked.tally.games} small hued />
       </>
     ) : (
       <span className="tile-sub">{none}</span>
@@ -367,7 +367,7 @@ export function Person(props: {
           <div className="ps-hero">
             <RateRing wins={detail.summary.wins} games={detail.summary.games} />
             <div className="ps-main">
-              <p className={`summary-line ${rateTier(detail.summary.wins, detail.summary.games)}`}>
+              <p className={`summary-line ${rateHueText(detail.summary.wins, detail.summary.games)}`}>
                 {line(detail.summary)}
               </p>
               <p className="hint">
@@ -511,7 +511,7 @@ export function Person(props: {
                   <Meter value={share} tone="share" />
                   <span className="meter-value">{tally ? pct(tally.games, positioned) : ""}</span>
                   <span className="meter-label">승률</span>
-                  <RateBar wins={tally?.wins ?? 0} games={tally?.games ?? 0} />
+                  <RateBar wins={tally?.wins ?? 0} games={tally?.games ?? 0} hued />
                   <span className="meter-value">{tally ? <RateText tally={tally} /> : ""}</span>
                 </span>
               </li>
@@ -593,7 +593,7 @@ export function Person(props: {
                     <RateLine tally={{ wins: pair.against.wins, games: pair.against.games }} />
                   )}
                 </span>
-                <RateBar wins={pair.against.wins} games={pair.against.games} small />
+                <RateBar wins={pair.against.wins} games={pair.against.games} small hued />
               </li>
               <li className="rival-tile">
                 <span className="tile-label">같은 팀으로</span>
@@ -604,7 +604,7 @@ export function Person(props: {
                     <RateLine tally={pair.together} />
                   )}
                 </span>
-                <RateBar wins={pair.together.wins} games={pair.together.games} small />
+                <RateBar wins={pair.together.wins} games={pair.together.games} small hued />
               </li>
             </ul>
             {props.openCompare && (
@@ -677,7 +677,7 @@ export function Person(props: {
                       <span className="stat">
                         {r.wins}승 {r.losses}패 ({r.games}경기)
                       </span>
-                      <RateBar wins={r.wins} games={r.games} small />
+                      <RateBar wins={r.wins} games={r.games} small hued />
                     </button>
                   </li>
                 ))}

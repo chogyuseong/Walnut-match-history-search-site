@@ -51,7 +51,7 @@ import {
   objectParticle,
   rankClass,
   rateText,
-  rateTier,
+  rateHueText,
   resultLine,
   SIDE_LABEL,
   standingsOf,
@@ -612,7 +612,7 @@ export function Records(props: {
                           </span>
                           <span className="rank-stat">
                             <span className="c-rate num">
-                              <span className={rateTier(r.wins, r.games)}>{rateText(r.wins, r.games)}</span>
+                              <span className={rateHueText(r.wins, r.games)}>{rateText(r.wins, r.games)}</span>
                               <Glue> · </Glue>
                             </span>
                             <span className="c-wins num">

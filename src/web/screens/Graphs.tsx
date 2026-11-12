@@ -2,7 +2,7 @@ import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGro
 import { useMemo, useState, type ReactNode } from "react";
 import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { heatClass, nameMap, PEOPLE_BAR_STEPS, rateHueClass, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
+import { heatClass, nameMap, PEOPLE_BAR_STEPS, rateHueClass, rateHueText, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
 import {
   Meter,
   BackLink,
@@ -900,7 +900,7 @@ function PlayerProfile(props: {
           <div className="ps-hero">
             <RateRing wins={wins} games={results.length} />
             <div className="ps-main">
-              <p className={`summary-line ${rateTier(wins, results.length)}`}>{recordLine(wins, results.length)}</p>
+              <p className={`summary-line ${rateHueText(wins, results.length)}`}>{recordLine(wins, results.length)}</p>
               <p className="hint">범위: {props.scopeLabel}</p>
               <p className="ps-rating">
                 {rating && standing?.done ? (

@@ -171,7 +171,7 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await page.goto(`/#/p/${top.id}`);
   const summary = page.getByRole("region", { name: "요약" });
   await expect(summary.locator(".ring-fill")).toHaveClass(/rate-hue-6/);
-  await expect(summary.locator(".summary-line")).toHaveClass(/heat-h4/);
+  await expect(summary.locator(".summary-line")).toHaveClass(/rate-hue-6/);
   const hotRing = await colorOf(page, ".ring-fill", "stroke");
   const hotText = await colorOf(page, ".summary-line", "color");
   // 진영 막대는 진영 색 그대로(승률 단계 클래스가 붙지 않는다). 다크 테마의 승리 색 #4f8ddd · 패배 색 #d9534f.
@@ -202,7 +202,7 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await page.reload();
   await expect(page.getByRole("heading", { name: "선수01", level: 1 })).toBeVisible();
   await expect(summary.locator(".ring-fill")).toHaveClass(/rate-hue-1/);
-  await expect(summary.locator(".summary-line")).toHaveClass(/heat-l4/);
+  await expect(summary.locator(".summary-line")).toHaveClass(/rate-hue-1/);
   expect(await colorOf(page, ".ring-fill", "stroke")).not.toBe(hotRing);
   expect(await colorOf(page, ".summary-line", "color")).not.toBe(hotText);
   await expect(summary.locator(".title-chip")).toHaveClass(/grade-8/);
@@ -215,18 +215,18 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   expect(await lossDot.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(234, 132, 127)");
   expect(await lossDot.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgba(217, 83, 79, 0.35)");
 
-  // 랭킹: 승률 숫자 글자가 여러 단계 클래스로 나뉘고, 높은 줄(강조색)과 낮은 줄(보조 글자)의 글자 색이 다르다(3단).
+  // 랭킹: 승률 숫자 글자가 승률 여섯 색(rate-hue, 2026-11-12)으로 나뉘고, 높은 줄과 낮은 줄의 글자 색이 다르다.
   // 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
   const ranking = page.getByRole("region", { name: "소환사 랭킹" });
   await expect(ranking.getByRole("listitem")).toHaveCount(12);
-  const heats = await ranking
+  const hues = await ranking
     .locator(".rate")
-    .evaluateAll((nodes) => nodes.map((n) => n.className.match(/heat-\w+/)?.[0] ?? ""));
-  expect(new Set(heats).size).toBeGreaterThanOrEqual(6);
-  expect(heats[0]).toBe("heat-h4");
-  expect(heats[heats.length - 1]).toBe("heat-l4");
+    .evaluateAll((nodes) => nodes.map((n) => n.className.match(/rate-hue-\d/)?.[0] ?? ""));
+  expect(new Set(hues).size).toBeGreaterThanOrEqual(4);
+  expect(hues[0]).toBe("rate-hue-6");
+  expect(hues[hues.length - 1]).toBe("rate-hue-1");
   const rateColors = await ranking.locator(".rate").evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).color));
   expect(rateColors[0]).not.toBe(rateColors[rateColors.length - 1]);
   const grades = await ranking
