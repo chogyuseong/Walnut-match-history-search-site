@@ -123,6 +123,25 @@ describe("playerCommentary", () => {
     expect(r?.tone).toBe("good");
   });
 
+  it("코칭 한 줄: 자료 부족 → 몇 경기 더, 라인 강약 → 강한 라인부터, 전담 → 다른 라인도, 하락 → 감 되찾기", () => {
+    expect(player(range(6, (i) => match(i)), "p0").coaching?.text).toContain("4경기를 더 하면");
+
+    const mid = range(10, (i) => match(i, { teamA: [1, 2, 0, 3, 4], winner: "A" }));
+    const top = range(10, (i) => match(100 + i, { teamA: [5, 6, 7, 8, 9], teamB: [0, 1, 2, 3, 4], winner: i <= 2 ? "B" : "A" }));
+    const lines = player([...mid, ...top], "p0").coaching!;
+    // 마지막 7판을 연속으로 져 "흐름 하락"이 먼저일 수도 있어, 둘 중 하나가 미드를 권하는지만 본다.
+    expect(lines.text).toContain("미드");
+
+    const only = player(range(12, (i) => match(i, { winner: i % 2 ? "A" : "B" })), "p0").coaching!;
+    expect(only.text).toContain("거의 탑만");
+
+    const falling = [...range(10, (i) => match(i, { winner: "A" })), ...range(10, (i) => match(20 + i, { winner: "B" }))];
+    const down = player(falling, "p0").coaching!;
+    expect(down.text).toContain("흐름이 내려가");
+    expect(down.tone).toBe("warn");
+    expect(down.basis).toBeTruthy();
+  });
+
   it("문장 수는 상한을 넘지 않는다", () => {
     const many = range(60, (i) => match(i, { winner: i % 3 ? "A" : "B", side: i % 2 ? "blue" : "red" }));
     expect(player(many, "p0").remarks.length).toBeLessThanOrEqual(PLAYER_REMARK_MAX);
@@ -140,6 +159,13 @@ describe("groupCommentary", () => {
     expect(c.summary).toMatch(/^균형 경기 \d+%/);
     // 표본이 말해 주는 것보다 많이 말하던 문구는 어디에도 남지 않는다.
     for (const t of [c.summary, ...texts(c)]) expect(t).not.toMatch(/공정해요|공정한 섞기|실력을 잘 반영|안정된 MMR|자리 잡는/);
+  });
+
+  it("모임 코칭 한 줄: 판정 경기가 적으면 결과 입력 안내, 고르게 섞였으면 유지", () => {
+    expect(group(range(3, (i) => match(i))).coaching?.text).toContain("결과를 빠짐없이 입력");
+    const c = group(range(30, (i) => match(i, { winner: i % 2 ? "A" : "B", side: i % 4 < 2 ? "blue" : "red" })));
+    expect(c.coaching?.text).toBeTruthy();
+    expect(c.coaching?.basis).toBeTruthy();
   });
 
   it("진영 편차: 블루가 15%p 이상 많이 이기면 진영 랜덤 권유", () => {

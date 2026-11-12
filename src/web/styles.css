@@ -6446,6 +6446,31 @@ label:has(> select) {
   margin: 0;
   max-width: none;
 }
+/* 코칭 한 줄: 문장 목록 아래 1px 구분선으로 나눈다. 라벨은 제목처럼 골드(분석 코멘트 예외 범위), 문장은 본문색. */
+.commentary-coaching {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ih-line);
+}
+.commentary-coaching h3 {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-accent);
+}
+.commentary-coaching p {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+.commentary-coaching .remark-basis {
+  display: block;
+  font-size: var(--text-meta);
+  color: var(--ih-text-secondary);
+}
 .profile-head {
   display: flex;
   flex-wrap: wrap;

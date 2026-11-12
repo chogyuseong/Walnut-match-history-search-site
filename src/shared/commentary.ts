@@ -36,6 +36,11 @@ export interface Commentary {
   summary: string;
   /** 우선순위 순 문장. */
   remarks: Remark[];
+  /**
+   * 코칭 한 줄: 위 수치에서 "다음에 해 볼 것"을 하나 고른다(2026-11-12 사용자 요청, 외부 AI 없이 규칙으로).
+   * 근거 수치는 문장 괄호와 basis에 둔다. 경기가 없으면 없다.
+   */
+  coaching?: Remark;
 }
 
 // ─ 개인 코멘트 임계값 ─
@@ -192,7 +197,10 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
       tone: "neutral",
       basis: "라인별 경기 수",
     });
-  } else {
+  }
+  let strong: { position: Position; tally: Tally } | null = null;
+  let weak: { position: Position; tally: Tally } | null = null;
+  if (!(main && mainShare >= MAIN_LINE_SHARE)) {
     const lines = POSITIONS.flatMap((p) => {
       const tally = detail.byPosition[p];
       return tally && tally.games >= LINE_MIN_GAMES ? [{ position: p, tally }] : [];
@@ -202,6 +210,8 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     const best = ranked[0];
     const worst = ranked.at(-1);
     if (best && worst && best !== worst && rateOf(best.tally) - rateOf(worst.tally) >= LINE_GAP) {
+      strong = best;
+      weak = worst;
       const bestName = LANE_NAME[best.position];
       const worstName = LANE_NAME[worst.position];
       remarks.push({
@@ -340,9 +350,23 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     });
   }
 
+  const coaching = playerCoaching({
+    games,
+    flow,
+    streak,
+    recent,
+    total: detail.summary,
+    main: main && mainShare >= MAIN_LINE_SHARE ? main : null,
+    strong,
+    weak,
+    upsets,
+    buddy: buddy && synergy !== null ? { name: nameOf(buddy.participantId), synergy } : null,
+  });
+
   // 8. 자료 부족: 단정하지 않고 앞에 경고를 두고 문장을 줄인다.
   if (games < FEW_GAMES) {
     return {
+      coaching,
       summary: "아직 자료가 적어 유형을 정하기 일러요",
       remarks: [
         { text: `경기가 ${games}개뿐이라 아직 판단하기 일러요.`, tone: "neutral", basis: "범위 안 경기 수" },
@@ -360,6 +384,79 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   return {
     summary: `${lineLead}${steady}${tier}, ${FLOW_TEXT[flow]}`,
     remarks: remarks.slice(0, PLAYER_REMARK_MAX),
+    coaching,
+  };
+}
+
+/**
+ * 개인 코칭 한 줄. 위에서부터 먼저 맞는 하나만 쓴다(우선순위 = 지금 가장 손댈 만한 것).
+ * 자료 부족 → 최근 하락·연패 → 라인 강약 → 한 라인 전담 → 강팀으로 진 경기 과다 → 잘 맞는 동료 → 유지.
+ * 문장은 "해 보세요"로 권하기만 하고 결과를 장담하지 않는다(수치는 과거 기록일 뿐이다).
+ */
+function playerCoaching(c: {
+  games: number;
+  flow: Flow;
+  streak: number;
+  recent: Tally;
+  total: Tally;
+  main: { position: Position; tally: Tally } | null;
+  strong: { position: Position; tally: Tally } | null;
+  weak: { position: Position; tally: Tally } | null;
+  upsets: { upsetWins: number; upsetLosses: number };
+  buddy: { name: string; synergy: number } | null;
+}): Remark {
+  if (c.games < FEW_GAMES) {
+    return {
+      text: `${FEW_GAMES - c.games}경기를 더 하면 강한 라인·약한 라인을 짚어 드릴 수 있어요. 여러 라인을 고루 서 보세요.`,
+      tone: "neutral",
+      basis: "범위 안 경기 수",
+    };
+  }
+  const anchor = c.strong ?? c.main;
+  if (c.flow === "down" || c.streak <= -STREAK_NOTE) {
+    const why = c.streak <= -STREAK_NOTE ? `${-c.streak}연패 중` : `최근 ${RECENT_GAMES}경기 ${rateOf(c.recent)}%`;
+    return {
+      text: anchor
+        ? `흐름이 내려가 있어요(${why}). 다음 판은 가장 잘 풀린 ${LANE_NAME[anchor.position]}부터 맡아 감을 되찾아 보세요(${rateOf(anchor.tally)}%).`
+        : `흐름이 내려가 있어요(${why}). 다음 판은 가장 익숙한 라인부터 맡아 감을 되찾아 보세요.`,
+      tone: "warn",
+      basis: "최근 승률·연패와 라인별 승률",
+    };
+  }
+  if (c.strong && c.weak) {
+    const strongName = LANE_NAME[c.strong.position];
+    const weakName = LANE_NAME[c.weak.position];
+    return {
+      text: `라인을 고를 수 있으면 ${josa(strongName, "을", "를")} 먼저 맡아 보세요. ${josa(weakName, "은", "는")} 부담이 덜한 판에서 연습해 보세요(${strongName} ${rateOf(c.strong.tally)}% · ${weakName} ${rateOf(c.weak.tally)}%).`,
+      tone: "good",
+      basis: `라인별 승률(${LINE_MIN_GAMES}경기 이상 라인)`,
+    };
+  }
+  if (c.main) {
+    return {
+      text: `거의 ${LANE_NAME[c.main.position]}만 맡고 있어요. 다른 라인도 가끔 서 두면 팀 짤 때 선택지가 넓어져요.`,
+      tone: "neutral",
+      basis: "라인별 경기 수",
+    };
+  }
+  if (c.upsets.upsetLosses - c.upsets.upsetWins >= UPSET_LOSS_EXCESS) {
+    return {
+      text: `이길 만하던 판을 놓친 경우가 많아요(강팀으로 진 경기 ${c.upsets.upsetLosses}회). 앞설 때 무리한 싸움을 줄여 보세요.`,
+      tone: "warn",
+      basis: "이변 승·패",
+    };
+  }
+  if (c.buddy) {
+    return {
+      text: `${josa(c.buddy.name, "과", "와")} 같은 팀일 때 특히 잘 풀려요(시너지 +${c.buddy.synergy}%p). 같은 팀이 되면 합을 맞춰 적극적으로 움직여 보세요.`,
+      tone: "good",
+      basis: "같은 팀 전적",
+    };
+  }
+  return {
+    text: `지금 흐름을 그대로 이어 가 보세요(최근 ${RECENT_GAMES}경기 ${rateOf(c.recent)}%, 범위 누적 ${rateOf(c.total)}%).`,
+    tone: "neutral",
+    basis: "최근·누적 승률",
   };
 }
 
@@ -542,5 +639,46 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
     const balancedShare = `균형 경기 ${ratePercent(fairness.balanced, fairness.games)}%`;
     summary = predict === null ? balancedShare : `${balancedShare} · 예상 우세 팀 승률 ${predict}%`;
   }
-  return { summary, remarks: remarks.slice(0, GROUP_REMARK_MAX) };
+  return { summary, remarks: remarks.slice(0, GROUP_REMARK_MAX), coaching: groupCoaching() };
+
+  /**
+   * 모임 코칭 한 줄. 판정 경기 부족 → 진영 치우침 → 균형 경기 적음 → 자주 뭉치는 쌍 → 유지 순으로 하나만.
+   * 고칠 수 있는 운영 행동(진영 랜덤, 티어 가중치, 팀 추천)을 권한다.
+   */
+  function groupCoaching(): Remark {
+    if (!fairReady) {
+      return {
+        text: `결과를 빠짐없이 입력해 주세요. 판정할 수 있는 경기가 ${FAIRNESS_MIN_GAMES}개가 되면 섞기 분석을 시작해요(지금 ${fairness.games}개).`,
+        tone: "neutral",
+        basis: "판정 가능한 경기 수",
+      };
+    }
+    if (sideSkew) {
+      return {
+        text: "다음 내전부터 진영을 랜덤으로 정해 보세요. 한쪽 진영 승률이 눈에 띄게 높아요.",
+        tone: "warn",
+        basis: "진영별 승률(진영 미상 제외)",
+      };
+    }
+    if (verdict === "poor") {
+      return {
+        text: `균형 경기가 ${ratePercent(fairness.balanced, fairness.games)}%로 적어요. 티어 배정과 티어 가중치를 다시 맞춰 보거나 팀 추천으로 섞어 보세요.`,
+        tone: "warn",
+        basis: `경기 전 예상 승률(판정 ${fairness.games}경기)`,
+      };
+    }
+    if (pair && pair.share >= PAIR_SHARE) {
+      const names = [nameOf(pair.a), nameOf(pair.b)].sort((x, y) => x.localeCompare(y, "ko"));
+      return {
+        text: `${names[0]}·${josa(names[1]!, "을", "를")} 가끔 다른 팀으로 나눠 보세요(같은 팀 ${ratePercent(pair.n, pair.both)}%).`,
+        tone: "neutral",
+        basis: "함께 나온 경기 중 같은 팀 비율",
+      };
+    }
+    return {
+      text: "지금처럼 티어로 팀을 나누고 결과를 바로 입력해 두세요. 기록이 쌓일수록 분석이 정확해져요.",
+      tone: "neutral",
+      basis: "섞기·진영·뭉침 지표에 치우침 없음",
+    };
+  }
 }

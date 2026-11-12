@@ -968,9 +968,12 @@ function PlayerProfile(props: {
   );
 }
 
-/** 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록. 문장 앞 점 모양은 tone(좋음 골드 점 · 주의 골드 속 빈 점 · 보통 회색 점). */
+/**
+ * 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록 + 코칭 한 줄. 문장 앞 점 모양은 tone(좋음 골드 점 · 주의 골드 속 빈 점 · 보통 회색 점).
+ * 코칭은 카드 안 1px 구분선 아래 "코칭" 라벨과 함께 둔다(카드 안 카드를 만들지 않는다).
+ */
 function CommentaryCard(props: { notes: Commentary }) {
-  const { summary, remarks } = props.notes;
+  const { summary, remarks, coaching } = props.notes;
   return (
     <section className="commentary" aria-label="분석 코멘트">
       <h2>분석 코멘트</h2>
@@ -988,9 +991,18 @@ function CommentaryCard(props: { notes: Commentary }) {
               </li>
             ))}
           </ul>
+          {coaching && (
+            <div className="commentary-coaching">
+              <h3>코칭</h3>
+              <p>
+                {coaching.text}
+                {coaching.basis && <span className="remark-basis">기준: {coaching.basis}</span>}
+              </p>
+            </div>
+          )}
         </>
       )}
-      <p className="hint commentary-note">기록 수치를 규칙으로 읽어 쓴 평가예요.</p>
+      <p className="hint commentary-note">기록 수치를 규칙으로 읽어 쓴 평가와 제안이에요.</p>
     </section>
   );
 }
