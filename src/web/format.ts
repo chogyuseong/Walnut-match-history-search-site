@@ -284,6 +284,12 @@ export function rateHueClass(wins: number, games: number): string {
   return step === null ? "" : `rate-hue-${step}`;
 }
 
+/** 승률 숫자 글자를 여섯 색으로(요약 화면 등). 경기가 적으면 색 없이 굵기만("rate"). */
+export function rateHueText(wins: number, games: number): string {
+  const hue = rateHueClass(wins, games);
+  return hue ? `rate ${hue}` : "rate";
+}
+
 /**
  * 명단 텍스트(docs/P1 후보 C). 복사한 시점의 내용이며 끝에 기준 시각을 붙인다.
  * 팀 이름은 teamName 규칙(진영이 정해졌으면 블루팀·레드팀, 아니면 팀 A·B). 실력 그룹은 넣지 않는다.

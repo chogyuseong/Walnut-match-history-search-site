@@ -13,7 +13,7 @@ import {
 } from "../../shared/insights";
 import { isCounted, placementGamesOf } from "../../shared/stats";
 import type { MatchView, Snapshot, Team } from "../../shared/types";
-import { formatDate, formatTime, knownSideOf, matchTone, nameMap, rankClass, rateText, rateTier, resultLine, standingsOf, TEAM_MARK, teamRoster } from "../format";
+import { formatDate, formatTime, knownSideOf, matchTone, nameMap, rankClass, rateHueText, rateText, resultLine, standingsOf, TEAM_MARK, teamRoster } from "../format";
 import { MatchCard, MatchScoreboard, useExpectations } from "../matchCard";
 import { seriesScoreOfMatch, useSeriesBadges } from "../seriesPanel";
 import { DataTable, type TableColumn } from "../dataTable";
@@ -169,7 +169,7 @@ export function Dashboard(props: {
                     </span>
                   </span>
                   <span className="stat">
-                    <span className={rateTier(r.wins, r.games)}>
+                    <span className={rateHueText(r.wins, r.games)}>
                       {rateText(r.wins, r.games)}
                     </span>{" "}
                     · {r.wins}승 {r.games - r.wins}패 ({r.games}경기)
@@ -221,7 +221,7 @@ export function Dashboard(props: {
                   >
                     <span className="name">{nameOf(row.participantId)}</span>
                     <span className="stat">
-                      <span className={rateTier(row.recent.wins, row.recent.games)}>
+                      <span className={rateHueText(row.recent.wins, row.recent.games)}>
                         {rateText(row.recent.wins, row.recent.games)}
                       </span>{" "}
                       · {row.recent.wins}승 {row.recent.games - row.recent.wins}패 ({row.recent.games}경기)
