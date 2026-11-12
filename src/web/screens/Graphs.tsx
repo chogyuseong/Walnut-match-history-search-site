@@ -2,7 +2,7 @@ import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGro
 import { useMemo, useState, type ReactNode } from "react";
 import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { heatClass, nameMap, peopleBarStep, rateTier, POSITION_LABEL, RATE_HEAT_COLD, RATE_HEAT_HOT, standingsOf, type ShownStanding } from "../format";
+import { heatClass, nameMap, PEOPLE_BAR_STEPS, peopleBarStep, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
 import {
   Meter,
   BackLink,
@@ -78,7 +78,7 @@ function RateBar(props: {
   wins: number;
   games: number;
   tone?: "series" | "blue" | "red";
-  /** 개인별 승률 막대: 3단 대신 여섯 칸 색(peopleBarStep). 다른 막대에는 넣지 않는다. */
+  /** 개인별·라인별 승률 막대: 3단 대신 여섯 칸 색(peopleBarStep). 진영 막대에는 넣지 않는다. */
   stepped?: boolean;
   /** 위에서 고른 플레이어의 줄(강조). */
   picked?: boolean;
@@ -143,8 +143,10 @@ function RateBar(props: {
 }
 
 /** 표 칸의 승률 글자 색: 막대와 같은 3단(heatClass). 5경기 미만은 색을 입히지 않는다. */
+/** 표 칸 클래스: heat(칸 바탕이 있는지)와 여섯 칸 글자색(win-step). 5경기 미만은 band-none(바탕·색 없음). */
 function cellBand(tally: Tally): string {
-  return heatClass(tally.wins, tally.games) || "band-none";
+  const heat = heatClass(tally.wins, tally.games);
+  return heat ? `${heat} ${peopleBarStep(tally.wins, tally.games)}` : "band-none";
 }
 
 /** 보기 전환: 한 번에 하나만 전체 폭으로 그린다(2026-11-08 재구성). */
@@ -564,7 +566,7 @@ export function Graphs(props: {
             </ul>
             {/* 보조 타일 3칸: 미터로 크기를 보이게 한다. 평균 치우침은 FAIR_DEVIATION_FULL(25%p)을 가득으로 본다. */}
             <dl className="ps-tiles season-tiles fair-tiles">
-              <div>
+              <div className="fair-tile-skew">
                 <dt className="tile-label">평균 치우침</dt>
                 <dd className="season-stat">
                   {fractionPercent(fairness.avgDeviation)}
@@ -572,7 +574,7 @@ export function Graphs(props: {
                 </dd>
                 <Meter value={fairness.avgDeviation / FAIR_DEVIATION_FULL} tone="share" small />
               </div>
-              <div>
+              <div className="fair-tile-favorite">
                 <dt className="tile-label">예상 우세 팀 승률</dt>
                 <dd className="season-stat">
                   {fairness.favoriteGames > 0 ? ratePercent(fairness.favoriteWins, fairness.favoriteGames) : "—"}
@@ -582,7 +584,7 @@ export function Graphs(props: {
                   <Meter value={fairness.favoriteWins / fairness.favoriteGames} tone="share" mid small />
                 )}
               </div>
-              <div>
+              <div className="fair-tile-skew">
                 <dt className="tile-label">이변 경기</dt>
                 <dd className="season-stat">
                   {fairness.upsets}
@@ -657,7 +659,7 @@ export function Graphs(props: {
           <p className="hint">
             범위: {scopeLabel} · 위 숫자는 승률, 아래 숫자는 경기 수 · — 는 기록 없음
           </p>
-          <HeatLegend />
+          <StepLegend />
           {matrixRows.length === 0 ? (
             <p className="hint">이 범위에는 기록이 없어요.</p>
           ) : (
@@ -712,7 +714,7 @@ export function Graphs(props: {
                   return (
                     <li key={position}>
                       {tally ? (
-                        <RateBar label={POSITION_LABEL[position]} wins={tally.wins} games={tally.games} />
+                        <RateBar label={POSITION_LABEL[position]} wins={tally.wins} games={tally.games} stepped />
                       ) : (
                         // 기록이 없어도 같은 높이의 빈 막대를 둔다(PC 5칸 가로 배치에서 줄이 깨지지 않게).
                         <RateBar label={POSITION_LABEL[position]} note="기록 없음" wins={0} games={0} />
@@ -995,15 +997,15 @@ function CommentaryCard(props: { notes: Commentary }) {
 
 
 /**
- * 승률 색 범례: 3단(낮음·기준·높음)과 5경기 미만. 막대 그래프와 표가 같이 쓴다.
- * 경계 글자는 format.ts의 rateHeat 경계에서 만든다. 높은 쪽은 화면 정수 승률이 경계(55)를 넘어야 하므로 "56% 이상"이다.
- * 클래스는 각 단의 대표(heat-l4·heat-0·heat-h4)를 쓴다. 세 단 안에서는 h1~h4, l1~l4가 같은 색이다.
+ * 플레이어 × 라인 범례: 승률 여섯 칸(PEOPLE_BAR_STEPS, 개인별·라인별 승률 막대와 같은 색)과 자료 적음.
+ * 칸의 숫자 글자는 같은 칸의 글자용 색(--win-text)이고 견본은 막대 색이라, 견본은 "어느 칸인지"만 알려 준다.
  */
-function HeatLegend() {
+function StepLegend() {
+  const edges = PEOPLE_BAR_STEPS;
   const bands = [
-    { cls: "heat-l4", label: `${RATE_HEAT_COLD[0]}% 미만` },
-    { cls: "heat-0", label: `${RATE_HEAT_COLD[0]}~${RATE_HEAT_HOT[0]}%` },
-    { cls: "heat-h4", label: `${RATE_HEAT_HOT[0] + 1}% 이상` },
+    { cls: "win-step-1", label: `${edges[0]}% 미만` },
+    ...edges.slice(0, -1).map((edge, i) => ({ cls: `win-step-${i + 2}`, label: `${edge}~${edges[i + 1]! - 1}%` })),
+    { cls: `win-step-${edges.length + 1}`, label: `${edges[edges.length - 1]}% 이상` },
   ];
   return (
     <ul className="legend" aria-label="승률 색 범례">

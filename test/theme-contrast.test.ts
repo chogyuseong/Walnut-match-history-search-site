@@ -159,6 +159,16 @@ describe("테마 색 대비", () => {
         for (const kind of ["streak", "upset", "attendance"]) atLeast(`--story-${kind}`, "--ih-panel", 4.5);
       });
 
+      // 섞기 공정성 분포 띠(.fair-seg-*): 화면 배경 위의 색 띠라 3:1, 띠 안 경기 수는 --ih-bg 글자라 4.5:1.
+      // 큰 숫자(.fair-pct, 균형 연두)는 패널 위 글자라 4.5:1.
+      it("섞기 공정성 띠 세 색 vs 화면 배경 3:1, 띠 안 숫자 4.5:1, 큰 숫자 vs 패널 4.5:1", () => {
+        for (const token of ["--story-streak", "--ih-accent", "--story-upset"]) {
+          atLeast(token, "--ih-bg", 3);
+          atLeast("--ih-bg", token, 4.5);
+        }
+        atLeast("--story-streak", "--ih-panel", 4.5);
+      });
+
       // 칭호는 화면 배경·패널 위에, 목록 줄 호버(보조 면)와 고른 줄·내 줄(선택 배경) 위에도 놓인다. 12px 글자라 4.5:1.
       it("칭호 등급 색 여덟 개 vs 칭호가 놓이는 네 바탕 4.5:1, 서로 다른 값", () => {
         for (const grade of TITLE_GRADES)
@@ -178,6 +188,17 @@ describe("테마 색 대비", () => {
         for (let i = 1; i < lums.length; i++) {
           if (name === "dark") expect(lums[i], `dark: --win-step-${i + 1}이 더 어둡다`).toBeGreaterThan(lums[i - 1]!);
           else expect(lums[i], `light: --win-step-${i + 1}이 더 옅다`).toBeLessThan(lums[i - 1]!);
+        }
+      });
+
+      // 플레이어 × 라인 칸의 승률 숫자(12~14px 글자): 칸 바탕(보조 면)·패널 위 4.5:1, 막대 색과 같은 방향으로 변한다.
+      it("승률 여섯 칸 글자색 vs 표 칸 바탕·패널 4.5:1, 휘도가 한 방향으로 변한다", () => {
+        const texts = [1, 2, 3, 4, 5, 6].map((n) => `--win-text-${n}`);
+        for (const token of texts) for (const bg of ["--ih-subtle", "--ih-panel"]) atLeast(token, bg, 4.5);
+        const lums = texts.map((t) => luminance(get(t)));
+        for (let i = 1; i < lums.length; i++) {
+          if (name === "dark") expect(lums[i]).toBeGreaterThan(lums[i - 1]!);
+          else expect(lums[i]).toBeLessThan(lums[i - 1]!);
         }
       });
 

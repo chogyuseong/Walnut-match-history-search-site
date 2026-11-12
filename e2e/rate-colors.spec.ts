@@ -257,8 +257,9 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await page.getByRole("group", { name: "분석 보기" }).getByRole("button", { name: "플레이어 × 라인" }).click();
   const matrix = page.getByRole("region", { name: "플레이어 × 라인" });
   expect(await matrix.locator("td[class*='heat-']").count()).toBeGreaterThan(20);
-  await expect(matrix.locator(".swatch.heat-h4")).toHaveCount(1);
-  await expect(matrix.locator(".swatch.heat-l4")).toHaveCount(1);
+  // 범례는 승률 여섯 칸(2026-11-12), 칸 숫자 글자는 여섯 칸 글자색(win-step)을 함께 단다.
+  await expect(matrix.locator(".legend .swatch[class*='win-step-']")).toHaveCount(6);
+  expect(await matrix.locator("td[class*='win-step-']").count()).toBeGreaterThan(20);
 
   // 칭호 설정: 기본 6구간은 여덟 등급에 고르게 벌려 구간마다 다른 등급(1·2·4·5·7·8).
   // 구간 수를 8개로 늘리면 1~8, 2개로 줄이면 1·8로 순서대로 붙는다.
