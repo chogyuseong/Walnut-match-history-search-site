@@ -119,8 +119,9 @@ export interface Settings {
    */
   placementGames?: number;
   /**
-   * MMR 시작 점수(600~3000)·배치 중 K·배치 뒤 K(각 1~100), 모두 정수. 범위는 rating.ts RATING_SETTING_RANGES.
-   * 없음 = 저장하지 않음 → 기본 1200 · 50 · 30(ratingOptionsOf). 공개 정보라 조회 응답에도 나간다.
+   * MMR 시작 점수(600~3000, 정수, 없으면 1200). 범위는 rating.ts RATING_SETTING_RANGES. 공개 정보라 조회 응답에도 나간다.
+   * 배치 중 K·배치 뒤 K(각 1~100)는 Elo 시절 설정이다. 2026-11-12 계산을 바꾼 뒤로 쓰지 않지만, 저장된 설정·백업·옛 화면의
+   * 저장이 거절되지 않게 받고 그대로 둔다.
    */
   ratingStart?: number;
   ratingKPlacement?: number;

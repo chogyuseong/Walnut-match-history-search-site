@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rankingGroup } from "../src/shared/insights";
-import { computeRatings, DEFAULT_RATING_OPTIONS, kFactor, RATING_K, RATING_K_PLACEMENT } from "../src/shared/rating";
+import { computeRatings } from "../src/shared/rating";
 import {
   PLACEMENT_GAMES,
   PLACEMENT_GAMES_DEFAULT,
@@ -48,17 +48,9 @@ describe("배치 경기 수 설정(계산)", () => {
     expect([PLACEMENT_GAMES_MIN, PLACEMENT_GAMES_MAX]).toEqual([1, 30]);
   });
 
-  it("5로 두면 확정 5경기를 치른 뒤(6경기째부터) K가 40에서 20으로 내려간다", () => {
-    const five = { ...DEFAULT_RATING_OPTIONS, placementGames: 5 };
-    expect(kFactor(4, five)).toBe(RATING_K_PLACEMENT);
-    expect(kFactor(5, five)).toBe(RATING_K);
+  it("배치 경기 수는 MMR 계산 자체를 바꾸지 않는다(배치·티어·이변 판정에만 쓴다)", () => {
     const matches = alternating(8);
-    const fiveHistory = computeRatings(matches, { placementGames: 5 }).get("id0")!.history;
-    const ten = computeRatings(matches).get("id0")!.history;
-    const change = (p: { before: number; after: number }) => p.after - p.before;
-    // 처음 다섯 경기는 두 설정이 같고, 여섯째부터 5로 둔 쪽의 변화가 절반이다.
-    for (let i = 0; i < 5; i++) expect(fiveHistory[i]).toEqual(ten[i]);
-    expect(change(fiveHistory[5]!)).toBeCloseTo((change(ten[5]!) * RATING_K) / RATING_K_PLACEMENT);
+    expect(computeRatings(matches, { placementGames: 5 }).get("id0")).toEqual(computeRatings(matches).get("id0"));
   });
 
   it("칭호와 배치 완료는 설정한 경기 수를 채운 뒤에 붙는다", () => {

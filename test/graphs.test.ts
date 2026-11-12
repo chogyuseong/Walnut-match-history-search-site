@@ -67,7 +67,9 @@ describe("ratingRank", () => {
   it("배치를 마친 사람끼리 MMR 순위를 매기고 배치 중이면 null", () => {
     const matches = [...range(10, (i) => match(i)), match(11, { teamA: [0, 1, 2, 3, 10], teamB: [5, 6, 7, 8, 9] })];
     const table = computeRatings(matches);
-    expect(ratingRank(table, "p0")).toEqual({ rank: 1, total: 10 });
+    // 팀 A(전승) 다섯이 위 다섯 자리다. 같은 기록끼리의 순서는 소수 차이라 정하지 않는다.
+    expect(ratingRank(table, "p0")!.total).toBe(10);
+    expect(ratingRank(table, "p0")!.rank).toBeLessThanOrEqual(5);
     expect(ratingRank(table, "p10")).toBeNull();
     // 팀 B(전패)는 아래쪽.
     expect(ratingRank(table, "p9")!.rank).toBeGreaterThan(5);

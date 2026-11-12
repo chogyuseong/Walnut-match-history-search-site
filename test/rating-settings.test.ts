@@ -12,7 +12,8 @@ import { placements } from "../src/shared/stats";
 import type { MatchView, Snapshot, Team } from "../src/shared/types";
 import { api, requestId, setupGroup, snapshot, type TestGroup } from "./helpers";
 
-// MMR 시작값·K 설정(Settings.ratingStart·ratingKPlacement·ratingK)과 시즌 2 티어 이름표(rating.ts RATING_TIERS).
+// MMR 시작값 설정(Settings.ratingStart)과 시즌 2 티어 이름표(rating.ts RATING_TIERS).
+// K 둘(ratingKPlacement·ratingK)은 Elo 시절 설정이라 계산에 쓰지 않지만, 저장된 값·백업이 거절되지 않게 서버는 받는다.
 
 function match(no: number, winner: Team): MatchView {
   const playedAt = new Date(Date.UTC(2026, 9, 1) + no * 3600_000).toISOString();
@@ -37,18 +38,15 @@ function match(no: number, winner: Team): MatchView {
 }
 
 describe("MMR 설정(계산)", () => {
-  it("저장하지 않은 항목은 기본값(1200 · 50 · 30 · 10)", () => {
+  it("저장하지 않은 항목은 기본값(1200 · 배치 10), 옛 K 값은 무시한다", () => {
     expect(ratingOptionsOf({})).toEqual(DEFAULT_RATING_OPTIONS);
-    expect(ratingOptionsOf({ ratingStart: 1000, ratingK: 20 })).toEqual({ ...DEFAULT_RATING_OPTIONS, start: 1000, k: 20 });
+    expect(ratingOptionsOf({ ratingStart: 1000, ratingK: 20 })).toEqual({ ...DEFAULT_RATING_OPTIONS, start: 1000 });
   });
 
-  it("시작값은 모든 점수를 같이 옮길 뿐이고, K는 격차를 키운다", () => {
+  it("시작값은 모든 점수를 같이 옮길 뿐이다", () => {
     const matches = [match(1, "A"), match(2, "A"), match(3, "B")];
     const base = computeRatings(matches).get("id0")!.rating;
     expect(computeRatings(matches, { start: 2000 }).get("id0")!.rating).toBeCloseTo(base + 800, 9);
-    // 첫 경기(E = 0.5)의 변화는 K의 절반: 기본 50 → +25, 100 → +50.
-    expect(computeRatings([match(1, "A")]).get("id0")!.rating).toBe(1225);
-    expect(computeRatings([match(1, "A")], { kPlacement: 100 }).get("id0")!.rating).toBe(1250);
   });
 
   it("단계 글자는 시작값 기준", () => {
@@ -83,8 +81,8 @@ describe("MMR 티어 이름표(LoL 시즌 2 Elo 구간)", () => {
   it("시작값을 바꿔도 구간 숫자는 그대로다(처음 놓이는 티어만 달라진다)", () => {
     const one = [match(1, "A")];
     const at = (start: number) => ratingTierOf(computeRatings(one, { start }).get("id0")!.rating, true)!.name;
-    expect(at(1200)).toBe("브론즈"); // 1225
-    expect(at(1500)).toBe("골드"); // 1525
+    expect(at(1100)).toBe("브론즈"); // 약 1159
+    expect(at(1500)).toBe("골드"); // 약 1559
     expect(at(2200)).toBe("다이아몬드");
   });
 

@@ -136,7 +136,7 @@ export function ForecastSection(props: {
       )}
 
       <p className="hint">
-        예상은 경기 직전 MMR 평균의 Elo 기대 승률이에요. 라인 우위는 두 사람 MMR 차 {LANE_EDGE_MIN} 이상일 때 표시해요.
+        예상은 경기 직전 팀 MMR 평균으로 구한 기대 승률이에요. 라인 우위는 두 사람 MMR 차 {LANE_EDGE_MIN} 이상일 때 표시해요.
       </p>
       {/* 줄마다의 title 풍선은 터치 화면에서 뜨지 않아 같은 글을 접힌 도움말에도 둔다. */}
       <Help label="라인별 계산 보기">

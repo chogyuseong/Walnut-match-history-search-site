@@ -535,8 +535,8 @@ export function Records(props: {
         <p className="hint rank-rule">누적 {RANKING_VETERAN_GAMES}경기 이상인 사람을 먼저 보여줘요.</p>
         {sort === "rating" && (
           <p className="hint rating-rule">
-            MMR은 상대 팀의 평균 MMR을 감안해 승패마다 오르내리는 점수예요(시작 {ratingOptions.start}). 확정 경기만 세고 범위와
-            무관하게 누적입니다. 3연승·3연패부터 변화 폭이 커져요(최대 1.5배). {RATING_TIER_HELP}
+            MMR은 팀원과 상대 팀이 누구였는지까지 감안해 전체 기록으로 계산한 실력 점수예요(시작 {ratingOptions.start}). 확정
+            경기만 세고 범위와 무관하게 누적입니다. 3연승·3연패부터 그 경기를 더 무겁게 셉니다(최대 1.5배). {RATING_TIER_HELP}
           </p>
         )}
         {scope.kind !== "all" && query.trim() !== "" && records.length === 0 && (
