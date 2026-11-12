@@ -159,6 +159,14 @@ interface RosterRow {
 
 const ROSTER_COLUMNS = "match_id, participant_id, team, position, champion";
 
+/**
+ * 경기 몇 개의 명단을 찾을 때 붙이는 모임 조건. 앞의 단항 +는 계획기가 이 조건으로 색인을 고르지 못하게 한다.
+ * 통계(sqlite_stat)가 없는 D1에서 `group_id = ?`를 그냥 쓰면 idx_roster_participant (group_id, ...)를 골라
+ * 모임 명단 전체(경기 수 × 10행)를 훑는다(522경기 모임의 결과 저장 한 번이 1만 행). +를 붙이면 기본 키(match_id)로
+ * 찾고 이 조건은 걸러내기로만 쓰여 다른 모임의 명단은 여전히 빠진다. 빼거나 + 없이 되돌리지 말 것.
+ */
+export const ROSTER_IN_GROUP = "+group_id";
+
 function toRosterEntry(row: RosterRow): RosterEntry {
   const entry: RosterEntry = { participantId: row.participant_id, team: row.team, position: row.position };
   // 챔피언은 고른 사람만 넣는다(메모와 같은 방식: 기록하지 않는 모임의 응답 모양은 예전과 같다).
@@ -180,7 +188,7 @@ export async function loadMatch(env: Env, groupId: string, matchId: string, with
   if (!row) throw new ApiError(404, "NOT_FOUND", "경기를 찾을 수 없습니다.");
   const view = toMatchView(row);
   const roster = await env.DB.prepare(
-    `SELECT ${ROSTER_COLUMNS} FROM match_roster WHERE match_id = ?1 AND group_id = ?2`,
+    `SELECT ${ROSTER_COLUMNS} FROM match_roster WHERE match_id = ?1 AND ${ROSTER_IN_GROUP} = ?2`,
   )
     .bind(matchId, groupId)
     .all<RosterRow>();
@@ -201,7 +209,7 @@ export async function loadMatchesByIds(env: Env, groupId: string, matchIds: read
     ).bind(groupId, list),
     env.DB.prepare(
       `SELECT ${ROSTER_COLUMNS} FROM match_roster
-       WHERE group_id = ?1 AND match_id IN (SELECT value FROM json_each(?2))`,
+       WHERE ${ROSTER_IN_GROUP} = ?1 AND match_id IN (SELECT value FROM json_each(?2))`,
     ).bind(groupId, list),
   ]);
   const views = new Map(

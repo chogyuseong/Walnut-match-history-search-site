@@ -100,7 +100,7 @@ describe("스냅숏 하루 읽기 예산(2026-11-10 보안 감사)", () => {
 
   it("비용은 모임의 경기 수에 비례한다", () => {
     expect(snapshotCost(0)).toBe(300);
-    expect(snapshotCost(522)).toBe(300 + 13 * 522);
+    expect(snapshotCost(522)).toBe(300 + 16 * 522);
   });
 
   it("운영자 스냅숏: 계정의 하루 예산을 넘는 200은 429(사유·다음 오전 9시 안내), 304는 예산을 쓰지 않고, 날이 바뀌면 다시 된다", async () => {
@@ -136,7 +136,7 @@ describe("스냅숏 하루 읽기 예산(2026-11-10 보안 감사)", () => {
     const g = await setupGroup(10);
     await playConfirmed(g, rosterOf(g.people));
     fixDay(8);
-    // 경기 1개: 313. 예산 320이면 한 번만.
+    // 경기 1개: 316. 예산 320이면 한 번만.
     const limits: Partial<Env> = { RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY: "320", RATE_SNAPSHOT_ROWS_PER_IP_DAY: BIG };
     const get = getter(limits, `/api/groups/${g.gid}/snapshot`, g.cookie);
     expect((await get()).status).toBe(200);

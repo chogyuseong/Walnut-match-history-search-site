@@ -37,7 +37,7 @@ import {
 import { spendBulkRows, type BulkActor } from "./ratelimit";
 import { parseSeriesContinue, seriesContinuePlan, seriesRestoreGuards, seriesUndeleteGuards, type SeriesContinue } from "./series";
 import { groupFingerprints } from "./sheets";
-import { loadGroup, loadMatch, loadOpenSession, loadSettings } from "./snapshot";
+import { loadGroup, loadMatch, loadOpenSession, loadSettings, ROSTER_IN_GROUP } from "./snapshot";
 
 const MAX_AWAITING = 10;
 
@@ -689,7 +689,7 @@ function setChampions(
 ): D1PreparedStatement {
   return env.DB.prepare(
     `UPDATE match_roster SET champion = (SELECT value FROM json_each(?1) WHERE key = match_roster.participant_id)
-     WHERE match_id = ?2 AND group_id = ?3`,
+     WHERE match_id = ?2 AND ${ROSTER_IN_GROUP} = ?3`,
   ).bind(JSON.stringify(champions), matchId, groupId);
 }
 
