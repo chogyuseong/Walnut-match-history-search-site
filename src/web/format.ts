@@ -263,7 +263,7 @@ export function rateTier(wins: number, games: number): string {
 }
 
 /**
- * 승률 여섯 칸 경계(사용자 요청 예외, CLAUDE.md 5절). rateHueClass(여섯 색)·peopleBarStep(골드 명도)이 같이 쓴다.
+ * 승률 여섯 칸 경계(사용자 요청 예외, CLAUDE.md 5절). rateHueClass(여섯 색)가 쓴다.
  * 40% 미만 · 40~44 · 45~49 · 50~54 · 55~59 · 60% 이상. 사람이 몰리는 40~60%를 5%씩 나눠 막대끼리 구별되게 했다.
  */
 export const PEOPLE_BAR_STEPS = [40, 45, 50, 55, 60] as const;
@@ -275,14 +275,8 @@ function rateStepOf(wins: number, games: number): number | null {
   return 1 + PEOPLE_BAR_STEPS.filter((edge) => pct >= edge).length;
 }
 
-/** 승률 고리·MMR 랭킹 막대의 골드 명도 칸(win-step-1~6). 경기가 적으면 색 없음. */
-export function peopleBarStep(wins: number, games: number): string {
-  const step = rateStepOf(wins, games);
-  return step === null ? "" : `win-step-${step}`;
-}
-
 /**
- * 개인별·라인별 승률 막대와 숫자, 플레이어 × 라인 칸 숫자의 여섯 색(rate-hue-1~6, 2026-11-12 사용자 요청). 경계는 위와 같고, 칸마다 색 자체가
+ * 개인별·라인별 승률 막대와 숫자, 플레이어 × 라인 칸 숫자, 승률 고리, MMR 랭킹 막대의 여섯 색(rate-hue-1~6, 2026-11-12 사용자 요청). 경계는 위와 같고, 칸마다 색 자체가
  * 다르다(분홍·주황·노랑·연두·초록·청록, 진영 뜻인 파랑·빨강은 쓰지 않는다). 경기가 적으면 색 없음.
  */
 export function rateHueClass(wins: number, games: number): string {

@@ -33,7 +33,7 @@ import {
   type RatingOptions,
 } from "../../shared/rating";
 import type { Snapshot } from "../../shared/types";
-import { nameMap, peopleBarStep, rankClass, rateText, rateTier, standingsOf } from "../format";
+import { nameMap, rankClass, rateHueClass, rateText, rateTier, standingsOf } from "../format";
 import {
   FilterBar,
   FormDots,
@@ -340,7 +340,7 @@ export function Ranking(props: {
                           </span>
                         ) : (
                           <span className="c-bar">
-                            {rating && scale && <StartBar rating={rating.rating} scale={scale} step={peopleBarStep(row.wins, row.games)} />}
+                            {rating && scale && <StartBar rating={rating.rating} scale={scale} step={rateHueClass(row.wins, row.games)} />}
                           </span>
                         )}
                         {/* MMR·티어·변동: 넓은 화면에서는 칸 셋, 좁은 화면에서는 한 덩어리(display: contents ↔ flex). */}
@@ -438,7 +438,7 @@ function ScaleAxis(props: { scale: MmrScale }) {
 }
 
 /** 시작값 기준 막대. 위치·길이는 CSS 변수(--at 기준선, --left·--width 막대, 모두 0~1)로 넘긴다. */
-/** step: 승률 여섯 칸 클래스(peopleBarStep). 막대 모양(위는 채움·아래는 속 빈 테두리)은 MMR, 색은 그 사람 승률을 따른다. */
+/** step: 승률 여섯 색 클래스(rateHueClass, 그래프 분석 개인별 승률과 같다). 막대 모양(위는 채움·아래는 속 빈 테두리)은 MMR, 색은 그 사람 승률을 따른다. */
 function StartBar(props: { rating: number; scale: MmrScale; step: string }) {
   const { scale } = props;
   const bar = divergingBar(props.rating, scale);

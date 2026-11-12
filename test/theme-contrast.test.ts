@@ -176,21 +176,6 @@ describe("테마 색 대비", () => {
         expect(new Set(TITLE_GRADES.map((g) => get(`--title-${g}`))).size).toBe(TITLE_GRADES.length);
       });
 
-      // 개인별 승률 막대 여섯 칸. 다크는 높을수록 밝고, 라이트는 흰 바탕 때문에 높을수록 진하다.
-      it("개인별 승률 막대 여섯 칸 vs 막대 바탕 3:1, 휘도가 한 방향으로 변한다", () => {
-        const track = viz.get("--viz-track")!;
-        const steps = [1, 2, 3, 4, 5, 6].map((n) => get(`--win-step-${n}`));
-        for (const [i, bar] of steps.entries()) {
-          const ratio = contrast(bar, track);
-          expect(ratio, `${name}: --win-step-${i + 1} ${bar} / track ${track} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(3);
-        }
-        const lums = steps.map(luminance);
-        for (let i = 1; i < lums.length; i++) {
-          if (name === "dark") expect(lums[i], `dark: --win-step-${i + 1}이 더 어둡다`).toBeGreaterThan(lums[i - 1]!);
-          else expect(lums[i], `light: --win-step-${i + 1}이 더 옅다`).toBeLessThan(lums[i - 1]!);
-        }
-      });
-
       // 승률 여섯 색(rate-hue): 플레이어 × 라인 칸 숫자(보조 면 위)·라인별 승률 숫자(패널 위) 4.5:1,
       // 라인별 승률 막대는 막대 바탕 위 3:1. 여섯 색은 서로 다르다.
       it("승률 여섯 색 vs 표 칸 바탕·패널 4.5:1, 막대 바탕 3:1, 서로 다른 값", () => {

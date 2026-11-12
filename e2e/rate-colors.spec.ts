@@ -170,7 +170,7 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   const low = s.people[0]!;
   await page.goto(`/#/p/${top.id}`);
   const summary = page.getByRole("region", { name: "요약" });
-  await expect(summary.locator(".ring-fill")).toHaveClass(/win-step-6/);
+  await expect(summary.locator(".ring-fill")).toHaveClass(/rate-hue-6/);
   await expect(summary.locator(".summary-line")).toHaveClass(/heat-h4/);
   const hotRing = await colorOf(page, ".ring-fill", "stroke");
   const hotText = await colorOf(page, ".summary-line", "color");
@@ -201,7 +201,7 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await page.goto(`/#/p/${low.id}`);
   await page.reload();
   await expect(page.getByRole("heading", { name: "선수01", level: 1 })).toBeVisible();
-  await expect(summary.locator(".ring-fill")).toHaveClass(/win-step-1/);
+  await expect(summary.locator(".ring-fill")).toHaveClass(/rate-hue-1/);
   await expect(summary.locator(".summary-line")).toHaveClass(/heat-l4/);
   expect(await colorOf(page, ".ring-fill", "stroke")).not.toBe(hotRing);
   expect(await colorOf(page, ".summary-line", "color")).not.toBe(hotText);

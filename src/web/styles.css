@@ -78,15 +78,7 @@
   --title-6: #e89fea;
   --title-7: #bba4fe;
   --title-8: #bba6b8;
-  /* 개인별 승률 막대 여섯 칸(format.ts peopleBarStep, CLAUDE.md 5절의 사용자 요청 예외). 골드 한 계열의 명도만 바꾼다.
-     다크는 승률이 높을수록 밝고, 가장 어두운 1칸도 막대 바탕(--viz-track) 위 3:1이다(test/theme-contrast.test.ts). */
-  --win-step-1: #8a6e36;
-  --win-step-2: #a07f3c;
-  --win-step-3: #b58f41;
-  --win-step-4: #cba046;
-  --win-step-5: #e3b04b;
-  --win-step-6: #f7d488;
-  /* 승률 여섯 색(format.ts rateHueClass): 플레이어 × 라인 칸 숫자·라인별 승률 막대. 낮은 쪽부터 분홍·주황·노랑·연두·초록·청록.
+  /* 승률 여섯 색(format.ts rateHueClass): 그래프 분석 승률 막대·칸 숫자, 승률 고리, MMR 랭킹 막대. 낮은 쪽부터 분홍·주황·노랑·연두·초록·청록.
      글자로도 쓰여 보조 면·패널 위 4.5:1(test/theme-contrast.test.ts). 다크는 밝은 색. */
   --rate-hue-1: #f59ab0;
   --rate-hue-2: #f6ad6b;
@@ -142,13 +134,6 @@
   --title-6: #774079;
   --title-7: #53477f;
   --title-8: #554553;
-  /* 흰 바탕에서는 밝은 골드가 바탕에 묻혀 방향을 뒤집었다: 높을수록 진하다. 가장 옅은 1칸도 막대 바탕 위 3:1. */
-  --win-step-1: #a3844c;
-  --win-step-2: #977434;
-  --win-step-3: #8a6524;
-  --win-step-4: #7c5715;
-  --win-step-5: #6b4a0c;
-  --win-step-6: #573a05;
   /* 승률 여섯 색: 흰 바탕·보조 면 위 4.5:1이 되게 진하게. */
   --rate-hue-1: #a8324f;
   --rate-hue-2: #9a4a12;
@@ -1276,33 +1261,8 @@ button.bar-row:hover {
 .bar-fill.tone-red {
   background: var(--ih-loss-accent);
 }
-/*
- * 승률 여섯 칸 골드 명도(--win-step-1~6, CLAUDE.md 5절 예외): 승률 고리·MMR 랭킹 막대가 같이 쓴다.
- * 칸은 format.ts peopleBarStep(40·45·50·55·60% 경계). 숫자 글자는 승률 3단(heat) 그대로다.
- */
-.win-step-1 {
-  --win-step: var(--win-step-1);
-}
-.win-step-2 {
-  --win-step: var(--win-step-2);
-}
-.win-step-3 {
-  --win-step: var(--win-step-3);
-}
-.win-step-4 {
-  --win-step: var(--win-step-4);
-}
-.win-step-5 {
-  --win-step: var(--win-step-5);
-}
-.win-step-6 {
-  --win-step: var(--win-step-6);
-}
-.ring-fill[class*="win-step-"] {
-  stroke: var(--win-step);
-}
-/* 플레이어 × 라인 칸: 승률 숫자 글자만 여섯 칸 글자색(칸 바탕은 모두 같은 보조 면 그대로). 범례 견본은 막대 색. */
-/* 승률 여섯 색(rate-hue-1~6, CLAUDE.md 5절 예외): 개인별·라인별 승률 막대와 숫자, 플레이어 × 라인 칸 숫자, 범례 견본. */
+/* 승률 여섯 색(rate-hue-1~6, CLAUDE.md 5절 예외): 개인별·라인별 승률 막대와 숫자, 플레이어 × 라인 칸 숫자, 범례 견본,
+   승률 고리의 호, MMR 랭킹 막대. 칸은 format.ts rateHueClass(40·45·50·55·60% 경계). */
 .rate-hue-1 {
   --rate-hue: var(--rate-hue-1);
 }
@@ -1333,11 +1293,14 @@ button.bar-row:hover {
   color: var(--rate-hue);
 }
 /* MMR 랭킹 막대: 시작값보다 위는 채운 막대, 아래는 속 빈 테두리 막대 모양은 그대로 두고 색만 승률 칸을 따른다. */
-.mmr-start-fill.up[class*="win-step-"] {
-  background: var(--win-step);
+.mmr-start-fill.up[class*="rate-hue-"] {
+  background: var(--rate-hue);
 }
-.mmr-start-fill.down[class*="win-step-"] {
-  border-color: var(--win-step);
+.mmr-start-fill.down[class*="rate-hue-"] {
+  border-color: var(--rate-hue);
+}
+.ring-fill[class*="rate-hue-"] {
+  stroke: var(--rate-hue);
 }
 /* 50% 기준선 */
 .bar-mid {
