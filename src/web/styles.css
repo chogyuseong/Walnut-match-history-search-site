@@ -1286,7 +1286,8 @@ button.bar-row:hover {
   color: var(--rate-hue);
 }
 .swatch[class*="rate-hue-"],
-.bar-fill[class*="rate-hue-"] {
+.bar-fill[class*="rate-hue-"],
+.meter-fill[class*="rate-hue-"] {
   background: var(--rate-hue);
 }
 .rate[class*="rate-hue-"] {

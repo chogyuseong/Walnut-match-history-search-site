@@ -234,12 +234,13 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
     .evaluateAll((nodes) => nodes.map((n) => n.className.match(/grade-\d/)?.[0] ?? ""));
   expect(new Set(grades)).toEqual(new Set(["grade-1", "grade-2", "grade-4", "grade-5", "grade-7", "grade-8"]));
 
-  // 검색: 작은 승률 막대도 같은 단계.
+  // 검색: 승률 숫자와 작은 승률 막대는 승률 여섯 색(2026-11-12, 그래프 분석·요약과 같다).
   await page.goto("/#/search");
   await page.getByRole("searchbox").fill("선수");
   const results = page.getByRole("region", { name: "검색 결과" }).getByRole("listitem");
-  await expect(results.filter({ hasText: "선수12" }).locator(".meter-fill")).toHaveClass(/heat-h4/);
-  await expect(results.filter({ hasText: "선수01" }).locator(".meter-fill")).toHaveClass(/heat-l4/);
+  await expect(results.filter({ hasText: "선수12" }).locator(".meter-fill")).toHaveClass(/rate-hue-6/);
+  await expect(results.filter({ hasText: "선수01" }).locator(".meter-fill")).toHaveClass(/rate-hue-1/);
+  await expect(results.filter({ hasText: "선수12" }).locator(".stat .rate")).toHaveClass(/rate-hue-6/);
 
   // 분석: 개인별 숫자와 표 칸이 같은 단계를 쓰고, 진영 막대는 진영 색 그대로다.
   await page.goto("/#/graphs");

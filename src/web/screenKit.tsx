@@ -605,14 +605,21 @@ export function Meter(props: {
  * SMALL_SAMPLE경기 미만이면 속 빈 막대로 그린다(rateTier·"자료 적음"과 같은 규칙).
  * 진영 막대(blue·red)는 진영을 가리키는 색이라 표본·승률과 관계없이 진영 색을 쓴다.
  */
-export function RateBar(props: { wins: number; games: number; tone?: MeterTone; small?: boolean }) {
+export function RateBar(props: {
+  wins: number;
+  games: number;
+  tone?: MeterTone;
+  small?: boolean;
+  /** 승률 3단 대신 승률 여섯 색(rateHueClass, 그래프 분석·요약과 같다). 검색 결과가 쓴다. */
+  hued?: boolean;
+}) {
   const { wins, games } = props;
   const tone = props.tone ?? "rate";
   return (
     <Meter
       value={games === 0 ? 0 : wins / games}
       tone={tone}
-      heat={tone === "rate" ? heatClass(wins, games) : undefined}
+      heat={tone === "rate" ? (props.hued ? rateHueClass(wins, games) : heatClass(wins, games)) : undefined}
       mid
       muted={tone === "rate" && games < SMALL_SAMPLE}
       small={props.small}

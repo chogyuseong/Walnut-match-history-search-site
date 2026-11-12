@@ -3,7 +3,7 @@ import { newestFirst } from "../../shared/insights";
 import { parseDateQuery, textContains } from "../../shared/search";
 import { localDate, matchesInScope, personRecords, searchByName, placementGamesOf } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
-import { nameMap, rateText, rateTier, standingsOf } from "../format";
+import { nameMap, rateHueText, rateText, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { addRecentSearch, loadRecentSearches, saveRecentSearches } from "../recentSearch";
 import {
@@ -267,7 +267,7 @@ export function Search(props: {
                         "확정된 경기 없음"
                       ) : (
                         <>
-                          <span className={rateTier(r.wins, r.games)}>
+                          <span className={rateHueText(r.wins, r.games)}>
                             {rateText(r.wins, r.games)}
                           </span>{" "}
                           · {r.wins}승 {r.losses}패 ({r.games}경기)
@@ -278,7 +278,7 @@ export function Search(props: {
                         <StandingNote standing={standing.get(r.id)} placementGames={placementGames} compact />
                       </span>
                     </span>
-                    {r.games > 0 && <RateBar wins={r.wins} games={r.games} small />}
+                    {r.games > 0 && <RateBar wins={r.wins} games={r.games} small hued />}
                   </button>
                 </li>
               ))}
