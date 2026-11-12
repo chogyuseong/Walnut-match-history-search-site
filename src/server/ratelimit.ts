@@ -38,7 +38,7 @@ export type Bucket =
 
 /**
  * 하루 창(UTC 0시 기준 86400초)으로 세는 버킷의 키 접두어. 요청 수가 아니라 양(경기 수·읽은 행 수·벌점)을 센다.
- * 지난 창 정리를 분 단위 버킷과 나눠 한다(cleanupStatement): 분 단위 정리가 오늘 행을 지우면 예산이 초기화된다.
+ * 지난 창 정리를 분 단위 버킷과 나눠 한다(minuteCleanup·dailyCleanup): 분 단위 정리가 오늘 행을 지우면 예산이 초기화된다.
  * 하루 창 버킷을 새로 만들 때는 이름을 "day-"로 시작한다.
  */
 const DAILY_PREFIXES = ["bulk-rows-", "day-"] as const;
@@ -221,17 +221,40 @@ export async function ipKey(env: Env, ip: string): Promise<string> {
     .join("");
 }
 
-/** 하루 창 버킷의 키를 고르는 SQL 조건. 범위 비교("day-" 이상 "day." 미만)는 접두어 비교와 같다('.'은 '-' 다음 글자). */
-const DAILY_KEY_SQL = DAILY_PREFIXES.map((p) => `(key >= '${p}' AND key < '${p.slice(0, -1)}.')`).join(" OR ");
+/**
+ * 하루 창 버킷의 키를 고르는 SQL 조건. 범위 비교("day-" 이상 "day." 미만)는 접두어 비교와 같다('.'은 '-' 다음 글자).
+ * key 앞의 단항 +는 계획기가 이 범위로 기본 키 색인을 고르지 못하게 한다. 키로 고르면 하루 창 행 전부(오늘 것 포함)를
+ * 읽고, 정리는 요청마다 돌기 때문이다. 정리는 window_start 범위(idx_rate_limits_window)로 지울 행만 읽어야 한다.
+ */
+const DAILY_KEY_SQL = DAILY_PREFIXES.map((p) => `(+key >= '${p}' AND +key < '${p.slice(0, -1)}.')`).join(" OR ");
 
 /**
- * 지난 창의 기록은 남겨 둘 이유가 없다. 다만 분 단위 버킷과 하루 창 버킷은 따로 지운다:
- * 분 단위 버킷의 정리가 오늘 하루 창 행(window_start = 오늘 0시)을 지우면 예산·벌점이 초기화된다.
+ * 분 단위 버킷 행은 window_start에 창 시작이 아니라 창 시작 + 이 값을 저장한다. 하루 창 행은 window_start = 오늘 0시라,
+ * 오프셋이 없으면 UTC 0시 첫 창의 분 단위 행이 하루 창 행과 같은 값에 놓인다. 그러면 정리가 그 값을 범위에서 빼는 순간
+ * 그 분 단위 행(IP 해시·계정 키)이 하루 동안 남는다(처리방침: 다음 구간에서 지움). 창 길이는 1초 단위라 1ms 오프셋은
+ * 다른 창의 시작과도 겹치지 않는다. 행을 찾는 곳(hit)은 모두 이 값을 더한 창 키를 쓴다.
  */
-function cleanupStatement(env: Env, kind: "minute" | "daily", windowStart: number): D1PreparedStatement {
+export const MINUTE_ROW_OFFSET_MS = 1;
+
+/**
+ * 분 단위 버킷의 지난 창 정리. 지난 창의 기록은 남겨 둘 이유가 없지만 하루 창 행(window_start = 오늘 0시)을 지우면
+ * 예산·벌점이 초기화되므로 키로 가른다. 범위에서 오늘 0시 값은 뺀다: 그 값에 오늘 하루 창 행이 모여 있어서(오늘 스냅숏을
+ * 받은 IP·계정·조회 링크마다 한 행), `window_start < 지금 창` 한 범위로 걸면 요청마다 그 행을 전부 읽고 걸러 냈다
+ * (하루 창 행 1,000개면 요청 하나에 정리 세 번 약 3,000행, test/snapshot-rows.test.ts). 분 단위 행은 오프셋 덕에 그 값에
+ * 놓이지 않으므로 빠지는 행이 없다.
+ * 첫 범위의 상한은 min(지금 창, 오늘 0시)다. 창 길이(RATE_WINDOW_SECONDS)가 86400의 약수가 아니면 지금 창이 어제 시작할 수
+ * 있는데, 그때 오늘 0시로 상한을 두면 같은 batch에서 방금 센 이 창의 행을 지워 한도가 풀린다.
+ */
+function minuteCleanup(env: Env, windowStart: number, dayStart: number): D1PreparedStatement {
   return env.DB.prepare(
-    `DELETE FROM rate_limits WHERE window_start < ?1 AND ${kind === "daily" ? "" : "NOT "}(${DAILY_KEY_SQL})`,
-  ).bind(windowStart);
+    `DELETE FROM rate_limits
+     WHERE (window_start < ?3 OR (window_start > ?2 AND window_start < ?1)) AND NOT (${DAILY_KEY_SQL})`,
+  ).bind(windowStart, dayStart, Math.min(windowStart, dayStart));
+}
+
+/** 하루 창 버킷의 지난 날 정리. 오늘 0시 전의 행만 읽는다. */
+function dailyCleanup(env: Env, dayStart: number): D1PreparedStatement {
+  return env.DB.prepare(`DELETE FROM rate_limits WHERE window_start < ?1 AND (${DAILY_KEY_SQL})`).bind(dayStart);
 }
 
 async function bucketKey(env: Env, bucket: Bucket, subject: string): Promise<string> {
@@ -260,7 +283,7 @@ export function dayResetPhrase(now: number): string {
  * 카운트는 limit + 1에서 멈춘다. DO UPDATE에 WHERE를 걸면 SQLite는 조건이 거짓일 때 행을 바꾸지 않고
  * RETURNING도 아무 행을 돌려주지 않는다(DO NOTHING과 같다). 그래서
  * - 처음 넘는 요청(count가 limit + 1이 됨)만 쓰고, 한도에 걸린 횟수(rate_limit_hits)도 그때 한 번 더한다.
- * - 그 뒤 같은 창의 요청은 결과가 비어 쓰기 없이 429다. 지난 창 정리(cleanupStatement)도 지울 행이 없으니 쓰지 않는다
+ * - 그 뒤 같은 창의 요청은 결과가 비어 쓰기 없이 429다. 지난 창 정리(minuteCleanup)도 지울 행이 없으니 쓰지 않는다
  *   (이 창의 첫 요청이 이미 지웠다).
  * 따라서 현황 화면의 "한도 걸림"은 걸린 요청 수가 아니라 (버킷 키, 창)마다 1이다.
  *
@@ -278,6 +301,7 @@ export async function hit(
   const windowMs = windowSeconds * 1000;
   const now = rateClock.now();
   const windowStart = Math.floor(now / windowMs) * windowMs;
+  const rowStart = windowStart + MINUTE_ROW_OFFSET_MS;
   const key = await bucketKey(env, bucket, subject);
   const day = dayWindow(now);
   const strike = bucket.endsWith("-ip")
@@ -292,13 +316,13 @@ export async function hit(
            )
            ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 WHERE rate_limits.count <= ?3
            RETURNING count`,
-        ).bind(key, windowStart, limit, strike.key, day.start, strike.limit)
+        ).bind(key, rowStart, limit, strike.key, day.start, strike.limit)
       : env.DB.prepare(
           `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, 1)
            ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 WHERE rate_limits.count <= ?3
            RETURNING count`,
-        ).bind(key, windowStart, limit),
-    cleanupStatement(env, "minute", windowStart),
+        ).bind(key, rowStart, limit),
+    minuteCleanup(env, windowStart, day.start),
     ...(strike
       ? [env.DB.prepare("SELECT count FROM rate_limits WHERE key = ?1 AND window_start = ?2").bind(strike.key, day.start)]
       : []),
@@ -430,7 +454,7 @@ async function spendDaily(
            ON CONFLICT (key, window_start) DO UPDATE SET count = count + ?3`,
         ).bind(key, windowStart, amount),
       ),
-      cleanupStatement(env, "daily", windowStart),
+      dailyCleanup(env, windowStart),
     ]);
   } catch (error) {
     const text = error instanceof Error ? error.message : String(error);
@@ -478,7 +502,7 @@ async function countLimited(
                ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1
                RETURNING count`,
             ).bind(strike.key, strike.dayStart),
-            cleanupStatement(env, "daily", strike.dayStart),
+            dailyCleanup(env, strike.dayStart),
           ]
         : []),
     ]);

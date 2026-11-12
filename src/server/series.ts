@@ -105,12 +105,14 @@ function matchStillGuard(env: Env, groupId: string, match: MatchView): D1Prepare
  * 시리즈가 그대로 있고 판 수가 확인한 때와 같아야 한다(다른 기기의 넣기·빼기와 겹치면 실패).
  * 판 수는 지운 경기를 뺀 수다(loadSeries가 지운 경기를 빼고 주므로 같은 기준으로 센다). 그 사이 판을 지우거나
  * 되살려도 수가 달라져 실패한다.
+ * CROSS JOIN은 시리즈 소속(idx_series_members)에서 출발해 경기를 기본 키로 찾게 고정한다(snapshot.ts seriesStatements와
+ * 같은 이유). 그냥 JOIN이면 계획기가 matches의 (group_id, ...) 색인에서 출발해 모임의 경기 전부(522경기면 약 520행)를 읽었다.
  */
 function seriesStillGuard(env: Env, groupId: string, series: SeriesView): D1PreparedStatement {
   return env.DB.prepare(
     `INSERT INTO guard (version_conflict)
      SELECT 1 WHERE (SELECT COUNT(*) FROM match_series_members s
-                     JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
+                     CROSS JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
                      WHERE s.group_id = ?1 AND s.series_id = ?2 AND m.deleted_at IS NULL) <> ?3
        OR NOT EXISTS (SELECT 1 FROM match_series WHERE group_id = ?1 AND id = ?2)`,
   ).bind(groupId, series.id, series.matchIds.length);
@@ -401,9 +403,10 @@ export async function removeFromSeries(
       if (!series.matchIds.includes(matchId)) {
         throw new ApiError(404, "NOT_FOUND", "이 시리즈에 없는 경기입니다.");
       }
+      // CROSS JOIN: seriesStillGuard와 같은 이유로 시리즈 소속에서 출발한다.
       const hidden = await env.DB.prepare(
         `SELECT COUNT(*) AS n FROM match_series_members s
-         JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
+         CROSS JOIN matches m ON m.id = s.match_id AND m.group_id = s.group_id
          WHERE s.group_id = ?1 AND s.series_id = ?2 AND m.deleted_at IS NOT NULL`,
       )
         .bind(groupId, seriesId)

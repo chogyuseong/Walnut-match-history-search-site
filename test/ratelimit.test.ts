@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
-import { rateClock } from "../src/server/ratelimit";
+import { MINUTE_ROW_OFFSET_MS, rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
 import { login, setupGroup, unique } from "./helpers";
 
@@ -124,7 +124,7 @@ describe("요청 수 제한", () => {
     expect(error.message).toContain("오전 9시(한국 시각)");
     expect(Number(blocked.headers.get("Retry-After"))).toBeGreaterThan(3600);
     const counted = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limits WHERE window_start = ?1")
-      .bind(windowStart)
+      .bind(windowStart + MINUTE_ROW_OFFSET_MS)
       .first<{ n: number }>();
     expect(counted!.n).toBe(0);
     // 다른 종류의 IP 버킷(로그인 경로)도 같은 IP면 막힌다. 다른 IP는 영향이 없다.
@@ -221,6 +221,34 @@ describe("요청 수 제한", () => {
       .first<{ n: number }>();
     expect(after!.n).toBe(0);
   });
+
+  it("UTC 0시 첫 창의 분 단위 행도 다음 창에서 지우고, 오늘 하루 창 행은 남긴다", async () => {
+    // 다른 테스트의 날과 섞이지 않게 9일 뒤의 0시를 쓴다.
+    const dayStart = Math.floor(Date.now() / 86_400_000) * 86_400_000 + 9 * 86_400_000;
+    let now = dayStart + 1000;
+    rateClock.now = () => now;
+    const ip = unique("ip");
+    const view = () => direct(LIMITS, "GET", `/api/view/${unique("nope")}`, { headers: { "CF-Connecting-IP": ip } });
+    expect((await view()).status).toBe(404);
+    await env.DB.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES ('day-snapshot-rows-ip:midnight', ?1, 7)")
+      .bind(dayStart)
+      .run();
+    const minuteRows = () =>
+      env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM rate_limits WHERE window_start = ?1 AND key NOT LIKE 'day-%' AND key NOT LIKE 'bulk-rows-%'",
+      )
+        .bind(dayStart + MINUTE_ROW_OFFSET_MS)
+        .first<{ n: number }>();
+    expect((await minuteRows())!.n).toBeGreaterThan(0);
+
+    now += 60_000;
+    expect((await view()).status).toBe(404);
+    expect((await minuteRows())!.n).toBe(0);
+    const daily = await env.DB.prepare("SELECT count FROM rate_limits WHERE key = 'day-snapshot-rows-ip:midnight' AND window_start = ?1")
+      .bind(dayStart)
+      .first<{ count: number }>();
+    expect(daily!.count).toBe(7);
+  });
   it("한도를 넘긴 창의 추가 요청은 쓰기 없이 429다: 카운트는 limit + 1에서 멈추고 걸린 횟수는 창마다 1이다", async () => {
     // 다른 테스트의 창과 섞이지 않게 37분 뒤 창을 쓴다(카운트 행을 창으로 찾는다).
     const windowStart = Math.floor(Date.now() / 60_000) * 60_000 + 37 * 60_000;
@@ -238,7 +266,7 @@ describe("요청 수 제한", () => {
     for (let i = 0; i < 3; i++) expect((await view()).status).toBe(404);
     for (let i = 0; i < 5; i++) expect((await view()).status).toBe(429);
     const counted = await env.DB.prepare("SELECT count FROM rate_limits WHERE window_start = ?1")
-      .bind(windowStart)
+      .bind(windowStart + MINUTE_ROW_OFFSET_MS)
       .all<{ count: number }>();
     expect(counted.results.map((r) => r.count)).toEqual([4]);
     expect(await hitsNow()).toBe(hitsBefore + 1);

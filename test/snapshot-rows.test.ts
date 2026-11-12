@@ -14,8 +14,9 @@ import { direct } from "./direct";
 import { api, playConfirmed, requestId, rosterOf, setupGroup, start, unique, type TestGroup } from "./helpers";
 
 /**
- * 스냅숏 한 번이 D1에서 실제로 읽는 행 수(meta.rows_read) 측정. 숫자는 콘솔 표로 찍고, 단언은 결과 저장 요청의
- * 상한 하나뿐이다(스냅숏 합계는 문장을 줄여 가는 중이라 상한을 걸지 않는다).
+ * 스냅숏 한 번이 D1에서 실제로 읽는 행 수(meta.rows_read) 측정. 숫자는 콘솔 표로 찍고, 단언은 고친 쓰기 경로의 상한뿐이다
+ * (결과 저장, 시리즈 빼기·넣기, 경기 취소, 합치기의 차례 기록 문장, 요청 수 제한 정리. 스냅숏 합계는 문장을 줄여 가는
+ * 중이라 상한을 걸지 않는다).
  *
  * 왜: 무료 요금제 D1 하루 읽기 한도는 500만 행이다. 하루 읽기 예산(ratelimit.ts snapshotCost = 300 + 16 × 경기 수)은
  * 이 측정의 경기당 행 수에 맞춘 추정이다. 어느 문장을 줄일지 정하려면 문장별 실측이 필요하다. rows_read는 서버 안(batch 결과의 meta)에서만 보이므로 Workers 풀 테스트로 잰다
@@ -56,6 +57,32 @@ const SAVE_ROWS_READ_CEILING = 200;
 /** 결과 저장 요청에서 rows_read가 큰 순으로 찍을 문장 수. */
 const HEAVIEST_SAVE_STATEMENTS = 8;
 
+/**
+ * 다른 모임들의 서포터 차례 기록 행 수. 차례 기록은 실제 경기마다 약 2행씩 모든 모임에 걸쳐 쌓이고, 질의가 색인으로
+ * 범위를 좁히지 못하면 이 행까지 읽는다(migrations/0027 전에는 취소·합치기·스냅숏의 차례 질의가 하나에 약 2,010행).
+ */
+const OTHER_GROUPS_ROTATION_ROWS = 2000;
+/**
+ * 522경기 모임의 시리즈 빼기·넣기, 경기 취소 요청 하나가 읽어도 되는 행 수의 상한. 실측은 빼기 46·넣기 91·취소 64행이다.
+ * 시리즈 보호 문장이 다시 모임의 경기 전부를 훑으면 500행을, 취소의 반복 사건 질의가 차례 기록 전부를 훑으면 2,000행을 넘는다.
+ */
+const WRITE_ROWS_READ_CEILING = 300;
+/**
+ * 합치기 요청의 차례 기록 문장 합계와 스냅숏의 "순환 차례 기록" 문장의 상한(실측 20행·13행). 합치기 요청 전체는 누적
+ * 승패를 다시 계산하느라 모임 명단을 읽어(약 8,200행) 이번 측정 대상이 아니다.
+ */
+const ROTATION_ROWS_READ_CEILING = 100;
+/** 하루 창(UTC 0시 시작) 요청 수 제한 행. 오늘 스냅숏을 받은 IP·계정·조회 링크마다 하나씩 생긴다. */
+const TODAY_DAILY_RATE_ROWS = 1000;
+/**
+ * 요청 하나의 요청 수 제한 정리 문장(분 단위 둘 + 하루 창 하나) 합계의 상한. 실측 5~9행(실제로 지울 지난 창 행 수만큼 달라진다). 정리가 오늘 하루 창 행을 다시
+ * 읽으면 정리 하나에 TODAY_DAILY_RATE_ROWS행을 넘는다.
+ */
+const RATE_CLEANUP_ROWS_READ_CEILING = 50;
+/** 시리즈 소속 질의(series.ts)와 차례 기록 질의(matches.ts 취소, merge.ts)를 고르는 SQL 조각. */
+const SERIES_SQL = /match_series_members/;
+const ROTATION_SQL = /rotation_events/;
+
 const POSITIONS: Position[] = ["top", "jungle", "mid", "adc", "support"];
 
 /* ------------------------------------------------------------------ */
@@ -66,8 +93,11 @@ interface ReadTally {
   queries: number;
   rowsRead: number;
   rowsWritten: number;
-  /** 문장마다 SQL 앞부분과 rows_read(batch 안의 문장도 하나씩). 많이 읽는 문장을 찾을 때 본다. */
-  perStatement: { sql: string; rowsRead: number }[];
+  /**
+   * 문장마다 SQL 앞부분과 rows_read(batch 안의 문장도 하나씩). 많이 읽는 문장을 찾을 때 본다. text는 공백만 줄인
+   * SQL 전체다(보호 문장처럼 앞부분이 INSERT INTO guard로 같은 문장을 표 이름으로 고를 때 쓴다).
+   */
+  perStatement: { sql: string; text: string; rowsRead: number }[];
 }
 
 const sqlHead = (sql: string) => sql.replace(/\s+/g, " ").trim().slice(0, 90);
@@ -84,7 +114,7 @@ function rowsReadingDb(db: D1Database): { db: D1Database; tally: ReadTally } {
   const add = (sql: string, meta: D1Meta | undefined) => {
     tally.rowsRead += meta?.rows_read ?? 0;
     tally.rowsWritten += meta?.rows_written ?? 0;
-    tally.perStatement.push({ sql: sqlHead(sql), rowsRead: meta?.rows_read ?? 0 });
+    tally.perStatement.push({ sql: sqlHead(sql), text: sql.replace(/\s+/g, " "), rowsRead: meta?.rows_read ?? 0 });
   };
   const sqlOf = (statement: D1PreparedStatement) => (statement as unknown as { statement?: string }).statement ?? "";
   const patch = (statement: D1PreparedStatement): D1PreparedStatement => {
@@ -402,4 +432,125 @@ describe("스냅숏 D1 읽기 행 수 측정", () => {
       expect(saved.tally.rowsRead).toBeLessThanOrEqual(SAVE_ROWS_READ_CEILING);
     },
   );
+
+  it(
+    `${BIG_GROUP_MATCHES}경기 모임의 시리즈 빼기·넣기, 경기 취소, 합치기가 읽는 행 수`,
+    { timeout: MEASURE_TIMEOUT_MS },
+    async () => {
+      const big = await seedGroup(BIG_GROUP_MATCHES);
+      await addOtherGroupsRotation();
+      const before = (await readSnapshotStatements(big.gid, "operator")).snapshot;
+      const series = before.series![0]!;
+      const movedMatchId = series.matchIds[series.matchIds.length - 1]!;
+
+      const requests: { 요청: string; 상태: number; rows_read: number; 살펴볼문장: number }[] = [];
+      const statements: { 요청: string; rows_read: number; SQL앞부분: string }[] = [];
+      const note = (label: string, r: Awaited<ReturnType<typeof measuredRequest>>, focus: RegExp) => {
+        const focused = r.tally.perStatement.filter((s) => focus.test(s.text));
+        requests.push({
+          요청: label,
+          상태: r.status,
+          rows_read: r.tally.rowsRead,
+          살펴볼문장: focused.reduce((sum, s) => sum + s.rowsRead, 0),
+        });
+        for (const s of focused) statements.push({ 요청: label, rows_read: s.rowsRead, SQL앞부분: s.sql });
+        return r;
+      };
+      const seriesPath = `/api/groups/${big.gid}/series/${series.id}`;
+      const removed = note(
+        "POST 시리즈에서 빼기",
+        await measuredRequest("POST", `${seriesPath}/remove`, {
+          cookie: big.cookie,
+          body: { requestId: requestId(), matchId: movedMatchId },
+        }),
+        SERIES_SQL,
+      );
+      const added = note(
+        "POST 시리즈에 넣기",
+        await measuredRequest("POST", `${seriesPath}/add`, {
+          cookie: big.cookie,
+          body: { requestId: requestId(), matchId: movedMatchId },
+        }),
+        SERIES_SQL,
+      );
+      const pending = before.matches.find((m) => m.id === big.inProgressMatchId)!;
+      const canceled = note(
+        "POST 경기 취소",
+        await measuredRequest("POST", `/api/groups/${big.gid}/matches/${pending.id}/cancel`, {
+          cookie: big.cookie,
+          body: { requestId: requestId(), baseMatchVersion: pending.version },
+        }),
+        ROTATION_SQL,
+      );
+      // 경기가 없는 새 참가자를 차례 기록이 있는 사람(열린 내전 두 번째 경기의 서포터)에게 합친다.
+      const fresh = await api(big.cookie, "POST", `/api/groups/${big.gid}/participants`, { names: ["합칠사람"] });
+      const source = (fresh.body.participants as ParticipantView[]).find((p) => p.name === "합칠사람")!;
+      const merged = note(
+        "POST 합치기",
+        await measuredRequest("POST", `/api/groups/${big.gid}/merges`, {
+          cookie: big.cookie,
+          body: { requestId: requestId(), sourceId: source.id, targetId: big.people[14]!.id },
+        }),
+        ROTATION_SQL,
+      );
+      const rotationReading = (await readSnapshotStatements(big.gid, "operator")).readings.find(
+        (r) => r.문장 === "순환 차례 기록",
+      )!;
+
+      printTable(`요청 하나 전체와 시리즈·차례 문장의 rows_read (다른 모임 차례 기록 ${OTHER_GROUPS_ROTATION_ROWS}행)`, requests);
+      printTable("시리즈·차례 문장별 rows_read", statements);
+      printTable("스냅숏의 순환 차례 기록 문장", [rotationReading]);
+      for (const r of [removed, added, canceled, merged]) expect(r.status).toBe(200);
+      for (const r of [removed, added, canceled]) expect(r.tally.rowsRead).toBeLessThanOrEqual(WRITE_ROWS_READ_CEILING);
+      expect(requests.find((r) => r.요청 === "POST 합치기")!.살펴볼문장).toBeLessThanOrEqual(ROTATION_ROWS_READ_CEILING);
+      expect(rotationReading.rows_read).toBeLessThanOrEqual(ROTATION_ROWS_READ_CEILING);
+    },
+  );
+
+  it(`오늘 하루 창 행이 ${TODAY_DAILY_RATE_ROWS}개 있을 때 요청 하나의 요청 수 제한 정리가 읽는 행 수`, async () => {
+    const g = await setupGroup(10);
+    const dayStart = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+    await env.DB.prepare(
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?2)
+       INSERT INTO rate_limits (key, window_start, count) SELECT 'day-snapshot-rows-ip:noise' || i, ?1, 1 FROM n`,
+    )
+      .bind(dayStart, TODAY_DAILY_RATE_ROWS)
+      .run();
+    // 어제의 하루 창 행과 분 단위 행은 이 요청의 정리가 지워야 한다.
+    await env.DB.prepare(
+      "INSERT INTO rate_limits (key, window_start, count) VALUES ('day-snapshot-rows-ip:yesterday', ?1, 1), ('view-ip:yesterday', ?2, 1)",
+    )
+      .bind(dayStart - 86_400_000, dayStart - 60_000)
+      .run();
+    const r = await measuredRequest("GET", `/api/groups/${g.gid}/snapshot`, { cookie: g.cookie });
+    expect(r.status).toBe(200);
+    const cleanups = r.tally.perStatement.filter((s) => s.sql.startsWith("DELETE FROM rate_limits"));
+    printTable(
+      `GET 스냅숏 200의 요청 수 제한 정리 문장 (요청 전체 ${r.tally.rowsRead}행)`,
+      cleanups.map((s) => ({ rows_read: s.rowsRead, SQL앞부분: s.sql })),
+    );
+    const left = await env.DB.prepare(
+      `SELECT SUM(key LIKE 'day-snapshot-rows-ip:noise%') AS today, SUM(key LIKE '%:yesterday') AS yesterday FROM rate_limits`,
+    ).first<{ today: number; yesterday: number }>();
+    // 오늘 하루 창 행은 지우지 않는다(지우면 예산이 초기화된다).
+    expect(left).toEqual({ today: TODAY_DAILY_RATE_ROWS, yesterday: 0 });
+    expect(cleanups.reduce((sum, s) => sum + s.rowsRead, 0)).toBeLessThanOrEqual(RATE_CLEANUP_ROWS_READ_CEILING);
+  });
 });
+
+/**
+ * 다른 모임들의 서포터 차례 기록을 대신한다: 다른 모임 하나에 실제 경기 하나를 두고 그 두 행을 무효 반복 사건으로 복제한다
+ * (무효라 그 모임의 순환에도 영향이 없다).
+ */
+async function addOtherGroupsRotation(): Promise<void> {
+  const other = await setupGroup(10);
+  await playConfirmed(other, rosterOf(other.people));
+  await env.DB.prepare(
+    `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?2)
+     INSERT INTO rotation_events (id, group_id, cycle_id, match_id, participant_id, kind, voided, created_at)
+     SELECT e.id || '-' || n.i, e.group_id, e.cycle_id, e.match_id, e.participant_id, 'repeat', 1, e.created_at
+     FROM rotation_events e CROSS JOIN n WHERE e.group_id = ?1`,
+  )
+    .bind(other.gid, OTHER_GROUPS_ROTATION_ROWS / 2)
+    .run();
+}

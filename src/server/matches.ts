@@ -762,14 +762,14 @@ export async function cancelMatch(
       assertState(match, ["in_progress", "awaiting_result"]);
       const now = nowIso();
 
+      // 이 경기의 사용 사건(idx_rotation_match)에서 출발해 같은 주기·같은 사람의 반복 사건을 idx_rotation_cycle
+      // (migrations/0027)로 찾는다. 반복 사건 쪽에서 출발하면 그 조건을 받을 색인이 없어 모든 모임의 차례 기록을 훑는다.
+      // CROSS JOIN은 이 순서를 고정한다. 유효한 사용 사건은 (주기, 사람)마다 하나뿐이라(uq_rotation_used) 줄이 겹치지 않는다.
       const later = await env.DB.prepare(
-        `SELECT r.id, r.participant_id FROM rotation_events r
-         WHERE r.kind = 'repeat' AND r.voided = 0 AND r.match_id <> ?1
-           AND EXISTS (
-             SELECT 1 FROM rotation_events u
-             WHERE u.match_id = ?1 AND u.kind = 'used' AND u.voided = 0
-               AND u.cycle_id = r.cycle_id AND u.participant_id = r.participant_id
-           )
+        `SELECT r.id, r.participant_id FROM rotation_events u
+         CROSS JOIN rotation_events r ON r.cycle_id = u.cycle_id AND r.participant_id = u.participant_id
+         WHERE u.match_id = ?1 AND u.kind = 'used' AND u.voided = 0
+           AND r.kind = 'repeat' AND r.voided = 0 AND r.match_id <> ?1
          ORDER BY r.created_at, r.id`,
       )
         .bind(matchId)
