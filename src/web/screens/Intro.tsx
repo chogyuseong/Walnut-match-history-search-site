@@ -44,6 +44,11 @@ const FEATURES: { icon: LineIconName; title: string; text: string; shot?: IntroS
     icon: "link",
     title: "참가 신청 · 조회 링크",
     text: "링크를 보내면 참가자가 로그인 없이 이름을 올리고, 기록과 지금 경기의 자기 자리를 봐요.",
+    shot: {
+      name: "join",
+      alt: "참가 신청 화면 예시: 신청한 사람 2명이 위에 있고, 아래 명단에서 자기 이름 옆의 '오늘 참가' 버튼을 누른다",
+      height: 764,
+    },
   },
   {
     // 달력(today)은 하단 메뉴 "오늘"의 아이콘이라 겹치지 않게 요약 아이콘을 쓴다.

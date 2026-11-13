@@ -1,9 +1,9 @@
 // 첫 화면 소개(src/web/screens/Intro.tsx)의 기능 목록 옆에 붙는 예시 사진을 찍는다.
-// 결과는 public/intro/{prep,ranking,season}-{dark,light}.jpg. 화면 모양이 바뀌면 다시 찍어 함께 커밋한다.
+// 결과는 public/intro/{prep,ranking,join,season}-{dark,light}.jpg. 화면 모양이 바뀌면 다시 찍어 함께 커밋한다.
 //
 // 쓰는 법: 로컬 서버를 띄운 뒤(npm run dev) `npm run shots:intro`. 다른 주소면 `npm run shots:intro -- http://127.0.0.1:8790`.
-// 운영 주소에는 쓰지 않는다. 팀 짜기는 로그인 없이 이 브라우저에만 남는 편성이라 서버에 쓰는 것은 없지만,
-// 예시 화면이 로컬 코드와 같아야 사진과 실제 화면이 어긋나지 않는다.
+// 로컬 전용이다. 참가 신청 사진은 개발용 가짜 로그인(/api/auth/fake-login, 운영에서는 404)으로 로컬 D1에 시험 모임을
+// 만들어 신청 링크를 받는다. 예시 화면이 로컬 코드와 같아야 사진과 실제 화면이 어긋나지 않는다.
 //
 // 이름은 예시 모임(src/shared/demo.ts)에 나오는 가짜 이름만 쓴다. 실제 사람 이름을 넣지 않는다.
 // 사진에 챔피언 초상화(라이엇 자산)가 들어가지 않는 화면만 고른다. 바꿀 때 이 조건을 다시 본다.
@@ -30,6 +30,31 @@ const BOTTOM_EDGE = 0;
 const SETTLE_MS = 1500;
 
 const PREP_NAMES = ["밤송이", "솔방울", "구름빵", "바람개비", "주전자", "징검다리", "새벽별", "보름달", "모래성", "도토리"];
+/** 참가 신청 사진에서 이미 신청해 둔 사람 수. 많으면 "오늘 참가" 버튼이 사진 밖으로 밀린다. */
+const JOINED_BEFORE_SHOT = 2;
+/** 참가 신청 사진에 보이는 명단 줄 수(신청함 표시 줄과 "오늘 참가" 버튼 줄이 섞여 보이게). */
+const JOIN_ROWS_SHOWN = 3;
+
+/**
+ * 로컬 서버에 시험 모임을 만들고 참가 신청 링크 토큰을 돌려준다. 두 테마가 같은 링크를 쓰도록 한 번만 부른다.
+ * 서버는 다른 출처의 쓰기를 막으므로 Origin을 같은 주소로 붙인다.
+ */
+async function createJoinLink(browser) {
+  const operator = await browser.newContext({ baseURL: BASE_URL });
+  const headers = { Origin: BASE_URL };
+  const post = async (path, data) => {
+    const response = await operator.request.post(path, { data, headers });
+    if (!response.ok()) throw new Error(`${path} ${response.status()} ${await response.text()}`);
+    return response.json();
+  };
+  await post("/api/auth/fake-login", { subject: `intro-shots-${Date.now()}` });
+  const group = await post("/api/groups", { requestId: crypto.randomUUID(), name: "수요일 내전" });
+  await post(`/api/groups/${group.id}/participants`, { requestId: crypto.randomUUID(), names: PREP_NAMES });
+  const { token } = await post(`/api/groups/${group.id}/join/link`, {});
+  for (const name of PREP_NAMES.slice(0, JOINED_BEFORE_SHOT)) await post(`/api/join/${token}`, { name });
+  await operator.close();
+  return token;
+}
 
 /** 두 요소의 위·아래 끝을 잇는 범위로 자른다. 좌우는 화면 전체 폭이다. */
 async function clipBetween(page, top, bottom) {
@@ -65,6 +90,18 @@ const SHOTS = [
     },
   },
   {
+    name: "join",
+    async clip(page, joinToken) {
+      // 참가자 쪽 화면이라 로그인하지 않은 새 문맥에서 연다.
+      await page.goto(`/#/join/${joinToken}`);
+      const heading = page.getByRole("heading", { level: 1 });
+      await heading.waitFor();
+      const roster = page.getByRole("region", { name: "명단에서 신청" }).locator(".search-results > li");
+      await roster.nth(JOIN_ROWS_SHOWN - 1).waitFor();
+      return clipBetween(page, heading, roster.nth(JOIN_ROWS_SHOWN - 1));
+    },
+  },
+  {
     name: "season",
     async clip(page) {
       await page.goto("/#/demo/season");
@@ -79,6 +116,7 @@ const SHOTS = [
 mkdirSync(OUT_DIR, { recursive: true });
 const browser = await chromium.launch();
 try {
+  const joinToken = await createJoinLink(browser);
   for (const theme of ["dark", "light"]) {
     for (const shot of SHOTS) {
       // 찍을 때마다 새 문맥이라 이전 편성·테마 기억이 섞이지 않는다.
@@ -92,7 +130,7 @@ try {
       });
       await context.addInitScript((t) => localStorage.setItem("naejeon.theme", t), theme);
       const page = await context.newPage();
-      const clip = await shot.clip(page);
+      const clip = await shot.clip(page, joinToken);
       const path = join(OUT_DIR, `${shot.name}-${theme}.jpg`);
       await page.screenshot({ path, clip, type: "jpeg", quality: JPEG_QUALITY });
       console.log(`${path} (${Math.round(clip.width)}×${Math.round(clip.height)})`);
