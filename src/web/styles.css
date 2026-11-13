@@ -1125,9 +1125,20 @@ input[type="search"] {
   gap: var(--space-2);
   margin-top: var(--space-2);
 }
-.season-form .input-row > * {
-  flex: 1 1 0;
-  min-width: 0;
+/* 날짜 입력은 브라우저가 정한 최소 폭 아래로 줄지 않아, 좁은 화면에서 시작일·종료일을 나란히 두면 겹친다.
+   768px 미만에서는 종료일을 시작일 아래 줄로 내린다. */
+.season-form .input-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+@media (min-width: 768px) {
+  .season-form .input-row {
+    flex-direction: row;
+  }
+  .season-form .input-row > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 /* ---------- 그래프 분석 ----------
