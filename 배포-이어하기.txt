@@ -181,15 +181,16 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 [회사 컴퓨터에서 처음 할 일]
 
-1. 저장소 받기
-     git pull
+1. 저장소 받기(처음이면 clone, 이미 받아 둔 PC면 pull)
+     git clone https://github.com/chogyuseong/Walnut-match-history-search-site.git
      npm ci
+     npx playwright install chromium   (브라우저 테스트 npm run e2e를 돌릴 때만, 한 번)
 2. Cloudflare 로그인(배포하거나 wrangler 명령을 쓸 때만 필요)
      npx wrangler login
 3. 로컬 개발 서버를 띄우려면 저장소 맨 위에 .dev.vars 파일을 만들고 한 줄을 넣는다(git에 안 올라가는 파일).
      SESSION_SECRET=아무거나32자이상인무작위문자열
    PASSWORD_PEPPER는 wrangler.jsonc 맨 위에 로컬 전용 값이 이미 있다.
-   그 뒤 npm run dev → http://localhost:8787
+   그 뒤 npm run dev → http://localhost:8787. 로컬 DB는 비어 있으니 필요하면 다른 창에서 npm run seed.
 4. 테스트: npm test(단위), npm run e2e(브라우저)
 5. Claude Code 세팅은 클론만으로 따라온다(.claude/ 폴더와 맨 위 CLAUDE.md). 저장소 폴더에서 claude를 처음 열 때
    '이 폴더를 신뢰하겠습니까'가 뜨면 수락한다. 수락해야 서브에이전트 기본 모델 설정이 적용된다.
