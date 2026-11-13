@@ -2001,6 +2001,10 @@ table {
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
+/* 요약 지표 상자 바로 아래 설명은 상자에 붙지 않게(사이트 현황의 자동 백업). */
+.kpi + .hint {
+  margin-top: var(--space-2);
+}
 .kpi strong {
   margin-left: var(--space-1);
   font-size: var(--text-label);
@@ -2507,6 +2511,19 @@ table {
 }
 .privacy-table {
   min-width: 34em;
+}
+/* 개인정보·사이트 현황 표는 문장이 든 칸이라 좁은 열에서도 낱말을 자르지 않는다("막/기"처럼 끊겼다).
+   전역 table의 word-break: normal을 여기서만 되돌린다. 표는 .table-scroll 안이라 넓어지면 그 영역만 스크롤된다. */
+.privacy-table :is(th, td) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* 표 행 최소 48px(CLAUDE.md 7절). 칸 높이는 최소값으로 동작해 긴 칸은 그대로 늘어난다. */
+.privacy-table tbody :is(th, td) {
+  height: 48px;
+}
+.privacy-table .num {
+  text-align: right;
 }
 .privacy-table th,
 .privacy-table td,
@@ -5171,6 +5188,10 @@ main:focus {
   font-variant-numeric: tabular-nums;
   /* "(8경기)" 같은 낱말 중간에서 줄이 바뀌지 않게. */
   word-break: keep-all;
+}
+/* 공동 수상 "외 n명 보기": 세로로 쌓인 이름 줄 끝에 글자 폭만큼. */
+.award-more {
+  align-self: flex-start;
 }
 .award-tie {
   font-size: var(--text-label);

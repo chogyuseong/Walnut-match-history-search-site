@@ -119,18 +119,18 @@ export function SiteAdmin() {
                 <thead>
                   <tr>
                     <th>기간</th>
-                    <th>활동 모임</th>
-                    <th>새 계정</th>
-                    <th>새 모임</th>
+                    <th className="num">활동 모임</th>
+                    <th className="num">새 계정</th>
+                    <th className="num">새 모임</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.recent.map((r) => (
                     <tr key={r.days}>
                       <td>최근 {r.days}일</td>
-                      <td>{r.activeGroups}</td>
-                      <td>{r.newAccounts}</td>
-                      <td>{r.newGroups}</td>
+                      <td className="num">{r.activeGroups}</td>
+                      <td className="num">{r.newAccounts}</td>
+                      <td className="num">{r.newGroups}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -174,16 +174,16 @@ export function SiteAdmin() {
                   <thead>
                     <tr>
                       <th>종류</th>
-                      <th>최근 7일</th>
-                      <th>최근 30일</th>
+                      <th className="num">최근 7일</th>
+                      <th className="num">최근 30일</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.rateLimited.map((r) => (
                       <tr key={r.bucket}>
                         <td>{r.bucket}</td>
-                        <td>{r.last7}</td>
-                        <td>{r.last30}</td>
+                        <td className="num">{r.last7}</td>
+                        <td className="num">{r.last30}</td>
                       </tr>
                     ))}
                   </tbody>

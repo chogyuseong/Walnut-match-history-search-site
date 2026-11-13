@@ -285,26 +285,39 @@ export function SeasonSummaryScreen(props: {
   );
 }
 
+/** 공동 수상이 이보다 많으면 앞의 이만큼만 보이고 나머지는 "외 n명"으로 접는다(개근상 열 명이 카드를 늘이던 것). */
+const WINNERS_SHOWN = 3;
+
 /**
  * 수상자 한 줄을 이름(크게)과 근거 숫자(보조 톤)로 나눠 그린다.
  * 글자 내용은 awardWinnersText와 똑같이 맞춘다(텍스트 복사·공유 이미지와 같은 글, e2e가 이 글을 본다).
  * 공동 수상의 " / "는 줄을 나눠 보여 주므로 화면에서는 숨기고 화면 읽기 프로그램에는 남긴다.
+ * 접힌 수상자도 DOM에는 hidden으로 남겨 둔다: 글자 확인(textContent)과 텍스트 복사가 펼침 여부에 흔들리지 않게.
+ * "외 1명"은 이름 하나 보이는 것과 자리가 같아 쓰지 않는다(WINNERS_SHOWN + 1명까지는 다 보인다).
  */
 function Winners(props: { award: Award; nameOf: (id: string) => string }) {
   const { award, nameOf } = props;
+  const [expanded, setExpanded] = useState(false);
   const joiner = award.key === "nemesis" ? " → " : " · ";
+  const folds = award.winners.length > WINNERS_SHOWN + 1;
+  const hiddenCount = folds && !expanded ? award.winners.length - WINNERS_SHOWN : 0;
   return (
     <p className="winner">
       {award.winners.map((w, i) => (
         <Fragment key={w.participantIds.join("|")}>
           {i > 0 && <span className="sr-only"> / </span>}
-          <span className="award-entry">
+          <span className="award-entry" hidden={hiddenCount > 0 && i >= WINNERS_SHOWN}>
             <span className="award-who">{w.participantIds.map(nameOf).join(joiner)}</span>{" "}
             <span className="award-why">{w.value}</span>
           </span>
         </Fragment>
       ))}
       {award.winners.length > 1 && <span className="award-tie"> (공동)</span>}
+      {folds && (
+        <button type="button" className="link award-more" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+          {expanded ? "접기" : `외 ${hiddenCount}명 보기`}
+        </button>
+      )}
     </p>
   );
 }

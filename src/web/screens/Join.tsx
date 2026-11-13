@@ -175,7 +175,7 @@ export function Join(props: { token: string; rest: string[] }) {
         {count === 0 ? (
           <p className="hint">아직 신청한 사람이 없어요.</p>
         ) : (
-          <ol className="list join-list">
+          <ol className="list list-card join-list">
             {view.entries.map((e, i) => (
               <li key={e.key} className="list-row static">
                 <span className="name">
@@ -216,7 +216,7 @@ export function Join(props: { token: string; rest: string[] }) {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={rosterJump.onSearchKey}
             />
-            <ul ref={rosterJump.results} tabIndex={-1} className="list search-results">
+            <ul ref={rosterJump.results} tabIndex={-1} className="list list-card search-results">
               {listed.map((p) => {
                 const isJoined = joined.has(`p:${p.id}`);
                 return (

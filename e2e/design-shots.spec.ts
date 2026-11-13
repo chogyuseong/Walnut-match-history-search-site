@@ -249,3 +249,73 @@ test("디자인 비교 사진: 모임 관리 화면(설정·가져오기·합치
   }
   writeFileSync(join(SHOTS_DIR!, "layout-manage.json"), JSON.stringify(layout, null, 2));
 });
+
+test("디자인 비교 사진: 바깥에서 여는 화면(조회 링크·참가자 편성·참가 신청·개인정보·사이트 관리)", async ({ page, browser }) => {
+  test.setTimeout(900000);
+  mkdirSync(SHOTS_DIR!, { recursive: true });
+  await page.clock.setFixedTime(FIXED_NOW);
+  await page.route("**/ddragon.leagueoflegends.com/**", (route) => route.fulfill({ contentType: "image/png", body: BLANK_PNG }));
+  const post = async (path: string, data: unknown) => {
+    const response = await page.request.post(path, { data });
+    expect(response.ok(), `${path} → ${response.status()}`).toBe(true);
+    return response.json();
+  };
+  await post("/api/auth/fake-login", { subject: `e2e-shots-outside-${Date.now().toString(36)}` });
+  const group = await post("/api/groups", { requestId: crypto.randomUUID(), name: "디자인 사진 모임" });
+  const { participants } = await post(`/api/groups/${group.id}/participants`, {
+    requestId: crypto.randomUUID(),
+    names: NAMES,
+  });
+  // 확정 경기 둘과 진행 중 경기 하나: 조회 링크 기록과 참가자 편성이 빈 화면이 아니게.
+  for (const round of [0, 1, 2]) {
+    const snapshot = await (await page.request.get(`/api/groups/${group.id}/snapshot`)).json();
+    const started = await post(`/api/groups/${group.id}/matches/start`, {
+      requestId: crypto.randomUUID(),
+      baseLiveVersion: snapshot.group.liveVersion,
+      roster: participants.slice(round, round + 10).map((p: { id: string }, i: number) => ({
+        participantId: p.id,
+        team: i < 5 ? "A" : "B",
+        position: POSITIONS[i % 5],
+      })),
+      teamASide: "blue",
+    });
+    if (round === 2) break;
+    await post(`/api/groups/${group.id}/matches/${started.match.id}/result`, {
+      requestId: crypto.randomUUID(),
+      baseMatchVersion: started.match.version,
+      winnerTeam: round === 0 ? "A" : "B",
+      winnerSide: "blue",
+    });
+  }
+  const viewToken = (await (await page.request.get(`/api/groups/${group.id}/snapshot`)).json()).group.viewToken;
+  const { token: joinToken } = await post(`/api/groups/${group.id}/join/link`, {});
+  for (const p of participants.slice(0, 3)) await post(`/api/join/${joinToken}`, { participantId: p.id });
+
+  // 로그인하지 않은 사람이 보는 모양으로 찍는다.
+  const guestContext = await browser.newContext();
+  const guest = await guestContext.newPage();
+  await guest.clock.setFixedTime(FIXED_NOW);
+  await guest.route("**/ddragon.leagueoflegends.com/**", (route) => route.fulfill({ contentType: "image/png", body: BLANK_PNG }));
+  const screens = [
+    ["40-viewer", `#/v/${viewToken}`],
+    ["41-viewer-home", `#/v/${viewToken}/home`],
+    ["42-viewer-live", `#/v/${viewToken}/live`],
+    ["43-viewer-records", `#/v/${viewToken}/records`],
+    ["44-viewer-privacy", `#/v/${viewToken}/privacy`],
+    ["45-join", `#/join/${joinToken}`],
+    ["46-privacy", "#/privacy"],
+  ];
+  for (const [name, hash] of screens) {
+    await guest.goto(`/${hash}`);
+    await expect(guest.getByRole("heading", { level: 1 }).first()).toBeVisible();
+    await capture(guest, name!);
+  }
+  await guestContext.close();
+
+  await post("/api/auth/fake-login", { subject: "e2e-site-admin" });
+  await page.goto("/#/admin");
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+  await capture(page, "47-site-admin");
+  writeFileSync(join(SHOTS_DIR!, "layout-outside.json"), JSON.stringify(layout, null, 2));
+});
