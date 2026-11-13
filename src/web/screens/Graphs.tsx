@@ -2,7 +2,7 @@ import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGro
 import { useMemo, useState, type ReactNode } from "react";
 import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { heatClass, nameMap, PEOPLE_BAR_STEPS, rateHueClass, rateHueText, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
+import { formatDate, heatClass, nameMap, PEOPLE_BAR_STEPS, rateHueClass, rateHueText, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
 import {
   Meter,
   BackLink,
@@ -21,7 +21,7 @@ import { useExpectations } from "../matchCard";
 import { BALANCED_MMR_GAP, fairnessReport, FAIRNESS_GOOD, FAIRNESS_MIN_GAMES, FAIRNESS_OK, personUpsets, UPSET_MMR_GAP, LOPSIDED_MMR_GAP, fairnessVerdict, type FairnessVerdict } from "../../shared/upset";
 import { attendanceReport } from "../../shared/attendance";
 import { computeRatings, shownRating, ratingOptionsOf } from "../../shared/rating";
-import { groupCommentary, playerCommentary, type Commentary } from "../../shared/commentary";
+import { groupCommentary, playerCommentary, type Commentary, type EvidenceGroup } from "../../shared/commentary";
 import {
   activityCalendar,
   calendarRange,
@@ -204,6 +204,8 @@ export function Graphs(props: {
   choosePlayer?: (id: string) => void;
   /** 확정 경기가 하나도 없을 때 안내 아래에 둘 행동 하나(운영자: 팀 짜기). 조회 링크는 비운다. */
   emptyAction?: ReactNode;
+  /** 분석 코멘트 "근거 경기"의 경기 줄을 누르면 그 경기 상세로 간다(운영자 #/m/ID, 조회 링크 …/d/ID). */
+  openMatch: (id: string) => void;
 }) {
   const { snapshot } = props;
   const timeZone = snapshot.group.timezone;
@@ -419,6 +421,7 @@ export function Graphs(props: {
           cumulative={placement}
           nameOf={nameOf}
           openPerson={() => props.openPerson(playerId)}
+          openMatch={props.openMatch}
           clear={() => choosePlayer("")}
         />
       ) : (
@@ -488,7 +491,7 @@ export function Graphs(props: {
         </p>
       </section>
       )}
-      {groupNotes && <CommentaryCard notes={groupNotes} />}
+      {groupNotes && <CommentaryCard notes={groupNotes} snapshot={snapshot} openMatch={props.openMatch} />}
 
       {/* ─ 이야기 띠: 범위 안 유효 경기 5개부터. 카드를 누르면 그 사람을 고른다 ─ */}
       <StoryStrip cards={stories} picked={playerId} onPick={choosePlayer} />
@@ -856,9 +859,10 @@ function PlayerProfile(props: {
   cumulative: ReadonlyMap<string, { games: number }>;
   nameOf: (id: string) => string;
   openPerson: () => void;
+  openMatch: (id: string) => void;
   clear: () => void;
 }) {
-  const { snapshot, participantId: id, scoped, standing } = props;
+  const { snapshot, participantId: id, scoped, standing, openMatch } = props;
   const name = snapshot.participants.find((p) => p.id === id)?.name ?? "";
   const results = useMemo(() => resultsOf(scoped, id), [scoped, id]);
   const wins = results.filter(Boolean).length;
@@ -972,7 +976,7 @@ function PlayerProfile(props: {
           )}
         </div>
       </div>
-      <CommentaryCard notes={notes} />
+      <CommentaryCard notes={notes} snapshot={snapshot} openMatch={openMatch} />
     </section>
   );
 }
@@ -981,7 +985,7 @@ function PlayerProfile(props: {
  * 분석 코멘트 카드: 총평 한 줄(굵게) + 문장 목록 + 코칭(우선순위 순 번호 목록, 최대 COACHING_MAX줄). 문장 앞 점 모양은 tone(좋음 골드 점 · 주의 골드 속 빈 점 · 보통 회색 점).
  * 코칭은 카드 안 1px 구분선 아래 "코칭" 라벨과 함께 둔다(카드 안 카드를 만들지 않는다).
  */
-function CommentaryCard(props: { notes: Commentary }) {
+function CommentaryCard(props: { notes: Commentary; snapshot: Snapshot; openMatch: (id: string) => void }) {
   const { summary, remarks, coaching } = props.notes;
   return (
     <section className="commentary" aria-label="분석 코멘트">
@@ -997,6 +1001,7 @@ function CommentaryCard(props: { notes: Commentary }) {
                 {r.text}
                 {/* 근거는 title 풍선이 아니라 글로 둔다(터치 화면에서는 풍선이 뜨지 않는다). */}
                 {r.basis && <span className="remark-basis">기준: {r.basis}</span>}
+                {r.evidence && <EvidenceFold groups={r.evidence} snapshot={props.snapshot} openMatch={props.openMatch} />}
               </li>
             ))}
           </ul>
@@ -1020,6 +1025,48 @@ function CommentaryCard(props: { notes: Commentary }) {
   );
 }
 
+/** 근거 경기 묶음마다 보이는 줄 수. 늘리면 문장 하나를 펼쳤을 때 카드가 길어져 다음 문장이 밀린다. */
+const EVIDENCE_ROWS = 5;
+
+/**
+ * 코멘트 문장의 "근거 경기"(src/shared/commentary.ts Remark.evidence). 접어 두고, 펴면 묶음마다 EVIDENCE_ROWS줄과 나머지 수.
+ * 숫자는 문장과 같은 경기에서 나온다. 특정 경기 탓으로 읽히지 않게 줄에는 날짜·경기 번호·결과만 두고 다른 사람 이름은 쓰지 않는다.
+ */
+function EvidenceFold(props: { groups: EvidenceGroup[]; snapshot: Snapshot; openMatch: (id: string) => void }) {
+  const { snapshot } = props;
+  const byId = useMemo(() => new Map(snapshot.matches.map((m) => [m.id, m])), [snapshot]);
+  const total = props.groups.reduce((n, g) => n + g.matches.length, 0);
+  if (total === 0) return null;
+  return (
+    <details className="help remark-evidence">
+      <summary>근거 경기 {total}</summary>
+      <div className="help-body">
+        {props.groups.map((g) => (
+          <div key={g.label}>
+            <p className="evidence-label">
+              {g.label} · {g.matches.length}경기
+            </p>
+            <ul className="evidence-rows">
+              {g.matches.slice(0, EVIDENCE_ROWS).map((x) => {
+                const m = byId.get(x.matchId);
+                if (!m) return null;
+                return (
+                  <li key={x.matchId}>
+                    <button type="button" className="link" onClick={() => props.openMatch(x.matchId)}>
+                      {formatDate(m.playedAt, snapshot.group.timezone)} {m.matchNo}경기
+                    </button>
+                    <span>{x.note}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            {g.matches.length > EVIDENCE_ROWS && <p>외 {g.matches.length - EVIDENCE_ROWS}경기</p>}
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
 
 /**
  * 승률 여섯 색 범례(rate-hue): 개인별 승률·플레이어 × 라인에 둔다. 견본·칸 숫자·막대가 같은 색이다.

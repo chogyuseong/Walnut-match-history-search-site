@@ -18,7 +18,7 @@ import {
   type Tally,
 } from "./stats";
 import { shownRating, type RatingTable } from "./rating";
-import { POSITIONS, type MatchView, type Position } from "./types";
+import { POSITIONS, type MatchView, type Position, type RosterEntry } from "./types";
 import {
   BALANCED_MMR_GAP,
   fairnessReport,
@@ -43,6 +43,24 @@ export interface Remark {
   tone: RemarkTone;
   /** 어느 수치를 읽었는지. 화면은 문장 아래 작은 글씨로 보인다(터치 화면에서는 title 풍선이 뜨지 않아 2026-11-10에 바꿈). */
   basis?: string;
+  /**
+   * 문장이 센 경기 목록(화면의 "근거 경기" 펼침). 문장의 경기 수와 같은 조건으로 고른 것이라 개수가 늘 같다
+   * (test/commentary.test.ts가 확인). 아직 라인 강약·동료·상대·편성 균형 문장에만 있다. 다른 문장에 붙일 때도
+   * 문장 숫자를 낸 집계와 같은 조건으로 골라야 한다.
+   */
+  evidence?: EvidenceGroup[];
+}
+
+/** 근거 경기 한 줄. note는 그 경기에서 문장이 본 값(이 사람의 "승"·"패", 편성 균형은 "MMR 차 120점"). */
+export interface EvidenceMatch {
+  matchId: string;
+  note: string;
+}
+
+/** 근거 경기 묶음(예: 강한 라인·약한 라인). 묶음 안 순서는 화면에 보일 순서다. */
+export interface EvidenceGroup {
+  label: string;
+  matches: EvidenceMatch[];
 }
 
 export interface Commentary {
@@ -298,6 +316,29 @@ export interface PlayerCommentaryInput {
   placementGames?: number;
 }
 
+/**
+ * 이 사람이 뛴 유효 확정 경기 중 pick이 고른 것, 최근 경기부터. personDetail과 같은 대상(isCounted + 명단에 있음)이라
+ * 같은 조건으로 고르면 개수가 그 집계의 경기 수와 같다. note는 이 사람의 승패다.
+ */
+function myEvidence(
+  scoped: readonly MatchView[],
+  id: string,
+  pick: (match: MatchView, me: RosterEntry) => boolean,
+): EvidenceMatch[] {
+  return countedChronological(scoped)
+    .flatMap((match) => {
+      const me = match.roster.find((r) => r.participantId === id);
+      return me && pick(match, me) ? [{ matchId: match.id, note: match.winnerTeam === me.team ? "승" : "패" }] : [];
+    })
+    .reverse();
+}
+
+/** other가 같은 팀(sameTeam) 또는 상대 팀으로 함께 나온 경기를 고른다. personDetail의 synergy·versus와 같은 조건. */
+function withOther(other: string, sameTeam: boolean) {
+  return (match: MatchView, me: RosterEntry) =>
+    match.roster.some((r) => r.participantId === other && (r.team === me.team) === sameTeam);
+}
+
 /** 고른 플레이어의 코멘트. 규칙 순서가 곧 우선순위다(라인 → 흐름 → MMR → 이변 → 동료·상대 → 진영 → 참석). */
 export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   const { scoped, participantId: id, nameOf, placementGames = PLACEMENT_GAMES_DEFAULT } = input;
@@ -344,6 +385,10 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
           `(${rateOf(worst.tally)}%, ${worst.tally.games}경기).`,
         tone: "good",
         basis: `라인별 승률(${LINE_MIN_GAMES}경기 이상 라인)${chanceNote(lineChance)}`,
+        evidence: [best, worst].map((line) => ({
+          label: LANE_NAME[line.position],
+          matches: myEvidence(scoped, id, (_, me) => me.position === line.position),
+        })),
       });
     }
   }
@@ -433,6 +478,19 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
       ? compare.rival
       : null;
   const pairParts: string[] = [];
+  const pairEvidence: EvidenceGroup[] = [];
+  if (buddy) {
+    pairEvidence.push({
+      label: `${josa(nameOf(buddy.participantId), "과", "와")} 같은 팀`,
+      matches: myEvidence(scoped, id, withOther(buddy.participantId, true)),
+    });
+  }
+  if (rival) {
+    pairEvidence.push({
+      label: `${nameOf(rival.participantId)} 상대`,
+      matches: myEvidence(scoped, id, withOther(rival.participantId, false)),
+    });
+  }
   if (buddy && rival && buddy.participantId === rival.participantId) {
     // 같은 사람이 동료이자 상대면 한 문장으로: 편이 갈리면 결과가 뒤집힌다는 뜻이다.
     pairParts.push(
@@ -460,6 +518,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
       text: pairParts.join(" "),
       tone: "neutral",
       basis: `같은 팀·상대 팀 전적(누적 30경기 이상인 사람끼리)${chanceNote(Math.max(buddy ? buddyChance : 0, rival ? rivalChance : 0))}`,
+      evidence: pairEvidence,
     });
   }
 
@@ -1002,6 +1061,17 @@ export interface GroupCommentaryInput {
 }
 
 /** 모임 전체 코멘트. 규칙 순서가 곧 우선순위다(공정성 → 진영 → 순위 변동 → 활동 → 뭉침 → 이변 → MMR 격차 → 서폿 쏠림 → 새로 온 사람 → 연승 → 챔피언 기록률). */
+/** 편성 균형 문장의 근거: fairnessReport가 센 판정 경기(예상이 reliable)를 팀 평균 MMR 차가 큰 것부터. */
+function judgedByGap(expectations: ReadonlyMap<string, MatchExpectation>, scoped: readonly MatchView[]): EvidenceMatch[] {
+  return scoped
+    .flatMap((match) => {
+      const e = expectations.get(match.id);
+      return e?.reliable ? [{ matchId: match.id, gap: Math.abs(e.ratingGapA) }] : [];
+    })
+    .sort((a, b) => b.gap - a.gap)
+    .map(({ matchId, gap }) => ({ matchId, note: `MMR 차 ${shownRating(gap)}점` }));
+}
+
 export function groupCommentary(input: GroupCommentaryInput): Commentary {
   const { scoped, nameOf, timeZone } = input;
   const counted = scoped.filter(isCounted);
@@ -1026,6 +1096,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
       text: head + tail,
       tone: verdict === "poor" || (predict !== null && predict < PREDICT_POOR) ? "warn" : verdict === "good" ? "good" : "neutral",
       basis: `경기 직전 팀 평균 MMR 차(판정 ${fairness.games}경기)`,
+      evidence: [{ label: "MMR 차가 큰 경기부터", matches: judgedByGap(input.expectations, scoped) }],
     });
   }
 

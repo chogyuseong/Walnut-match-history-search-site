@@ -354,6 +354,7 @@ export function viewerPage(
         snapshot={snapshot}
         openPerson={(id) => go(`${base}/p/${id}`)}
         back={() => go(`${base}/records`)}
+        openMatch={(id) => go(`${base}/d/${id}`)}
         player={rest[1] ?? ""}
         choosePlayer={(id) => go(id ? `${base}/graphs/${id}` : `${base}/graphs`)}
       />

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { rankAndSearch, sortRankingBy } from "../src/shared/insights";
 import {
   computeRatings,
+  matchRatingChanges,
   RATING_HALF_LIFE,
   RATING_PRIOR_GAMES,
   RATING_START,
@@ -326,5 +327,25 @@ describe("연승·연패 가중", () => {
   it("3연속 미만만 있는 시나리오는 가중이 모두 1", () => {
     const table = computeRatings(series(["A", "A", "B", "B", "A"]), LEGACY);
     for (const person of table.values()) for (const p of person.history) expect(p.multiplier).toBe(1);
+  });
+});
+
+describe("경기 상세의 열 명 MMR 변화", () => {
+  it("이긴 팀은 모두 오르고 진 팀은 모두 내리며, 각자의 경기 기록과 같은 값이다", () => {
+    const matches = [match(1, { winner: "A" }), match(2, { winner: "B", teamA: [0, 5, 2, 7, 4], teamB: [1, 6, 3, 8, 9] })];
+    const table = computeRatings(matches, LEGACY);
+    const changes = matchRatingChanges(table, matches[1]!);
+    expect(changes.map((c) => c.participantId)).toEqual(matches[1]!.roster.map((r) => r.participantId));
+    for (const c of changes) {
+      expect(c.team === "B" ? c.after > c.before : c.after < c.before).toBe(true);
+      expect(c).toMatchObject(table.get(c.participantId)!.history.find((p) => p.matchId === "m2")!);
+    }
+  });
+
+  it("계산에 들어가지 않은 경기(결과 전·제외)는 빈 목록", () => {
+    const matches = [match(1), match(2, { state: "excluded" }), match(3, { state: "awaiting_result" })];
+    const table = computeRatings(matches);
+    expect(matchRatingChanges(table, matches[1]!)).toEqual([]);
+    expect(matchRatingChanges(table, matches[2]!)).toEqual([]);
   });
 });

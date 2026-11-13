@@ -19,7 +19,16 @@ import {
   type RankingSort,
   type WinnerSideFilter,
 } from "../../shared/insights";
-import { computeRatings, ratingValues, shownRating, ratingOptionsOf, RATING_TIER_HELP } from "../../shared/rating";
+import {
+  computeRatings,
+  matchRatingChanges,
+  ratingValues,
+  shownRating,
+  ratingOptionsOf,
+  RATING_TIER_HELP,
+  signedDelta,
+  STREAK_K_START,
+} from "../../shared/rating";
 import {
   fractionPercent,
   matchesInScope,
@@ -855,6 +864,81 @@ function ExpectationLine(props: { expectation: MatchExpectation | undefined }) {
   );
 }
 
+/**
+ * 경기 상세 "이 경기로 바뀐 MMR": 이 경기 하나가 열 명에게 낸 전·후 값(src/shared/rating.ts matchRatingChanges).
+ * 결과 저장 뒤의 다음 행동을 밀어내지 않게 접어 둔다. 진 쪽 큰 감점이 탓하기 소재가 되지 않도록, 같은 팀은 같은 방향이고
+ * 폭은 판수·연속 결과로만 갈린다는 설명을 함께 둔다. 변화는 반올림한 전·후 값의 차라 표의 두 숫자와 늘 맞는다.
+ */
+function RatingChanges(props: { snapshot: Snapshot; match: MatchView; nameOf: (id: string) => string }) {
+  const { snapshot, match } = props;
+  const changes = useMemo(
+    () => matchRatingChanges(computeRatings(snapshot.matches, ratingOptionsOf(snapshot.group.settings)), match),
+    [snapshot, match],
+  );
+  if (changes.length === 0) return null;
+  // 위 팀 상자와 같은 탑→서폿 순서. 포지션이 없는 경기(지난 경기 입력·이관)는 명단 순서 그대로 뒤에 둔다.
+  const positionOf = new Map(match.roster.map((r) => [r.participantId, r.position]));
+  const order = (id: string) => {
+    const position = positionOf.get(id);
+    return position ? POSITIONS.indexOf(position) : POSITIONS.length;
+  };
+  const sorted = [...changes].sort((a, b) => order(a.participantId) - order(b.participantId));
+  const teams: Team[] = match.teamASide === "red" ? ["B", "A"] : ["A", "B"];
+  return (
+    <details className="rating-changes">
+      <summary>이 경기로 바뀐 MMR</summary>
+      <p className="hint">
+        같은 팀은 같은 방향으로 움직여요. 폭은 판수가 적을수록, {STREAK_K_START}연승·연패부터 이어질수록 커져요. 지금 기록과
+        설정으로 다시 계산한 값이라 앞 경기를 고치면 바뀌어요.
+      </p>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th scope="col">이름</th>
+            <th scope="col" className="num">
+              경기 전
+            </th>
+            <th scope="col" className="num">
+              경기 후
+            </th>
+            <th scope="col" className="num">
+              변화
+            </th>
+          </tr>
+        </thead>
+        {teams.map((team) => (
+          <tbody key={team}>
+            <tr>
+              <th scope="colgroup" colSpan={4}>
+                {teamName(team, match.teamASide)} · {team === match.winnerTeam ? "승리" : "패배"}
+              </th>
+            </tr>
+            {sorted
+              .filter((c) => c.team === team)
+              .map((c) => (
+                <tr key={c.participantId}>
+                  <td>
+                    {props.nameOf(c.participantId)}
+                    {c.multiplier > 1 && (
+                      <span className="rc-streak">
+                        {" "}
+                        · {c.run}
+                        {team === match.winnerTeam ? "연승" : "연패"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="num">{shownRating(c.before)}</td>
+                  <td className="num">{shownRating(c.after)}</td>
+                  <td className="num">{signedDelta(shownRating(c.after) - shownRating(c.before))}</td>
+                </tr>
+              ))}
+          </tbody>
+        ))}
+      </table>
+    </details>
+  );
+}
+
 /** 경기 상세. 운영자에게는 항목 옆에 [수정]이 있다. 조회자는 읽기만 한다. */
 export function MatchDetail(props: {
   snapshot: Snapshot;
@@ -992,6 +1076,7 @@ export function MatchDetail(props: {
       />
 
       <ExpectationLine expectation={expectationOf.get(match.id)} />
+      <RatingChanges snapshot={snapshot} match={match} nameOf={nameOf} />
 
       {match.state === "confirmed" && (
         <div className="button-row">

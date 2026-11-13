@@ -499,6 +499,7 @@ function OperatorScreen(props: { route: string[] }) {
         snapshot={app.snapshot}
         openPerson={(personId) => go(`/p/${personId}`)}
         back={() => go("/records")}
+        openMatch={(matchId) => go(`/m/${matchId}`)}
         player={id ?? ""}
         choosePlayer={(personId) => go(personId ? `/graphs/${personId}` : "/graphs")}
         emptyAction={

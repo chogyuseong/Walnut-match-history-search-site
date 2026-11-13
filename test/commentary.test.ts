@@ -94,6 +94,12 @@ describe("playerCommentary", () => {
     const line = c.remarks.find((r) => r.text.includes("미드에서"));
     expect(line?.text).toContain("탑은 약점");
     expect(line?.tone).toBe("good");
+    // 근거 경기: 문장의 라인별 경기 수·승수와 같은 경기들이다.
+    expect(line?.evidence?.map((g) => [g.label, g.matches.length, g.matches.filter((x) => x.note === "승").length])).toEqual([
+      ["미드", 10, 10],
+      ["탑", 10, 2],
+    ]);
+    expect(line?.evidence?.[1]!.matches[0]!.matchId).toBe("m110");
     expect(c.summary).toMatch(/권|성장 중/);
   });
 
@@ -187,6 +193,11 @@ describe("groupCommentary", () => {
     expect(fair?.text).toMatch(/^판정 \d+경기 중 \d+경기가 팀 평균 MMR 차 35점 이내였어요\(균형 경기 \d+%\)\./);
     expect(fair?.text).toMatch(/예상 우세 팀이 \d+경기 중 \d+경기 이겼어요\(\d+%\)/);
     expect(fair?.basis).toContain("판정");
+    // 근거 경기는 판정 경기 전부, MMR 차가 큰 것부터.
+    const judged = Number(fair?.text.match(/^판정 (\d+)경기/)?.[1]);
+    const gaps = fair!.evidence![0]!.matches.map((x) => Number(x.note.match(/MMR 차 (\d+)점/)?.[1]));
+    expect(gaps).toHaveLength(judged);
+    expect(gaps).toEqual([...gaps].sort((a, b) => b - a));
     expect(c.summary).toMatch(/^균형 경기 \d+%/);
     // 표본이 말해 주는 것보다 많이 말하던 문구는 어디에도 남지 않는다.
     for (const t of [c.summary, ...texts(c)]) expect(t).not.toMatch(/공정해요|공정한 섞기|실력을 잘 반영|안정된 MMR|자리 잡는/);
@@ -323,6 +334,32 @@ describe("우연 거르기(2026-11-13)", () => {
     const summary = player(matches, "p0").summary;
     expect(summary).toMatch(/지금 9연승 중$/);
     expect(summary).not.toMatch(/숨 고르기/);
+  });
+
+  it("동료·상대 문장의 근거 경기는 그 사람과 같은 팀·상대 팀이던 경기이고 승률이 문장과 같다", () => {
+    // p0은 p1과 같은 팀이면 거의 이기고, p2를 상대하면 거의 진다.
+    const matches = randomGroup(11, (m, rnd) => {
+      const team = (id: string) => m.roster.find((r) => r.participantId === id)?.team;
+      const p0 = team("p0");
+      if (!p0) return rnd() < 0.5;
+      const chance = team("p1") === p0 ? 0.95 : team("p2") && team("p2") !== p0 ? 0.1 : 0.5;
+      const p0Wins = rnd() < chance;
+      return p0 === "A" ? p0Wins : !p0Wins;
+    });
+    const pair = player(matches, "p0").remarks.find((r) => r.basis?.startsWith("같은 팀·상대 팀 전적"));
+    expect(pair?.evidence?.length).toBeGreaterThan(0);
+    for (const g of pair!.evidence!) {
+      const other = g.label.startsWith("사람01") ? "p1" : "p2";
+      const sameTeam = g.label.endsWith("같은 팀");
+      for (const x of g.matches) {
+        const m = matches.find((mm) => mm.id === x.matchId)!;
+        const me = m.roster.find((r) => r.participantId === "p0")!;
+        const them = m.roster.find((r) => r.participantId === other)!;
+        expect(them.team === me.team).toBe(sameTeam);
+      }
+      const wins = g.matches.filter((x) => x.note === "승").length;
+      expect(pair!.text).toContain(`${Math.round((wins / g.matches.length) * 100)}%`);
+    }
   });
 
   it("심어 둔 진짜 차이는 남는다: p0이 블루에서 85%·레드에서 15%면 진영 문장이 우연 가능성과 함께 나온다", () => {

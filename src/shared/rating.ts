@@ -1,6 +1,6 @@
 import { countedChronological } from "./insights";
 import { PLACEMENT_GAMES_DEFAULT, PLACEMENT_GAMES_MAX, PLACEMENT_GAMES_MIN, placementGamesOf } from "./stats";
-import type { MatchView, Settings } from "./types";
+import type { MatchView, Settings, Team } from "./types";
 
 /**
  * MMR("내전 점수"). 랭킹·개인 통계·그래프 분석·두 사람 비교·이변 판정(upset.ts)이 쓴다. 저장하지 않고 기기에서 매번 계산한다.
@@ -452,6 +452,23 @@ export interface RatingTrendPoint {
   /** 몇 번째 경기(1부터). 0은 첫 경기 전(시작값). */
   game: number;
   rating: number;
+}
+
+export interface MatchRatingChange extends RatingPoint {
+  participantId: string;
+  team: Team;
+}
+
+/**
+ * 경기 상세 "이 경기로 바뀐 MMR"(Records.tsx MatchDetail)에 쓰는 그 경기 열 명의 전·후 값. 명단 순서 그대로다.
+ * 계산에 들어가지 않은 경기(확정 전·제외·한쪽 팀이 빈 경기)면 빈 목록이라 화면은 그 영역을 그리지 않는다.
+ * 값은 지금 기록과 설정으로 다시 계산한 것이라 앞 경기를 정정하면 바뀐다. 화면에 그 사실을 함께 적는다.
+ */
+export function matchRatingChanges(table: RatingTable, match: MatchView): MatchRatingChange[] {
+  return match.roster.flatMap((entry) => {
+    const point = table.get(entry.participantId)?.history.find((p) => p.matchId === match.id);
+    return point ? [{ ...point, participantId: entry.participantId, team: entry.team }] : [];
+  });
 }
 
 /** MMR 추이. 시작값(0경기째)부터 그리고, 점이 maxPoints보다 많으면 고르게 솎되 마지막 점은 남긴다. */

@@ -6690,17 +6690,17 @@ label:has(> select) {
   flex-direction: column;
   gap: var(--space-2);
 }
-.commentary-remarks li,
+.commentary-remarks > li,
 .commentary-empty {
   margin: 0;
   font-size: var(--text-body);
   line-height: 1.55;
 }
-.commentary-remarks li {
+.commentary-remarks > li {
   position: relative;
   padding-left: var(--space-4);
 }
-.commentary-remarks li::before {
+.commentary-remarks > li::before {
   content: "";
   position: absolute;
   left: 2px;
@@ -8512,4 +8512,37 @@ input[type="search"].filter-search {
 }
 .rest-row > .link {
   flex: none;
+}
+
+/* 경기 상세 "이 경기로 바뀐 MMR". 접는 상자가 이미 테두리를 둘러 표는 테두리 없이 둔다(카드 안 카드 금지). */
+.rating-changes > .data-table {
+  border: 0;
+  border-radius: 0;
+}
+.rating-changes tbody > tr:first-child > th {
+  color: var(--ih-text);
+}
+.rating-changes .rc-streak {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+}
+
+/* 분석 코멘트 "근거 경기" 펼침(Graphs.tsx EvidenceFold). 접힌 도움말(.help) 모양을 그대로 쓰고 줄만 정리한다. */
+.remark-evidence .evidence-label {
+  color: var(--ih-text);
+  font-weight: 500;
+}
+.remark-evidence .evidence-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.remark-evidence .evidence-rows > li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.remark-evidence .evidence-rows .link {
+  padding-left: 0;
+  font-variant-numeric: tabular-nums;
 }

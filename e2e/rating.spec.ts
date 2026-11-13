@@ -164,3 +164,27 @@ test("랭킹 MMR 순 · 개인 통계 MMR · 두 사람 비교 MMR 차 · 랭킹
   await expect(side).not.toContainText("기대 승률");
   await noHorizontalOverflow(page, "두 사람 비교");
 });
+
+// 경기 상세 "이 경기로 바뀐 MMR"(Records.tsx RatingChanges): 접혀 있다가 펴면 열 명의 전·후·변화가 팀별로 나온다.
+// 2경기에서 선수01은 이긴 팀, 선수10은 진 팀이다.
+test("경기 상세: 이 경기로 바뀐 MMR을 펴면 열 명의 변화가 팀별로", async ({ page }) => {
+  const s = await setup(page);
+  const snapshot = await snapshotOf(page.request, s.groupId);
+  const second = snapshot.matches.find((m: { matchNo: number }) => m.matchNo === 2);
+  await page.goto(`/#/m/${second.id}`);
+  const fold = page.locator("details.rating-changes");
+  await expect(fold).not.toHaveAttribute("open");
+  await fold.getByText("이 경기로 바뀐 MMR").click();
+  const rows = fold.locator("tbody tr:has(td)");
+  await expect(rows).toHaveCount(10);
+  await expect(fold.getByRole("columnheader", { name: "블루팀 · 승리" })).toBeVisible();
+  await expect(rows.filter({ hasText: "선수01" }).locator("td").last()).toHaveText(/^\+\d+$/);
+  await expect(rows.filter({ hasText: "선수10" }).locator("td").last()).toHaveText(/^−\d+$/);
+  await noHorizontalOverflow(page, "경기 상세 MMR 변화");
+  if (process.env.SHOTS_DIR) {
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.screenshot({ path: `${process.env.SHOTS_DIR}/rating-changes-${width}.png`, fullPage: true });
+    }
+  }
+});

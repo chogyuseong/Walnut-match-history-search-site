@@ -73,6 +73,16 @@ test.describe("처음 온 방문자 (390px)", () => {
     await page.goto("/#/demo/graphs");
     await expect(page.getByRole("heading", { name: "그래프 분석", level: 1 })).toBeVisible();
     await noHorizontalOverflow(page, "예시 그래프");
+    // 분석 코멘트의 편성 균형 문장: "근거 경기"를 펴면 판정 경기 수와 같은 수가 나오고, 줄을 누르면 그 경기 상세로 간다.
+    const fairRemark = page.getByRole("region", { name: "분석 코멘트" }).getByRole("listitem").filter({ hasText: "MMR 차 35점 이내" });
+    const judged = (await fairRemark.innerText()).match(/판정 (\d+)경기/)![1];
+    await fairRemark.getByText(`근거 경기 ${judged}`).click();
+    await expect(fairRemark.getByText(`MMR 차가 큰 경기부터 · ${judged}경기`)).toBeVisible();
+    if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/evidence-390.png`, fullPage: true });
+    await noHorizontalOverflow(page, "예시 그래프 근거 경기");
+    await fairRemark.locator(".evidence-rows button").first().click();
+    await expect(page).toHaveURL(/#\/demo\/d\/[^/]+$/);
+    await expect(page.getByRole("heading", { name: /^\d+경기$/, level: 1 })).toBeVisible();
 
     // 시즌 요약
     await page.goto("/#/demo/season/demo-season1");
