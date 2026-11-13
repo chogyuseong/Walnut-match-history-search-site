@@ -36,13 +36,13 @@ const FEATURES: { icon: LineIconName; title: string; text: string; shot?: IntroS
   },
   {
     icon: "ranking",
-    title: "전적 · 랭킹 · 개인 통계",
+    title: "전적과 랭킹",
     text: "경기 결과를 저장하면 승률 랭킹, 라인별 기록, 함께 뛴 사람별 기록이 쌓여요.",
     shot: { name: "ranking", alt: "MMR 랭킹 화면 예시: 순위, 이름, MMR, 경기 수와 승률, 최근 10경기 승패가 줄마다 보인다", height: 448 },
   },
   {
     icon: "link",
-    title: "참가 신청 · 조회 링크",
+    title: "참가 신청과 기록 링크",
     text: "링크를 보내면 참가자가 로그인 없이 이름을 올리고, 기록과 지금 경기의 자기 자리를 봐요.",
     shot: {
       name: "join",
@@ -116,7 +116,6 @@ export function Intro() {
       </div>
       <section className="intro-features" aria-labelledby={featuresTitle}>
         <h2 id={featuresTitle}>모임에서 이렇게 써요</h2>
-        <p className="intro-note">참가자는 로그인 없이 링크로 기록을 봐요.</p>
         <ul>
           {FEATURES.map((f) => (
             <li key={f.title}>

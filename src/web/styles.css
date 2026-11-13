@@ -5227,7 +5227,7 @@ main:focus {
   list-style: none;
   border-top: 1px solid var(--ih-line);
 }
-/* 줄 하나 = 아이콘 | 제목·설명, 예시 사진은 좁은 화면에서 설명 아래(아이콘 칸은 비움), 768px 이상에서 설명 오른쪽. */
+/* 줄 하나 = 아이콘 | 제목·설명, 예시 사진은 설명 아래(아이콘 칸은 비움). 768~1199px만 설명 오른쪽 칸. */
 .intro-features li {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -5248,22 +5248,20 @@ main:focus {
   border-radius: 8px;
 }
 :root {
-  /* 사진 폭 상한. 찍은 폭(390px)보다 넓히면 글자가 번진다. 넓은 화면에서는 설명 칸에 자리를 남기려 더 좁힌다. */
+  /* 사진 폭 상한. 찍은 폭(390px)보다 넓히면 글자가 번진다. 설명 옆에 놓는 768~1199px도 이 값이다. */
   --intro-shot-max: 320px;
 }
 :root[data-theme="light"] .intro-shot-dark,
 :root:not([data-theme="light"]) .intro-shot-light {
   display: none;
 }
-@media (min-width: 768px) {
+/* 768~1199px: 사진을 설명 오른쪽 칸(320px)에. 720px 본문에서 설명 칸이 350px 남짓 남는다. */
+@media (min-width: 768px) and (max-width: 1199px) {
   .intro-features li {
     grid-template-columns: auto minmax(0, 1fr) var(--intro-shot-max);
   }
   .intro-shot {
     grid-column: 3;
-  }
-  :root {
-    --intro-shot-max: 240px;
   }
 }
 .intro-features li:last-child {
@@ -5293,12 +5291,24 @@ main:focus {
     align-self: auto;
   }
 }
+/* 1200px 이상: 왼쪽 소개·행동 | 오른쪽 기능 목록. 사진은 설명 아래에 찍은 폭(390px) 그대로 두어 사진 속 글자가 읽힌다.
+   오른쪽 목록이 길어 왼쪽이 비지 않도록 소개 단을 따라오게 한다. 창이 낮으면(720px 미만) 소개 단이 창보다 길어져
+   버튼이 잘릴 수 있어 고정하지 않는다. 200% 확대는 폭이 1200px 아래로 내려가 한 단이 된다. */
 @media (min-width: 1200px) {
   .intro {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--space-8);
     align-items: start;
+  }
+  :root {
+    --intro-shot-max: 390px;
+  }
+}
+@media (min-width: 1200px) and (min-height: 720px) {
+  .intro-hero {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-5));
   }
 }
 /* 예시 모임(#/demo) 위 안내. 데이터와 상관없이 바로 그려 높이가 바뀌지 않는다. */
@@ -5316,6 +5326,24 @@ main:focus {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+/* 휴대폰: 안내와 버튼을 한 줄에 둬 본문이 빨리 나오게 한다. 메뉴 칸은 하단 고정 메뉴로 내려가고 화면 제목이
+   "예시 모임 요약"이라, 위에 남는 "예시 모임" 줄은 숨긴다(조회 링크의 .viewer-nav는 모임 이름이라 그대로 둔다). */
+@media (max-width: 767px) {
+  .demo-banner {
+    flex-wrap: nowrap;
+  }
+  .demo-banner > button {
+    flex-shrink: 0;
+  }
+  .demo-nav {
+    min-height: 0;
+    padding: 0;
+    border-bottom: 0;
+  }
+  .demo-nav > strong {
+    display: none;
+  }
 }
 /* 예시 데이터를 만드는 동안 자리를 잡아 둔다(아래 푸터가 크게 튀지 않게). */
 .demo-loading,
@@ -7879,6 +7907,10 @@ input[type="search"].filter-search {
   }
 }
 /* 이전 경기 표: 번호 · 일시 · 결과 · 블루 다섯 · 레드 다섯. 다섯 이름은 칸 안에서 줄을 바꾼다. */
+/* 두 팀 칸을 같은 폭으로 둔다. 자동 폭이면 이긴 팀(굵은 글자) 칸이 먼저 두 줄로 꺾여 짝이 안 맞아 보였다. */
+.recent-table .rm-team {
+  width: 32%;
+}
 .recent-table td {
   padding-top: var(--space-2);
   padding-bottom: var(--space-2);

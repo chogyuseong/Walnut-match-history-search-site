@@ -248,19 +248,28 @@ export function RatingTierBadge(props: { rating: number; placed: boolean }) {
  * 배치 중은 "배치 진행 중 7/10"(10은 모임 설정의 배치 경기 수)으로만 쓰고 낮은 실력처럼 보이게 하지 않는다.
  * 칭호는 구간 순서로 정한 등급 색·엠블럼으로 보여준다(TitleBadge). compact는 목록 줄용(TitleBadge 참고).
  */
-export function StandingNote(props: { standing: ShownStanding | undefined; placementGames: number; compact?: boolean }) {
+export function StandingNote(props: {
+  standing: ShownStanding | undefined;
+  placementGames: number;
+  compact?: boolean;
+  /** 목록 머리에 "누적 기준"을 이미 한 번 적었으면 줄마다 되풀이하지 않는다(요약 화면 랭킹 상위). */
+  basisInHeading?: boolean;
+}) {
   const s = props.standing ?? { games: 0, wins: 0, losses: 0, done: false, title: null, grade: null };
+  const basis = props.basisInHeading ? null : "누적 기준";
   if (!s.done) {
     return (
       <span className="standing">
-        배치 진행 중 {s.games}/{props.placementGames} (누적 기준)
+        배치 진행 중 {s.games}/{props.placementGames}
+        {basis && ` (${basis})`}
       </span>
     );
   }
-  if (!s.title) return <span className="standing">배치 완료 (누적 기준)</span>;
+  if (!s.title) return <span className="standing">배치 완료{basis && ` (${basis})`}</span>;
   return (
     <span className="standing">
-      <TitleBadge name={s.title} grade={s.grade} compact={props.compact} /> 누적 기준
+      <TitleBadge name={s.title} grade={s.grade} compact={props.compact} />
+      {basis && ` ${basis}`}
     </span>
   );
 }

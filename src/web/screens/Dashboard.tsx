@@ -151,6 +151,7 @@ export function Dashboard(props: {
               랭킹 전체
             </button>
           </div>
+          <p className="sub-head">칭호와 배치는 누적 기준</p>
           <ul className="list list-card">
             {top.map((r) => (
               <li key={r.participantId}>
@@ -175,7 +176,7 @@ export function Dashboard(props: {
                     · {r.wins}승 {r.games - r.wins}패 ({r.games}경기)
                     <br />
                     <span className="hint">
-                      <StandingNote standing={placement.get(r.participantId)} placementGames={placementGames} compact />
+                      <StandingNote standing={placement.get(r.participantId)} placementGames={placementGames} compact basisInHeading />
                     </span>
                   </span>
                 </button>

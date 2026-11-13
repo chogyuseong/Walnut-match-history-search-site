@@ -65,7 +65,7 @@ function DemoBanner() {
   return (
     <div className="demo-banner" role="note" aria-label="예시 데이터 안내">
       <p>
-        <strong>예시 데이터예요.</strong> 가짜 이름으로 만든 기록이라 실제 모임과 관계없어요.
+        <strong>예시 데이터예요.</strong> 가짜 이름으로 만든 기록이에요.
       </p>
       {/* 예시 화면의 주 버튼은 화면 본문 쪽에 둔다(primary 하나 규칙). 안내 줄의 행동은 secondary. */}
       <button type="button" className="secondary" onClick={() => go("/group")}>
@@ -88,7 +88,7 @@ function DemoNav(props: { current: ViewerTab }) {
     </button>
   );
   return (
-    <nav className="viewer-nav" aria-label="예시 모임 메뉴">
+    <nav className="viewer-nav demo-nav" aria-label="예시 모임 메뉴">
       <strong>예시 모임</strong>
       <span>
         {item("home", "요약")} {item("search", "검색")} {item("records", "기록")} {item("ranking", "랭킹")}{" "}
