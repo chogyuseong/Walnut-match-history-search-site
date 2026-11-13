@@ -4412,6 +4412,24 @@ main:focus {
   font-size: var(--text-label);
   white-space: nowrap;
 }
+/* 상단 바 "피드백" 글자 링크(시험 운영 기간, App.tsx TopBar). 누르는 칸 44×44. 운영 화면은 넓은 화면에 같은 탭이 있어
+   좁은 화면에서만 보인다(.nav-narrow-only). */
+.topbar-feedback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-1);
+  color: var(--ih-accent);
+  font-size: var(--text-label);
+  white-space: nowrap;
+}
+@media (min-width: 768px) {
+  .topbar-feedback.nav-narrow-only {
+    display: none;
+  }
+}
 .topbar-account {
   position: relative;
 }
@@ -8522,6 +8540,13 @@ input[type="search"].filter-search {
 .rating-changes tbody > tr:first-child > th {
   color: var(--ih-text);
 }
+/* 변화 숫자: 오름 빨강·내림 파랑(사용자 요청, CLAUDE.md 5절 예외). 승패 글자 토큰을 그대로 쓴다(패널 위 대비 확인된 값). */
+.rating-changes .rc-up {
+  color: var(--ih-loss-text);
+}
+.rating-changes .rc-down {
+  color: var(--ih-win-text);
+}
 .rating-changes .rc-streak {
   color: var(--ih-text-secondary);
   font-size: var(--text-meta);
@@ -8545,4 +8570,37 @@ input[type="search"].filter-search {
 .remark-evidence .evidence-rows .link {
   padding-left: 0;
   font-variant-numeric: tabular-nums;
+}
+
+/* 피드백 화면(screens/Feedback.tsx): 읽기 폭 양식. 라벨 → 입력 칸 8px, 안내 → 버튼 16px. */
+.feedback-form,
+.feedback-sent {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 720px;
+}
+.feedback-form textarea {
+  width: 100%;
+  min-height: 9em;
+  resize: vertical;
+}
+.feedback-form > .primary,
+.feedback-sent > .secondary {
+  justify-self: start;
+  margin-top: var(--space-2);
+}
+.feedback-sent-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+/* 사이트 현황의 피드백 목록. 받은 글은 줄바꿈을 그대로 보이고 긴 낱말(주소 등)은 칸 안에서 끊는다. */
+.feedback-list .feedback-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.feedback-list .list-row > div {
+  min-width: 0;
 }

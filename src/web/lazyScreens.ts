@@ -57,6 +57,8 @@ export const Viewer = lazyNamed(() => import("./screens/Viewer"), "Viewer");
 export const ViewerLive = lazyNamed(() => import("./screens/ViewerLive"), "ViewerLive");
 export const Demo = lazyNamed(() => import("./screens/Demo"), "Demo");
 export const Privacy = lazyNamed(() => import("./screens/Privacy"), "Privacy");
+/** 피드백(#/feedback, 시험 운영 기간). 누구나 여는 작은 양식이라 따로 받는다. */
+export const Feedback = lazyNamed(() => import("./screens/Feedback"), "Feedback");
 
 // (나) 운영자 기본 흐름
 export const Today = lazyNamed(() => import("./screens/Today"), "Today");

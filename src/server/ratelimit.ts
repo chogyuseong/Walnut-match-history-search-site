@@ -29,6 +29,7 @@ export type Bucket =
   | "login-ip"
   | "recover-ip"
   | "client-error-ip"
+  | "feedback-ip"
   | "bulk-rows-account"
   | "bulk-rows-ip"
   | "day-strike-ip"
@@ -72,6 +73,8 @@ export const DEFAULT_LIMITS: Record<Bucket, number> = {
   "recover-ip": 5,
   // 화면 오류 보고(로그인 없음, src/server/errorLog.ts). 화면도 분당 몇 건만 보내므로 좁게 둔다.
   "client-error-ip": 10,
+  // 피드백(로그인 없음, src/server/feedback.ts). 사람이 손으로 적어 보내므로 분당 3건이면 넉넉하다.
+  "feedback-ip": 3,
   // 대량 쓰기 하루 예산(가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수, 2026-11-08 보안 점검).
   // 정상 사용(예: 522경기 이전을 50경기씩 11번)은 넉넉히 들어가고, 계정·IP를 돌려 D1 무료 한도(하루 쓰기 10만 행)를
   // 다 쓰는 일을 막는다. 경기 하나가 대략 13행(경기·명단 10·이력·요청 기록)이라 3,000경기 ≈ 4만 행.
@@ -108,6 +111,7 @@ const LIMIT_VARS: Record<Bucket, keyof Env> = {
   "login-ip": "RATE_LOGIN_PER_IP",
   "recover-ip": "RATE_RECOVER_PER_IP",
   "client-error-ip": "RATE_CLIENT_ERROR_PER_IP",
+  "feedback-ip": "RATE_FEEDBACK_PER_IP",
   "bulk-rows-account": "RATE_BULK_ROWS_PER_ACCOUNT",
   "bulk-rows-ip": "RATE_BULK_ROWS_PER_IP",
   "day-strike-ip": "RATE_STRIKES_PER_IP_DAY",

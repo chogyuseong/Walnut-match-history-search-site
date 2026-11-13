@@ -28,6 +28,7 @@ import {
   Ranking,
   PriorityScreen,
   Privacy,
+  Feedback,
   Search,
   SeasonSummaryScreen,
   SheetImport,
@@ -134,7 +135,7 @@ export function App() {
 
   return (
     <AppContext.Provider value={app}>
-      <TopBar homeLink actions={<AccountControl />} />
+      <TopBar homeLink actions={<AccountControl />} feedbackNarrowOnly />
       {/* 참가 중인 모임(#/mine/...)은 자기 메뉴(조회 메뉴)를 쓴다. 운영 탭은 다른 모임을 가리키므로 숨긴다.
           <main> 앞에 둔다: 넓은 화면에서 상단 바 바로 아래 한 줄이고, Tab 순서도 상단 바 → 주 메뉴 → 본문이다.
           좁은 화면에서는 CSS가 아래에 고정한다(순서는 같다). */}
@@ -204,6 +205,7 @@ const PAGE_TITLE: Record<string, string> = {
   compare: "두 사람 비교",
   privacy: "개인정보 처리방침",
   "login-failed": "로그인 실패",
+  feedback: "피드백",
   "login-return": "오늘",
   admin: "사이트 운영 현황",
 };
@@ -273,7 +275,7 @@ function NotFound() {
  * 사이트 이름은 중립색 글자다(CLAUDE.md 5절: 로고를 강조색으로 칠하지 않는다).
  * 조회 링크로 들어온 사람에게는 운영 화면으로 가는 로고 링크와 로그인 버튼을 주지 않는다.
  */
-function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
+function TopBar(props: { homeLink?: boolean; actions?: ReactNode; feedbackNarrowOnly?: boolean }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const mark = <span>{SITE_NAME}</span>;
   return (
@@ -297,6 +299,11 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode }) {
           <span className="brand">{mark}</span>
         )}
         <div className="topbar-actions">
+          {/* 피드백(시험 운영 기간). 운영 화면은 넓은 화면에 "피드백" 탭이 있어 좁은 화면에서만 보인다(feedbackNarrowOnly).
+              조회 링크·참가 신청·예시 모임에는 운영 탭이 없어 늘 보인다. */}
+          <a className={props.feedbackNarrowOnly ? "topbar-feedback nav-narrow-only" : "topbar-feedback"} href="#/feedback">
+            피드백
+          </a>
           <select
             className="theme-select"
             aria-label="화면 테마"
@@ -404,6 +411,7 @@ function OperatorScreen(props: { route: string[] }) {
   const app = useAppValue();
   const [page, id] = props.route;
   if (page === "privacy") return <Privacy back={() => go("/")} backLabel="← 오늘" />;
+  if (page === "feedback") return <Feedback />;
   if (page === "login-failed") return <LoginFailed reason={id ?? ""} />;
   // 로그인 만료(401)는 각 화면이 로그인 안내를 보여준다. 그 밖의 불러오기 실패는 "기록 없음"과 구분해 알린다.
   if (
@@ -591,7 +599,9 @@ function Tabs(props: { current: string }) {
       ? "records"
       : props.current === "graphs" || props.current === "ranking" || props.current === "champions"
         ? props.current
-        : props.current === "group" ||
+        : props.current === "feedback"
+          ? "feedback"
+          : props.current === "group" ||
             props.current === "import" ||
             props.current === "sheet-import" ||
             props.current === "legacy-import" ||
@@ -626,6 +636,8 @@ function Tabs(props: { current: string }) {
         {item("champions", "/champions", "챔피언", "champions", true)}
         {item("graphs", "/graphs", "분석", "graphs")}
         {app.me?.accountId && item("group", "/group", "모임", "group")}
+        {/* 시험 운영 기간 탭. 좁은 화면 하단 탭은 6칸이 한계라 넓은 화면에만 두고, 좁은 화면은 상단 바 링크(TopBar)로 간다. */}
+        {item("feedback", "/feedback", "피드백", "feedback", true)}
       </div>
     </nav>
   );

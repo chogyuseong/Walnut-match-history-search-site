@@ -128,6 +128,7 @@ import { etagMatches, loadEtagHead, loadEtagHeadByViewToken, snapshotBody, snaps
 import { runBackups } from "./backupCron";
 import { recordClientError, recordServerError } from "./errorLog";
 import { clearErrorLogs, isSiteAdmin, requireSiteAdmin, siteOverview } from "./siteAdmin";
+import { deleteFeedback, listFeedback, submitFeedback } from "./feedback";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -135,6 +136,8 @@ const app = new Hono<{ Bindings: Env }>();
 const HEAVY_READ = /^\/api\/groups\/[^/]+\/(export|merges\/preview|imports\/fingerprints)$/;
 /** 화면 오류 보고 경로(src/server/errorLog.ts). */
 const CLIENT_ERRORS_PATH = "/api/client-errors";
+/** 피드백 보내기 경로(src/server/feedback.ts, 로그인 없음). */
+const FEEDBACK_PATH = "/api/feedback";
 
 app.onError(async (error, c) => {
   if (error instanceof ApiError) {
@@ -259,12 +262,15 @@ app.use("/api/*", async (c, next) => {
   } else if (method === "POST" && path === CLIENT_ERRORS_PATH) {
     // 화면 오류 보고(로그인 없음): 자기 한도만 센다. 쓰기 한도를 쓰면 오류가 잦은 화면에서 저장까지 막힌다.
     await hit(c.env, "client-error-ip", ip);
+  } else if (method === "POST" && path === FEEDBACK_PATH) {
+    // 피드백(로그인 없음): 자기 한도만 센다.
+    await hit(c.env, "feedback-ip", ip);
   } else if (method !== "OPTIONS") {
     const session = await readSession(c.env, c.req.raw);
     const join = path.startsWith("/api/join/");
     // 세션 없는 쓰기는 세지 않는다(2026-11-10 보안 감사). 참가 신청(토큰이 권한) 말고는 모두 로그인이 필요해 DB를
     // 건드리기 전에 401·404로 끝나는데, 세면 그 요청마다 D1 쓰기 1행이 들어 로그인 없는 한 사람이 하루 쓰기 한도를 축낸다.
-    // 로그인 없이 쓰는 경로를 새로 만들면 여기에 더한다(로그인·가입은 위의 auth-ip, 오류 보고는 client-error-ip).
+    // 로그인 없이 쓰는 경로를 새로 만들면 여기에 더한다(로그인·가입은 위의 auth-ip, 오류 보고는 client-error-ip, 피드백은 feedback-ip).
     if (session || join) {
       // 참가 신청(로그인 없음, 토큰이 권한)은 조회 토큰 한도도 함께 센다.
       if (join) await hit(c.env, "view-ip", ip);
@@ -454,6 +460,26 @@ app.get("/api/admin/overview", async (c) => {
 app.post("/api/admin/errors/clear", async (c) => {
   await requireSiteAdmin(c.env, c.req.raw);
   return c.json({ cleared: await clearErrorLogs(c.env) });
+});
+
+// 피드백 보내기. 로그인 없이 받는다. 공통 앞단에서 Origin 확인과 IP별 한도(feedback-ip)를 거친다.
+app.post(FEEDBACK_PATH, async (c) => {
+  await submitFeedback(c.env, c.req.raw);
+  return c.json({ ok: true });
+});
+
+// 피드백 읽기·지우기는 사이트 운영자만(아니면 없는 경로처럼 404).
+app.get("/api/admin/feedback", async (c) => {
+  await requireSiteAdmin(c.env, c.req.raw);
+  return c.json({ feedback: await listFeedback(c.env) });
+});
+
+app.post("/api/admin/feedback/:id/delete", async (c) => {
+  await requireSiteAdmin(c.env, c.req.raw);
+  const id = Number(c.req.param("id"));
+  if (!Number.isSafeInteger(id) || id <= 0) throw new ApiError(400, "INVALID_FIELD", "번호가 올바르지 않습니다.");
+  await deleteFeedback(c.env, id);
+  return c.json({ ok: true });
 });
 
 /* ---------------------------- 모임 ---------------------------- */

@@ -36,13 +36,22 @@ const KIND_LABEL: Record<string, string> = {
   server: "서버 오류",
 };
 
+/** GET /api/admin/feedback의 한 건(src/server/feedback.ts FeedbackEntry). */
+interface FeedbackEntry {
+  id: number;
+  createdAt: string;
+  body: string;
+  appVersion: string | null;
+  browser: string | null;
+}
+
 function when(iso: string): string {
   // 다른 화면과 같은 날짜·시각 표기("11월 7일 오후 6:00").
   return `${formatDate(iso)} ${formatTime(iso)}`;
 }
 
 /**
- * 사이트 운영자(이 서비스의 주인) 현황(#/admin). 전체 수치와 오류 기록만 보여 준다.
+ * 사이트 운영자(이 서비스의 주인) 현황(#/admin). 피드백(시험 운영 기간), 전체 수치와 오류 기록만 보여 준다.
  * 사이트 운영자가 아니면 App이 이 화면을 그리지 않는다(서버도 404).
  */
 export function SiteAdmin() {
@@ -50,10 +59,16 @@ export function SiteAdmin() {
   const [error, setError] = useState<unknown>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackEntry[] | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setData(await call<Overview>("GET", "/api/admin/overview"));
+      const [overview, sent] = await Promise.all([
+        call<Overview>("GET", "/api/admin/overview"),
+        call<{ feedback: FeedbackEntry[] }>("GET", "/api/admin/feedback"),
+      ]);
+      setData(overview);
+      setFeedback(sent.feedback);
       setError(null);
     } catch (e) {
       setError(e);
@@ -77,6 +92,18 @@ export function SiteAdmin() {
     }
   }
 
+  async function removeFeedback(id: number) {
+    setBusy(true);
+    try {
+      await call("POST", `/api/admin/feedback/${id}/delete`, {});
+      setFeedback((list) => list?.filter((f) => f.id !== id) ?? null);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="screen site-admin">
       <header className="screen-head">
@@ -91,6 +118,30 @@ export function SiteAdmin() {
         <p className="site-admin-loading">{error ? "" : "불러오는 중…"}</p>
       ) : (
         <>
+          {/* 시험 운영 기간에 가장 먼저 볼 것이라 맨 위에 둔다(#/feedback으로 받은 글, 최근 것부터). */}
+          <section aria-label="피드백">
+            <h2>피드백 {feedback?.length ?? 0}건</h2>
+            {!feedback || feedback.length === 0 ? (
+              <p className="hint">받은 피드백이 없어요. 최근 500건, 180일까지 남아요.</p>
+            ) : (
+              <ul className="list list-card feedback-list">
+                {feedback.map((f) => (
+                  <li key={f.id} className="list-row static">
+                    <div>
+                      <p className="feedback-body">{f.body}</p>
+                      <p className="hint">
+                        {when(f.createdAt)} · {f.browser ?? "브라우저 정보 없음"} · 버전 {f.appVersion ?? "-"}
+                      </p>
+                    </div>
+                    <button type="button" className="secondary" disabled={busy} onClick={() => void removeFeedback(f.id)}>
+                      지우기
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <section aria-label="전체 수치">
             <h2>전체</h2>
             <p className="kpi">

@@ -869,6 +869,13 @@ function ExpectationLine(props: { expectation: MatchExpectation | undefined }) {
  * 결과 저장 뒤의 다음 행동을 밀어내지 않게 접어 둔다. 진 쪽 큰 감점이 탓하기 소재가 되지 않도록, 같은 팀은 같은 방향이고
  * 폭은 판수·연속 결과로만 갈린다는 설명을 함께 둔다. 변화는 반올림한 전·후 값의 차라 표의 두 숫자와 늘 맞는다.
  */
+/** 변화 글자색(사용자 요청, CLAUDE.md 5절 예외): 오르면 빨강, 내리면 파랑, 0은 기본색. 부호(+·−)를 늘 같이 둔다. */
+function deltaClass(delta: number): string {
+  if (delta > 0) return "rc-up";
+  if (delta < 0) return "rc-down";
+  return "";
+}
+
 function RatingChanges(props: { snapshot: Snapshot; match: MatchView; nameOf: (id: string) => string }) {
   const { snapshot, match } = props;
   const changes = useMemo(
@@ -929,7 +936,9 @@ function RatingChanges(props: { snapshot: Snapshot; match: MatchView; nameOf: (i
                   </td>
                   <td className="num">{shownRating(c.before)}</td>
                   <td className="num">{shownRating(c.after)}</td>
-                  <td className="num">{signedDelta(shownRating(c.after) - shownRating(c.before))}</td>
+                  <td className={`num ${deltaClass(shownRating(c.after) - shownRating(c.before))}`}>
+                    {signedDelta(shownRating(c.after) - shownRating(c.before))}
+                  </td>
                 </tr>
               ))}
           </tbody>

@@ -51,6 +51,8 @@ export interface Env {
   RATE_RECOVER_PER_IP?: string;
   /** 화면 오류 보고(POST /api/client-errors, 로그인 없음)의 IP별 한도(창당). 기본 10. */
   RATE_CLIENT_ERROR_PER_IP?: string;
+  /** 피드백(POST /api/feedback, 로그인 없음)의 IP별 한도(창당). 기본 3. */
+  RATE_FEEDBACK_PER_IP?: string;
   /**
    * 대량 쓰기 하루 예산(UTC 하루에 가져오기·지난 경기 입력·백업 복원으로 넣을 수 있는 경기 수).
    * 기본 계정당 3000, IP당 6000(src/server/ratelimit.ts spendBulkRows).

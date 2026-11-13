@@ -369,7 +369,7 @@ async function copyText(text: string): Promise<boolean> {
 /**
  * 메뉴·첫 화면 소개의 선 아이콘. 20×20 칸, 선 1.5px(CLAUDE.md 7절), 색은 글자색을 따른다(styles.css .line-icon).
  * today·search·records·ranking·graphs·group·link는 확정 시안(docs/design-mockup/home-gold.html)의 symbol을 그대로 옮겼고,
- * champions·now·summary·me는 시안에 없어 같은 칸·같은 굵기·둥근 끝으로 새로 그렸다. 외부 아이콘 세트를 섞지 않는다.
+ * champions·now·summary·me·feedback은 시안에 없어 같은 칸·같은 굵기·둥근 끝으로 새로 그렸다. 외부 아이콘 세트를 섞지 않는다.
  * 아이콘만으로 뜻을 전하지 않는다. 늘 옆에 글자가 있으므로 보조 기기에는 숨긴다.
  */
 const LINE_ICON_PATHS = {
@@ -419,6 +419,8 @@ const LINE_ICON_PATHS = {
       <path d="M4 17c0-3.3 2.7-5 6-5s6 1.7 6 5" />
     </>
   ),
+  // 말풍선(피드백 탭·상단 바 링크). 시안에 없어 같은 칸·굵기로 그렸다.
+  feedback: <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3H4A1.5 1.5 0 0 1 2.5 13V6A1.5 1.5 0 0 1 4 4.5z" />,
   // check·alert는 styles.css의 --icon-check·--icon-alert(안내 상자·배지 아이콘)와 같은 그림이다. 바꾸면 둘 다 바꾼다.
   check: (
     <>

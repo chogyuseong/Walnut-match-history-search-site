@@ -58,6 +58,7 @@
     "RATE_LOGIN_PER_IP": "5000",
     "RATE_RECOVER_PER_IP": "5000",
     "RATE_CLIENT_ERROR_PER_IP": "5000",
+    "RATE_FEEDBACK_PER_IP": "5000",
     // 대량 쓰기 하루 예산(경기 수, UTC 하루). 로컬 합성 데이터·브라우저 테스트가 걸리지 않게 넉넉히.
     "RATE_BULK_ROWS_PER_ACCOUNT": "1000000",
     "RATE_BULK_ROWS_PER_IP": "1000000",

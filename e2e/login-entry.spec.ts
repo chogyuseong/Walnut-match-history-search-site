@@ -154,7 +154,13 @@ test.describe("상단 바 배치", () => {
     expect(bar!.height).toBeLessThanOrEqual(64);
     const controls = await banner(page)
       .locator("a, button, select")
-      .evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect()).map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })));
+      .evaluateAll((nodes) =>
+        nodes
+          .map((n) => n.getBoundingClientRect())
+          // 숨긴 조작(넓은 화면의 상단 바 "피드백" 링크는 탭이 대신해 display:none)은 세지 않는다.
+          .filter((r) => r.width > 0 && r.height > 0)
+          .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })),
+      );
     for (const c of controls) {
       expect(c.h).toBeGreaterThanOrEqual(44);
       expect(c.x).toBeGreaterThanOrEqual(0);
