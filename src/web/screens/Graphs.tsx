@@ -18,7 +18,7 @@ import {
   TrendLine,
 } from "../screenKit";
 import { useExpectations } from "../matchCard";
-import { BALANCED_MARGIN, fairnessReport, FAIRNESS_GOOD, FAIRNESS_MIN_GAMES, FAIRNESS_OK, personUpsets, UPSET_THRESHOLD, LOPSIDED_MARGIN, fairnessVerdict, type FairnessVerdict } from "../../shared/upset";
+import { BALANCED_MMR_GAP, fairnessReport, FAIRNESS_GOOD, FAIRNESS_MIN_GAMES, FAIRNESS_OK, personUpsets, UPSET_MMR_GAP, LOPSIDED_MMR_GAP, fairnessVerdict, type FairnessVerdict } from "../../shared/upset";
 import { attendanceReport } from "../../shared/attendance";
 import { computeRatings, shownRating, ratingOptionsOf } from "../../shared/rating";
 import { groupCommentary, playerCommentary, type Commentary } from "../../shared/commentary";
@@ -165,8 +165,11 @@ const FAIR_VERDICT_TEXT: Record<FairnessVerdict, string> = {
 const FAIR_SEG_LABEL = { balanced: "균형", slight: "조금 치우침", lopsided: "많이 치우침" } as const;
 /** 분포 띠 구간 안에 경기 수를 쓰는 최소 비율(이보다 좁으면 숫자가 넘친다). */
 const FAIR_SEG_LABEL_MIN = 0.12;
-/** 평균 치우침 미터가 가득 차는 값(25%p). 실제 모임은 보통 3~12%p라 눈금이 너무 짧아지지 않게 잡았다. */
-const FAIR_DEVIATION_FULL = 0.25;
+/**
+ * 평균 MMR 차 미터가 가득 차는 값(점). 예전 기준(예상 25%p 치우침 = 75%)과 같은 선: 400 × log10(0.75 / 0.25) ≈ 190.8 → 191.
+ * 실제 모임은 보통 20~85점(예전 3~12%p)이라 눈금이 너무 짧아지지 않게 잡았다.
+ */
+const FAIR_GAP_FULL = 191;
 
 const VIEW_LABEL: Record<View, string> = {
   people: "개인별 승률",
@@ -298,11 +301,8 @@ export function Graphs(props: {
   const blueRate = sides.known > 0 ? ratePercent(sides.blueWins, sides.known) : null;
   // 레드는 100 − 블루(시즌 요약과 같은 방식. 따로 반올림하면 합이 101%가 될 수 있다).
   const redRate = blueRate !== null ? 100 - blueRate : null;
-  // 섞기 공정성(upset.ts): 예상은 누적 MMR, 세는 경기는 이 범위.
+  // 섞기 공정성(upset.ts): 판정은 경기 직전 팀 평균 MMR 차(누적, 모든 모임 같은 점수 기준), 세는 경기는 이 범위.
   const fairness = useMemo(() => fairnessReport(expectations, scoped), [expectations, scoped]);
-  const balancedLow = fractionPercent(0.5 - BALANCED_MARGIN);
-  const balancedHigh = fractionPercent(0.5 + BALANCED_MARGIN);
-  const lopsidedHigh = fractionPercent(0.5 + LOPSIDED_MARGIN);
   const verdict = fairnessVerdict(fairness);
   const fewCount = matrixRows.filter((r) => r.games < SMALL_SAMPLE).length;
   const playerLines = playerId === "" ? null : (matrix.get(playerId) ?? {});
@@ -500,9 +500,10 @@ export function Graphs(props: {
         <h2>
           섞기 공정성(모임 전체){" "}
           <InfoTip label="섞기 공정성">
-            섞기 공정성은 경기 직전 팀원 MMR 평균으로 구한 예상 승률로 봅니다. 열 명 모두 배치 중인 경기는 예상이 의미가
-            적어 뺍니다. 균형 경기는 예상이 {balancedLow}~{balancedHigh}%였던 경기, 평균 치우침은 예상이 50%에서 벗어난
-            정도의 평균입니다.
+            섞기 공정성은 경기 직전 두 팀의 평균 MMR 차로 봅니다. 모든 모임이 같은 점수 기준이에요. 열 명 모두 배치 중인
+            경기는 MMR이 의미가 적어 뺍니다. 균형 경기는 차가 {BALANCED_MMR_GAP}점 이내, 많이 치우침은 {LOPSIDED_MMR_GAP}점
+            넘게 벌어진 경기, 이변은 {UPSET_MMR_GAP}점 이상 낮은 팀이 이긴 경기입니다. 예상 우세 팀은 평균 MMR이 높은
+            팀이에요.
           </InfoTip>
         </h2>
         {fairness.games < FAIRNESS_MIN_GAMES ? (
@@ -521,7 +522,7 @@ export function Graphs(props: {
               <div className="fair-verdict">
                 <strong>{FAIR_VERDICT_TEXT[verdict]}</strong>
                 <span className="hint">
-                  판정한 {fairness.games}경기 중 {fairness.balanced}경기가 예상 {balancedLow}~{balancedHigh}%였어요.
+                  판정한 {fairness.games}경기 중 {fairness.balanced}경기가 팀 평균 MMR 차 {BALANCED_MMR_GAP}점 이내였어요.
                 </span>
               </div>
             </div>
@@ -553,26 +554,26 @@ export function Graphs(props: {
             <ul className="fair-legend" aria-hidden="true">
               <li>
                 <i className="fair-seg-balanced" />
-                균형 {balancedLow}~{balancedHigh}%
+                균형 {BALANCED_MMR_GAP}점 이내
               </li>
               <li>
                 <i className="fair-seg-slight" />
-                조금 치우침 ~{lopsidedHigh}%
+                조금 치우침 ~{LOPSIDED_MMR_GAP}점
               </li>
               <li>
                 <i className="fair-seg-lopsided" />
                 많이 치우침
               </li>
             </ul>
-            {/* 보조 타일 3칸: 미터로 크기를 보이게 한다. 평균 치우침은 FAIR_DEVIATION_FULL(25%p)을 가득으로 본다. */}
+            {/* 보조 타일 3칸: 미터로 크기를 보이게 한다. 평균 MMR 차는 FAIR_GAP_FULL(191점)을 가득으로 본다. */}
             <dl className="ps-tiles season-tiles fair-tiles">
               <div className="fair-tile-skew">
-                <dt className="tile-label">평균 치우침</dt>
+                <dt className="tile-label">평균 MMR 차</dt>
                 <dd className="season-stat">
-                  {fractionPercent(fairness.avgDeviation)}
-                  <span className="season-unit">%p</span>
+                  {shownRating(fairness.avgGap)}
+                  <span className="season-unit">점</span>
                 </dd>
-                <Meter value={fairness.avgDeviation / FAIR_DEVIATION_FULL} tone="share" small />
+                <Meter value={fairness.avgGap / FAIR_GAP_FULL} tone="share" small />
               </div>
               <div className="fair-tile-favorite">
                 <dt className="tile-label">예상 우세 팀 승률</dt>
@@ -594,7 +595,7 @@ export function Graphs(props: {
               </div>
             </dl>
             <p className="hint">
-              경기 전 예상 승률(누적 MMR로 낸 추정을 이 모임 지난 경기로 보정) 기준. 예상이 50%에 가까운 경기는 두 팀 MMR 평균이 비슷했던 경기예요.
+              경기 직전 팀 평균 MMR 차(누적) 기준이라 모든 모임에 같은 뜻이에요. 이변은 평균 MMR이 {UPSET_MMR_GAP}점 이상 낮은 팀이 이긴 경기예요.
             </p>
           </>
         )}
@@ -952,7 +953,7 @@ function PlayerProfile(props: {
             <p className="hint">승률 추이는 {SMALL_SAMPLE + 1}경기부터 그려요.</p>
           ) : null}
           {(upsets.upsetWins > 0 || upsets.underdogGames > 0) && (
-            <p className="hint" title={`이변 승: 경기 전 예상이 ${Math.round(UPSET_THRESHOLD * 100)}% 미만이던 팀으로 이긴 경기`}>
+            <p className="hint" title={`이변 승: 팀 평균 MMR이 ${UPSET_MMR_GAP}점 이상 낮은 팀으로 이긴 경기`}>
               이변 승 {upsets.upsetWins}회
               {upsets.underdogGames > 0 &&
                 ` · 약팀일 때 승률 ${percentText(upsets.underdogWins, upsets.underdogGames)} (${upsets.underdogGames}경기)`}

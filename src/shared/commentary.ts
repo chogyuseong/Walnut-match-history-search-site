@@ -20,12 +20,12 @@ import {
 import { shownRating, type RatingTable } from "./rating";
 import { POSITIONS, type MatchView, type Position } from "./types";
 import {
-  BALANCED_MARGIN,
+  BALANCED_MMR_GAP,
   fairnessReport,
   fairnessVerdict,
   FAIRNESS_MIN_GAMES,
   personUpsets,
-  UPSET_THRESHOLD,
+  UPSET_MMR_GAP,
   type MatchExpectation,
 } from "./upset";
 
@@ -89,7 +89,7 @@ export const TOP_RANK_SHARE = 0.3;
 /** 총평 등급의 승률 경계(%): 상위권 이상 · 중위권 이상 · 그 아래 "성장 중". */
 export const TIER_TOP_RATE = 60;
 export const TIER_MID_RATE = 45;
-/** 약팀(경기 전 예상 50% 미만)이었던 경기가 이만큼 있어야 이변 성향을 말한다. */
+/** 약팀(경기 직전 팀 평균 MMR이 낮았던 쪽)이었던 경기가 이만큼 있어야 이변 성향을 말한다. */
 export const UNDERDOG_MIN_GAMES = 8;
 /** 약팀일 때 승률이 이 이상(%)이면 "이변을 자주 만드는 유형". 예상상 40%대가 정상이라 45%면 기대보다 잘 버틴 것이다. */
 export const UNDERDOG_RATE = 45;
@@ -118,7 +118,7 @@ export const EARLY_GAMES = 2;
 export const DAY_PART_MIN = 8;
 /** 초반·후반 승률 차(%p)가 이 이상이면 말한다. */
 export const DAY_PART_GAP = 15;
-/** 경기 전 예상 우세 팀이던 판의 최소 수. */
+/** 경기 전 예상 우세 팀(팀 평균 MMR이 높던 쪽)이던 판의 최소 수. */
 export const FAVORED_MIN = 8;
 /** 우세 판 승률이 이 미만이면 "유리한 판을 놓친다"(%). 50%면 예상이 아무 뜻이 없던 셈이다. */
 export const FAVORED_POOR = 50;
@@ -405,11 +405,11 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     remarks.push({
       text: `약팀일 때도 ${ratePercent(upsets.underdogWins, upsets.underdogGames)}%를 이겨 이변을 자주 만드는 유형이에요(${upsets.underdogGames}경기).`,
       tone: "good",
-      basis: "경기 전 예상 승률 50% 미만이던 경기",
+      basis: "팀 평균 MMR이 낮았던 경기",
     });
   } else if (upsets.upsetLosses - upsets.upsetWins >= UPSET_LOSS_EXCESS) {
     remarks.push({
-      text: `예상 승률 ${Math.round((1 - UPSET_THRESHOLD) * 100)}% 넘는 강팀으로 진 경기가 ${upsets.upsetLosses}회로, 약팀으로 이긴 ${upsets.upsetWins}회보다 많아요.`,
+      text: `팀 평균 MMR이 ${UPSET_MMR_GAP}점 이상 높은 강팀으로 진 경기가 ${upsets.upsetLosses}회로, 약팀으로 이긴 ${upsets.upsetWins}회보다 많아요.`,
       tone: "warn",
       basis: "이변 승·패",
     });
@@ -885,7 +885,7 @@ function playerCoaching(c: {
     tips.push({
       text: `약팀일 때도 ${rateOf(c.underdog)}%를 이겼어요(${c.underdog.games}경기). 불리한 판이어도 끝까지 한타를 노려 보세요.`,
       tone: "good",
-      basis: "경기 전 예상 승률 50% 미만이던 경기",
+      basis: "팀 평균 MMR이 낮았던 경기",
     });
   }
   if (c.buddy) {
@@ -905,7 +905,7 @@ function playerCoaching(c: {
   return tips.slice(0, COACHING_MAX);
 }
 
-/** 경기 전 예상 우세 팀이던 판의 성적(배치 마친 사람이 있는 판만, upset.ts reliable). */
+/** 팀 평균 MMR이 높았던(예상 우세) 판의 성적(배치 마친 사람이 있는 판만, upset.ts reliable). */
 function favoredTally(expectations: ReadonlyMap<string, MatchExpectation>, scoped: readonly MatchView[], id: string): Tally {
   const tally: Tally = { games: 0, wins: 0 };
   for (const match of scoped) {
@@ -1015,10 +1015,8 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   const predict = fairness.favoriteGames > 0 ? ratePercent(fairness.favoriteWins, fairness.favoriteGames) : null;
   if (fairReady) {
     // 사실만 쓴다(2026-11-10 F5): "공정해요"·"MMR이 실력을 잘 반영" 같은 판정은 표본 수가 말해 주는 것보다 많이 말한다.
-    const low = Math.round((0.5 - BALANCED_MARGIN) * 100);
-    const high = Math.round((0.5 + BALANCED_MARGIN) * 100);
     const head =
-      `판정 ${fairness.games}경기 중 ${fairness.balanced}경기가 예상 ${low}~${high}%였어요` +
+      `판정 ${fairness.games}경기 중 ${fairness.balanced}경기가 팀 평균 MMR 차 ${BALANCED_MMR_GAP}점 이내였어요` +
       `(균형 경기 ${ratePercent(fairness.balanced, fairness.games)}%).`;
     const tail =
       predict === null
@@ -1027,7 +1025,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
     remarks.push({
       text: head + tail,
       tone: verdict === "poor" || (predict !== null && predict < PREDICT_POOR) ? "warn" : verdict === "good" ? "good" : "neutral",
-      basis: `경기 전 예상 승률(판정 ${fairness.games}경기)`,
+      basis: `경기 직전 팀 평균 MMR 차(판정 ${fairness.games}경기)`,
     });
   }
 
@@ -1157,7 +1155,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
     remarks.push({
       text: `판정 ${fairness.games}경기 중 ${fairness.upsets}경기가 이변이었어요(${ratePercent(fairness.upsets, fairness.games)}%).`,
       tone: "neutral",
-      basis: "경기 전 예상 40% 미만 팀의 승리",
+      basis: `팀 평균 MMR이 ${UPSET_MMR_GAP}점 이상 낮은 팀의 승리`,
     });
   }
 
@@ -1224,7 +1222,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   }
 
   // 총평: 치우친 곳이 있으면 그것을, 없으면 섞기 수치를 짧게(판정 낱말 없이).
-  // "손질 필요"라고 단정하지 않는다. 편성 판정은 MMR로 낸 예상 승률에서 나온 참고 지표라 실제 체감과 다를 수 있다.
+  // "손질 필요"라고 단정하지 않는다. 편성 판정은 팀 평균 MMR 차에서 나온 참고 지표라 실제 체감과 다를 수 있다.
   const fixes = [sideSkew ? "진영" : "", fairReady && verdict === "poor" ? "편성" : ""].filter(Boolean);
   let summary: string;
   if (fixes.length > 0) summary = `${fixes.join("·")} 치우침 · 살펴볼 만해요`;
@@ -1262,12 +1260,12 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
       tips.push({
         text: `균형 경기가 ${ratePercent(fairness.balanced, fairness.games)}%로 적어요. 티어 배정과 티어 가중치를 다시 맞춰 보거나 팀 추천으로 섞어 보세요.`,
         tone: "warn",
-        basis: `경기 전 예상 승률(판정 ${fairness.games}경기)`,
+        basis: `경기 직전 팀 평균 MMR 차(판정 ${fairness.games}경기)`,
       });
     }
     if (predict !== null && predict >= PREDICT_TOO_HIGH) {
       tips.push({
-        text: `경기 전 우세하던 팀이 ${predict}%를 이겨요. 팀을 짠 뒤 예상 승률 판을 보고 한쪽이 60%를 넘으면 한두 명을 바꿔 보세요.`,
+        text: `경기 전 우세하던 팀이 ${predict}%를 이겨요. 팀을 짠 뒤 예상 승률 판에서 팀 평균 MMR이 ${UPSET_MMR_GAP}점 이상 벌어지면 한두 명을 바꿔 보세요.`,
         tone: "warn",
         basis: `예상 우세 팀 승률(${fairness.favoriteGames}경기)`,
       });

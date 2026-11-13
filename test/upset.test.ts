@@ -3,16 +3,17 @@ import { computeRatings, expectedScore, RATING_START } from "../src/shared/ratin
 import { seasonSummary, seasonSummaryText } from "../src/shared/seasonAwards";
 import { DEFAULT_SETTINGS, type MatchView, type Snapshot, type Team } from "../src/shared/types";
 import {
-  BALANCED_MARGIN,
+  BALANCED_MMR_GAP,
   calibrateExpectation,
   expectationCalibration,
   expectedOf,
   fairnessReport,
   fairnessVerdict,
   isUpset,
+  LOPSIDED_MMR_GAP,
   matchExpectations,
   personUpsets,
-  UPSET_THRESHOLD,
+  UPSET_MMR_GAP,
   upsetWinsByPerson,
   type MatchExpectation,
 } from "../src/shared/upset";
@@ -55,17 +56,19 @@ function aWins(n: number): MatchView[] {
   return Array.from({ length: n }, (_, i) => match(i + 1));
 }
 
-function fake(id: string, expectedA: number, winnerTeam: Team, reliable = true): MatchExpectation {
-  const winnerExpected = winnerTeam === "A" ? expectedA : 1 - expectedA;
+/** 팀 평균 MMR 차(팀 A − 팀 B)로 만든 가짜 예상. expectedA는 표시용이라 아무 값이나 넣어도 판정은 같아야 한다. */
+function fake(id: string, ratingGapA: number, winnerTeam: Team, reliable = true, expectedA = 0.5): MatchExpectation {
+  const winnerDeficit = winnerTeam === "A" ? -ratingGapA : ratingGapA;
   return {
     matchId: id,
+    ratingGapA,
     expectedA,
     teamASide: "blue",
     winnerTeam,
-    favoriteTeam: expectedA > 0.5 ? "A" : expectedA < 0.5 ? "B" : null,
+    favoriteTeam: ratingGapA > 0 ? "A" : ratingGapA < 0 ? "B" : null,
     reliable,
-    upset: isUpset(winnerExpected, reliable),
-    surprise: 1 - winnerExpected,
+    upset: isUpset(winnerDeficit, reliable),
+    winnerDeficit,
   };
 }
 
@@ -76,7 +79,8 @@ describe("경기 전 예상", () => {
     expect(e.favoriteTeam).toBeNull();
     expect(e.reliable).toBe(false);
     expect(e.upset).toBe(false);
-    expect(e.surprise).toBe(0.5);
+    expect(e.ratingGapA).toBe(0);
+    expect(e.winnerDeficit).toBeCloseTo(0, 12);
   });
 
   it("직전 MMR(history.before) 평균으로 구한다", () => {
@@ -84,7 +88,9 @@ describe("경기 전 예상", () => {
     const table = computeRatings(matches);
     const before = (i: number) => table.get(`p${i}`)!.history.find((h) => h.matchId === "m11")!.before;
     const e = matchExpectations(matches).get("m11")!;
-    expect(e.expectedA).toBeCloseTo(expectedScore(before(0), before(5)), 12);
+    expect(e.ratingGapA).toBeCloseTo(before(0) - before(5), 12);
+    // 배치를 마친 판정 가능 경기가 m11 하나라 보정이 거의 없다(a ≈ 1).
+    expect(e.expectedA).toBeCloseTo(expectedScore(before(0), before(5)), 1);
     expect(e.favoriteTeam).toBe("A");
     expect(expectedOf(e, "B")).toBeCloseTo(1 - e.expectedA, 12);
   });
@@ -124,10 +130,12 @@ function randomMatches(seed: number, count: number): MatchView[] {
   });
 }
 
-describe("경기 전 예상: 미래 결과가 섞이지 않는다(속성, 2026-11-10 설계 4절 D)", () => {
-  // 판정 가능 경기가 보정 최소 수(CALIBRATION_MIN_GAMES) 미만인 기록에서만 성립한다. 그 이상이면 모임 전체 기록으로
-  // 맞춘 보정값이 지난 경기 예상에도 들어가 앞부분만 넣은 값과 달라진다(upset.ts 머리 주석의 알려진 한계).
-  it("앞부분 경기만 넣어 계산한 그 경기의 예상이 전체 기록으로 계산한 값과 같다", () => {
+describe("경기 전 판정: 미래 결과가 섞이지 않는다(속성, 2026-11-10 설계 4절 D)", () => {
+  // 판정(MMR 차·우세 팀·이변)만 견준다. 표시 %(expectedA)는 모임 전체 기록으로 맞춘 a·b를 쓰므로 뒤 경기가 들어오면
+  // 바뀐다(upset.ts 머리 주석의 알려진 한계). 예전에는 50경기 미만이면 보정이 없어 %까지 같았지만 문턱을 없앴다.
+  const judgment = (e: MatchExpectation | undefined) =>
+    e && { ratingGapA: e.ratingGapA, favoriteTeam: e.favoriteTeam, reliable: e.reliable, upset: e.upset, winnerDeficit: e.winnerDeficit };
+  it("앞부분 경기만 넣어 계산한 그 경기의 판정이 전체 기록으로 계산한 값과 같다", () => {
     for (const seed of [1, 7, 42]) {
       const all = randomMatches(seed, 40);
       // 넣는 순서는 섞는다: 계산은 경기 시각 → 번호로 다시 세운다.
@@ -136,7 +144,7 @@ describe("경기 전 예상: 미래 결과가 섞이지 않는다(속성, 2026-1
       for (let k = 1; k <= all.length; k++) {
         const target = all[k - 1]!;
         const prefix = matchExpectations(all.slice(0, k), { placementGames: 3 });
-        expect(prefix.get(target.id), `시드 ${seed}, ${k}번째`).toEqual(full.get(target.id));
+        expect(judgment(prefix.get(target.id)), `시드 ${seed}, ${k}번째`).toEqual(judgment(full.get(target.id)));
         if (full.has(target.id)) compared += 1;
       }
       // 확정 경기 대부분을 실제로 견줬다(예상이 없는 경기끼리만 같아서 통과하는 일이 없게).
@@ -145,13 +153,13 @@ describe("경기 전 예상: 미래 결과가 섞이지 않는다(속성, 2026-1
   });
 });
 
-describe("이변 판정은 이 모임 기록으로 보정한 예상을 쓴다", () => {
-  it("원래 예상(history.before 평균의 Elo)을 보정한 값으로 예상·이변을 정한다", () => {
+describe("표시 %는 이 모임 기록으로 보정하고, 판정은 팀 평균 MMR 차로 한다", () => {
+  it("history.before 평균의 차로 판정하고, 그 Elo 예상을 보정한 값을 표시 %로 둔다", () => {
     const options = { placementGames: 3 };
     // 결과가 무작위라 MMR 차가 실제 전력 차보다 과장된 기록(내전 모임의 과신과 같은 꼴).
     const matches = randomMatches(5, 150);
     const calibration = expectationCalibration(matches, options);
-    expect(calibration.applied).toBe(true);
+    expect(calibration.games).toBeGreaterThan(0);
     expect(calibration.scale).toBeLessThan(1);
     const expectations = matchExpectations(matches, options);
     const table = computeRatings(matches, options);
@@ -160,19 +168,31 @@ describe("이변 판정은 이 모임 기록으로 보정한 예상을 쓴다", 
       const sum = ids.reduce((s, id) => s + table.get(id)!.history.find((h) => h.matchId === m.id)!.before, 0);
       return sum / ids.length;
     };
-    let rawUpsets = 0;
     let upsets = 0;
     for (const m of matches) {
       const e = expectations.get(m.id);
       if (!e) continue;
+      const gap = beforeAvg(m, "A") - beforeAvg(m, "B");
+      expect(e.ratingGapA).toBeCloseTo(gap, 9);
       const raw = expectedScore(beforeAvg(m, "A"), beforeAvg(m, "B"));
       expect(e.expectedA).toBeCloseTo(calibrateExpectation(raw, m.teamASide, calibration), 12);
-      expect(e.upset).toBe(isUpset(expectedOf(e, e.winnerTeam), e.reliable));
-      if (isUpset(e.winnerTeam === "A" ? raw : 1 - raw, e.reliable)) rawUpsets += 1;
+      expect(e.upset).toBe(e.reliable && (e.winnerTeam === "A" ? -gap : gap) >= UPSET_MMR_GAP);
       if (e.upset) upsets += 1;
     }
-    // 보정이 예상을 50% 쪽으로 당겨 원래 예상으로 셌을 때보다 이변이 줄어야 한다.
-    expect(upsets).toBeLessThan(rawUpsets);
+    expect(upsets).toBeGreaterThan(0);
+  });
+
+  it("a가 0.25 안팎인 모임에서도 팀 평균 MMR이 70점 이상 낮은 팀이 이기면 이변이다", () => {
+    // 결과가 동전이라 보정값이 실제 모임(a ≈ 0.25)처럼 작다. 보정한 %로 판정하던 때는 이긴 팀 예상이 40% 아래로
+    // 내려가는 일이 드물어 이변이 거의 사라졌다.
+    const options = { placementGames: 3 };
+    const matches = randomMatches(5, 400);
+    expect(expectationCalibration(matches, options).scale).toBeLessThan(0.4);
+    const upsets = [...matchExpectations(matches, options).values()].filter((e) => e.upset);
+    expect(upsets.length).toBeGreaterThan(0);
+    for (const e of upsets) expect(e.winnerDeficit).toBeGreaterThanOrEqual(UPSET_MMR_GAP);
+    // 보정한 %로는 이긴 팀이 40% 이상이었던(예전 판정이면 이변이 아닌) 경기도 이변으로 잡힌다.
+    expect(upsets.some((e) => expectedOf(e, e.winnerTeam) >= 0.4)).toBe(true);
   });
 
   it("같은 경기 배열이면 다시 맞추지 않고 같은 값을 돌려준다", () => {
@@ -183,29 +203,36 @@ describe("이변 판정은 이 모임 기록으로 보정한 예상을 쓴다", 
 });
 
 describe("이변 판정", () => {
-  it("경계값: 이긴 팀 예상이 40%면 이변이 아니고 그 미만이면 이변이다", () => {
-    expect(UPSET_THRESHOLD).toBe(0.4);
-    expect(isUpset(0.4, true)).toBe(false);
-    expect(isUpset(0.3999, true)).toBe(true);
-    expect(isUpset(0.6, true)).toBe(false);
+  it("경계값: 이긴 팀이 70점 낮으면 이변이고 그보다 덜 낮으면 아니다", () => {
+    expect(UPSET_MMR_GAP).toBe(70);
+    expect(isUpset(70, true)).toBe(true);
+    expect(isUpset(69.99, true)).toBe(false);
+    expect(isUpset(-200, true)).toBe(false);
+  });
+
+  it("점수 기준은 보정 전 Elo 예상의 선(40%·45~55%·35~65%)과 같다", () => {
+    const PERCENT_TOLERANCE = 0.002;
+    expect(Math.abs(expectedScore(0, UPSET_MMR_GAP) - 0.4)).toBeLessThan(PERCENT_TOLERANCE);
+    expect(Math.abs(expectedScore(0, BALANCED_MMR_GAP) - 0.45)).toBeLessThan(PERCENT_TOLERANCE);
+    expect(Math.abs(expectedScore(0, LOPSIDED_MMR_GAP) - 0.35)).toBeLessThan(PERCENT_TOLERANCE);
   });
 
   it("열 명 모두 배치 중이면 판정하지 않는다(예상 값은 남긴다)", () => {
-    expect(isUpset(0.1, false)).toBe(false);
+    expect(isUpset(500, false)).toBe(false);
     // 9경기 뒤 10번째: 모두 이 경기 전 9경기라 배치 중.
     const matches = [...aWins(9), match(10, { winner: "B" })];
     const e = matchExpectations(matches).get("m10")!;
     expect(e.reliable).toBe(false);
     expect(e.expectedA).toBeGreaterThan(0.6);
     expect(e.upset).toBe(false);
-    expect(e.surprise).toBeCloseTo(e.expectedA, 12);
+    expect(e.winnerDeficit).toBeGreaterThan(UPSET_MMR_GAP);
   });
 
   it("한 명이라도 배치를 마쳤으면 판정한다", () => {
     const matches = [...aWins(10), match(11, { winner: "B" })];
     const e = matchExpectations(matches).get("m11")!;
     expect(e.reliable).toBe(true);
-    expect(1 - e.expectedA).toBeLessThan(UPSET_THRESHOLD);
+    expect(e.winnerDeficit).toBeGreaterThanOrEqual(UPSET_MMR_GAP);
     expect(e.upset).toBe(true);
     // 배치를 마친 사람 하나와 새 사람 아홉.
     const mixed = [...aWins(10), match(11, { teamA: [0, 20, 21, 22, 23], teamB: [24, 25, 26, 27, 28] })];
@@ -243,29 +270,49 @@ describe("사람별 이변 집계", () => {
 });
 
 describe("편성 공정성", () => {
-  it("균형 경기 경계(45~55%)·평균 치우침·우세 팀 승률을 센다", () => {
-    expect(BALANCED_MARGIN).toBe(0.05);
+  it("균형 경기 경계(35점)·많이 치우침(108점 초과)·평균 MMR 차·우세 팀 승률을 센다", () => {
+    expect(BALANCED_MMR_GAP).toBe(35);
+    expect(LOPSIDED_MMR_GAP).toBe(108);
     const expectations = [
-      fake("a", 0.55, "A"),
-      fake("b", 0.45, "B"),
-      fake("c", 0.56, "A"),
-      fake("d", 0.3, "A"),
-      fake("e", 0.5, "B"),
-      fake("f", 0.9, "B", false),
+      fake("a", 35, "A"),
+      fake("b", -35, "B"),
+      fake("c", 36, "A"),
+      fake("d", -150, "A"),
+      fake("e", 0, "B"),
+      fake("g", 108, "B"),
+      fake("f", 400, "B", false),
     ];
-    const map = new Map(expectations.map((e) => [e.matchId, e]));
     const scoped = expectations.map((e, i) => ({ ...match(i + 1), id: e.matchId }));
-    const r = fairnessReport(map, scoped);
-    expect(r.games).toBe(5);
+    const r = fairnessReport(new Map(expectations.map((e) => [e.matchId, e])), scoped);
+    expect(r.games).toBe(6);
     expect(r.balanced).toBe(3);
-    // 치우침 0.06은 "조금", 0.2는 "많이". 세 구간의 합은 games다.
-    expect(r.slight).toBe(1);
+    // 36점·108점은 "조금", 150점은 "많이". 세 구간의 합은 games다.
+    expect(r.slight).toBe(2);
     expect(r.lopsided).toBe(1);
-    expect(r.avgDeviation).toBeCloseTo((0.05 + 0.05 + 0.06 + 0.2 + 0) / 5, 12);
-    // 우세 팀: a(A 승 적중), b(B 승 적중), c(A 적중), d(B 우세인데 A 승). e는 50%라 빠진다.
-    expect(r.favoriteGames).toBe(4);
+    expect(r.avgGap).toBeCloseTo((35 + 35 + 36 + 150 + 0 + 108) / 6, 12);
+    // 우세 팀: a·b·c 적중, d(B 우세인데 A 승)·g(A 우세인데 B 승) 빗나감. e는 차가 0이라 빠진다.
+    expect(r.favoriteGames).toBe(5);
     expect(r.favoriteWins).toBe(3);
-    expect(r.upsets).toBe(1);
+    // d(150점 낮은 A 승)·g(108점 낮은 B 승).
+    expect(r.upsets).toBe(2);
+  });
+
+  it("같은 MMR 차면 모임의 보정값과 관계없이 판정이 같다", () => {
+    // 같은 경기를 보정이 다른 두 모임에서 본 것처럼 표시 %만 다르게 넣는다(80점 낮은 팀 승: a = 1이면 약 39%, a = 0.25면 약 47%).
+    const gaps: [string, number, Team][] = [["a", 20, "B"], ["b", -80, "A"], ["c", 130, "A"], ["d", -40, "B"]];
+    const asSeenWith = (scale: number) =>
+      gaps.map(([id, gap, winner]) => {
+        const shown = calibrateExpectation(expectedScore(gap, 0), "blue", { scale, blueEdge: 0, games: 300 });
+        return fake(id, gap, winner, true, shown);
+      });
+    const scoped = gaps.map(([id], i) => ({ ...match(i + 1), id }));
+    const plain = asSeenWith(1);
+    const shrunk = asSeenWith(0.25);
+    expect(shrunk[1]!.expectedA).not.toBeCloseTo(plain[1]!.expectedA, 2);
+    const reportOf = (list: MatchExpectation[]) => fairnessReport(new Map(list.map((e) => [e.matchId, e])), scoped);
+    expect(reportOf(shrunk)).toEqual(reportOf(plain));
+    expect(shrunk.map((e) => e.upset)).toEqual(plain.map((e) => e.upset));
+    expect(plain.map((e) => e.upset)).toEqual([false, true, false, false]);
   });
 
   it("실제 경기: 모두 배치 중인 경기는 빼고 같은 MMR끼리는 균형이다", () => {
@@ -277,7 +324,7 @@ describe("편성 공정성", () => {
       match(13, { teamA: [0, 1, 5, 6], teamB: [2, 3, 7, 8] }),
     ];
     const map = matchExpectations(matches);
-    expect(map.get("m13")!.expectedA).toBeCloseTo(0.5, 12);
+    expect(map.get("m13")!.ratingGapA).toBe(0);
     const r = fairnessReport(map, matches);
     expect(r.games).toBe(3);
     expect(r.balanced).toBe(1);
@@ -292,7 +339,7 @@ describe("편성 공정성", () => {
       balanced: 0,
       slight: 0,
       lopsided: 0,
-      avgDeviation: 0,
+      avgGap: 0,
       favoriteGames: 0,
       favoriteWins: 0,
       upsets: 0,
@@ -301,7 +348,7 @@ describe("편성 공정성", () => {
 });
 
 describe("편성 판정", () => {
-  const base = { games: 10, slight: 0, lopsided: 0, avgDeviation: 0, favoriteGames: 0, favoriteWins: 0, upsets: 0 };
+  const base = { games: 10, slight: 0, lopsided: 0, avgGap: 0, favoriteGames: 0, favoriteWins: 0, upsets: 0 };
   it("균형 비율 60% 이상 good, 40% 이상 ok, 그 아래 poor, 경기 없으면 ok", () => {
     expect(fairnessVerdict({ ...base, balanced: 6 })).toBe("good");
     expect(fairnessVerdict({ ...base, balanced: 5 })).toBe("ok");

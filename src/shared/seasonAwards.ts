@@ -21,7 +21,7 @@ import {
   type Scope,
 } from "./stats";
 import { POSITIONS, type MatchView, type Position, type Snapshot } from "./types";
-import { matchExpectations, upsetWinsByPerson } from "./upset";
+import { matchExpectations, UPSET_MMR_GAP, upsetWinsByPerson } from "./upset";
 
 /**
  * 최고 승률: 모임 전체 누적 확정 경기가 이만큼 이상인 사람만(랭킹의 "누적 50경기 이상" 묶음과 같게, 2026-11-08).
@@ -406,7 +406,7 @@ export function seasonSummary(
     awards.push({
       key: "upsetMaker",
       title: "이변 메이커",
-      rule: "경기 전 예상이 약팀이었는데 이긴 이변 승이 가장 많은 사람",
+      rule: `팀 평균 MMR이 ${UPSET_MMR_GAP}점 이상 낮은 팀으로 이긴 이변 승이 가장 많은 사람`,
       winners: winners.map((r) => ({ participantIds: r.ids, value: `이변 승 ${r.n}회` })),
       none: eligible.length === 0 ? "이변으로 이긴 경기가 없어요." : undefined,
     });

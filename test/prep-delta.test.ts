@@ -206,9 +206,9 @@ describe("draftDelta: 초안을 바꾸지 않는다", () => {
 
 describe("같은 식을 쓴다", () => {
   it.each([
-    ["보정 전(12경기)", games(12)],
-    // 50경기를 넘겨 보정이 걸린 경우에도 같은 보정값을 거치는지.
-    ["보정 뒤(70경기)", [...games(40), ...games(30, "B", 41)]],
+    // 경기 수 문턱이 없어져 둘 다 보정이 걸린다. 경기가 적을 때와 많을 때 모두 같은 보정값을 거치는지.
+    ["경기 적음(12경기)", games(12)],
+    ["경기 많음(70경기)", [...games(40), ...games(30, "B", 41)]],
   ])("teamExpectation은 draftForecast와 같은 예상·신뢰 여부: %s", (_, matches) => {
     const ratings = computeRatings(matches, { placementGames: 3 });
     const draft = swapPeople(baseDraft(), "p:p0", "p:p5");
@@ -216,7 +216,7 @@ describe("같은 식을 쓴다", () => {
     const light = teamExpectation(draft, ratings, expectationCalibration(matches, { placementGames: 3 }), {
       placementGames: 3,
     });
-    expect(full.calibration.applied).toBe(matches.length >= 50);
+    expect(full.calibration).toBe(expectationCalibration(matches, { placementGames: 3 }));
     expect(light.expectedA).toBe(full.expectedA);
     expect(light.reliable).toBe(full.reliable);
     expect(light.teams).toEqual(full.teams);

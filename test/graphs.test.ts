@@ -210,14 +210,14 @@ describe("storyCards", () => {
     expect(cards[3]!.text).toMatch(/^사람00 \+\d+$/);
   });
 
-  it("최대 이변: 이긴 팀 이름 두 명 + 외 n명, 예상 승률", () => {
+  it("최대 이변: 이긴 팀 이름 두 명 + 외 n명, 팀 평균 MMR 열세", () => {
     // A가 12번 이겨 MMR이 벌어진 뒤 B가 이긴다.
     const matches = [...range(12, (i) => match(i)), match(13, { winner: "B" })];
     const cards = storyCards(input(matches, "p7"));
     const upset = cards.find((c) => c.kind === "upset")!;
     const e = matchExpectations(matches).get("m13")!;
     expect(e.upset).toBe(true);
-    expect(upset.text).toBe(`사람07·사람05 외 3명 예상 ${Math.round((1 - e.surprise) * 100)}%에서 승리`);
+    expect(upset.text).toBe(`사람07·사람05 외 3명 MMR ${Math.round(e.winnerDeficit)}점 열세에서 승리`);
     // 고른 사람이 나온 문장이 맨 앞이다.
     expect(cards[0]!.kind).toBe("upset");
     expect(upset.people[0]).toBe("p7");

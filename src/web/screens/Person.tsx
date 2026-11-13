@@ -33,7 +33,7 @@ import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { formatDate, nameMap, rateHueText, rateText, standingsOf } from "../format";
 import { attendanceReport } from "../../shared/attendance";
-import { personUpsets, UPSET_THRESHOLD } from "../../shared/upset";
+import { personUpsets, UPSET_MMR_GAP } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
@@ -464,8 +464,8 @@ export function Person(props: {
           <Help>
             동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난
             사람에서 고릅니다. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 고릅니다. 승률은
-            모두 {person.name} 기준입니다. 이변 승은 경기 전 예상(누적 MMR)이 {Math.round(UPSET_THRESHOLD * 100)}% 미만이던 팀으로 이긴
-            경기이고, 약팀일 때 승률은 예상이 50% 미만이던 경기의 승률입니다(예상은 이 모임 지난 경기 결과로 보정한 값). 출석률은 처음 온 날부터 센 모임 날 중 온
+            모두 {person.name} 기준입니다. 이변 승은 경기 직전 팀 평균 MMR(누적)이 상대보다 {UPSET_MMR_GAP}점 이상 낮은 팀으로 이긴
+            경기이고, 약팀일 때 승률은 팀 평균 MMR이 상대보다 낮았던 경기의 승률입니다(모든 모임이 같은 점수 기준). 출석률은 처음 온 날부터 센 모임 날 중 온
             비율입니다. MMR은 시작 {ratingOptions.start}점에서 팀원·상대까지 감안해 전체 기록으로 계산하고, 3연승·3연패부터 그 경기를 더 무겁게 셉니다(최대 1.5배). {RATING_TIER_HELP}
           </Help>
         </section>

@@ -10,9 +10,9 @@ import { calibrateExpectation, expectationCalibration, type ExpectationCalibrati
  * 라인별 MMR은 따로 없다: 미드만 하던 사람이 처음 서폿을 가도 같은 MMR로 견준다. 화면 도움말도 그렇게 설명한다.
  * 쓰는 곳: src/web/screens/prep/ForecastSection.tsx, prepDelta.ts. 저장하지 않고 스냅숏의 경기로 매번 계산한다(서버·DB 무관).
  * 식은 경기 전 예상(upset.ts matchExpectations)과 같다: 팀 MMR = 팀원 지금 MMR 평균, 경기 없는 사람은 시작값(모임 설정),
- * 예상 = expectedScore(Elo)를 이 모임 지난 경기로 보정한 값(upset.ts calibrateExpectation, 이변 판정과 같은 a·b).
- * 그래서 준비 화면에 보이는 %와 경기 뒤 이변 판정의 기준이 같은 숫자다. 신뢰 여부도 같은 규칙(열 명 중 배치를 마친 사람이
- * 한 명이라도 있으면 신뢰).
+ * 예상 = expectedScore(Elo)를 이 모임 지난 경기로 보정한 값(upset.ts calibrateExpectation, 경기 상세 %와 같은 a·b).
+ * 경기 뒤 이변·균형 판정은 이 %가 아니라 팀 평균 MMR 차(모든 모임 같은 점수 기준, upset.ts UPSET_MMR_GAP)로 한다.
+ * 신뢰 여부는 같은 규칙(열 명 중 배치를 마친 사람이 한 명이라도 있으면 신뢰).
  */
 
 /** 준비 화면의 팀 A는 늘 블루다(draft.ts teamASide 설명). 보정의 진영 몫이 블루 쪽으로 들어간다. */
@@ -25,7 +25,9 @@ const PREP_TEAM_A_SIDE: Side = "blue";
 export const LANE_EDGE_MIN = 25;
 /**
  * "팽팽" 기준: 블루 예상 승률(정수 %)이 50%에서 이 값 이내(45~55%, 끝 포함)면 팽팽하다고 쓴다.
- * upset.ts BALANCED_MARGIN과 같은 값이라 그래프 분석의 "균형 경기"와 뜻이 맞는다. 바꾸면 두 화면이 달라진다.
+ * 요약 문장이 괄호 안에 %를 같이 쓰므로 %로 판단한다("팽팽해요(58%)"나 "유리해요(49%)"가 나오지 않게).
+ * 그래프 분석의 "균형 경기"(upset.ts BALANCED_MMR_GAP, 팀 평균 MMR 차 35점 이내)와는 기준이 다르다:
+ * 그쪽은 모든 모임에 같은 점수 판정이고 이쪽은 이 모임 기록으로 보정한 확률을 말로 옮긴 것이다.
  */
 export const EVEN_MARGIN = 0.05;
 
@@ -76,7 +78,7 @@ export interface DraftForecast {
   teams: Record<Team, TeamForecast>;
   /** 팀 A(블루)가 이길 예상 확률(0~1, 보정 뒤). 한 팀이 비었으면 0.5. */
   expectedA: number;
-  /** 예상에 쓴 보정값. 화면 근거 줄("이 모임 n경기로 보정" 또는 "보정 전")이 쓴다. */
+  /** 예상에 쓴 보정값. 화면 근거 줄("이 모임 n경기로 보정")이 쓴다. */
   calibration: ExpectationCalibration;
   /** 편성된 사람 중 배치를 마친 사람이 한 명이라도 있으면 true(upset.ts와 같은 규칙). */
   reliable: boolean;

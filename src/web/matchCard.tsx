@@ -3,7 +3,7 @@ import { memoOneLine } from "../shared/memo";
 import { ratingOptionsOf } from "../shared/rating";
 import { isCounted } from "../shared/stats";
 import { POSITIONS, TEAMS, type MatchView, type Snapshot, type Team } from "../shared/types";
-import { matchExpectations, type MatchExpectation } from "../shared/upset";
+import { matchExpectations, UPSET_MMR_GAP, type MatchExpectation } from "../shared/upset";
 import {
   formatDate,
   formatTime,
@@ -18,6 +18,9 @@ import {
   teamRoster,
 } from "./format";
 import { PosLabel } from "./screenKit";
+
+/** 이변 배지 풍선. 기준은 모든 모임이 같은 점수다(upset.ts UPSET_MMR_GAP). */
+const UPSET_BADGE_TITLE = `팀 평균 MMR이 ${UPSET_MMR_GAP}점 이상 낮은 팀이 이겼어요`;
 
 /**
  * 경기 카드. 기록 목록·홈·개인 통계·비교가 함께 쓴다.
@@ -79,7 +82,7 @@ export function MatchCard(props: {
         // 시리즈·이변 배지와 메모 한 줄(넘치면 말줄임). 메모는 글자로만 그린다(HTML로 해석하지 않음).
         <p className="mc-extra">
           {props.upset && (
-            <span className="series-badge" title="경기 전 예상이 약팀이던 쪽이 이겼어요">
+            <span className="series-badge" title={UPSET_BADGE_TITLE}>
               이변
             </span>
           )}
@@ -257,7 +260,7 @@ export function MatchScoreboard(props: {
       {(props.upset || match.memo) && (
         <p className="mc-extra sb-extra">
           {props.upset && (
-            <span className="series-badge" title="경기 전 예상이 약팀이던 쪽이 이겼어요">
+            <span className="series-badge" title={UPSET_BADGE_TITLE}>
               이변
             </span>
           )}

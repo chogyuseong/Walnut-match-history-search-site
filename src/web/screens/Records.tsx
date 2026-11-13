@@ -61,7 +61,7 @@ import {
 } from "../format";
 import { csvFileName, downloadText, matchesCsv, rankingCsv } from "../csvExport";
 import { MatchCard, useExpectations } from "../matchCard";
-import { expectedOf, UPSET_THRESHOLD, type MatchExpectation } from "../../shared/upset";
+import { expectedOf, UPSET_MMR_GAP, type MatchExpectation } from "../../shared/upset";
 import { MatchMemoSection } from "../memoField";
 import { MatchSeriesSection, SeriesListSection, useSeriesBadges } from "../seriesPanel";
 import { drawMatchImage, fileDate, ShareImageDialog } from "../shareImage";
@@ -826,7 +826,7 @@ function ExpectationLine(props: { expectation: MatchExpectation | undefined }) {
   const first: Team = e.teamASide === "red" ? "B" : "A";
   const second: Team = first === "A" ? "B" : "A";
   const firstPct = fractionPercent(expectedOf(e, first));
-  const upsetRule = `이긴 쪽의 경기 전 예상이 ${Math.round(UPSET_THRESHOLD * 100)}% 미만이었어요`;
+  const upsetRule = `이긴 쪽의 팀 평균 MMR이 ${shownRating(e.winnerDeficit)}점 낮았어요(${UPSET_MMR_GAP}점 이상 낮은 팀이 이기면 이변)`;
   return (
     <>
       <p className="hint expectation-line">
@@ -846,9 +846,9 @@ function ExpectationLine(props: { expectation: MatchExpectation | undefined }) {
       {/* 이변 배지의 기준은 title 풍선이라 터치 화면에서 보이지 않아 접힌 도움말에도 둔다. */}
       {e.upset && (
         <Help label="이변 기준">
-          {/* 보정 이유: 실제 모임 522경기에서 MMR 그대로의 예상이 "늘 50%"보다 못했다(upset.ts 머리 주석). */}
-          {upsetRule}. 목록의 "이변" 배지도 같은 기준이에요. 예상은 팀 MMR 차로 구한 승률을 이 모임 지난 경기 결과에 맞춰
-          보정한 값이라, 준비 화면의 예상 승률과 같은 방식이에요.
+          {/* 판정은 점수, %는 보정 확률로 나눈 이유: upset.ts 머리 주석. */}
+          {upsetRule}. 목록의 "이변" 배지도 같은 기준이고, 모든 모임이 같은 점수로 판정해요. 위의 %는 팀 MMR 차로 구한
+          승률을 이 모임 지난 경기 결과에 맞춰 보정한 값이라(준비 화면 예상 승률과 같은 방식) 이변 경기도 50%에 가깝게 나올 수 있어요.
         </Help>
       )}
     </>

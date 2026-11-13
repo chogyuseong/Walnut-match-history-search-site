@@ -11,7 +11,6 @@ import {
 import { RATING_START, type PersonRating, type RatingTable } from "../src/shared/rating";
 import { POSITIONS, type MatchView, type Side, type Team } from "../src/shared/types";
 import {
-  CALIBRATION_MIN_GAMES,
   calibrateExpectation,
   fitExpectationCalibration,
   UNCALIBRATED,
@@ -181,7 +180,7 @@ describe("예상 보정(upset.ts fitExpectationCalibration)", () => {
 
   it("결과가 예상과 무관하면(동전) 보정된 예상이 50% ± 3%로 모인다", () => {
     const c = fitExpectationCalibration(samples(4000, Math.log(7 / 3), () => 0.5));
-    expect(c.applied).toBe(true);
+    expect(c.games).toBe(4000);
     for (const p of [0.3, 0.4, 0.5, 0.6, 0.7]) {
       for (const side of ["blue", "red"] as const) {
         expect(Math.abs(shown(p, side, c) - 0.5)).toBeLessThanOrEqual(0.03);
@@ -207,16 +206,29 @@ describe("예상 보정(upset.ts fitExpectationCalibration)", () => {
     expect(shown(0.5, "unknown", c)).toBe(0.5);
   });
 
-  it(`판정 가능 경기가 ${CALIBRATION_MIN_GAMES}경기 미만이면 보정하지 않는다`, () => {
-    const few = samples(CALIBRATION_MIN_GAMES - 1, Math.log(7 / 3), () => 0.5);
-    const c = fitExpectationCalibration(few);
-    expect(c).toEqual({ scale: 1, blueEdge: 0, games: CALIBRATION_MIN_GAMES - 1, applied: false });
+  it("지난 경기가 없으면 보정하지 않고 원래 예상을 그대로 둔다", () => {
+    const c = fitExpectationCalibration([]);
+    expect(c).toEqual(UNCALIBRATED);
     expect(shown(0.62, "blue", c)).toBe(0.62);
-    expect(fitExpectationCalibration(samples(CALIBRATION_MIN_GAMES, Math.log(7 / 3), () => 0.5)).applied).toBe(true);
+  });
+
+  // 실제 모임처럼 MMR 차가 결과를 약하게만 따르는 기록(참 a = 0.25). 예전에는 50경기에서 보정을 한꺼번에 켰다.
+  it("경기가 적으면 조금만 보정하고, 쌓일수록 실제 쪽으로 옮겨 가며, 50경기 앞뒤로 뛰지 않는다", () => {
+    const TRUE_SCALE = 0.25;
+    const all = samples(1500, Math.log(4), (p) => 1 / (1 + Math.exp(-TRUE_SCALE * Math.log(p / (1 - p)))), 23);
+    const scaleAt = (n: number) => fitExpectationCalibration(all.slice(0, n)).scale;
+    // 5경기: 가상 경기 30판에 눌려 1 근처(62% 예상이 60% 남짓으로만 바뀐다).
+    expect(Math.abs(scaleAt(5) - 1)).toBeLessThan(0.2);
+    expect(Math.abs(shown(0.62, "unknown", fitExpectationCalibration(all.slice(0, 5))) - 0.62)).toBeLessThan(0.02);
+    expect(scaleAt(10)).toBeGreaterThan(scaleAt(300));
+    expect(scaleAt(300)).toBeGreaterThan(scaleAt(1500));
+    expect(scaleAt(1500)).toBeLessThan(0.3);
+    // 예전에는 50번째 경기에서 a가 1 → 약 0.45로 한꺼번에 바뀌었다. 지금은 한 판만큼만 움직인다.
+    for (const n of [48, 49, 50, 51]) expect(Math.abs(scaleAt(n + 1) - scaleAt(n)), `${n} → ${n + 1}경기`).toBeLessThan(0.05);
   });
 
   it("준비 화면 %도 보정값을 거친다(진영 몫은 블루 쪽으로 들어간다)", () => {
-    const halved: ExpectationCalibration = { scale: 0.5, blueEdge: 0, games: 100, applied: true };
+    const halved: ExpectationCalibration = { scale: 0.5, blueEdge: 0, games: 100 };
     const r = { ...flat(1000), 0: 1300, 1: 1300 }; // 블루 평균 +120점, 보정 전 약 66%
     const raw = teamExpectation(draftOf(), ratingsOf(r), UNCALIBRATED);
     const calibrated = teamExpectation(draftOf(), ratingsOf(r), halved);
@@ -224,7 +236,7 @@ describe("예상 보정(upset.ts fitExpectationCalibration)", () => {
     expect(calibrated.expectedA).toBeCloseTo(calibrateExpectation(raw.expectedA, "blue", halved), 12);
     expect(forecastBluePercent(calibrated)).toBe(59);
     // 두 팀 MMR이 같아도 진영 몫이 있으면 블루가 앞선다.
-    const blueSide: ExpectationCalibration = { scale: 1, blueEdge: Math.log(0.6 / 0.4), games: 100, applied: true };
+    const blueSide: ExpectationCalibration = { scale: 1, blueEdge: Math.log(0.6 / 0.4), games: 100 };
     expect(forecastBluePercent(teamExpectation(draftOf(), ratingsOf(flat(1100)), blueSide))).toBe(60);
   });
 });

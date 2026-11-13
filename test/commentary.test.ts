@@ -180,11 +180,11 @@ describe("playerCommentary", () => {
 });
 
 describe("groupCommentary", () => {
-  it("공정성: 판정 경기 수와 예상 45~55% 경기 수를 사실로 쓴다(판정 낱말 없이, 2026-11-10 F5)", () => {
+  it("공정성: 판정 경기 수와 팀 평균 MMR 차 35점 이내 경기 수를 사실로 쓴다(판정 낱말 없이, 2026-11-10 F5)", () => {
     // 매 경기 팀을 번갈아 이기게 해 MMR이 비슷하게 유지된다.
     const c = group(range(30, (i) => match(i, { winner: i % 2 ? "A" : "B", side: i % 4 < 2 ? "blue" : "red" })));
-    const fair = c.remarks.find((r) => r.text.includes("예상 45~55%"));
-    expect(fair?.text).toMatch(/^판정 \d+경기 중 \d+경기가 예상 45~55%였어요\(균형 경기 \d+%\)\./);
+    const fair = c.remarks.find((r) => r.text.includes("MMR 차 35점 이내"));
+    expect(fair?.text).toMatch(/^판정 \d+경기 중 \d+경기가 팀 평균 MMR 차 35점 이내였어요\(균형 경기 \d+%\)\./);
     expect(fair?.text).toMatch(/예상 우세 팀이 \d+경기 중 \d+경기 이겼어요\(\d+%\)/);
     expect(fair?.basis).toContain("판정");
     expect(c.summary).toMatch(/^균형 경기 \d+%/);
@@ -239,7 +239,7 @@ describe("groupCommentary", () => {
     // 강팀으로 연달아 진 사람: "방심" 같은 성향 판정 대신 횟수만.
     const loser = player(matches, "p0");
     expect(loser.remarks.some((r) => r.text.includes("방심"))).toBe(false);
-    expect(loser.remarks.some((r) => /^예상 승률 60% 넘는 강팀으로 진 경기가 \d+회로, 약팀으로 이긴 \d+회보다 많아요\.$/.test(r.text))).toBe(true);
+    expect(loser.remarks.some((r) => /^팀 평균 MMR이 70점 이상 높은 강팀으로 진 경기가 \d+회로, 약팀으로 이긴 \d+회보다 많아요\.$/.test(r.text))).toBe(true);
   });
 
   it("문장 수 상한과 빈 범위", () => {

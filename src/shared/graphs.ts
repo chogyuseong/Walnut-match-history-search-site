@@ -1,7 +1,7 @@
 import type { AttendanceReport } from "./attendance";
 import { countedChronological, personForms } from "./insights";
-import type { RatingTable } from "./rating";
-import { fractionPercent, isCounted, localDate, PLACEMENT_GAMES_DEFAULT, SMALL_SAMPLE, type Tally } from "./stats";
+import { shownRating, type RatingTable } from "./rating";
+import { isCounted, localDate, PLACEMENT_GAMES_DEFAULT, SMALL_SAMPLE, type Tally } from "./stats";
 import { POSITIONS, type MatchView, type Position } from "./types";
 import type { MatchExpectation } from "./upset";
 
@@ -389,11 +389,12 @@ export function storyCards(input: StoryInput): StoryCard[] {
     cards.push({ kind: "streak", label: "최장 연승", text: `${nameOf(streak[0])} ${streak[1].longestWinStreak}연승`, people: [streak[0]] });
   }
 
+  // 최대 이변 = 이긴 팀의 팀 평균 MMR이 가장 많이 낮았던 이변 경기. 보정한 %가 아니라 점수로 골라야 모임끼리 같은 뜻이다(upset.ts).
   let upset: { match: MatchView; e: MatchExpectation } | null = null;
   for (const match of counted) {
     const e = input.expectations.get(match.id);
     if (!e?.upset) continue;
-    if (!upset || e.surprise > upset.e.surprise) upset = { match, e };
+    if (!upset || e.winnerDeficit > upset.e.winnerDeficit) upset = { match, e };
   }
   if (upset) {
     const winners = upset.match.roster
@@ -405,7 +406,7 @@ export function storyCards(input: StoryInput): StoryCard[] {
     cards.push({
       kind: "upset",
       label: "최대 이변",
-      text: `${shown}${rest > 0 ? ` 외 ${rest}명` : ""} 예상 ${fractionPercent(1 - upset.e.surprise)}%에서 승리`,
+      text: `${shown}${rest > 0 ? ` 외 ${rest}명` : ""} MMR ${shownRating(upset.e.winnerDeficit)}점 열세에서 승리`,
       people: winners,
     });
   }
