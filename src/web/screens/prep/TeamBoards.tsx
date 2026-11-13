@@ -14,13 +14,36 @@ import type { PrepEditing } from "./usePrepEditing";
  * - 끌어다 놓기: 사람을 끌어 다른 사람 자리에 놓으면 둘이 바뀐다(대기자와도). PC 마우스용. 터치에서는 누르기 방식을 쓴다.
  * - 두 사람 차례로 누르기: 첫 사람을 고르면 나머지 자리에 "바꾸기" 표시가 뜬다.
  */
+/**
+ * "바뀜" 표시를 붙이는 최대 인원(10명의 절반). 다 섞기·라인 섞기·진영 바꾸기처럼 대부분이 움직이면 모든 줄에 붙어
+ * 아무것도 알려 주지 않으므로 표시하지 않는다. 자리 바꾸기(2명)·서포터만 바꾸기(4명)·쉬는 사람과 바꾸기에서 쓸모가 있다.
+ */
+const MOVED_MARK_MAX = 5;
+
+/**
+ * 직전 편성(previousSlots)과 견줘 팀이나 라인이 달라진 사람. 쉬는 사람에서 새로 들어온 사람도 든다.
+ * 되돌린 직후(redoSlots 있음)에는 previousSlots가 두 단계 전 자리라 "방금 바뀐 것"이 아니어서 비운다(DeltaNote와 같은 규칙).
+ */
+function movedKeys(draft: Draft): ReadonlySet<string> {
+  if (!draft.previousSlots || draft.redoSlots) return new Set();
+  const before = new Map(draft.previousSlots.map((s) => [s.key, `${s.team}:${s.position}`]));
+  const moved = draft.slots.filter((s) => before.get(s.key) !== `${s.team}:${s.position}`).map((s) => s.key);
+  return moved.length <= MOVED_MARK_MAX ? new Set(moved) : new Set();
+}
+
 export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: PrepEditing }) {
   const { draft, ctx, edit } = props;
   const { selectedKey, nameOf, dragKey, setDragKey, dropPerson } = edit;
+  const moved = movedKeys(draft);
   useSlideOnReorder(draft.slots.map((s) => `${s.team}:${s.position}:${s.key}`).join("|"));
+  // 바뀐 자리는 점선 테두리(styles.css .row.moved)로만 보인다. 처음에는 "바뀜" 글자 꼬리표였는데, 좁은 팀 상자에서
+  // 꼬리표가 아랫줄로 내려가 누를 때마다 줄 높이가 바뀌고 팀 상자 전체가 출렁였다. 테두리는 높이를 바꾸지 않는다.
+  // 옅은 골드 바탕·실선은 "고른 사람" 표시라 쓰지 않는다. 낭독기에는 aria-description("방금 자리가 바뀜")으로 알린다.
+  // 줄 안에 숨은 글자로 넣으면 줄의 글(이름·서폿 횟수)을 읽는 복사·테스트에 "바뀜"이 섞여 들어갔다.
   const rowClass = (key: string) =>
     [
       "row",
+      moved.has(key) && selectedKey !== key ? "moved" : "",
       selectedKey === key ? "picked" : "",
       dragKey === key ? "dragging" : "",
       dragKey && dragKey !== key ? "drop-target" : "",
@@ -55,6 +78,7 @@ export function TeamBoards(props: { draft: Draft; ctx: RotationContext; edit: Pr
                       type="button"
                       className={rowClass(slot.key)}
                       aria-pressed={selectedKey === slot.key}
+                      aria-description={moved.has(slot.key) ? "방금 자리가 바뀜" : undefined}
                       title={
                         selectedKey && selectedKey !== slot.key
                           ? `${nameOf(selectedKey)} 님과 자리 바꾸기`
@@ -166,6 +190,7 @@ export function SelectionBar(props: { draft: Draft; edit: PrepEditing; canReplac
     return (
       <p className="hint">
         두 사람을 차례로 누르면 자리가 바뀝니다. PC에서는 사람을 끌어다 다른 자리나 쉬는 사람에 놓아도 돼요.
+        {movedKeys(draft).size > 0 && " 점선 테두리는 방금 자리가 바뀐 사람이에요."}
       </p>
     );
   }

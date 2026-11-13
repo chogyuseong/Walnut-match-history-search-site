@@ -23,28 +23,60 @@ const TIP = {
   randomSide: "반반 확률로 블루팀과 레드팀을 맞바꿔요.",
 } as const;
 
+/**
+ * 휴대폰 아래 고정 줄("이 팀으로 시작" 옆)로 옮긴 섞기 버튼(2026-11-13 사용자 요청). 섞기 구역은 두 팀 상자 아래라
+ * 버튼을 누르려고 내리면 팀 상자가 화면 위로 사라져, 누를 때마다 다시 올려 결과를 봐야 했다.
+ * 고정 줄에는 설명 없이 눌러도 되는 단순 섞기 둘만 둔다(서포터 관련 버튼은 횟수 안내·초기화 확인이 구역 안에 떠서 구역에 남긴다).
+ * 이름을 줄인 것은 360px 폭 한 줄에 시작 버튼까지 들어가게 하려는 것이다. 버튼 설명(TIP)은 구역과 같은 글을 쓴다.
+ */
+export const QUICK_LABEL = { teamShuffle: "다 섞기", lineShuffle: "라인 섞기" } as const;
+/**
+ * 이 폭(px) 이하인 폰은 고정 줄에 "다 섞기"와 시작 버튼만 둔다. 버튼 셋(다 섞기·라인 섞기·이 팀으로 시작)과
+ * 사이 간격이 한 줄에 들어가려면 화면 폭이 이보다 넓어야 한다(390·360px에서 재어 정함, 바꾸면 그 폭에서 다시 잰다).
+ */
+export const QUICK_BAR_NARROW_MAX = 349;
+
+export function QuickShuffleButtons(props: { edit: PrepEditing; lineShuffle: boolean }) {
+  return (
+    <div className="quick-shuffles" role="group" aria-label="빠른 섞기">
+      <button type="button" className="secondary" title={TIP.teamShuffle} onClick={props.edit.runTeamShuffle}>
+        {QUICK_LABEL.teamShuffle}
+      </button>
+      {props.lineShuffle && (
+        <button type="button" className="secondary" title={TIP.lineShuffle} onClick={() => props.edit.runShuffle(false)}>
+          {QUICK_LABEL.lineShuffle}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** 섞기 구역: 팀을 새로 짜기(팀·라인 모두 섞기, 균형 팀 추천)와 팀은 그대로(라인·서포터 섞기, 진영 바꾸기). */
 export function ShuffleSection(props: {
   ctx: RotationContext;
   edit: PrepEditing;
   /** 서포터 횟수 버튼과 그 아래 펼쳐지는 판(서포터 돌아가며가 꺼져 있으면 없음). */
   support?: { label: string; open: boolean; needsReset: boolean; onToggle: () => void; panel: ReactNode };
+  /** 휴대폰에서 아래 고정 줄로 옮긴 버튼. 같은 버튼이 두 번 보이지 않게 구역에서는 뺀다. */
+  inQuickBar?: { teamShuffle: boolean; lineShuffle: boolean };
 }) {
   const { ctx, edit, support } = props;
+  const quick = props.inQuickBar ?? { teamShuffle: false, lineShuffle: false };
   const hasAvoid = Object.keys(edit.avoidMap).length > 0;
+  const movedNames = [quick.teamShuffle && QUICK_LABEL.teamShuffle, quick.lineShuffle && QUICK_LABEL.lineShuffle].filter(Boolean);
   return (
     <section className="prep-tools" aria-label="섞기">
       <h2>섞기</h2>
+      {movedNames.length > 0 && (
+        <p className="hint">{movedNames.map((n) => `'${n}'`).join("·")} 버튼은 화면 아래 시작 버튼 옆에 있어요.</p>
+      )}
       <p className="row-label">팀을 새로 짜기</p>
       <div className="button-row">
-        <button
-          type="button"
-          className="secondary"
-          title={TIP.teamShuffle}
-          onClick={edit.runTeamShuffle}
-        >
-          팀·라인 모두 섞기
-        </button>
+        {!quick.teamShuffle && (
+          <button type="button" className="secondary" title={TIP.teamShuffle} onClick={edit.runTeamShuffle}>
+            팀·라인 모두 섞기
+          </button>
+        )}
         <button
           type="button"
           className="secondary"
@@ -56,14 +88,11 @@ export function ShuffleSection(props: {
       </div>
       <p className="row-label">팀은 그대로</p>
       <div className="button-row">
-        <button
-          type="button"
-          className="secondary"
-          title={TIP.lineShuffle}
-          onClick={() => edit.runShuffle(false)}
-        >
-          라인만 섞기
-        </button>
+        {!quick.lineShuffle && (
+          <button type="button" className="secondary" title={TIP.lineShuffle} onClick={() => edit.runShuffle(false)}>
+            라인만 섞기
+          </button>
+        )}
         {ctx.enabled && (
           <button
             type="button"
@@ -166,9 +195,13 @@ export function ShuffleSection(props: {
       </Help>
       {/* "이름 — 설명" 꼴: 버튼 이름 바로 뒤에 쌍점을 쓰면 "서포터 횟수: 2명 기록" 같은 버튼 글과 겹쳐 읽힌다. */}
       <Help label="버튼 설명">
-        <p>팀·라인 모두 섞기 — {TIP.teamShuffle}</p>
+        <p>
+          팀·라인 모두 섞기{quick.teamShuffle && `(아래 '${QUICK_LABEL.teamShuffle}')`} — {TIP.teamShuffle}
+        </p>
         <p>균형 팀 추천 — {TIP.recommend}</p>
-        <p>라인만 섞기 — {TIP.lineShuffle}</p>
+        <p>
+          라인만 섞기{quick.lineShuffle && `(아래 '${QUICK_LABEL.lineShuffle}')`} — {TIP.lineShuffle}
+        </p>
         {ctx.enabled && <p>라인 섞기 + 서폿 돌아가며 — {TIP.fairShuffle}</p>}
         {ctx.enabled && <p>서포터만 바꾸기 — {TIP.draw}</p>}
         <p>진영 바꾸기 — {TIP.swapSides}</p>

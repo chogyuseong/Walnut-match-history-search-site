@@ -989,6 +989,27 @@ details > *:not(summary) {
 .action-inline {
   padding: var(--space-2) 0;
 }
+/* 휴대폰 준비 화면의 아래 고정 줄: [다 섞기][라인 섞기] ··· [이 팀으로 시작] (src/web/screens/Prep.tsx).
+   섞기 묶음과 시작 사이를 섞기 버튼끼리보다 넓게(16px) 띄우고 시작은 남은 폭을 채워 오른쪽 끝에 둔다.
+   섞으려다 시작을 누르지 않게 하려는 거리이고, 시작은 채운 주 버튼·섞기는 테두리 버튼이라 모양도 다르다.
+   글자가 줄바꿈되면 버튼이 두 줄 높이가 되어 고정 줄이 본문을 더 가리므로 줄바꿈하지 않는다. */
+.prep-quickbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.quick-shuffles {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+}
+.prep-quickbar button {
+  white-space: nowrap;
+}
+.prep-quickbar .quick-start {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 /* 화면 키보드가 열리면(좁은 화면) 하단 메뉴를 숨겨 입력 칸·확인 창 버튼을 가리지 않게 한다. */
 @media (max-width: 767px) {
   html[data-keyboard="open"] .tabs {
@@ -5740,6 +5761,12 @@ button.row.swap-target:hover {
   margin-left: auto;
   color: var(--ih-accent);
   border-color: var(--ih-accent);
+}
+/* 방금 자리가 바뀐 사람(TeamBoards.tsx movedKeys): 1px 점선 테두리. 줄 높이를 바꾸지 않으려고 글자 대신 테두리를 쓴다.
+   고른 사람(.picked)은 골드 실선이라 모양으로 구별된다. 보조 글자색이라 다크·라이트 모두 패널 위 3:1을 넘는다. */
+button.row.moved {
+  border-style: dashed;
+  border-color: var(--ih-text-secondary);
 }
 /* 터치 기기(마우스 없음)에서는 끌기 손잡이를 숨긴다. 누르기 방식만 안내한다. */
 @media (hover: none) {

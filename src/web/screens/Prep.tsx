@@ -22,7 +22,7 @@ import { DrawSummary } from "./prep/DrawSummary";
 import { ForecastSection } from "./prep/ForecastSection";
 import { LateDialog, RecommendDialog, ReplaceDialog } from "./prep/EditDialogs";
 import { SeriesSection } from "./prep/SeriesSection";
-import { ShuffleSection, SideSection } from "./prep/ShuffleSection";
+import { QUICK_BAR_NARROW_MAX, QuickShuffleButtons, ShuffleSection, SideSection } from "./prep/ShuffleSection";
 import { StartAskDialog } from "./prep/StartAskDialog";
 import { supportCountLabel, SupportCountSection } from "./prep/SupportCountSection";
 import { SelectionBar, TeamBoards } from "./prep/TeamBoards";
@@ -155,10 +155,26 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
   const needsReset = resetCountsReady(draft, ctx);
   // styles.css의 .prep-layout 두 단 기준과 같은 값이어야 한다.
   const twoColumns = useMediaQuery("(min-width: 1200px)");
+  // 휴대폰(768px 미만)은 자주 쓰는 섞기 둘을 아래 고정 줄로 옮긴다(ShuffleSection.tsx QuickShuffleButtons).
+  // 아주 좁은 폰은 한 줄에 버튼 셋이 들어가지 않아 "라인 섞기"는 섞기 구역에 남긴다.
+  const phone = useMediaQuery("(max-width: 767px)");
+  const narrowPhone = useMediaQuery(`(max-width: ${QUICK_BAR_NARROW_MAX}px)`);
+  const inQuickBar = { teamShuffle: phone, lineShuffle: phone && !narrowPhone };
+  const startButton = (
+    <button
+      type="button"
+      className={phone ? "primary quick-start" : "primary wide"}
+      disabled={busy || !complete}
+      onClick={() => void start.beginStart()}
+    >
+      {busy ? "저장 중" : "이 팀으로 시작"}
+    </button>
+  );
   const shuffle = (
     <ShuffleSection
       ctx={ctx}
       edit={edit}
+      inQuickBar={inQuickBar}
       support={
         ctx.enabled
           ? {
@@ -319,14 +335,15 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
       <ErrorNote error={error} onCheck={start.retryLast} />
 
       <StickyAction>
-        <button
-          type="button"
-          className="primary wide"
-          disabled={busy || !complete}
-          onClick={() => void start.beginStart()}
-        >
-          {busy ? "저장 중" : "이 팀으로 시작"}
-        </button>
+        {phone ? (
+          // 섞기 버튼은 왼쪽, 시작은 오른쪽에 떨어뜨린다(styles.css .prep-quickbar). 섞으려다 시작을 누르지 않게.
+          <div className="prep-quickbar">
+            <QuickShuffleButtons edit={edit} lineShuffle={inQuickBar.lineShuffle} />
+            {startButton}
+          </div>
+        ) : (
+          startButton
+        )}
       </StickyAction>
 
       {edit.candidates && <RecommendDialog draft={draft} candidates={edit.candidates} edit={edit} />}

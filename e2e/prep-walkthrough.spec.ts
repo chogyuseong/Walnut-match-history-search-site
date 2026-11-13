@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { lineShuffleButton } from "./shuffleButtons";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -76,7 +77,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   // 올랜덤: 팀원은 그대로 두고 라인만 섞는다. 안내가 뜨고 4초 안팎에 사라진다.
   const membersOf = async (t: "A" | "B") => (await readTeam(page, t)).map((r) => r.name).sort();
   const firstA = await membersOf("A");
-  await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+  await lineShuffleButton(page).click();
   const toast = page.locator(".toast");
   await expect(toast).toHaveText("팀원은 그대로 두고 라인을 섞었어요.");
   expect(await membersOf("A")).toEqual(firstA);
@@ -105,11 +106,11 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await page.getByRole("button", { name: "포지션 고정" }).click();
   await expect(rows(team(page, "A")).nth(0)).toContainText("고정");
   for (let i = 0; i < 3; i++) {
-    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+    await lineShuffleButton(page).click();
     expect((await readTeam(page, "A"))[0]!.name).toBe(lockedName);
   }
   const beforeUndo = await readTeam(page, "B");
-  await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+  await lineShuffleButton(page).click();
   await page.getByRole("button", { name: "직전 편성으로" }).click();
   expect(await readTeam(page, "B")).toEqual(beforeUndo);
 
@@ -121,7 +122,7 @@ test("준비 화면 버튼 점검 → 공평 섞기로 6경기: 서포터가 겹
   await expect(page.getByText("팀 조건 1개")).toBeVisible();
   const [keepA, keepB] = [await membersOf("A"), await membersOf("B")];
   for (let i = 0; i < 5; i++) {
-    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+    await lineShuffleButton(page).click();
     expect([await membersOf("A"), await membersOf("B")]).toEqual([keepA, keepB]);
   }
   // 팀 추천 적용: 조건을 지키고 고정은 유지된다.
@@ -292,11 +293,10 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 예상 승률 판(
   await expect(lanes.first().locator(".fc-side-B")).toContainText(redTop);
 
   // 되돌리기 여러 번: 처음 만든 편성에는 이력이 없고, 섞을 때마다 단계 수가 늘어난다.
-  const tools = page.getByRole("region", { name: "섞기" });
   await expect(page.getByRole("button", { name: /직전 편성으로/ })).toHaveCount(0);
   const lineups: string[] = [JSON.stringify(await inTeams())];
   for (let i = 1; i <= 3; i++) {
-    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+    await lineShuffleButton(page).click();
     await expect(page.getByRole("button", { name: `직전 편성으로 (${i})` })).toBeVisible();
     lineups.push(JSON.stringify(await inTeams()));
   }

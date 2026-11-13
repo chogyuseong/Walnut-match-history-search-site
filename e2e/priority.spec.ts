@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { lineShuffleButton, teamShuffleButton } from "./shuffleButtons";
 
 // 티어 배정 화면 → 준비 화면 "팀·라인 모두 섞기"(같은 티어끼리 양 팀에 나뉨) · "라인만 섞기"(팀원 그대로).
 
@@ -35,13 +36,13 @@ test("티어 배정(1~5티어) → 팀·라인 모두 섞기 여러 번: 1티어
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
 
   const tools = page.getByRole("region", { name: "섞기", exact: true });
-  await expect(tools.getByRole("button", { name: "팀·라인 모두 섞기" })).toBeVisible();
-  await expect(tools.getByRole("button", { name: "라인만 섞기", exact: true })).toBeVisible();
+  await expect(teamShuffleButton(page)).toBeVisible();
+  await expect(lineShuffleButton(page)).toBeVisible();
   await expect(tools.getByRole("button", { name: "라인 섞기 + 서폿 돌아가며" })).toBeVisible();
   await noHorizontalOverflow(page);
 
   // 아직 아무도 정하지 않았으면 무작위로 나누고, 배정 화면으로 가는 링크를 남긴다.
-  await tools.getByRole("button", { name: "팀·라인 모두 섞기" }).click();
+  await teamShuffleButton(page).click();
   await expect(page.locator(".toast")).toHaveText("티어를 정한 사람이 없어 무작위로 나눴어요.");
   await expect(tools.getByRole("button", { name: "티어 배정하기" })).toBeVisible();
   await tools.getByRole("button", { name: "티어 배정하기" }).click();
@@ -97,7 +98,7 @@ test("티어 배정(1~5티어) → 팀·라인 모두 섞기 여러 번: 1티어
   // 팀·라인 모두 섞기 8번: 1티어 두 명·2티어 두 명은 매번 다른 팀, 5티어 세 명은 한 팀에 몰리지 않는다. 팀 구성은 한 번 이상 바뀐다.
   const seen = new Set<string>();
   for (let i = 0; i < 8; i++) {
-    await tools.getByRole("button", { name: "팀·라인 모두 섞기" }).click();
+    await teamShuffleButton(page).click();
     await expect(page.locator(".toast")).toContainText(/^1티어 1:1 · 2티어 1:1 · 3티어 1:1 · 5티어 (2:1|1:2) · 미지정 (1:0|0:1)/);
     await expect(rows(team(page, "A"))).toHaveCount(5);
     await expect(rows(team(page, "B"))).toHaveCount(5);
@@ -115,7 +116,7 @@ test("티어 배정(1~5티어) → 팀·라인 모두 섞기 여러 번: 1티어
   // 라인만 섞기: 팀원은 그대로 두고 라인만 섞는다.
   const keep = [await members(page, "A"), await members(page, "B")];
   for (let i = 0; i < 4; i++) {
-    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+    await lineShuffleButton(page).click();
     expect([await members(page, "A"), await members(page, "B")]).toEqual(keep);
   }
 

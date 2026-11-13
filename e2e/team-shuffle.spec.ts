@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { lineShuffleButton } from "./shuffleButtons";
 
 // 준비 화면의 팀 섞기 2종(올랜덤, 올랜덤 + 서포터 공평하게), 서포터만 바꾸기, 서포터 횟수 초기화, 블루팀·레드팀과 진영 바꾸기.
 
@@ -47,7 +48,7 @@ test("올랜덤 → 블루팀·레드팀 → 진영 바꾸기·진영 랜덤 →
   const teamA = page.getByRole("region", { name: "블루팀" });
   const teamB = page.getByRole("region", { name: "레드팀" });
   const tools = page.getByRole("region", { name: "섞기" });
-  await expect(tools.getByRole("button", { name: "라인만 섞기", exact: true })).toBeVisible();
+  await expect(lineShuffleButton(page)).toBeVisible();
   await expect(tools.getByRole("button", { name: "라인 섞기 + 서폿 돌아가며" })).toBeVisible();
   await expect(tools.getByRole("button", { name: "서포터만 바꾸기" })).toBeVisible();
   await noHorizontalOverflow(page);
@@ -57,7 +58,7 @@ test("올랜덤 → 블루팀·레드팀 → 진영 바꾸기·진영 랜덤 →
   const members = (texts: string[]) => texts.map((t) => t.match(/섞기\d\d/)![0]).sort();
   let changed = false;
   for (let i = 0; i < 5; i++) {
-    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+    await lineShuffleButton(page).click();
     await expect(rows(teamA)).toHaveCount(5);
     await expect(rows(teamB)).toHaveCount(5);
     const now = await rows(teamA).allInnerTexts();

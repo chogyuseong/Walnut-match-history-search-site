@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { lineShuffleButton, teamShuffleButton } from "./shuffleButtons";
 
 // 티어 제안(기록으로 제안받기 → 고른 사람만 적용) · 티어 점검 · 기피 라인(지정 → 섞기에서 피함).
 
@@ -132,7 +133,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
 
   for (let i = 0; i < 6; i++) {
     const before = await lineup(page);
-    await tools.getByRole("button", { name: "라인만 섞기", exact: true }).click();
+    await lineShuffleButton(page).click();
     await expect(page.locator(".toast")).toContainText("팀원은 그대로 두고 라인을 섞었어요.");
     seen = await lineup(page);
     for (const [name, [team]] of before) expect(seen.get(name)![0]).toBe(team);
@@ -141,7 +142,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
   }
   const teams = new Set<string>();
   for (let i = 0; i < 6; i++) {
-    await tools.getByRole("button", { name: "팀·라인 모두 섞기" }).click();
+    await teamShuffleButton(page).click();
     await expect(page.locator(".toast")).toContainText("나눴어요");
     seen = await lineup(page);
     expect(seen.get("기피01")![1]).toBe("서폿");
