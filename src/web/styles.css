@@ -435,6 +435,20 @@ select {
   font-size: var(--text-body);
   width: 100%;
 }
+/* 날짜 칸: 아이폰 Safari는 기본 모양(appearance)에 자체 최소 폭을 붙여 width: 100%를 넘겨 버린다
+   (모임 탭 시즌 시작일·종료일이 패널 밖으로 넘쳤다. 데스크톱 Chromium에서는 재현되지 않는다).
+   기본 모양을 끄고 최소 폭을 풀어 부모 폭 안에 둔다. 눌렀을 때 날짜 고르기 창은 그대로 뜬다.
+   Safari는 값 글자를 가운데 정렬하므로 다른 입력 칸처럼 왼쪽으로 맞춘다. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
 /* 평소 컨트롤 경계, 초점이 오면 테두리가 강조색(초점 고리와 함께). */
 input:focus,
 textarea:focus,
@@ -1130,6 +1144,9 @@ input[type="search"] {
 .season-form .input-row {
   flex-direction: column;
   align-items: stretch;
+}
+.season-form label {
+  min-width: 0;
 }
 @media (min-width: 768px) {
   .season-form .input-row {
