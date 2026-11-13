@@ -157,6 +157,80 @@ test("12명 밤: 결과 저장 창의 제안 → 쉬던 두 명이 들어간 초
   await noHorizontalOverflow(page);
 });
 
+// 모임이 없는 새 계정은 고르기 화면에서 모임 ID가 없어 명단을 남기지 못하고, 첫 시작 때 모임이 생긴다.
+// 그래도 쉬던 사람이 다음 판으로 넘어와야 한다(staging에서 첫 밤 쉬는 사람이 사라지던 버그).
+test("모임 없는 새 계정의 12명 밤: 첫 시작으로 모임이 생겨도 쉬던 두 명이 다음 판에 들어온다", async ({ page }) => {
+  test.setTimeout(90000);
+  const login = await page.request.post("/api/auth/fake-login", {
+    data: { subject: `e2e-night-new-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
+  });
+  expect(login.ok()).toBe(true);
+  await page.goto("/#/pick");
+  await page.getByLabel("이름 검색 또는 새 이름 입력").fill(names.join("\n"));
+  await page.getByRole("button", { name: "추가", exact: true }).click();
+  await page.getByRole("button", { name: "팀 짜기 (10명 + 대기 2명)" }).click();
+  await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
+  const rest = page.getByRole("region", { name: "쉬는 사람" });
+  await expect(rest.getByRole("listitem")).toHaveCount(2);
+
+  const sheet = await startAndWin(page, 1);
+  await expect(sheet.getByText("다음 판 쉬는 사람(제안): 도토리 · 밤송이")).toBeVisible();
+  await sheet.getByRole("button", { name: "다음 경기 준비" }).click();
+  await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
+  await expect(rest.getByRole("heading")).toHaveText("쉬는 사람 2명 · 오늘 온 12명");
+  const second = await playing(page);
+  expect(second).toContain("꿀떡");
+  expect(second).toContain("모래알");
+  expect(second).not.toContain("도토리");
+  expect(second).not.toContain("밤송이");
+  await noHorizontalOverflow(page);
+});
+
+// 로그인 전에 12명을 고르면 모임 ID가 없어 명단이 남지 않는다. 시작에서 로그인한 계정에 경기 기록이 있는 모임이 있어도
+// (첫 모임이 아니어도) 쉬던 사람이 다음 판으로 넘어와야 한다.
+test("로그인 전에 고른 12명 밤: 기록 있는 모임 계정으로 시작 중 로그인해도 쉬던 두 명이 다음 판에 들어온다", async ({ page }) => {
+  test.setTimeout(120000);
+  const subject = `e2e-night-later-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
+  await page.request.post("/api/auth/fake-login", { data: { subject } });
+  const group = (await (
+    await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "호두나무 내전" } })
+  ).json()) as { id: string };
+  await page.request.post(`/api/groups/${group.id}/participants`, { data: { requestId: crypto.randomUUID(), names } });
+  // 지난번 10명 경기 하나를 남겨 "경기가 있는 모임"으로 만든다.
+  await pickTeams(page, 10);
+  await startAndWin(page, 1);
+  expect((await page.request.post("/api/auth/logout")).ok()).toBe(true);
+  await page.evaluate(() => localStorage.clear());
+
+  await page.goto("/#/pick");
+  await page.reload();
+  await page.getByLabel("이름 검색 또는 새 이름 입력").fill(names.join("\n"));
+  await page.getByRole("button", { name: "추가", exact: true }).click();
+  await page.getByRole("button", { name: "팀 짜기 (10명 + 대기 2명)" }).click();
+  await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
+  await page.getByRole("button", { name: "이 팀으로 시작" }).click();
+  const dialog = page.getByRole("dialog", { name: "로그인" });
+  await dialog.getByLabel("계정 이름").fill(subject);
+  await dialog.getByRole("button", { name: "개발용 로그인" }).click();
+  // 지난 경기와 같은 팀·반복 서포터면 확인 창이 뜬다. 그대로 시작한다.
+  const confirm = page.getByRole("dialog", { name: "시작 전에 확인해 주세요" });
+  const live = page.getByRole("heading", { name: /경기 진행 중/ });
+  await expect(confirm.or(live)).toBeVisible();
+  if (await confirm.isVisible()) await confirm.getByRole("button", { name: /시작$/ }).click();
+  await expect(live).toBeVisible();
+  await page.getByRole("button", { name: "결과 입력" }).click();
+  const sheet = page.getByRole("dialog", { name: "2경기 결과" });
+  await sheet.getByRole("button", { name: /블루팀 승/ }).click();
+  await sheet.getByRole("button", { name: "저장" }).click();
+  await expect(sheet.getByText("2경기 저장됨")).toBeVisible();
+  await expect(sheet.getByText(/^다음 판 쉬는 사람\(제안\): /)).toBeVisible();
+  await sheet.getByRole("button", { name: "다음 경기 준비" }).click();
+  await expect(page.getByRole("region", { name: "쉬는 사람" }).getByRole("heading")).toHaveText("쉬는 사람 2명 · 오늘 온 12명");
+  const third = await playing(page);
+  expect(third).toContain("꿀떡");
+  expect(third).toContain("모래알");
+});
+
 test("10명 밤: 새 표시가 없고, 지난 경기의 팀 조건을 이어 온다", async ({ page }) => {
   test.setTimeout(90000);
   await setup(page);

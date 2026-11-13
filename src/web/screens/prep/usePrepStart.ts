@@ -5,7 +5,7 @@ import { fairRepeatSupporterIds, repeatSupporterIds, rotationContext } from "../
 import { sameComposition } from "../../../shared/series";
 import type { MatchView, Snapshot } from "../../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../../api";
-import { bindNightPool, saveCarry } from "../../nightPoolStore";
+import { bindNightPool, liveNightPool, saveCarry, startNightPool } from "../../nightPoolStore";
 import { go, type AppValue } from "../../useApp";
 
 const SESSION_GAP_MS = 12 * 60 * 60 * 1000;
@@ -135,6 +135,15 @@ export function usePrepStart(app: AppValue, draft: Draft, status: PrepStatus) {
           ...(series ? { series } : {}),
         } as { requestId: string });
         setAsk(null);
+        // 대기자가 있는데 살아 있는 오늘 명단이 없으면 지금 시작한 초안(편성 + 대기자)으로 명단을 만든다.
+        // 고르기 화면은 모임 ID가 있으면 대기자가 있을 때 늘 명단을 쓰므로(Pick.tsx buildTeams), 여기 오는 것은
+        // 모임 ID 없이 짠 경우(로그인 전, 첫 모임이 시작하면서 생김)와 명단이 만료되거나 보관에 실패한 경우뿐이다.
+        // 주의: 이 명단 순서는 고른 순서가 아니라 시작한 초안 순서라, 첫 준비 화면에서 대기자와 맞바꿨다면
+        // 다음 판 쉬는 사람의 동률 판정(nightPool.ts nextLineup의 "명단 앞쪽")이 고르기 화면 경로와 다를 수 있다.
+        const unsavedBench = current.bench ?? [];
+        if (unsavedBench.length > 0 && !liveNightPool(plan.snapshot)) {
+          startNightPool(plan.snapshot, plan.snapshot.group.id, [...current.people, ...unsavedBench]);
+        }
         // 성공한 뒤에만 오늘 명단을 이 세션에 묶고 팀 조건을 남긴다(실패하면 초안·명단 모두 그대로 둔다).
         bindNightPool(plan.snapshot, started.match.sessionId, current);
         saveCarry(plan.snapshot.group.id, current);
