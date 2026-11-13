@@ -106,14 +106,14 @@ describe("티어 제안", () => {
     expect(changedSuggestions(result)).toEqual([]);
   });
 
-  it("보정: 10전 10승(보정 75%)보다 100전 80승(보정 77%)이 위, 10전 0승(25%)보다 100전 15승(18%)이 아래", () => {
+  it("순서는 화면 MMR(정수) 높은 순이고, 보정 승률은 참고 값으로만 붙는다", () => {
     const parts = ["hot", "vet", "mid", "cold", "weak"].map((id) => person(id));
-    const result = suggestPriorities(
-      parts,
-      recordsOf({ hot: [10, 10], vet: [100, 80], mid: [10, 5], cold: [10, 0], weak: [100, 15] }),
-    );
-    expect(result.rows.map((r) => r.participantId)).toEqual(["vet", "hot", "mid", "cold", "weak"]);
+    const matches = recordsOf({ hot: [10, 10], vet: [100, 80], mid: [10, 5], cold: [10, 0], weak: [100, 15] });
+    const result = suggestPriorities(parts, matches);
+    const mmrs = result.rows.map((r) => r.mmr);
+    expect([...mmrs].sort((a, b) => b - a)).toEqual(mmrs);
     expect(result.rows.map((r) => r.suggested)).toEqual([1, 2, 3, 4, 5]);
+    expect(result.rows.find((r) => r.participantId === "vet")!.adjustedRate).toBeCloseTo(85 / 110);
   });
 
   it("5등분: i번째는 floor(i×5/n)+1티어(10명이면 2명씩, 7명·12명은 경계대로)", () => {
@@ -137,31 +137,58 @@ describe("티어 제안", () => {
     }
   });
 
+  // MMR은 경기 순서(최근 가중·연승 가중)까지 보므로 승패 수가 같다고 같은 MMR이 되지는 않는다.
+  // 동점은 "모든 경기를 같은 팀으로 뛴 두 사람"으로 만든다. 이 둘은 계산상 MMR이 정확히 같다.
+  const teammates = (a: string, b: string, games: number, wins: number) =>
+    Array.from({ length: games }, (_, i) => match([a, b], [`x-${a}`, `x-${b}`], i < wins ? "A" : "B"));
+
   it("동점이 티어 경계에 걸리면 앞사람 티어를 함께 받는다(10명, 2·3번째가 동점이면 둘 다 1티어)", () => {
+    const solo = ["p0", "p3", "p4", "p5", "p6", "p7", "p8", "p9"];
+    const wins = [19, 15, 13, 11, 9, 7, 5, 3];
+    const spec = Object.fromEntries(solo.map((id, i) => [id, [20, wins[i]!] as [number, number]]));
+    // p1·p2는 늘 같은 팀(경계: i=1은 1티어, i=2는 원래 2티어).
+    const matches = [...recordsOf(spec), ...teammates("p1", "p2", 20, 17)];
     const ids = Array.from({ length: 10 }, (_, i) => `p${i}`);
-    // p1·p2가 같은 성적(경계: i=1은 1티어, i=2는 원래 2티어).
-    const wins = [19, 17, 17, 15, 13, 11, 9, 7, 5, 3];
-    const spec = Object.fromEntries(ids.map((id, i) => [id, [20, wins[i]!] as [number, number]]));
-    const result = suggestPriorities(ids.map((id) => person(id)), recordsOf(spec));
+    const result = suggestPriorities(ids.map((id) => person(id)), matches);
+    expect(result.rows.slice(0, 3).map((r) => r.participantId)).toEqual(["p0", "p1", "p2"]);
     expect(result.rows.map((r) => r.suggested)).toEqual([1, 1, 1, 2, 3, 3, 4, 4, 5, 5]);
   });
 
-  it("동점: 보정 승률이 같으면 경기 수 많은 순 → ID 순, 똑같은 성적은 같은 티어. 입력 순서가 달라도 결과가 같다", () => {
-    // b·c는 같은 경기·같은 승(완전 동점), d는 경기 수는 적지만 보정 승률이 같다(모두 50%).
-    const spec: Record<string, [number, number]> = {
-      a: [10, 9],
-      c: [20, 10],
-      b: [20, 10],
-      d: [10, 5], // 보정 승률 50%로 b·c와 같지만 경기가 적어 뒤
-      e: [10, 0],
-    };
+  it("동점: 화면 MMR이 같으면 경기 수 많은 순 → ID 순, 같은 티어. 입력 순서가 달라도 결과가 같다", () => {
+    const matches = [...recordsOf({ a: [10, 9], d: [10, 5], e: [10, 0] }), ...teammates("c", "b", 20, 10)];
     const parts = ["e", "d", "c", "b", "a"].map((id) => person(id));
-    const first = suggestPriorities(parts, recordsOf(spec));
-    expect(first.rows.map((r) => r.participantId)).toEqual(["a", "b", "c", "d", "e"]);
-    // n=5: 순서 0..4 → 1,2,3,4,5 이지만 b·c·d는 보정 승률이 같아 b의 티어(2)를 함께 받는다.
-    expect(first.rows.map((r) => r.suggested)).toEqual([1, 2, 2, 2, 5]);
-    const again = suggestPriorities([...parts].reverse(), recordsOf(spec).reverse());
+    const first = suggestPriorities(parts, matches);
+    const order = first.rows.map((r) => r.participantId);
+    expect(order[0]).toBe("a");
+    expect(order[4]).toBe("e");
+    expect(order.indexOf("c")).toBe(order.indexOf("b") + 1);
+    const b = first.rows.find((r) => r.participantId === "b")!;
+    const c = first.rows.find((r) => r.participantId === "c")!;
+    expect(c.mmr).toBe(b.mmr);
+    expect(c.suggested).toBe(b.suggested);
+    const again = suggestPriorities([...parts].reverse(), [...matches].reverse());
     expect(again).toEqual(first);
+  });
+
+  it("늘 약한 팀원과 묶여 승률이 50%인 강한 사람도 MMR로 1티어를 제안받는다(승률로 나누면 가운데로 끌려가던 경우)", () => {
+    // 티어로 균형을 맞춘 모임의 모양: ace는 늘 weak와 같은 팀이라 반반 이긴다. weak는 다른 사람과 묶여도 진다.
+    const ids = ["ace", "weak", "m1", "m2", "m3", "m4"];
+    const games: MatchView[] = [];
+    const series = (teamA: string[], teamB: string[], count: number, aWins: number) => {
+      for (let i = 0; i < count; i++) games.push(match(teamA, teamB, i < aWins ? "A" : "B"));
+    };
+    series(["ace", "weak"], ["m1", "m2"], 20, 10);
+    series(["ace", "weak"], ["m3", "m4"], 20, 10);
+    series(["weak", "m1"], ["m2", "m3"], 20, 3);
+    series(["weak", "m4"], ["m1", "m3"], 20, 3);
+    series(["m1", "m2"], ["m3", "m4"], 20, 10);
+    const result = suggestPriorities(ids.map((id) => person(id)), games);
+    const ace = result.rows.find((r) => r.participantId === "ace")!;
+    expect(ace.wins / ace.games).toBe(0.5);
+    // 승률만 보면 ace보다 높은 사람이 있다(약한 weak를 상대로 이긴 몫).
+    expect(result.rows.some((r) => r.participantId !== "ace" && r.adjustedRate > ace.adjustedRate)).toBe(true);
+    expect(ace.suggested).toBe(1);
+    expect(result.rows.find((r) => r.participantId === "weak")!.suggested).toBe(5);
   });
 
   it("달라지는 사람만 바뀜 목록에 든다", () => {

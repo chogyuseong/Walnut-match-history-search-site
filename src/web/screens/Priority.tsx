@@ -7,10 +7,10 @@ import {
   priorityMismatches,
   suggestPriorities,
   SUGGEST_MIN_PEOPLE,
-  SUGGEST_PRIOR_GAMES,
   type SuggestResult,
   type SuggestRow,
 } from "../../shared/priorityReview";
+import { ratingOptionsOf } from "../../shared/rating";
 import { placementGamesOf, ratePercent, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
 import { patchParticipant, saveSkillGroups } from "../api";
@@ -25,7 +25,7 @@ import { go, useAppValue, type AppValue } from "../useApp";
  *   저장은 모임 탭과 같은 참가자 수정 API(PATCH …/participants/:id, skillGroup)다. 공개 설정(groupsPublic)은 모임 탭에 있다.
  *   연달아 눌러도 기다리지 않는다. 다시 읽기는 마지막 저장이 끝나고 잠깐 더 누르지 않을 때 한 번(useQueuedSaves).
  *   "기록으로 제안받기"의 여러 명 적용은 일괄 저장 API(POST …/participants/skill-groups) 한 번이다.
- *   "기록으로 제안받기"(승률로 5등분한 참고값, 고른 사람만 적용)와 "티어 점검"(지금 티어를 지난 경기에 적용한 계산)이 함께 있다.
+ *   "기록으로 제안받기"(MMR 순위로 5등분한 참고값, 고른 사람만 적용)와 "티어 점검"(지금 티어를 지난 경기에 적용한 계산)이 함께 있다.
  * 기피 라인: 사람마다 탑·정글·미드·원딜·서폿 토글(0~4개). 같은 API의 avoidPositions로 바로 저장한다.
  */
 export function PriorityScreen(props: { tab?: "priority" | "avoid" }) {
@@ -353,10 +353,10 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
 const percent = (wins: number, games: number) => `${ratePercent(wins, games)}%`;
 
 function rowFacts(row: SuggestRow): string {
-  // 다른 화면과 같은 꼴: "승률 · N승 M패 (G경기)"
+  // 제안 기준(MMR)을 맨 앞에, 그 뒤는 다른 화면과 같은 꼴: "MMR 1520 · 승률 · N승 M패 (G경기)"
   return row.games === 0
     ? "경기 없음"
-    : `${percent(row.wins, row.games)} · ${row.wins}승 ${row.games - row.wins}패 (${row.games}경기)`;
+    : `MMR ${row.mmr} · ${percent(row.wins, row.games)} · ${row.wins}승 ${row.games - row.wins}패 (${row.games}경기)`;
 }
 
 /** 기록으로 제안받기: 미리보기 → 고른 사람만 저장. 자동으로 덮어쓰지 않는다. */
@@ -365,7 +365,12 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
   const placementGames = placementGamesOf(snapshot.group.settings);
   // 창을 연 때의 기록으로 계산해 둔다(적용 중 다시 읽어도 목록이 흔들리지 않게).
   const [result] = useState<SuggestResult>(() =>
-    suggestPriorities(snapshot.participants, snapshot.matches, placementGames),
+    suggestPriorities(
+      snapshot.participants,
+      snapshot.matches,
+      placementGames,
+      ratingOptionsOf(snapshot.group.settings).start,
+    ),
   );
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(changedSuggestions(result).map((r) => r.participantId)),
@@ -399,8 +404,8 @@ function SuggestDialog(props: { app: AppValue; snapshot: Snapshot; onClose: () =
   return (
     <Dialog title="기록으로 제안받기" onClose={props.onClose}>
       <p className="hint">
-        제안은 승률만 본 참고값이에요(라인·상대·최근 흐름은 보지 않아요). 누적 {placementGames}경기 이상인 사람만,
-        경기가 적을수록 승률을 50% 쪽으로 당겨({SUGGEST_PRIOR_GAMES}경기만큼) 줄 세운 뒤 5등분했어요.
+        누적 {placementGames}경기 이상인 사람을 MMR 순위로 줄 세워 5등분한 참고값이에요. MMR은 함께 뛴 팀원과
+        상대의 세기를 감안해서, 팀을 고르게 짜느라 늘 약한 팀원과 묶인 사람도 승률 50%에 묻히지 않아요.
       </p>
       {!result.ready ? (
         <p className="note" role="status">
@@ -487,7 +492,12 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
   const mismatches = useMemo(
     () =>
       priorityMismatches(
-        suggestPriorities(snapshot.participants, snapshot.matches, placementGamesOf(snapshot.group.settings)),
+        suggestPriorities(
+          snapshot.participants,
+          snapshot.matches,
+          placementGamesOf(snapshot.group.settings),
+          ratingOptionsOf(snapshot.group.settings).start,
+        ),
       ),
     [snapshot],
   );
@@ -512,11 +522,11 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
         </p>
       )}
       <p className="hint">합이 같았던 경기 {balance.even}경기는 빼고 셌어요.</p>
-      <h3>티어와 성적이 어긋나는 사람</h3>
+      <h3>티어와 MMR이 어긋나는 사람</h3>
       {far.length === 0 ? (
         <p className="hint">지금 티어와 기록 제안이 2단계 이상 다른 사람은 없어요.</p>
       ) : (
-        <ul className="list" aria-label="티어와 성적이 어긋나는 사람">
+        <ul className="list" aria-label="티어와 MMR이 어긋나는 사람">
           {far.map(({ row }) => (
             <li key={row.participantId} className="list-row static">
               <span className="name">{row.name}</span>

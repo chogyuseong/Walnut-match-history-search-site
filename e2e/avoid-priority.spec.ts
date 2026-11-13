@@ -58,7 +58,7 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
 
   await page.getByRole("button", { name: "기록으로 제안받기" }).click();
   const dialog = page.getByRole("dialog", { name: "기록으로 제안받기" });
-  await expect(dialog).toContainText("승률만 본 참고값");
+  await expect(dialog).toContainText("MMR 순위로 줄 세워 5등분한 참고값");
   const boxes = dialog.getByRole("list", { name: "제안 목록" }).getByRole("checkbox");
   await expect(boxes).toHaveCount(10);
   for (const box of await boxes.all()) await expect(box).toBeChecked();

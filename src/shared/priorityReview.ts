@@ -1,4 +1,5 @@
 import { normalizePriority, type Priority } from "./priority";
+import { computeRatings, RATING_START, shownRating } from "./rating";
 import { priorityWeightOf } from "./recommend";
 import { isCounted, personRecords, PLACEMENT_GAMES_DEFAULT, SMALL_SAMPLE } from "./stats";
 import { MAX_SKILL_GROUP, type GroupWeights, type MatchView, type ParticipantView } from "./types";
@@ -6,12 +7,15 @@ import { MAX_SKILL_GROUP, type GroupWeights, type MatchView, type ParticipantVie
 /**
  * 티어 자동 제안과 티어 점검(배정 화면 #/priority). 서버·저장 형식은 바꾸지 않고 스냅숏에서 매번 계산한다.
  * 집계 기준은 stats.ts와 같다: 결과 확정 경기만(전적 제외·취소·대기·진행 중은 세지 않음), 모임 전체 누적.
+ *
+ * 제안은 승률이 아니라 MMR(rating.ts 일괄 계산) 순위로 나눈다. 티어로 팀을 고르게 짤수록 강한 사람은 늘 약한 팀원과
+ * 묶여 승률이 50% 근처로 모인다. 승률로 나누면 잘 짠 모임일수록 모두가 가운데 티어로 끌려가고, 그 제안을 따르면
+ * 다음 편성이 기울었다(되먹임). MMR은 팀원과 상대의 세기를 함께 감안해 이 끌림이 없다. 보정 승률은 화면 참고용으로만 남긴다.
  */
 
 /**
  * 승률 보정값 k: (승 + k/2) / (경기 + k). 표본이 적은 사람이 극단(0%·100%)으로 가지 않게 50% 쪽으로 당긴다.
- * 기본 배치 경기 수(10)와 같게 두어, 막 배치를 마친 사람은 실제 승률과 50%의 딱 중간이 되고
- * 경기가 쌓일수록 실제 승률에 가까워진다.
+ * 제안 순서에는 쓰지 않고 제안 창의 참고 숫자로만 보여 준다.
  */
 export const SUGGEST_PRIOR_GAMES = 10;
 
@@ -27,8 +31,10 @@ export interface SuggestRow {
   current: Priority;
   /** 제안 티어. 기록이 적거나(배치 경기 수 미만) 대상이 5명 미만이면 null. */
   suggested: Priority;
-  /** 보정한 승률(0~1). */
-  score: number;
+  /** 화면에 보이는 정수 MMR. 제안 순서의 기준이라, 같은 숫자로 보이는 사람은 같은 티어를 받는다. */
+  mmr: number;
+  /** 보정한 승률(0~1). 참고용이고 순서에는 쓰지 않는다. */
+  adjustedRate: number;
   /** few-games: 배치 전(배치 경기 수 미만)이라 제안 없음. */
   status: "ok" | "few-games";
 }
@@ -38,7 +44,7 @@ export interface SuggestResult {
   ready: boolean;
   /** 배치 완료 활성 참가자 수. */
   eligible: number;
-  /** 제안 대상은 보정 승률 높은 순, 그 뒤에 기록이 적은 사람(경기 많은 순 → 이름 순). */
+  /** 제안 대상은 MMR 높은 순, 그 뒤에 기록이 적은 사람(경기 많은 순 → 이름 순). */
   rows: SuggestRow[];
 }
 
@@ -53,17 +59,19 @@ function byText(a: string, b: string): number {
 
 /**
  * 티어 제안. 대상: 활성(보관·합쳐짐 제외)이고 모임 전체 누적 확정 경기가 배치 경기 수(모임 설정, 기본 10) 이상인 사람.
- * 보정 승률 높은 순으로 줄 세워 5등분한다: i번째(0부터) 사람은 floor(i × 5 / n) + 1티어(2026-11-06 전에는 4등분).
- * 정렬 순서(동점 처리): 보정 승률 → 경기 수 많은 순 → 참가자 ID 순. 보정 승률이 똑같은 사람들은
- * 그 무리의 첫 사람 티어를 함께 받는다(같은 성적이면 같은 티어). 대상이 5명 미만이면 아무도 제안하지 않는다.
- * 승률만 본 참고값이다(라인·상대·최근 흐름은 보지 않는다).
+ * MMR 높은 순으로 줄 세워 5등분한다: i번째(0부터) 사람은 floor(i × 5 / n) + 1티어.
+ * 정렬 순서(동점 처리): 화면 MMR(정수) → 경기 수 많은 순 → 참가자 ID 순. 화면 MMR이 같은 사람들은
+ * 그 무리의 첫 사람 티어를 함께 받는다(같은 숫자로 보이면 같은 티어). 대상이 5명 미만이면 아무도 제안하지 않는다.
+ * ratingStart는 순서를 바꾸지 않지만, 다른 화면과 같은 값을 넘겨야 computeRatings 캐시를 같이 쓴다(일괄 계산은 수백 ms).
  */
 export function suggestPriorities(
   participants: readonly ParticipantView[],
   matches: readonly MatchView[],
   placementGames: number = PLACEMENT_GAMES_DEFAULT,
+  ratingStart: number = RATING_START,
 ): SuggestResult {
   const records = personRecords(matches);
+  const ratings = computeRatings(matches, { start: ratingStart });
   const active = participants.filter((p) => p.status === "active" && !p.mergedInto);
   const rows: SuggestRow[] = active.map((p) => {
     const r = records.get(p.id);
@@ -76,13 +84,14 @@ export function suggestPriorities(
       wins,
       current: normalizePriority(p.skillGroup),
       suggested: null,
-      score: adjustedRate(wins, games),
+      mmr: shownRating(ratings.get(p.id)?.rating ?? ratingStart),
+      adjustedRate: adjustedRate(wins, games),
       status: games >= placementGames ? "ok" : "few-games",
     };
   });
   const eligible = rows
     .filter((r) => r.status === "ok")
-    .sort((a, b) => b.score - a.score || b.games - a.games || byText(a.participantId, b.participantId));
+    .sort((a, b) => b.mmr - a.mmr || b.games - a.games || byText(a.participantId, b.participantId));
   const few = rows
     .filter((r) => r.status === "few-games")
     .sort((a, b) => b.games - a.games || byText(a.name, b.name) || byText(a.participantId, b.participantId));
@@ -92,7 +101,7 @@ export function suggestPriorities(
     let tier: Priority = null;
     eligible.forEach((row, i) => {
       const prev = eligible[i - 1];
-      const same = prev !== undefined && Math.abs(prev.score - row.score) < 1e-12;
+      const same = prev !== undefined && prev.mmr === row.mmr;
       if (!same) tier = (Math.floor((i * MAX_SKILL_GROUP) / n) + 1) as Priority;
       row.suggested = tier;
     });
@@ -156,7 +165,7 @@ export interface PriorityMismatch {
   row: SuggestRow;
 }
 
-/** 티어와 성적이 어긋나는 사람. 제안 결과(suggestPriorities)에서 뽑는다. 제안 순서(성적 좋은 순)를 따른다. */
+/** 티어와 MMR이 어긋나는 사람. 제안 결과(suggestPriorities)에서 뽑는다. 제안 순서(MMR 높은 순)를 따른다. */
 export function priorityMismatches(result: SuggestResult): PriorityMismatch[] {
   const list: PriorityMismatch[] = [];
   for (const row of result.rows) {
