@@ -3045,6 +3045,11 @@ main:focus {
   .screen.cols.person-screen > .person-lines {
     grid-row: span 2;
   }
+  /* "경기 수순 / 승률순" 토글은 두 단을 가로지르는 줄이지만 버튼 폭만 차지한다. 전폭이면 구역 사이를 가르는
+     막대처럼 보여 어느 목록의 순서인지 흐려졌다. */
+  .screen.cols.person-screen > .segmented {
+    justify-self: start;
+  }
   /* 라인별: 비중·승률 막대를 한 줄에 나란히(줄마다 한 줄씩 줄어든다). */
   .person-lines .meters {
     grid-template-columns: auto minmax(0, 1fr) 2.5rem auto minmax(0, 1fr) 2.5rem;
@@ -3256,6 +3261,18 @@ main:focus {
 .ps-tiles dd .meter {
   align-self: stretch;
   margin-top: var(--space-1);
+}
+/* 개인 통계 요약: 이 화면의 핵심 지표는 고른 범위의 승률이라 고리와 전적 줄을 MMR·칭호 줄보다 한 단계 크게 둔다
+   (고리 104px·전적 줄 20px은 그래프 분석 .graph-profile과 같은 값, 고리 가운데 숫자는 24px). */
+.person-summary .ring {
+  width: 104px;
+  height: 104px;
+}
+.person-summary .ring-text strong {
+  font-size: var(--text-screen);
+}
+.person-summary .summary-line {
+  font-size: var(--text-section);
 }
 /* 요약의 승률 고리 */
 .ps-hero {
@@ -3861,8 +3878,12 @@ main:focus {
   justify-self: center;
   margin: 0;
 }
+/* 맞대결 점수는 비교 화면의 대표 수치(32px). 두 단을 가로지르는 구역이라 내용은 읽기 폭까지만 늘린다. */
+.cmp-h2h-top > * {
+  max-width: var(--reading-max);
+}
 .cmp-score-n {
-  font-size: var(--text-screen);
+  font-size: var(--text-hero);
   font-weight: 600;
   line-height: 1.1;
   color: var(--ih-text-secondary);
@@ -3872,7 +3893,7 @@ main:focus {
   color: var(--ih-text);
 }
 .cmp-score-colon {
-  font-size: var(--text-section);
+  font-size: var(--text-screen);
   font-weight: 600;
   color: var(--ih-text-secondary);
 }
@@ -7783,9 +7804,14 @@ input[type="search"].filter-search {
     font-size: var(--text-body);
   }
 }
+/* 최근 10경기 칸(끝에서 둘째)은 칩 21px × 10 + 틈 4px × 9 = 246px가 한 줄에 들어가는 15.5rem이다.
+   칩 크기나 경기 수(10)를 바꾸면 이 폭도 같이 고친다. 줄바꿈을 막아 열째 칩이 아랫줄로 떨어지지 않게 한다. */
 @media (min-width: 1200px) {
   .mmr-grid {
-    grid-template-columns: 2.5rem minmax(7rem, 1.2fr) minmax(7rem, 1fr) 4rem 4.5rem 4.25rem 3.25rem 3.5rem 12.75rem 36px;
+    grid-template-columns: 2.5rem minmax(7rem, 1.2fr) minmax(7rem, 1fr) 4rem 4.5rem 4.25rem 3.25rem 3.5rem 15.5rem 36px;
+  }
+  .mmr-row .c-form .form-dots {
+    flex-wrap: nowrap;
   }
   .mmr-grid > .c-tier,
   .mmr-grid > .c-form,

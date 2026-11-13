@@ -162,7 +162,7 @@ test.describe("첫 이용 흐름 (390px)", () => {
     await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "기록" }).click();
     await expect(page.getByRole("heading", { name: /오늘의 결과 · 1경기 확정 · 결과 미입력 1/ })).toBeVisible();
     await expect(page.getByText("1승 0패").first()).toBeVisible();
-    await expect(page.getByText("배치 진행 중 1/10 (누적 기준)").first()).toBeVisible();
+    await expect(page.getByText("배치 진행 중 1/10").first()).toBeVisible();
 
     // 진영만 정정한다. 승리 팀은 그대로다. (4)
     await page.getByRole("button", { name: /1경기 · 레드팀 승/ }).click();

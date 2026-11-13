@@ -532,7 +532,7 @@ export function Records(props: {
             MMR 랭킹 전체 보기 →
           </button>
         </div>
-        <p className="hint rank-rule">누적 {RANKING_VETERAN_GAMES}경기 이상인 사람을 먼저 보여줘요.</p>
+        <p className="hint rank-rule">누적 {RANKING_VETERAN_GAMES}경기 이상인 사람을 먼저 보여줘요. 칭호·배치는 누적 기준이에요.</p>
         {sort === "rating" && (
           <p className="hint rating-rule">
             MMR은 팀원과 상대 팀이 누구였는지까지 감안해 전체 기록으로 계산한 실력 점수예요(시작 {ratingOptions.start}). 확정
@@ -607,7 +607,7 @@ export function Records(props: {
                               )}
                             </span>
                             <span className="rank-sub">
-                              <StandingNote standing={standing} placementGames={placementGames} compact />
+                              <StandingNote standing={standing} placementGames={placementGames} compact basisInHeading />
                             </span>
                           </span>
                           <span className="rank-stat">

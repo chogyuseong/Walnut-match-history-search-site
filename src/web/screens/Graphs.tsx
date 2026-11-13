@@ -47,15 +47,10 @@ import {
   type ShapeEntry,
 } from "./graphFigures";
 
-/** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호(누적 기준). */
+/** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호. 누적 기준이라는 말은 목록 위 안내에 한 번만 쓴다. */
 function standingText(standing: ShownStanding | undefined): ReactNode {
   if (!standing?.done) return "배치 진행 중";
-  return standing.title ? (
-    <>
-      <TitleBadge name={standing.title} grade={standing.grade} compact />
-      (누적)
-    </>
-  ) : undefined;
+  return standing.title ? <TitleBadge name={standing.title} grade={standing.grade} compact /> : undefined;
 }
 
 function percent(wins: number, games: number): number {
@@ -621,7 +616,7 @@ export function Graphs(props: {
             </InfoTip>
           </h2>
           <p className="hint">
-            범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 묶음 안에서 승률순
+            범위: {scopeLabel} · 라인: {line === "" ? "전체 라인" : POSITION_LABEL[line]} · 묶음 안에서 승률순 · 칭호는 누적
           </p>
           <StepLegend />
           {people.length === 0 ? (

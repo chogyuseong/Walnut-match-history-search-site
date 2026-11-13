@@ -118,12 +118,13 @@ test("검색 메뉴 → 개인 통계, 칭호가 검색·랭킹·개인·그래�
   const row02 = results.filter({ hasText: "선수02" });
   await expect(row02).toContainText("73%"); // 11경기 8승
   await expect(row02).toContainText("전장의 지배자");
-  await expect(row02).toContainText("누적 기준");
+  // "누적 기준"은 줄마다 쓰지 않고 화면 설명에 한 번만 있다.
+  await expect(row02).not.toContainText("누적 기준");
   await expect(results.filter({ hasText: "선수07" })).toContainText("불굴의 개척자");
 
   await box.fill("선수11");
   await expect(results).toHaveCount(1);
-  await expect(results.first()).toContainText("배치 진행 중 1/10 (누적 기준)");
+  await expect(results.first()).toContainText("배치 진행 중 1/10");
   await expect(results.first()).not.toContainText("지배자");
 
   await box.fill("없는사람");

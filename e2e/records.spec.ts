@@ -95,7 +95,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   const indexOf = (name: string) => texts.findIndex((t) => t.includes(name));
   expect(indexOf("선수11")).toBeGreaterThan(indexOf("선수10"));
   expect(indexOf("선수02")).toBeLessThan(indexOf("선수07"));
-  await expect(rows.filter({ hasText: "선수11" })).toContainText("배치 진행 중 1/10 (누적 기준)");
+  await expect(rows.filter({ hasText: "선수11" })).toContainText("배치 진행 중 1/10");
   await expect(rows.filter({ hasText: "선수02" })).not.toContainText("배치 진행 중");
 
   // 이름 검색: 일치하는 사람만 보이고 순위 숫자는 검색 전과 같다.

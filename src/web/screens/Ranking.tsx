@@ -178,7 +178,8 @@ export function Ranking(props: {
   }, [ranking, sort, placement, table]);
   // 검색 결과는 일치도 순이라 묶음이 섞이므로 검색하지 않을 때만 묶음 머리글을 둔다.
   const groupHeads = query.trim() === "";
-  const desc = `누적 기준 · 확정 경기만 · 시작 ${ratingOptions.start} · 연승·연패 가중 · ${RANKING_GROUP_LABEL[0]} 먼저`;
+  // 시작값·연승 가중 같은 계산 규칙은 제목 옆 "MMR 계산 기준"(RatingRuleTip)에 있어 설명 줄에는 보는 기준만 쓴다.
+  const desc = `누적 기준 · 확정 경기만 · ${RANKING_GROUP_LABEL[0]} 먼저`;
   const championLink = props.openChampions && (
     <button type="button" className="link" onClick={props.openChampions}>
       챔피언 티어 →
@@ -246,12 +247,7 @@ export function Ranking(props: {
                 ["경기 · 승률", `${leader.row.games}경기 · ${rateText(leader.row.wins, leader.row.games)}`],
                 ["최고", shownRating(leader.rating.peak)],
               ]}
-            >
-              <FormDots
-                results={recentResults(forms.get(leader.row.participantId), RATING_RECENT_GAMES)}
-                label={`최근 ${RATING_RECENT_GAMES}경기(왼쪽이 최근)`}
-              />
-            </StatCard>
+            />
           ) : (
             <StatCard className="mmr-lead-card" title="1위" value="—">
               <p className="hint">누적 {RANKING_VETERAN_GAMES}경기를 채운 사람부터 요약 카드 셋에 올라요.</p>

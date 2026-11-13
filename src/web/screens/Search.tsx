@@ -275,7 +275,7 @@ export function Search(props: {
                       )}
                       <br />
                       <span className="hint">
-                        <StandingNote standing={standing.get(r.id)} placementGames={placementGames} compact />
+                        <StandingNote standing={standing.get(r.id)} placementGames={placementGames} compact basisInHeading />
                       </span>
                     </span>
                     {r.games > 0 && <RateBar wins={r.wins} games={r.games} small hued />}

@@ -342,7 +342,7 @@ export function Person(props: {
         back={<BackLink label="← 기록" fallback={props.back} />}
         title={person.name}
         badge={person.status === "archived" && <span className="badge">보관</span>}
-        desc={`${scopeLabel} 기록 · 배치와 칭호는 누적 기준`}
+        desc={`${scopeLabel} 기록 · 배치·MMR·칭호는 누적 기준`}
         actions={
           <>
             {props.openGraphs && (
@@ -371,6 +371,7 @@ export function Person(props: {
       </FilterBar>
 
       <section className="card person-summary full" aria-label="요약">
+        {/* 범위는 이 첫 제목과 화면 설명에만 쓴다. 아래 제목마다 "(2026 시즌)"을 붙이면 같은 말이 여덟 번 되풀이된다. */}
         <h2>요약 ({scopeLabel})</h2>
         <div className="ps-head">
           <div className="ps-hero">
@@ -390,14 +391,12 @@ export function Person(props: {
                     MMR {shownRating(rating.rating)} · 최고 {shownRating(rating.peak)} · 최근{" "}
                     {Math.min(RATING_RECENT_GAMES, rating.games)}경기 {signedDelta(rating.delta10)}
                   </span>{" "}
-                  <RatingTierBadge rating={rating.rating} placed={placement.done} />{" "}
-                  <span className="hint">(누적 기준)</span>
+                  <RatingTierBadge rating={rating.rating} placed={placement.done} />
                 </p>
               )}
               {placement.title && (
                 <p className="hint">
-                  칭호 <TitleBadge name={placement.title} grade={placement.grade} /> 누적 기준 · 범위를 바꿔도
-                  그대로입니다
+                  칭호 <TitleBadge name={placement.title} grade={placement.grade} />
                 </p>
               )}
             </div>
@@ -429,7 +428,7 @@ export function Person(props: {
       {/* 요약은 핵심 지표 셋(승률·MMR·최근 10경기)만 두고, 라인·동료·이변·출석은 여기로 내렸다(CLAUDE.md 8절). */}
       {detail.summary.games > 0 && (
         <section className="full person-facts" aria-label="세부 기록">
-          <h2>세부 기록 ({scopeLabel})</h2>
+          <h2>세부 기록</h2>
           <dl className="ps-tiles">
             <div>
               <dt className="tile-label">가장 많이 플레이한 라인</dt>
@@ -472,7 +471,7 @@ export function Person(props: {
       )}
 
       <section aria-label="최근">
-        <h2>최근 ({scopeLabel})</h2>
+        <h2>최근</h2>
         <ul className="list list-card">
           <li className="list-row static has-bar">
             <span>최근 {detail.recent10.games}경기</span>
@@ -502,7 +501,7 @@ export function Person(props: {
       </section>
 
       <section className="person-lines" aria-label="라인별">
-        <h2>라인별 ({scopeLabel})</h2>
+        <h2>라인별</h2>
         <ul className="list list-card">
           {POSITIONS.map((position) => {
             const tally = detail.byPosition[position];
@@ -533,7 +532,7 @@ export function Person(props: {
       </section>
 
       <section aria-label="진영별">
-        <h2>진영별 ({scopeLabel})</h2>
+        <h2>진영별</h2>
         <ul className="list list-card">
           <li className="list-row static has-bar">
             <span>블루</span>
@@ -564,19 +563,19 @@ export function Person(props: {
       )}
 
       <section aria-label="시너지">
-        <h2>같은 팀일 때 ({scopeLabel})</h2>
+        <h2>같은 팀일 때</h2>
         {pairList(cmp.synergy, detail.synergy, "같은 팀으로 한 경기가 없어요.", "synergy")}
       </section>
 
       <section aria-label="상대 전적">
-        <h2>상대 팀일 때 ({scopeLabel})</h2>
+        <h2>상대 팀일 때</h2>
         {pairList(cmp.versus, detail.versus, "상대 팀으로 만난 경기가 없어요.", "versus")}
         <p className="hint">승률은 {person.name} 기준입니다. 경기 수가 적으면 우연일 수 있습니다.</p>
       </section>
 
       {/* 영역 이름은 위 "상대 전적"(상대 팀일 때 목록)과 겹치지 않게 따로 둔다. */}
       <section aria-label="다른 플레이어와 비교">
-        <h2>다른 플레이어와 비교 ({scopeLabel})</h2>
+        <h2>다른 플레이어와 비교</h2>
         <label className="inline-label">
           상대 고르기
           <select value={rival ?? ""} onChange={(e) => setRival(e.target.value || null)}>
@@ -636,7 +635,7 @@ export function Person(props: {
       </section>
 
       <section className="lane-rivals" aria-label="맞라인 상대">
-        <h2>맞라인 상대 ({scopeLabel})</h2>
+        <h2>맞라인 상대</h2>
         {laneOpponents.length === 0 ? (
           <p className="hint">배치를 마친 상대와 포지션이 기록된 맞대결이 쌓이면 보여요.</p>
         ) : (

@@ -323,7 +323,7 @@ export function Compare(props: {
             {nameA} <span className="vs">vs</span> {nameB}
           </>
         }
-        desc="같은 범위에서 두 사람의 전적을 나란히 봅니다"
+        desc={`${scopeLabel} 범위에서 두 사람의 전적을 나란히 봅니다`}
       />
 
       <div className="cmp-duel">
@@ -365,8 +365,58 @@ export function Compare(props: {
         </p>
       )}
 
+      {/* 두 사람을 고른 사람이 가장 궁금한 것은 "서로 붙으면 누가 이기나"라 맞대결 점수를 맨 위, 두 단을 가로질러 둔다.
+          아래 구역들은 PC에서 둘씩 짝지어 놓이므로 이 구역이 단을 차지하면 짝이 어긋난다(.full). */}
+      <section className="cmp-section cmp-h2h-top full" aria-label="상대일 때">
+        <h2>상대일 때</h2>
+        {against.games === 0 ? (
+          <p className="hint">상대 팀으로 만난 경기가 없어요.</p>
+        ) : (
+          <>
+            <p className="cmp-face cmp-score">
+              <span className="cmp-face-name cmp-a">{nameA}</span>{" "}
+              <strong className={against.aWins > against.bWins ? "cmp-score-n is-lead" : "cmp-score-n"}>
+                {against.aWins}승
+              </strong>{" "}
+              <span className="cmp-score-colon">:</span>{" "}
+              <strong className={against.bWins > against.aWins ? "cmp-score-n is-lead" : "cmp-score-n"}>
+                {against.bWins}승
+              </strong>{" "}
+              <span className="cmp-face-name cmp-b">{nameB}</span>
+              {against.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
+            </p>
+            <div
+              className="cmp-bar"
+              role="img"
+              aria-label={`${against.games}경기 중 ${nameA} ${against.aWins}승, ${nameB} ${against.bWins}승`}
+            >
+              <span className="cmp-bar-a" style={{ flexGrow: against.aWins }} />
+              <span className="cmp-bar-b" style={{ flexGrow: against.bWins }} />
+            </div>
+            {/* 다른 화면과 같은 꼴 "승률 · N승 M패 (G경기)"(첫 번째 사람 기준). 승 수만으로는 승률이 한눈에 안 들어온다는 요청(2026-11-08). */}
+            <p className="cmp-h2h-rate">
+              {nameA} 기준{" "}
+              <span className={rateHueText(against.aWins, against.games)}>
+                {rateText({ wins: against.aWins, games: against.games })}
+              </span>{" "}
+              · {wl({ wins: against.aWins, games: against.games })} ({against.games}경기)
+            </p>
+            <div className="cmp-h2h-more">
+              <div>
+                <p className="row-label">최근 맞대결</p>
+                <FormDots
+                  results={recentDuels}
+                  label={`최근 맞대결 ${recentDuels.length}경기 ${nameA} 기준, 최근 것이 앞:`}
+                />
+              </div>
+            </div>
+            <p className="hint">경기 수가 적으면 우연일 수 있습니다.</p>
+          </>
+        )}
+      </section>
+
       <section className="cmp-section" aria-label="나란히 보기">
-        <h2>나란히 보기 ({scopeLabel})</h2>
+        <h2>나란히 보기</h2>
         <table className="cmp-table">
           <thead>
             <tr>
@@ -445,7 +495,7 @@ export function Compare(props: {
       </section>
 
       <section className="cmp-section" aria-label="라인별 승률 비교">
-        <h2>라인별 승률 ({scopeLabel})</h2>
+        <h2>라인별 승률</h2>
         <table className="cmp-table cmp-lines">
           <thead>
             <tr>
@@ -484,7 +534,7 @@ export function Compare(props: {
       {/* 같은 라인으로 서로 마주 선 경기만. 두 사람의 경기 수가 같고 승률은 서로 거울이라(A 60% ↔ B 40%) 한 줄에 둘 다 쓴다.
           각자의 라인별 승률(위 표)은 전체 경기 기준이라 이와 다르다는 피드백이 있어 따로 뗐다. */}
       <section className="cmp-section" aria-label="같은 라인 맞대결">
-        <h2>같은 라인으로 맞붙었을 때 ({scopeLabel})</h2>
+        <h2>같은 라인으로 맞붙었을 때</h2>
         {duels.length === 0 ? (
           <p className="hint">두 사람이 같은 라인에서 상대 팀으로 만난 경기가 없어요.</p>
         ) : (
@@ -523,7 +573,7 @@ export function Compare(props: {
       </section>
 
       <section className="cmp-section" aria-label="같은 팀일 때">
-        <h2>같은 팀일 때 ({scopeLabel})</h2>
+        <h2>같은 팀일 때</h2>
         {h2h.together.games === 0 ? (
           <p className="hint">같은 팀으로 뛴 경기가 없어요.</p>
         ) : (
@@ -565,54 +615,6 @@ export function Compare(props: {
                 </span>
               </p>
             )}
-          </>
-        )}
-      </section>
-
-      <section className="cmp-section" aria-label="상대일 때">
-        <h2>상대일 때 ({scopeLabel})</h2>
-        {against.games === 0 ? (
-          <p className="hint">상대 팀으로 만난 경기가 없어요.</p>
-        ) : (
-          <>
-            <p className="cmp-face cmp-score">
-              <span className="cmp-face-name cmp-a">{nameA}</span>{" "}
-              <strong className={against.aWins > against.bWins ? "cmp-score-n is-lead" : "cmp-score-n"}>
-                {against.aWins}승
-              </strong>{" "}
-              <span className="cmp-score-colon">:</span>{" "}
-              <strong className={against.bWins > against.aWins ? "cmp-score-n is-lead" : "cmp-score-n"}>
-                {against.bWins}승
-              </strong>{" "}
-              <span className="cmp-face-name cmp-b">{nameB}</span>
-              {against.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
-            </p>
-            <div
-              className="cmp-bar"
-              role="img"
-              aria-label={`${against.games}경기 중 ${nameA} ${against.aWins}승, ${nameB} ${against.bWins}승`}
-            >
-              <span className="cmp-bar-a" style={{ flexGrow: against.aWins }} />
-              <span className="cmp-bar-b" style={{ flexGrow: against.bWins }} />
-            </div>
-            {/* 다른 화면과 같은 꼴 "승률 · N승 M패 (G경기)"(첫 번째 사람 기준). 승 수만으로는 승률이 한눈에 안 들어온다는 요청(2026-11-08). */}
-            <p className="cmp-h2h-rate">
-              {nameA} 기준{" "}
-              <span className={rateHueText(against.aWins, against.games)}>
-                {rateText({ wins: against.aWins, games: against.games })}
-              </span>{" "}
-              · {wl({ wins: against.aWins, games: against.games })} ({against.games}경기)
-            </p>
-            <div className="cmp-h2h-more">
-              <div>
-                <p className="row-label">최근 맞대결</p>
-                <FormDots
-                  results={recentDuels}
-                  label={`최근 맞대결 ${recentDuels.length}경기 ${nameA} 기준, 최근 것이 앞:`}
-                />
-              </div>
-            </div>
-            <p className="hint">경기 수가 적으면 우연일 수 있습니다.</p>
           </>
         )}
       </section>
