@@ -395,8 +395,11 @@ export function Graphs(props: {
         </div>
         <div className="graph-meta">
           <p className="hint">
-            {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. */}
-            {scopeLabel} · 확정 {counted}경기 · 참가자 {matrixRows.length}명 · 자료 적음({SMALL_SAMPLE}경기 미만) {fewCount}명
+            {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. 경기·참가자 수는 바로 아래 요약 칸에 크게 있으니
+                되풀이하지 않고, 플레이어를 골라 요약 칸이 사라질 때만 이 줄에 적는다. */}
+            {scopeLabel}
+            {playerId !== "" && ` · 확정 ${counted}경기 · 참가자 ${matrixRows.length}명`}
+            {` · 자료 적음(${SMALL_SAMPLE}경기 미만) ${fewCount}명`}
           </p>
         </div>
       </div>

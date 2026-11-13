@@ -227,7 +227,8 @@ test("연도 필터: 경기가 있는 해만 고를 수 있고 모임 시간대�
   // 그래프: 범위 목록에 연도가 있다.
   await page.goto("/#/graphs");
   await page.getByLabel("범위", { exact: true }).selectOption({ label: "2025년" });
-  await expect(page.getByText(/2025년 · 확정 2경기/)).toBeVisible();
+  await expect(page.getByText(/^2025년 · 자료 적음/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "분석 요약" }).locator(".ps-tiles > div").nth(0)).toContainText("2경기");
 
   // 320px에서 범위 고르기가 넘치지 않는다.
   await page.setViewportSize({ width: 320, height: 640 });

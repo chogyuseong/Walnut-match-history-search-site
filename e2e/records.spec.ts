@@ -235,13 +235,13 @@ test("그래프 분석", async ({ page }) => {
   await page.goto("/#/records");
   await page.getByRole("button", { name: "그래프 분석" }).click();
   await expect(page.getByRole("heading", { name: "그래프 분석", level: 1 })).toBeVisible();
-  await expect(page.getByText(/전체 · 확정 11경기 · 참가자 12명/)).toBeVisible();
-
   // 요약 칸 셋: 확정 경기·참가자·블루:레드. 자료 적음(5경기 미만: 선수11·12)은 위 한 줄로 내렸다(디자인 4단계).
-  await expect(page.getByText(/자료 적음\(5경기 미만\) 2명/)).toBeVisible();
+  // 위 한 줄은 요약 칸과 겹치는 경기·참가자 수를 되풀이하지 않는다.
+  await expect(page.getByText("전체 · 자료 적음(5경기 미만) 2명", { exact: true })).toBeVisible();
   const summary = page.getByRole("region", { name: "분석 요약" });
   await expect(summary.locator(".ps-tiles > div")).toHaveCount(3);
   await expect(summary.locator(".ps-tiles > div").nth(0)).toContainText("11경기");
+  await expect(summary.locator(".ps-tiles > div").nth(1)).toContainText("12명");
   await expect(summary.locator(".ps-tiles > div").nth(1)).toContainText("12명");
 
   // 보기 전환: 기본은 개인별 승률 하나만 그린다.

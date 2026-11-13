@@ -92,8 +92,8 @@ test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠�
   expect(snapshot.matches.every((m: { teamASide: string }) => m.teamASide === "unknown")).toBe(true);
 
   await page.getByRole("button", { name: "그래프 분석" }).click();
-  await expect(page.getByText(/전체 · 확정 3경기/)).toBeVisible();
   const sides = page.getByRole("region", { name: "분석 요약" });
+  await expect(sides.locator(".ps-tiles > div").nth(0)).toContainText("3경기");
   await expect(sides).toContainText("진영을 아는 경기가 없어요.");
   await expect(sides).toContainText("진영 기록 없음");
   await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
