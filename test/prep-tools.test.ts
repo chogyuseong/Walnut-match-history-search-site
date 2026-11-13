@@ -20,15 +20,18 @@ import {
   balanceText,
   BENCH_MAX,
   draftBalance,
+  draftSplitRanks,
   laneMatchups,
   lastLiveMatch,
   matchupText,
   sameTeamsAsLast,
   splitBench,
+  splitRanksText,
   swapWithBench,
   withBench,
 } from "../src/shared/prepTools";
 import { shuffleTeamsByPriority } from "../src/shared/priority";
+import type { PersonRating, RatingTable } from "../src/shared/rating";
 import { recommendTeams } from "../src/shared/recommend";
 import { drawSupport, shuffleDraft, type RotationContext } from "../src/shared/rotation";
 import { DEFAULT_SETTINGS, POSITIONS, type MatchState, type MatchView, type ParticipantView, type Team } from "../src/shared/types";
@@ -128,6 +131,54 @@ describe("편성 균형", () => {
     const empty = draftBalance(d, {}, DEFAULT_SETTINGS.groupWeights);
     expect([empty.sumA, empty.sumB, empty.diff, empty.assigned]).toEqual([0, 0, 0, 0]);
     expect(empty.counts.find((c) => c.priority === null)).toEqual({ priority: null, a: 5, b: 5 });
+  });
+});
+
+describe("균형 순위(같은 10명 나누기 중 몇 위)", () => {
+  // id0~id9의 MMR을 1000, 1100, … 1900으로 둔다. 순위 계산은 rating 값만 읽는다.
+  const ratings: RatingTable = new Map(
+    Array.from({ length: 10 }, (_, i) => [`id${i}`, { rating: 1000 + 100 * i } as PersonRating]),
+  );
+  const tiers = { "p:id0": 1, "p:id1": 1, "p:id2": 2, "p:id3": 2, "p:id4": 3, "p:id5": 3, "p:id6": 4, "p:id7": 4, "p:id8": 5, "p:id9": 5 };
+  const tier = { priorityOf: tiers, groupWeights: DEFAULT_SETTINGS.groupWeights };
+
+  it("조건이 없으면 126가지와 견준다. 강한 다섯 대 약한 다섯은 MMR·티어 모두 꼴찌", () => {
+    const ranks = draftSplitRanks(fixedDraft(), ratings, 1200, tier);
+    expect(ranks.mmr).toEqual({ rank: 126, ties: 1, total: 126 });
+    // 3티어(id4·id5)가 양쪽에 한 명씩이라 둘을 맞바꾼 나눔도 차가 같다: 공동 꼴찌 2개.
+    expect(ranks.tier).toEqual({ rank: 125, ties: 2, total: 126 });
+  });
+
+  it("팀 추천 1번 후보는 티어 점수 차 1위다(같은 차의 후보와 공동)", () => {
+    const d = fixedDraft();
+    const people = d.people.map((p) => ({ key: p.key, skillGroup: (tiers as Record<string, number>)[p.key] ?? null }));
+    const [best] = recommendTeams(people, DEFAULT_SETTINGS.groupWeights, 3, 1);
+    const ranks = draftSplitRanks(applyTeams(d, best!.teamA), ratings, 1200, tier);
+    expect(ranks.tier!.rank).toBe(1);
+    expect(ranks.tier!.ties).toBeGreaterThan(1);
+  });
+
+  it("같은 팀·다른 팀 조건을 어기는 나누기는 빼고 센다(같은 팀이면 56가지, 다른 팀이면 70가지)", () => {
+    const d = fixedDraft();
+    const together = draftSplitRanks({ ...d, constraints: [{ kind: "same", a: "p:id0", b: "p:id9" }] }, ratings, 1200, null);
+    expect(together.mmr!.total).toBe(56);
+    const apart = draftSplitRanks({ ...d, constraints: [{ kind: "different", a: "p:id0", b: "p:id9" }] }, ratings, 1200, null);
+    expect(apart.mmr!.total).toBe(70);
+  });
+
+  it("티어를 넘기지 않거나 아무도 정하지 않았으면 티어 순위는 없다. 10명이 다 앉지 않았으면 둘 다 없다", () => {
+    const d = fixedDraft();
+    expect(draftSplitRanks(d, ratings, 1200, null).tier).toBeNull();
+    expect(draftSplitRanks(d, ratings, 1200, { ...tier, priorityOf: {} }).tier).toBeNull();
+    const nine = { ...d, slots: d.slots.slice(1) };
+    expect(draftSplitRanks(nine, ratings, 1200, tier)).toEqual({ mmr: null, tier: null });
+  });
+
+  it("한 줄 문구: 분모 하나, 공동은 개수, 확률·승률이라는 말은 쓰지 않는다", () => {
+    const text = splitRanksText({ mmr: { rank: 3, ties: 1, total: 126 }, tier: { rank: 1, ties: 14, total: 126 } });
+    expect(text).toBe("같은 10명을 나누는 126가지 중 MMR 평균 차 3위 · 티어 점수 차 1위(공동 14개)");
+    expect(text).not.toMatch(/확률|승률/);
+    expect(splitRanksText({ mmr: null, tier: null })).toBe("");
   });
 });
 

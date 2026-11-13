@@ -1,7 +1,8 @@
 import { replacePerson, type Draft, type DraftPerson } from "./draft";
 import { pairRecord } from "./headToHead";
 import { normalizePriority, priorityCounts, type PriorityCount, type PriorityMap } from "./priority";
-import { priorityWeightOf, type RecommendPerson } from "./recommend";
+import type { RatingTable } from "./rating";
+import { priorityWeightOf, splitRank, weightSumDiff, type RecommendPerson, type SplitRank } from "./recommend";
 import { sameComposition } from "./series";
 import { isCounted, ratePercent } from "./stats";
 import { POSITIONS, type GroupWeights, type MatchView, type Position, type RosterEntry } from "./types";
@@ -66,6 +67,65 @@ export function balanceText(balance: DraftBalance, teamNames: readonly [string, 
   if (balance.diff === 0) return "균형";
   const higher = balance.diff > 0 ? teamNames[0] : teamNames[1];
   return `${higher}이 ${Math.abs(balance.diff)} 높아요`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 균형 순위: 같은 10명으로 가능한 나누기 중 몇 번째                      */
+/* ------------------------------------------------------------------ */
+
+export interface DraftSplitRanks {
+  /** 두 팀 MMR 평균 차가 작은 순위. 10명이 다 앉지 않았으면 null. */
+  mmr: SplitRank | null;
+  /** 두 팀 티어 점수 차가 작은 순위. tier를 넘기지 않았거나(운영자가 아님) 티어를 정한 사람이 없으면 null. */
+  tier: SplitRank | null;
+}
+
+/**
+ * 지금 편성이 같은 10명의 나누기 가운데 얼마나 고른지. 예상 승률(%)은 지난 경기로 검증해 보니 동전보다 낫지 않았다
+ * (docs/구현현황.md 11-12). 순위는 "이 10명으로 이보다 고르게 나눌 방법이 몇 개 있나"라서, 팀이 기울었다는 말에
+ * 확률 없이 답할 수 있다. 같은 팀·다른 팀 조건(draft.constraints)을 어기는 나누기는 비교에서 뺀다.
+ * MMR 평균 차는 화면 MMR처럼 정수로 반올림해 비교한다(1점 미만 차이는 같은 균형으로 본다).
+ * 연결 안 된 사람의 MMR은 예상 승률과 같게 시작값(start)으로 계산한다.
+ */
+export function draftSplitRanks(
+  draft: Pick<Draft, "people" | "slots" | "constraints">,
+  ratings: RatingTable,
+  start: number,
+  tier: { priorityOf: PriorityMap; groupWeights: Readonly<GroupWeights> } | null,
+): DraftSplitRanks {
+  const keys = draft.slots.map((s) => s.key);
+  const teamA = new Set(draft.slots.filter((s) => s.team === "A").map((s) => s.key));
+  if (keys.length !== 10 || teamA.size !== 5) return { mmr: null, tier: null };
+  const constraints = draft.constraints ?? [];
+
+  const idOf = new Map(draft.people.map((p) => [p.key, p.participantId]));
+  const mmrOf = (key: string) => {
+    const id = idOf.get(key);
+    return (id ? ratings.get(id)?.rating : undefined) ?? start;
+  };
+  const average = (team: readonly string[]) => team.reduce((s, k) => s + mmrOf(k), 0) / team.length;
+  const mmr = splitRank(keys, teamA, (a, b) => Math.round(Math.abs(average(a) - average(b))), constraints);
+
+  if (!tier) return { mmr, tier: null };
+  const people: RecommendPerson[] = keys.map((key) => ({ key, skillGroup: normalizePriority(tier.priorityOf[key]) }));
+  if (people.every((p) => p.skillGroup === null)) return { mmr, tier: null };
+  const weightOf = priorityWeightOf(people, tier.groupWeights);
+  const byKey = new Map(people.map((p) => [p.key, p]));
+  const pick = (team: readonly string[]) => team.map((k) => byKey.get(k)!);
+  const tierRank = splitRank(keys, teamA, (a, b) => weightSumDiff(pick(a), pick(b), weightOf), constraints);
+  return { mmr, tier: tierRank };
+}
+
+/**
+ * 균형 순위 한 줄: "같은 10명을 나누는 126가지 중 MMR 평균 차 3위 · 티어 점수 차 1위(공동 14개)".
+ * 두 순위는 같은 조건으로 같은 나누기들을 견주므로 분모(total)가 같다. 확률·승률이라는 말을 쓰지 않는다
+ * (순위를 이길 확률로 읽지 않게). mmr이 없으면 빈 문자열.
+ */
+export function splitRanksText(ranks: DraftSplitRanks): string {
+  if (!ranks.mmr) return "";
+  const place = (r: SplitRank) => `${r.rank}위${r.ties > 1 ? `(공동 ${r.ties}개)` : ""}`;
+  const tier = ranks.tier ? ` · 티어 점수 차 ${place(ranks.tier)}` : "";
+  return `같은 10명을 나누는 ${ranks.mmr.total}가지 중 MMR 평균 차 ${place(ranks.mmr)}${tier}`;
 }
 
 /* ------------------------------------------------------------------ */

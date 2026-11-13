@@ -3,7 +3,7 @@ import { historyOf, isCompleteDraft, type DraftPerson } from "../../shared/draft
 import { draftForecast } from "../../shared/forecast";
 import type { NightDraft } from "../../shared/nightPool";
 import { draftDelta, type DeltaLine } from "../../shared/prepDelta";
-import { draftBalance } from "../../shared/prepTools";
+import { draftBalance, draftSplitRanks } from "../../shared/prepTools";
 import { computeRatings, ratingOptionsOf } from "../../shared/rating";
 import { diversityFor } from "../../shared/recommend";
 import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
@@ -126,6 +126,10 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
     [app.snapshot],
   );
   const forecast = app.snapshot && ratings ? draftForecast(draft, ratings, app.snapshot.matches, ratingOptions) : null;
+  // 균형 순위(126가지 중 몇 위): 자리를 바꿀 때마다 다시 센다(126번 × 10명이라 가볍다). 티어 쪽은 티어 점수와 같은 조건.
+  const splitRanks = ratings
+    ? draftSplitRanks(draft, ratings, ratingOptions.start, balance ? { priorityOf: edit.priorityMap(), groupWeights } : null)
+    : null;
   // 직전 편성 대비 줄의 "같은 팀 반복": 추천 창과 같은 최근 경기 수·같은 설정(꺼져 있으면 항목이 없다).
   const diversity = useMemo(
     () =>
@@ -264,6 +268,7 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
               previousBalance={previousBalance}
               placementGames={ratingOptions.placementGames}
               start={ratingOptions.start}
+              splitRanks={splitRanks}
             />
           )}
           <ConstraintsSection draft={draft} edit={edit} />

@@ -1,7 +1,13 @@
 // 준비 화면 예상 승률 판(2026-11-09 추가). 블루·레드 예상 승률 막대와 그 이유(라인에 선 두 사람의 전체 MMR 차), 맨 아래 접힌 티어 점수.
 // Prep.tsx가 쓰며, 예전의 "라인 맞대결"·"편성 균형" 두 구역을 이 판 하나로 합쳤다.
 // 숫자는 src/shared/forecast.ts(스냅숏 경기로 기기에서 계산), 티어 점수는 prepTools.ts draftBalance(운영자에게만 넘어온다).
-import { balanceText, matchupText, type DraftBalance } from "../../../shared/prepTools";
+import {
+  balanceText,
+  matchupText,
+  splitRanksText,
+  type DraftBalance,
+  type DraftSplitRanks,
+} from "../../../shared/prepTools";
 import {
   favoriteOf,
   forecastBluePercent,
@@ -37,6 +43,8 @@ export function ForecastSection(props: {
   placementGames: number;
   /** MMR 시작값(모임 설정). 연결 안 된 사람을 이 값으로 계산한다. */
   start: number;
+  /** 같은 10명의 나누기 중 지금 편성의 균형 순위(prepTools.ts draftSplitRanks). 티어 순위는 balance와 같은 조건(운영자)에서만. */
+  splitRanks?: DraftSplitRanks | null;
 }) {
   const { forecast, nameOf, balance, placementGames } = props;
   const names: [string, string] = [prepTeamName("A"), prepTeamName("B")];
@@ -57,7 +65,8 @@ export function ForecastSection(props: {
         <InfoTip label="예상 승률">
           지난 경기 기록으로 쌓인 각자의 내전 MMR(라인을 나누지 않은 전체 점수)로 낸 추정이에요. 라인 비교도 그 라인에
           선 두 사람의 전체 MMR을 견준 것이라, 처음 맡는 라인의 실력은 반영하지 않아요. 팀을 나눌 때는 쓰지 않고(팀은
-          티어로 나눠요), 짠 팀이 얼마나 비슷한지 확인할 때 봐요.
+          티어로 나눠요), 짠 팀이 얼마나 비슷한지 확인할 때 봐요. 아래 "몇 가지 중 몇 위"는 같은 10명을 5:5로 나눌 수
+          있는 모든 방법과 견준 자리예요. 1위면 이 10명으로 이보다 고르게 나눌 방법이 없다는 뜻이고, 이길 확률은 아니에요.
         </InfoTip>
       </h2>
       <p className={`forecast-summary${fav ? ` ${TONE[fav]}` : ""}`}>
@@ -83,6 +92,7 @@ export function ForecastSection(props: {
         {seated > 0 && ` · 배치 완료 ${placed}/${seated}명`}
         {unknown > 0 && ` · 연결 안 된 사람 ${unknown}명(${props.start}으로 계산)`}
       </p>
+      {props.splitRanks?.mmr && <p className="hint">{splitRanksText(props.splitRanks)}</p>}
 
       {/* ─ 라인별 표. 칸 배치는 판 폭에 따라 CSS 컨테이너 쿼리가 바꾼다(.fc-lane) ─ */}
       <ul className="list list-card forecast-lanes" aria-label="라인별 우위">

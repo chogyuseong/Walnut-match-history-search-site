@@ -161,6 +161,55 @@ export function* chooseFour(n: number): Generator<number[]> {
       for (let c = b + 1; c < n; c++) for (let d = c + 1; d < n; d++) yield [a, b, c, d];
 }
 
+/** 두 팀 가중치 합의 차(절댓값). 소수 셋째 자리에서 반올림해 같은 차를 같은 값으로 본다. 추천 순서와 균형 순위가 같이 쓴다. */
+export function weightSumDiff<P>(teamA: readonly P[], teamB: readonly P[], weightOf: (p: P) => number): number {
+  const sum = (team: readonly P[]) => team.reduce((s, p) => s + weightOf(p), 0);
+  return Math.round(Math.abs(sum(teamA) - sum(teamB)) * 1000) / 1000;
+}
+
+export interface SplitRank {
+  /** 1부터. 차가 지금보다 작은 나누기 수 + 1. */
+  rank: number;
+  /** 지금과 차가 같은 나누기 수(지금 나눔 포함). 1이면 공동이 아니다. */
+  ties: number;
+  /** 비교한 나누기 수. 조건이 없으면 126, 같은 팀·다른 팀 조건을 어기는 나누기는 빠져 줄어든다. */
+  total: number;
+}
+
+/**
+ * 같은 10명으로 가능한 5:5 나누기(126가지) 중 지금 나눔의 차가 작은 쪽에서 몇 번째인지.
+ * 126 = 첫 사람을 팀 A에 고정하고 나머지 9명 중 4명을 고르는 수(9C4). 팀 A·B를 바꾼 나눔은 같은 나눔이다.
+ * gapOf는 0 이상의 차를 돌려준다. 같은 차를 같게 보려면 호출하는 쪽이 반올림해서 넘긴다.
+ * 지금 나눔이 조건을 어겨도 순위는 낸다(조건에 맞는 나누기들과 견준 자리).
+ */
+export function splitRank(
+  keys: readonly string[],
+  teamA: ReadonlySet<string>,
+  gapOf: (teamA: readonly string[], teamB: readonly string[]) => number,
+  constraints: readonly TeamConstraint[] = [],
+): SplitRank {
+  if (keys.length !== 10) throw new Error("균형 순위는 10명이어야 합니다.");
+  const current = gapOf(
+    keys.filter((k) => teamA.has(k)),
+    keys.filter((k) => !teamA.has(k)),
+  );
+  const first = keys[0]!;
+  const rest = keys.slice(1);
+  let smaller = 0;
+  let ties = 0;
+  let total = 0;
+  for (const picks of chooseFour(rest.length)) {
+    const sideA = [first, ...picks.map((i) => rest[i]!)];
+    const inA = new Set(sideA);
+    if (!constraints.every((c) => satisfies(inA, c))) continue;
+    total += 1;
+    const gap = gapOf(sideA, keys.filter((k) => !inA.has(k)));
+    if (gap < current) smaller += 1;
+    else if (gap === current) ties += 1;
+  }
+  return { rank: smaller + 1, ties, total };
+}
+
 function count(people: RecommendPerson[], group: number | null): number {
   return people.filter((p) => p.skillGroup === group).length;
 }
@@ -196,8 +245,6 @@ export function recommendTeams(
     // 조건을 어기는 분할은 후보에서 뺀다. 모두 빠지면 빈 목록을 돌려준다.
     if (!constraints.every((c) => satisfies(inA, c))) return [];
     const teamB = people.filter((p) => !inA.has(p.key));
-    const sumA = teamA.reduce((s, p) => s + weightOf(p), 0);
-    const sumB = teamB.reduce((s, p) => s + weightOf(p), 0);
     const topCount: [number, number] = [count(teamA, 1), count(teamB, 1)];
     const bottomCount: [number, number] = [count(teamA, MAX_SKILL_GROUP), count(teamB, MAX_SKILL_GROUP)];
     const unassignedCount: [number, number] = [count(teamA, null), count(teamB, null)];
@@ -208,7 +255,7 @@ export function recommendTeams(
       {
         teamA: teamA.map((p) => p.key),
         teamB: teamB.map((p) => p.key),
-        sumDiff: Math.round(Math.abs(sumA - sumB) * 1000) / 1000,
+        sumDiff: weightSumDiff(teamA, teamB, weightOf),
         topCount,
         bottomCount,
         unassignedCount,
