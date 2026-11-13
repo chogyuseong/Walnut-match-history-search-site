@@ -4,7 +4,19 @@ import { addDays, dailyCounts, rankRace, ratingRank, teammatePairs, topBy, WEEKD
 import { championName } from "./champions";
 import { LANE_RIVAL_MIN, laneRivals, laneRivalSummary } from "./headToHead";
 import { compareMetrics, countedChronological, mainLine, synergyPoints } from "./insights";
-import { PLACEMENT_GAMES_DEFAULT, isCounted, localDate, personDetail, personRecords, ratePercent, sideTotals, SMALL_SAMPLE, type Tally } from "./stats";
+import {
+  binomialChance,
+  isCounted,
+  localDate,
+  PLACEMENT_GAMES_DEFAULT,
+  personDetail,
+  personRecords,
+  rateGapChance,
+  ratePercent,
+  sideTotals,
+  SMALL_SAMPLE,
+  type Tally,
+} from "./stats";
 import { shownRating, type RatingTable } from "./rating";
 import { POSITIONS, type MatchView, type Position } from "./types";
 import {
@@ -133,6 +145,39 @@ export const STREAK_RECORD_MIN = 3;
 export const SUPPORT_SHARE = 0.4;
 /** 서폿 비중을 따지는 최소 포지션 기록 경기 수. */
 export const SUPPORT_MIN_GAMES = 10;
+
+/**
+ * 우연 문턱. 같은 실력이어도 지금만큼의 차이가 날 확률(stats.ts binomialChance·rateGapChance)이
+ * CHANCE_LIMIT ÷ 후보 수보다 작을 때만 승률 비교 문장을 쓴다.
+ * 후보 중 가장 극단을 고르는 규칙(라인·동료·상대·맞라인·챔피언)은 후보가 많을수록 누군가는 우연히 튀므로 후보 수로 나눈다.
+ * 거르기 전에는 맞라인 상대가 8명이면 "4판 1승 이하 천적"이 동전 던지기만으로 약 95% 확률로 나왔다.
+ * 한 사람 코멘트에는 승률 비교 규칙이 PLAYER_COMPARISON_RULES개 있어 규칙 수로도 나눈다. 그래서 0.10은
+ * "실력 차가 전혀 없는 사람의 코멘트에 우연 문장이 하나라도 섞일 확률이 10% 안"이라는 뜻이다.
+ * 규칙마다 10%씩 허용하던 첫 안은 동전 던지기 모임(26명·500경기)에서 사람당 0.5개꼴로 우연 문장을 냈다.
+ * 올리면 문장이 늘고 우연도 섞인다. 걸러진 자리는 비워 둔다(다른 문장으로 억지로 채우지 않는다).
+ */
+export const CHANCE_LIMIT = 0.1;
+/**
+ * 개인 코멘트의 승률 비교 규칙 수: 라인 강약·최근 흐름·동료·상대·진영·우세 판·진 다음 판·초반·후반·맞라인·챔피언.
+ * 규칙을 더하거나 빼면 이 수도 고친다(늘리면 규칙마다 문턱이 엄해진다).
+ */
+export const PLAYER_COMPARISON_RULES = 10;
+
+/** 우연으로 보기 어려운지. candidates: 그 규칙이 극단을 고른 후보 수. rules: 같은 코멘트 안의 비교 규칙 수. */
+function beyondChance(chance: number, candidates = 1, rules = PLAYER_COMPARISON_RULES): boolean {
+  return chance < CHANCE_LIMIT / (rules * Math.max(1, candidates));
+}
+
+/** 근거 줄 꼬리: "우연 가능성 3%". 1% 미만은 0%로 보이지 않게 따로 쓴다. */
+function chanceNote(chance: number): string {
+  const percent = Math.round(chance * 100);
+  return percent < 1 ? " · 우연 가능성 1% 미만" : ` · 우연 가능성 ${percent}%`;
+}
+
+/** 전체에서 한 묶음을 뺀 나머지(예: 이 동료와 함께가 아닌 경기). */
+function without(total: Tally, part: Tally): Tally {
+  return { games: total.games - part.games, wins: total.wins - part.wins };
+}
 
 /** 코칭 줄 최대 수(개인·모임). 늘리면 카드가 길어지고 덜 중요한 권유까지 섞인다. */
 export const COACHING_MAX = 3;
@@ -283,7 +328,10 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     const ranked = [...lines].sort((a, b) => rateOf(b.tally) - rateOf(a.tally) || b.tally.games - a.tally.games);
     const best = ranked[0];
     const worst = ranked.at(-1);
-    if (best && worst && best !== worst && rateOf(best.tally) - rateOf(worst.tally) >= LINE_GAP) {
+    // 가장 좋은 라인과 가장 나쁜 라인을 골랐으니 견줄 수 있던 라인 쌍 수만큼 우연 문턱을 엄하게 한다.
+    const linePairs = (lines.length * (lines.length - 1)) / 2;
+    const lineChance = best && worst && best !== worst ? rateGapChance(best.tally, worst.tally) : 1;
+    if (best && worst && best !== worst && rateOf(best.tally) - rateOf(worst.tally) >= LINE_GAP && beyondChance(lineChance, linePairs)) {
       strong = best;
       weak = worst;
       const bestName = LANE_NAME[best.position];
@@ -295,7 +343,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
           judged(worst.tally.games, `${josa(worstName, "은", "는")} 약점이에요`, `${josa(worstName, "은", "는")} 약점으로 보여요`) +
           `(${rateOf(worst.tally)}%, ${worst.tally.games}경기).`,
         tone: "good",
-        basis: `라인별 승률(${LINE_MIN_GAMES}경기 이상 라인)`,
+        basis: `라인별 승률(${LINE_MIN_GAMES}경기 이상 라인)${chanceNote(lineChance)}`,
       });
     }
   }
@@ -306,16 +354,19 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   const streak = detail.currentStreak;
   const streakNote =
     Math.abs(streak) >= STREAK_NOTE ? ` 지금 ${Math.abs(streak)}${streak > 0 ? "연승" : "연패"} 중이에요.` : "";
+  // 최근 10경기는 누적의 일부라, 우연 여부는 최근 10경기와 그 앞 경기들을 견준다.
+  let flowChance = 1;
   if (recent.games >= RECENT_GAMES && games > RECENT_GAMES) {
     const gap = rateOf(recent) - rateOf(detail.summary);
-    flow = gap >= FLOW_GAP ? "up" : gap <= -FLOW_GAP ? "down" : "flat";
+    flowChance = rateGapChance(recent, without(detail.summary, recent));
+    flow = !beyondChance(flowChance) ? "flat" : gap >= FLOW_GAP ? "up" : gap <= -FLOW_GAP ? "down" : "flat";
   }
   if (flow !== "flat") {
     const up = flow === "up";
     remarks.push({
       text: `최근 ${RECENT_GAMES}경기는 누적보다 ${up ? "높아 상승" : "낮아 하락"} 구간이에요(${rateOf(recent)}% vs ${rateOf(detail.summary)}%).${streakNote}`,
       tone: up ? "good" : "warn",
-      basis: `최근 ${RECENT_GAMES}경기 승률과 범위 누적 승률`,
+      basis: `최근 ${RECENT_GAMES}경기 승률과 범위 누적 승률${chanceNote(flowChance)}`,
     });
   } else if (streakNote) {
     remarks.push({ text: streakNote.trim(), tone: streak > 0 ? "good" : "warn", basis: "연승·연패" });
@@ -369,8 +420,18 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   const synergy = compare.buddy
     ? synergyPoints(compare.buddy, detail.summary, personRecords(scoped).get(compare.buddy.participantId) ?? { games: 0, wins: 0 })
     : null;
-  const buddy = synergy !== null && synergy >= BUDDY_SYNERGY_MIN ? compare.buddy : null;
-  const rival = compare.rival && rateOf(detail.summary) - rateOf(compare.rival) >= RIVAL_GAP ? compare.rival : null;
+  // 동료·상대는 기준 경기 수를 넘는 짝 중 가장 극단을 고른 것이라, 그 짝 수만큼 우연 문턱을 엄하게 한다.
+  // 견주는 쪽은 "그 사람과 함께(맞서) 뛴 경기"와 "그 밖의 내 경기"다.
+  const buddyCandidates = compare.synergy.filter((p) => p.games >= SMALL_SAMPLE).length;
+  const rivalCandidates = compare.versus.filter((p) => p.games >= SMALL_SAMPLE).length;
+  const buddyChance = compare.buddy ? rateGapChance(compare.buddy, without(detail.summary, compare.buddy)) : 1;
+  const rivalChance = compare.rival ? rateGapChance(compare.rival, without(detail.summary, compare.rival)) : 1;
+  const buddy =
+    synergy !== null && synergy >= BUDDY_SYNERGY_MIN && beyondChance(buddyChance, buddyCandidates) ? compare.buddy : null;
+  const rival =
+    compare.rival && rateOf(detail.summary) - rateOf(compare.rival) >= RIVAL_GAP && beyondChance(rivalChance, rivalCandidates)
+      ? compare.rival
+      : null;
   const pairParts: string[] = [];
   if (buddy && rival && buddy.participantId === rival.participantId) {
     // 같은 사람이 동료이자 상대면 한 문장으로: 편이 갈리면 결과가 뒤집힌다는 뜻이다.
@@ -395,12 +456,22 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     }
   }
   if (pairParts.length > 0) {
-    remarks.push({ text: pairParts.join(" "), tone: "neutral", basis: "같은 팀·상대 팀 전적(누적 30경기 이상인 사람끼리)" });
+    remarks.push({
+      text: pairParts.join(" "),
+      tone: "neutral",
+      basis: `같은 팀·상대 팀 전적(누적 30경기 이상인 사람끼리)${chanceNote(Math.max(buddy ? buddyChance : 0, rival ? rivalChance : 0))}`,
+    });
   }
 
   // 6. 진영.
   const { blue, red } = detail.bySide;
-  if (blue.games >= SIDE_MIN_GAMES && red.games >= SIDE_MIN_GAMES && Math.abs(rateOf(blue) - rateOf(red)) >= SIDE_GAP) {
+  const sideChance = rateGapChance(blue, red);
+  const sideSkewed =
+    blue.games >= SIDE_MIN_GAMES &&
+    red.games >= SIDE_MIN_GAMES &&
+    Math.abs(rateOf(blue) - rateOf(red)) >= SIDE_GAP &&
+    beyondChance(sideChance);
+  if (sideSkewed) {
     const blueBetter = rateOf(blue) > rateOf(red);
     const [hi, lo] = blueBetter ? [blue, red] : [red, blue];
     remarks.push({
@@ -408,25 +479,29 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
         judged(Math.min(blue.games, red.games), `${blueBetter ? "블루" : "레드"}에서 유독 강해요`, `${blueBetter ? "블루" : "레드"}에서 더 강한 편으로 보여요`) +
         `(${rateOf(hi)}% vs ${rateOf(lo)}%).`,
       tone: "neutral",
-      basis: "진영별 승률",
+      basis: `진영별 승률${chanceNote(sideChance)}`,
     });
   }
 
   // 6-1. 유리한 판 관리: 경기 전 예상 우세 팀이던 판(배치 마친 사람이 있는 판).
+  // 우연 여부는 50%(예상이 아무 뜻 없는 경우)와 견준다. 우세 판의 실제 기대는 50%보다 조금 높아 "놓친다" 쪽은 보수적이다.
   const favored = favoredTally(input.expectations, scoped, id);
-  if (favored.games >= FAVORED_MIN) {
+  const favoredChance = binomialChance(favored.wins, favored.games);
+  const favoredPoor = favored.games >= FAVORED_MIN && rateOf(favored) < FAVORED_POOR && beyondChance(favoredChance);
+  const favoredGood = favored.games >= FAVORED_MIN && rateOf(favored) >= FAVORED_GOOD && beyondChance(favoredChance);
+  if (favoredPoor || favoredGood) {
     const rate = rateOf(favored);
-    if (rate < FAVORED_POOR) {
+    if (favoredPoor) {
       remarks.push({
         text: `경기 전 우세하던 판의 승률이 ${rate}%라 유리한 판을 자주 놓쳐요(${favored.games}경기).`,
         tone: "warn",
-        basis: "경기 전 예상 우세 팀이던 경기",
+        basis: `경기 전 예상 우세 팀이던 경기${chanceNote(favoredChance)}`,
       });
-    } else if (rate >= FAVORED_GOOD) {
+    } else {
       remarks.push({
         text: `경기 전 우세하던 판은 ${rate}%를 이겨 유리한 판을 잘 지켜요(${favored.games}경기).`,
         tone: "good",
-        basis: "경기 전 예상 우세 팀이던 경기",
+        basis: `경기 전 예상 우세 팀이던 경기${chanceNote(favoredChance)}`,
       });
     }
   }
@@ -434,8 +509,10 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   // 6-2. 진 다음 판(같은 날 바로 다음 경기).
   const timeZone = input.timeZone ?? "UTC";
   const after = afterResults(scoped, id, timeZone);
+  const tiltChance = rateGapChance(after.afterLoss, after.afterWin);
+  // 우연으로 설명되는 차이는 0으로 본다. 아래 코칭도 이 값을 그대로 쓴다.
   const tilt =
-    after.afterLoss.games >= AFTER_RESULT_MIN && after.afterWin.games >= AFTER_RESULT_MIN
+    after.afterLoss.games >= AFTER_RESULT_MIN && after.afterWin.games >= AFTER_RESULT_MIN && beyondChance(tiltChance)
       ? rateOf(after.afterLoss) - rateOf(after.afterWin)
       : 0;
   if (Math.abs(tilt) >= AFTER_RESULT_GAP) {
@@ -445,14 +522,17 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
           ? `진 다음 판 승률이 ${rateOf(after.afterLoss)}%로, 이긴 다음 판(${rateOf(after.afterWin)}%)보다 낮아요.`
           : `진 다음 판에 오히려 강해요(${rateOf(after.afterLoss)}% vs 이긴 다음 판 ${rateOf(after.afterWin)}%).`,
       tone: tilt < 0 ? "warn" : "good",
-      basis: "같은 날 바로 다음 경기의 승률",
+      basis: `같은 날 바로 다음 경기의 승률${chanceNote(tiltChance)}`,
     });
   }
 
   // 6-3. 모임 날 초반(첫 두 판)·후반.
   const parts = dayParts(scoped, id, timeZone);
+  const dayChance = rateGapChance(parts.early, parts.late);
   const dayGap =
-    parts.early.games >= DAY_PART_MIN && parts.late.games >= DAY_PART_MIN ? rateOf(parts.early) - rateOf(parts.late) : 0;
+    parts.early.games >= DAY_PART_MIN && parts.late.games >= DAY_PART_MIN && beyondChance(dayChance)
+      ? rateOf(parts.early) - rateOf(parts.late)
+      : 0;
   if (Math.abs(dayGap) >= DAY_PART_GAP) {
     remarks.push({
       text:
@@ -460,21 +540,33 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
           ? `모임 날 첫 ${EARLY_GAMES}판이 강하고 그 뒤로 내려가요(${rateOf(parts.early)}% → ${rateOf(parts.late)}%).`
           : `모임 날 첫 ${EARLY_GAMES}판보다 뒤로 갈수록 강해요(${rateOf(parts.early)}% → ${rateOf(parts.late)}%).`,
       tone: "neutral",
-      basis: `모임 날 자기 경기 순서(첫 ${EARLY_GAMES}판 대 그 뒤)`,
+      basis: `모임 날 자기 경기 순서(첫 ${EARLY_GAMES}판 대 그 뒤)${chanceNote(dayChance)}`,
     });
   }
 
   // 6-4. 맞라인 천적·먹잇감.
-  const duels = laneRivalSummary(laneRivals(scoped, id), LANE_FOCUS_MIN);
+  // 후보 = 맞대결 기준을 넘는 모든 맞라인 상대(라인 구분 없이). 그중 극단 하나를 고르니 그 수만큼 문턱을 엄하게 한다.
+  const rivals = laneRivals(scoped, id);
+  const duelCandidates = rivals.filter((r) => r.games >= LANE_FOCUS_MIN).length;
+  const duelReal = (r: { wins: number; games: number }) => beyondChance(binomialChance(r.wins, r.games), duelCandidates);
+  const duels = laneRivalSummary(rivals, LANE_FOCUS_MIN);
   const hardest = topBy(
-    duels.flatMap((d) => (d.hardest && ratePercent(d.hardest.wins, d.hardest.games) <= LANE_HARD_RATE ? [d.hardest] : [])),
+    duels.flatMap((d) =>
+      d.hardest && ratePercent(d.hardest.wins, d.hardest.games) <= LANE_HARD_RATE && duelReal(d.hardest) ? [d.hardest] : [],
+    ),
     (r) => r.games - r.wins,
     (r) => nameOf(r.opponentId),
   );
   const easiest = topBy(
-    duels.flatMap((d) => (d.easiest && ratePercent(d.easiest.wins, d.easiest.games) >= LANE_EASY_RATE ? [d.easiest] : [])),
+    duels.flatMap((d) =>
+      d.easiest && ratePercent(d.easiest.wins, d.easiest.games) >= LANE_EASY_RATE && duelReal(d.easiest) ? [d.easiest] : [],
+    ),
     (r) => r.wins,
     (r) => nameOf(r.opponentId),
+  );
+  const duelChance = Math.max(
+    hardest ? binomialChance(hardest.wins, hardest.games) : 0,
+    easiest ? binomialChance(easiest.wins, easiest.games) : 0,
   );
   const duelParts: string[] = [];
   if (hardest) {
@@ -484,18 +576,27 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     duelParts.push(`${LANE_NAME[easiest.position]}에서 ${nameOf(easiest.opponentId)} 상대로는 ${easiest.wins}승 ${easiest.losses}패예요.`);
   }
   if (duelParts.length > 0) {
-    remarks.push({ text: duelParts.join(" "), tone: hardest ? "warn" : "good", basis: `맞라인 상대(${LANE_FOCUS_MIN}경기 이상)` });
+    remarks.push({
+      text: duelParts.join(" "),
+      tone: hardest ? "warn" : "good",
+      basis: `맞라인 상대(${LANE_FOCUS_MIN}경기 이상)${chanceNote(duelChance)}`,
+    });
   }
 
   // 6-5. 챔피언(기록한 경기만).
+  // 챔피언은 그 사람의 평소 승률과 견준다(원래 잘하는 사람은 어떤 챔피언이든 60%가 나온다). 후보는 기준 판 수를 넘는 챔피언 수.
   const champs = championTallies(scoped, id);
+  const usual = Math.min(0.99, Math.max(0.01, detail.summary.wins / detail.summary.games));
+  const champCandidates = champs.filter((c) => c.games >= CHAMP_MIN_GAMES).length;
+  const champChance = (c: Tally) => binomialChance(c.wins, c.games, usual);
+  const champReal = (c: Tally) => beyondChance(champChance(c), champCandidates);
   const champBest = topBy(
-    champs.filter((c) => c.games >= CHAMP_MIN_GAMES && rateOf(c) >= CHAMP_GOOD_RATE),
+    champs.filter((c) => c.games >= CHAMP_MIN_GAMES && rateOf(c) >= CHAMP_GOOD_RATE && champReal(c)),
     (c) => rateOf(c) * 1000 + c.games,
     (c) => c.key,
   );
   const champWorst = topBy(
-    champs.filter((c) => c.games >= CHAMP_MIN_GAMES && rateOf(c) <= CHAMP_POOR_RATE && c.key !== champBest?.key),
+    champs.filter((c) => c.games >= CHAMP_MIN_GAMES && rateOf(c) <= CHAMP_POOR_RATE && c.key !== champBest?.key && champReal(c)),
     (c) => -rateOf(c) * 1000 + c.games,
     (c) => c.key,
   );
@@ -503,7 +604,12 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     const bits: string[] = [];
     if (champBest) bits.push(`${withRo(championName(champBest.key))} ${champBest.games}판 ${rateOf(champBest)}%를 이겼어요.`);
     if (champWorst) bits.push(`${josa(championName(champWorst.key), "은", "는")} ${champWorst.games}판 ${rateOf(champWorst)}%예요.`);
-    remarks.push({ text: bits.join(" "), tone: champBest ? "good" : "warn", basis: `기록한 챔피언(${CHAMP_MIN_GAMES}판 이상)` });
+    const shown = Math.max(champBest ? champChance(champBest) : 0, champWorst ? champChance(champWorst) : 0);
+    remarks.push({
+      text: bits.join(" "),
+      tone: champBest ? "good" : "warn",
+      basis: `기록한 챔피언(${CHAMP_MIN_GAMES}판 이상, 평소 승률과 비교)${chanceNote(shown)}`,
+    });
   }
 
   // 6-6. 1위 추격·최다 연승.
@@ -557,17 +663,14 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
     upsets,
     buddy: buddy && synergy !== null ? { name: nameOf(buddy.participantId), synergy } : null,
     tilt: tilt <= -AFTER_RESULT_GAP ? after : null,
-    favoredPoor: favored.games >= FAVORED_MIN && rateOf(favored) < FAVORED_POOR ? favored : null,
+    favoredPoor: favoredPoor ? favored : null,
     laneHard: hardest ? { line: LANE_NAME[hardest.position], name: nameOf(hardest.opponentId), wins: hardest.wins, losses: hardest.losses } : null,
     dayGap: Math.abs(dayGap) >= DAY_PART_GAP ? parts : null,
     champBest: champBest ? { name: championName(champBest.key), tally: champBest } : null,
     supportHeavy: supportHeavy ? ratePercent(support, positioned) : null,
     chase: leader && rank && rank.rank >= 2 && rank.rank <= CHASE_RANK && leader.gap <= CHASE_GAP ? { name: nameOf(leader.id), gap: leader.gap } : null,
     rival: rival ? { name: nameOf(rival.participantId), tally: rival } : null,
-    side:
-      blue.games >= SIDE_MIN_GAMES && red.games >= SIDE_MIN_GAMES && Math.abs(rateOf(blue) - rateOf(red)) >= SIDE_GAP
-        ? { blue, red }
-        : null,
+    side: sideSkewed ? { blue, red } : null,
     champWorst: champWorst ? { name: championName(champWorst.key), tally: champWorst } : null,
     absent: attend && attend.missedSinceLast >= ABSENT_DAYS ? attend.missedSinceLast : null,
     underdog:
@@ -596,7 +699,12 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   const lineLead = !main ? "" : mainShare >= MAIN_LINE_FOCUS ? `${LANE_NAME[main.position]} 중심의 ` : "여러 라인을 고루 서는 ";
   const steady = rating && rating.games >= placementGames && Math.abs(rating.delta10) < MMR_MOVE ? "안정형 " : "";
   return {
-    summary: `${lineLead}${steady}${tier}, ${FLOW_TEXT[flow]}`,
+    // 흐름이 우연 거르기로 "보합"이 되었어도 긴 연승·연패 중이면 "숨 고르기"라고 하지 않는다(9연승 중인데 숨 고르기가 됐다).
+    summary: `${lineLead}${steady}${tier}, ${
+      flow === "flat" && Math.abs(streak) >= STREAK_NOTE
+        ? `지금 ${Math.abs(streak)}${streak > 0 ? "연승" : "연패"} 중`
+        : FLOW_TEXT[flow]
+    }`,
     remarks: remarks.slice(0, PLAYER_REMARK_MAX),
     coaching,
   };
@@ -929,13 +1037,15 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   if (sides.known >= GROUP_SIDE_MIN_GAMES) {
     const blueRate = ratePercent(sides.blueWins, sides.known);
     const redRate = 100 - blueRate;
-    if (Math.abs(blueRate - redRate) >= SIDE_GAP) {
+    const groupSideChance = binomialChance(sides.blueWins, sides.known);
+    // 모임 문장 중 승률 비교는 진영 하나뿐이라 규칙 수로 나누지 않는다.
+    if (Math.abs(blueRate - redRate) >= SIDE_GAP && beyondChance(groupSideChance, 1, 1)) {
       sideSkew = true;
       const blueHigh = blueRate > redRate;
       remarks.push({
         text: `${blueHigh ? "블루" : "레드"} 승률이 눈에 띄게 높아요(${blueHigh ? blueRate : redRate}%, ${sides.known}경기). 진영 랜덤을 자주 쓰는 게 좋아요.`,
         tone: "warn",
-        basis: "진영별 승률(진영 미상 제외)",
+        basis: `진영별 승률(진영 미상 제외)${chanceNote(groupSideChance)}`,
       });
     }
   }

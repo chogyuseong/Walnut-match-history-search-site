@@ -151,13 +151,26 @@ describe("playerCommentary", () => {
     expect(r?.tone).toBe("warn");
   });
 
-  it("챔피언: 5판 이상 쓴 챔피언 중 60% 이상이면 이름과 승률", () => {
+  it("챔피언: 5판 이상 쓴 챔피언이 평소 승률보다 우연으로 보기 어렵게 높으면 이름과 승률", () => {
+    // 아리 10판 전승, 나머지 10판 전패: 평소 50%인 사람이 10연승할 확률은 0.2%다.
+    const withAhri = range(20, (i) => {
+      const m = match(i, { winner: i <= 10 ? "A" : "B" });
+      if (i <= 10) m.roster[0] = { ...m.roster[0]!, champion: "Ahri" };
+      return m;
+    });
+    const ahri = player(withAhri, "p0").remarks.find((r) => r.text.startsWith("아리로 10판"));
+    expect(ahri).toBeDefined();
+    expect(ahri!.basis).toMatch(/우연 가능성 1% 미만/);
+  });
+
+  it("챔피언: 평소에도 잘 이기는 사람의 6판 5승은 우연으로 설명돼 말하지 않는다(2026-11-13 전에는 말했다)", () => {
+    // 12판 8승(67%)인 사람이 아리로 6판 5승: 평소 실력으로 약 70% 확률로 나오는 결과다.
     const withAhri = range(12, (i) => {
       const m = match(i, { winner: i <= 5 || i % 3 === 0 ? "A" : "B" });
       if (i <= 6) m.roster[0] = { ...m.roster[0]!, champion: "Ahri" };
       return m;
     });
-    expect(player(withAhri, "p0").remarks.some((r) => r.text.startsWith("아리로 6판"))).toBe(true);
+    expect(player(withAhri, "p0").remarks.some((r) => r.text.includes("아리"))).toBe(false);
   });
 
   it("문장 수는 상한을 넘지 않는다", () => {
@@ -244,5 +257,84 @@ describe("문장 다듬기", () => {
     const pair = player([...withP1, ...withP2], "p0").remarks.find((r) => r.text.includes("같은 팀이면"));
     // p1은 같은 팀이면 전승, 상대 팀이면 전패라 동료·상대가 한 문장으로 묶인다.
     expect(pair?.text).toContain("사람01과는 같은 팀이면 100%, 상대 팀이면 0%");
+  });
+});
+
+describe("우연 거르기(2026-11-13)", () => {
+  // 승률 비교형 문장: 같은 실력이라도 표본이 작으면 우연히 나오는 차이를 근거로 삼는 문장들. basis 앞부분으로 가린다.
+  const COMPARISON_BASIS = [
+    "라인별 승률",
+    "최근 10경기 승률",
+    "같은 팀·상대 팀 전적",
+    "진영별 승률",
+    "경기 전 예상 우세 팀",
+    "같은 날 바로 다음 경기",
+    "모임 날 자기 경기 순서",
+    "맞라인 상대",
+    "기록한 챔피언",
+  ];
+  const isComparison = (basis: string | undefined) => COMPARISON_BASIS.some((b) => basis?.startsWith(b));
+  const PEOPLE = 26;
+  const GAMES = 500;
+  const CHAMPIONS = ["Ahri", "Garen", "LeeSin", "Jinx", "Thresh", "Darius", "Lux", "Ezreal", "Leona", "Zed", "Vi", "Annie"];
+
+  function rngOf(seed: number) {
+    let s = seed >>> 0;
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 2 ** 32;
+    };
+  }
+
+  /** 무작위 열 명·라인·진영·챔피언으로 경기를 만든다. 승패는 aWins(경기, rng)가 정한다. 하루 8판씩 모임 날을 나눈다. */
+  function randomGroup(seed: number, aWins: (m: MatchView, rnd: () => number) => boolean): MatchView[] {
+    const rnd = rngOf(seed);
+    return range(GAMES, (i) => {
+      const pool = Array.from({ length: PEOPLE }, (_, k) => k).sort(() => rnd() - 0.5).slice(0, 10);
+      const day = Math.floor((i - 1) / 8);
+      const m = match(i, {
+        teamA: pool.slice(0, 5),
+        teamB: pool.slice(5),
+        side: rnd() < 0.5 ? "blue" : "red",
+        at: new Date(Date.UTC(2026, 0, 1 + day * 3, 11, i % 8)).toISOString(),
+      });
+      m.roster = m.roster.map((r) => ({ ...r, champion: CHAMPIONS[Math.floor(rnd() * CHAMPIONS.length)]! }));
+      m.winnerTeam = aWins(m, rnd) ? "A" : "B";
+      return m;
+    });
+  }
+
+  function comparisonCount(matches: MatchView[]): number {
+    let count = 0;
+    for (let k = 0; k < PEOPLE; k++) count += player(matches, `p${k}`).remarks.filter((r) => isComparison(r.basis)).length;
+    return count;
+  }
+
+  it("결과가 동전 던지기인 모임(26명·500경기)을 20번 만들어도 승률 비교형 문장은 사람당 평균 0.2개 이하다", () => {
+    const SEEDS = 20;
+    let total = 0;
+    for (let seed = 1; seed <= SEEDS; seed++) total += comparisonCount(randomGroup(seed, (_m, rnd) => rnd() < 0.5));
+    expect(total / (SEEDS * PEOPLE)).toBeLessThanOrEqual(0.2);
+  }, 120000);
+
+  it("최근 흐름이 우연으로 걸러져도 긴 연승 중이면 총평이 '숨 고르기'가 아니라 연승을 말한다", () => {
+    // 앞 20판 10승 10패, 뒤 10판 1패 뒤 9연승: 최근 90% 대 앞 50%는 비교 규칙 10개로 나눈 문턱을 넘지 못한다.
+    const matches = range(30, (i) => match(i, { winner: i <= 20 ? (i % 2 ? "A" : "B") : i === 21 ? "B" : "A" }));
+    const summary = player(matches, "p0").summary;
+    expect(summary).toMatch(/지금 9연승 중$/);
+    expect(summary).not.toMatch(/숨 고르기/);
+  });
+
+  it("심어 둔 진짜 차이는 남는다: p0이 블루에서 85%·레드에서 15%면 진영 문장이 우연 가능성과 함께 나온다", () => {
+    const matches = randomGroup(7, (m, rnd) => {
+      const p0 = m.roster.find((r) => r.participantId === "p0");
+      if (!p0) return rnd() < 0.5;
+      const p0Blue = (p0.team === "A") === (m.teamASide === "blue");
+      const p0Wins = rnd() < (p0Blue ? 0.85 : 0.15);
+      return p0.team === "A" ? p0Wins : !p0Wins;
+    });
+    const side = player(matches, "p0").remarks.find((r) => r.basis?.startsWith("진영별 승률"));
+    expect(side?.text).toMatch(/블루에서 유독 강해요/);
+    expect(side?.basis).toMatch(/우연 가능성 (1% 미만|\d+%)/);
   });
 });

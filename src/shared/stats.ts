@@ -283,6 +283,59 @@ export interface Tally {
   wins: number;
 }
 
+/* ------------------------------------------------------------------ */
+/* 우연 확률: 분석 코멘트(commentary.ts)가 표본이 작은 차이를 사실처럼 말하지 않게 거르는 데 쓴다      */
+/* ------------------------------------------------------------------ */
+
+// log(n!)을 차례로 쌓아 둔다. 한 모임의 경기 수(수천)를 넘지 않으니 필요할 때 늘린다.
+const logFactorials: number[] = [0];
+function logFactorial(n: number): number {
+  for (let i = logFactorials.length; i <= n; i++) logFactorials.push(logFactorials[i - 1]! + Math.log(i));
+  return logFactorials[n]!;
+}
+const logChoose = (n: number, k: number) => logFactorial(n) - logFactorial(k) - logFactorial(n - k);
+
+/** 확률이 같은 결과를 "같다"로 볼 여유. 부동소수 오차로 관찰값 자신이 빠지지 않게 한다. */
+const SAME_PROBABILITY = 1 + 1e-7;
+
+/**
+ * 승률이 정말 p인 사람이 games판을 했을 때, 관찰한 wins만큼 또는 그보다 더 드문 결과가 나올 확률(양쪽).
+ * 예: 4판 0승은 p = 0.5에서 12.5%다(0승·4승 각각 6.25%). 1에 가까울수록 우연으로 설명된다.
+ */
+export function binomialChance(wins: number, games: number, p = 0.5): number {
+  if (games <= 0) return 1;
+  const logP = Math.log(p);
+  const logQ = Math.log(1 - p);
+  const prob = (k: number) => Math.exp(logChoose(games, k) + k * logP + (games - k) * logQ);
+  const observed = prob(wins) * SAME_PROBABILITY;
+  let total = 0;
+  for (let k = 0; k <= games; k++) {
+    const pk = prob(k);
+    if (pk <= observed) total += pk;
+  }
+  return Math.min(1, total);
+}
+
+/**
+ * 두 묶음(예: 블루일 때·레드일 때)의 승률이 실제로는 같은데 지금만큼 이상 벌어질 확률(피셔 정확 검정, 양쪽).
+ * 두 묶음의 승 수 합을 고정하고, 그 승이 a 쪽에 몇 개 몰리는지가 초기하분포를 따른다는 계산이다.
+ * 표본이 작을수록 큰 차이도 쉽게 우연으로 나온다(8판 대 8판의 75% vs 38%는 약 32%).
+ */
+export function rateGapChance(a: Tally, b: Tally): number {
+  const games = a.games + b.games;
+  const wins = a.wins + b.wins;
+  if (a.games <= 0 || b.games <= 0) return 1;
+  const prob = (x: number) =>
+    Math.exp(logChoose(wins, x) + logChoose(games - wins, a.games - x) - logChoose(games, a.games));
+  const observed = prob(a.wins) * SAME_PROBABILITY;
+  let total = 0;
+  for (let x = Math.max(0, a.games - (games - wins)); x <= Math.min(wins, a.games); x++) {
+    const px = prob(x);
+    if (px <= observed) total += px;
+  }
+  return Math.min(1, total);
+}
+
 export interface PairTally extends Tally {
   participantId: string;
 }
