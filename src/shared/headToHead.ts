@@ -56,26 +56,48 @@ export interface LaneDuel {
 }
 
 /**
- * 같은 라인 맞대결(2026-11-08, 두 사람 비교 "상대일 때"): 상대 팀으로 만난 경기 중 두 사람이 같은 포지션이었던
- * 경기만 라인별로 센다(a 기준). 세는 경기는 pairOutcome과 같고, 둘 중 한 사람이라도 포지션 기록이 없으면 뺀다.
- * 준비 화면의 라인 맞대결(prepTools laneMatchups)은 포지션과 무관하게 세는 것과 다르다.
- * 라인 순서(탑~서폿)로, 맞붙은 적 있는 라인만 돌려준다.
+ * 상대 팀으로 만난 경기를 라인 관계로 나눈 것. duels의 경기 수 + otherLine + positionUnknown = pairRecord의 against.games.
+ * 같은 라인 판수만 보이면 "경기가 빠진 것 아닌가" 싶어서(실제로는 상대 경기의 20~25%만 같은 라인이었다) 나머지 내역도 함께 센다.
  */
-export function laneDuels(matches: readonly MatchView[], a: string, b: string): LaneDuel[] {
+export interface LaneDuelSplit {
+  /** 같은 포지션으로 마주 선 경기, 라인별. */
+  duels: LaneDuel[];
+  /** 둘 다 포지션 기록이 있고 서로 다른 라인이었던 경기 수. */
+  otherLine: number;
+  /** 둘 중 한 사람이라도 포지션 기록이 없는 경기 수. */
+  positionUnknown: number;
+}
+
+/**
+ * 같은 라인 맞대결(2026-11-08, 두 사람 비교 "상대일 때"): 상대 팀으로 만난 경기 중 두 사람이 같은 포지션이었던
+ * 경기만 라인별로 센다(a 기준). 세는 경기는 pairOutcome과 같고, 둘 중 한 사람이라도 포지션 기록이 없으면 positionUnknown으로 뺀다.
+ * 준비 화면의 라인 맞대결(prepTools laneMatchups)은 포지션과 무관하게 세는 것과 다르다.
+ * duels는 라인 순서(탑~서폿)로, 맞붙은 적 있는 라인만 담는다.
+ */
+export function laneDuelSplit(matches: readonly MatchView[], a: string, b: string): LaneDuelSplit {
   const byLine = new Map<Position, LaneDuel>();
+  let otherLine = 0;
+  let positionUnknown = 0;
   for (const match of matches) {
     const outcome = pairOutcome(match, a, b);
     if (!outcome || outcome.relation !== "against") continue;
     const pa = match.roster.find((r) => r.participantId === a)!.position;
     const pb = match.roster.find((r) => r.participantId === b)!.position;
-    if (pa === null || pa !== pb) continue;
+    if (pa === null || pb === null) {
+      positionUnknown += 1;
+      continue;
+    }
+    if (pa !== pb) {
+      otherLine += 1;
+      continue;
+    }
     const duel = byLine.get(pa) ?? { position: pa, games: 0, wins: 0, losses: 0 };
     duel.games += 1;
     if (outcome.aWon) duel.wins += 1;
     else duel.losses += 1;
     byLine.set(pa, duel);
   }
-  return POSITIONS.flatMap((p) => byLine.get(p) ?? []);
+  return { duels: POSITIONS.flatMap((p) => byLine.get(p) ?? []), otherLine, positionUnknown };
 }
 
 export interface LaneRival {
@@ -88,7 +110,7 @@ export interface LaneRival {
 }
 
 /**
- * 맞라인 상대: me와 상대 팀이면서 같은 포지션이었던 사람을 라인별로 센다(laneDuels를 모든 상대로 펼친 것).
+ * 맞라인 상대: me와 상대 팀이면서 같은 포지션이었던 사람을 라인별로 센다(laneDuelSplit의 duels를 모든 상대로 펼친 것).
  * 한 사람과 여러 라인에서 맞붙었으면 라인마다 따로 담고, me의 포지션 기록이 없는 경기는 뺀다.
  * 라인 순서(탑~서폿) → 경기 수 많은 순.
  */

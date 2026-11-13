@@ -171,6 +171,43 @@ test("붙여 넣은 표의 열 순서가 다르면 열 맞추기로 넘어가 �
   expect(snap.importBatches[0]).toMatchObject({ kind: "paste", count: 2 });
 });
 
+test("한 날짜에 20경기 이상이면 확인 단계에서 알리고, 다 넣은 뒤 다시 읽으면 알리지 않는다", async ({ page }) => {
+  await setup(page);
+  // 22명 중 10명을 한 칸씩 밀어 고른다. 21경기 안에서 명단이 겹치지 않아 "같은 날짜·시각에 같은 열 명" 경고는 뜨지 않는다.
+  const pool = Array.from({ length: 22 }, (_, i) => `몰림선수${String(i + 1).padStart(2, "0")}`);
+  const header = ["날짜", "승리", "탑", "정글", "미드", "원딜", "서폿", "탑", "정글", "미드", "원딜", "서폿"].join("\t");
+  // 날짜 칸이 비어 한 날짜를 이어받은 것처럼, 21경기가 모두 같은 날짜다.
+  const rows = Array.from({ length: 21 }, (_, i) => {
+    const ten = Array.from({ length: 10 }, (_, k) => pool[(i + k) % pool.length]!);
+    return ["2026.10.1", i % 2 === 0 ? "블루" : "레드", ...ten].join("\t");
+  });
+  const readPasted = async () => {
+    await page.goto("/#/group");
+    await page.getByRole("button", { name: "지난 기록 한꺼번에 넣기" }).click();
+    await page.getByLabel("붙여 넣을 표").fill([header, ...rows].join("\n"));
+    await page.getByRole("button", { name: "표 읽기" }).click();
+    await page.getByRole("button", { name: "열 맞추기로 계속" }).click();
+    await page.getByRole("button", { name: "다음: 확인" }).click();
+  };
+
+  await readPasted();
+  // 몰린 날짜는 기존 날짜 경고 상자 안의 한 줄로 나온다. 명단이 모두 달라 그 줄 하나뿐이다.
+  const warnings = page.getByRole("status", { name: "날짜 경고" });
+  await expect(warnings).toContainText("날짜를 확인해 주세요.");
+  await expect(warnings.getByRole("listitem")).toHaveCount(1);
+  await expect(warnings).toContainText("2026-10-01에 21경기가 몰려 있어요.");
+  await expect(warnings).toContainText("2번째 줄부터 확인해 주세요.");
+  await noPageOverflow(page);
+  // 막지 않는 안내라 그대로 넣을 수 있다.
+  await page.getByRole("radio", { name: /진영 미상으로 넣기/ }).check();
+  await page.getByRole("button", { name: "21경기 가져오기" }).click();
+  await expect(page.getByText("21경기 저장됨 · 진영 미상")).toBeVisible();
+
+  await readPasted();
+  await expect(page.getByText("새로 넣을 경기가 없어요.")).toBeVisible();
+  await expect(page.getByRole("status", { name: "날짜 경고" })).toHaveCount(0);
+});
+
 test("같은 경기가 이미 들어 있어도 한 번 더 한 경기라고 고르면 시트에서 새 경기로 가져온다", async ({ page }) => {
   const groupId = await setup(page);
   await page.request.post("/api/test/sheet-fixture", { data: { url: SHEET_URL, csv: playerSheet(1) } });

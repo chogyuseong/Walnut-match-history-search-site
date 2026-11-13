@@ -4,6 +4,8 @@ import { linkNames, looseKey, similarWithinTable } from "../src/shared/importLin
 import { parseMatchTable } from "../src/shared/importTable";
 import {
   classifyImport,
+  CROWDED_DAY_MIN,
+  crowdedDays,
   detectMapping,
   parseDateCell,
   parseLane,
@@ -563,5 +565,32 @@ describe("지문과 다시 가져오기", () => {
     expect(payload[0]!.roster[9]).toEqual({ participantId: "id-차오", team: "B", position: "support" });
     expect(payload[0]!.fingerprint).toMatch(/^v1-[0-9a-f]{16}$/);
     expect(payload[1]!.rowKey).toBe("2026-10-01#2");
+  });
+});
+
+describe("한 날짜에 경기가 몰림(crowdedDays)", () => {
+  /** date로 n경기를 line부터 이어 만든다. where는 가로로 긴 표처럼 열 위치를 흉내 낸다. */
+  const day = (date: string, n: number, line: number) =>
+    Array.from({ length: n }, (_, i) => ({ date, line: line + i, where: `${line + i}열 13행` }));
+
+  it("기준 미만이면 없고, 정확히 기준이면 알린다", () => {
+    expect(crowdedDays(day("2025-07-06", CROWDED_DAY_MIN - 1, 1))).toEqual([]);
+    expect(crowdedDays(day("2025-07-06", CROWDED_DAY_MIN, 1))).toEqual([
+      { date: "2025-07-06", count: CROWDED_DAY_MIN, first: expect.objectContaining({ line: 1, where: "1열 13행" }) },
+    ]);
+  });
+
+  it("여러 날짜를 날짜순으로, 각 날짜의 첫 경기(표 순서) 위치와 함께 돌려준다", () => {
+    const matches = [
+      ...day("2025-09-01", 25, 30),
+      ...day("2025-07-06", 3, 1), // 평범한 날
+      ...day("2025-07-06", 21, 100), // 같은 날짜가 뒤에서 다시 나와도 합쳐 센다
+      ...day("2025-08-10", 11, 4),
+    ];
+    const crowded = crowdedDays(matches);
+    expect(crowded.map((d) => [d.date, d.count, d.first.line])).toEqual([
+      ["2025-07-06", 24, 1],
+      ["2025-09-01", 25, 30],
+    ]);
   });
 });

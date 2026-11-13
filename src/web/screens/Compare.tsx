@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { laneDuels } from "../../shared/headToHead";
+import { laneDuelSplit } from "../../shared/headToHead";
 import {
   COMPARE_MIN_GAMES,
   headToHead,
@@ -140,7 +140,7 @@ export function Compare(props: {
   const sa = useMemo(() => (ready ? formOf(scoped, a!) : null), [ready, scoped, a]);
   const sb = useMemo(() => (ready ? formOf(scoped, b!) : null), [ready, scoped, b]);
   const h2h = useMemo(() => (ready ? headToHead(scoped, a!, b!) : null), [ready, scoped, a, b]);
-  const duels = useMemo(() => (ready ? laneDuels(scoped, a!, b!) : []), [ready, scoped, a, b]);
+  const laneSplit = useMemo(() => (ready ? laneDuelSplit(scoped, a!, b!) : null), [ready, scoped, a, b]);
 
   const pickSelect = (slot: "a" | "b", className?: string) => {
     const value = slot === "a" ? a : b;
@@ -172,7 +172,7 @@ export function Compare(props: {
     );
   };
 
-  if (!ready || !da || !db || !sa || !sb || !h2h) {
+  if (!ready || !da || !db || !sa || !sb || !h2h || !laneSplit) {
     // 아직 두 사람을 고르지 않음: 머리 카드 자리에 고르기 두 칸을 둔다.
     return (
       <div className="screen compare-screen">
@@ -209,6 +209,8 @@ export function Compare(props: {
   const synergy = synergyPoints(h2h.together, da.summary, db.summary);
   const against = h2h.against;
   const recentDuels = h2h.againstResults.slice(0, RECENT_DUELS);
+  const { duels } = laneSplit;
+  const sameLineGames = duels.reduce((sum, d) => sum + d.games, 0);
 
   // 기대 승률은 팀 경기라 오해하기 쉬워 보여주지 않는다. 숫자와 차이만.
   const ratingCell = (r: PersonRating | undefined) => (
@@ -532,42 +534,60 @@ export function Compare(props: {
       </section>
 
       {/* 같은 라인으로 서로 마주 선 경기만. 두 사람의 경기 수가 같고 승률은 서로 거울이라(A 60% ↔ B 40%) 한 줄에 둘 다 쓴다.
-          각자의 라인별 승률(위 표)은 전체 경기 기준이라 이와 다르다는 피드백이 있어 따로 뗐다. */}
+          각자의 라인별 승률(위 표)은 전체 경기 기준이라 이와 다르다는 피드백이 있어 따로 뗐다.
+          같은 라인 판수만 보이면 아래 "맞대결 N"보다 너무 적어 빠진 경기가 있는 것처럼 읽혀서, 맨 위에 상대 경기 전체의 내역을 한 줄 둔다
+          (세 수의 합 = 맞대결 경기 수). */}
       <section className="cmp-section" aria-label="같은 라인 맞대결">
         <h2>같은 라인으로 맞붙었을 때</h2>
-        {duels.length === 0 ? (
+        {against.games === 0 ? (
           <p className="hint">두 사람이 같은 라인에서 상대 팀으로 만난 경기가 없어요.</p>
         ) : (
           <>
+            {/* 항목("같은 라인 32경기")마다 묶어 중간에서 줄이 갈리지 않게 하고, 가운뎃점은 앞 항목 끝에 붙여 줄 머리에 오지 않게 한다. */}
             <p className="hint">
-              왼쪽 {nameA} · 오른쪽 {nameB}. 둘이 같은 포지션으로 상대 팀에 선 경기만 세요. 경기 수는 양쪽이 같고 승률은 서로
-              거울이에요.
+              상대 팀으로 만난 {against.games}경기 중 <span className="nowrap">같은 라인 {sameLineGames}경기 ·</span>{" "}
+              <span className="nowrap">
+                다른 라인 {laneSplit.otherLine}경기{laneSplit.positionUnknown > 0 && " ·"}
+              </span>
+              {laneSplit.positionUnknown > 0 && (
+                <>
+                  {" "}
+                  <span className="nowrap">포지션 기록 없음 {laneSplit.positionUnknown}경기</span>
+                </>
+              )}
             </p>
-            <ul className="cmp-lane-duels">
-              {duels.map((d) => {
-                const lead = leadOf(d.wins, d.losses);
-                return (
-                  <li key={d.position} className={lead === "a" ? "lead-a" : lead === "b" ? "lead-b" : undefined}>
-                    <span className="cmp-duel-side cmp-duel-a">
-                      <span className={rateHueText(d.wins, d.games)}>{rateText({ wins: d.wins, games: d.games })}</span>
-                      <span className="hint">{d.wins}승 {d.losses}패</span>
-                    </span>
-                    <span className="cmp-duel-mid">
-                      <PosLabel position={d.position} />
-                      <span className="hint">{d.games}경기</span>
-                    </span>
-                    <span className="cmp-duel-side cmp-duel-b">
-                      <span className={rateHueText(d.losses, d.games)}>{rateText({ wins: d.losses, games: d.games })}</span>
-                      <span className="hint">{d.losses}승 {d.wins}패</span>
-                    </span>
-                    <span className="cmp-bar cmp-duel-bar" role="img" aria-label={`${d.games}경기 중 ${nameA} ${d.wins}승, ${nameB} ${d.losses}승`}>
-                      <span className="cmp-bar-a" style={{ flexGrow: d.wins }} />
-                      <span className="cmp-bar-b" style={{ flexGrow: d.losses }} />
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+            {duels.length > 0 && (
+              <>
+                <p className="hint">
+                  아래는 같은 라인 경기의 라인별 승률이에요. 왼쪽 {nameA} · 오른쪽 {nameB}, 두 승률은 서로 거울이에요.
+                </p>
+                <ul className="cmp-lane-duels">
+                  {duels.map((d) => {
+                    const lead = leadOf(d.wins, d.losses);
+                    return (
+                      <li key={d.position} className={lead === "a" ? "lead-a" : lead === "b" ? "lead-b" : undefined}>
+                        <span className="cmp-duel-side cmp-duel-a">
+                          <span className={rateHueText(d.wins, d.games)}>{rateText({ wins: d.wins, games: d.games })}</span>
+                          <span className="hint">{d.wins}승 {d.losses}패</span>
+                        </span>
+                        <span className="cmp-duel-mid">
+                          <PosLabel position={d.position} />
+                          <span className="hint">{d.games}경기</span>
+                        </span>
+                        <span className="cmp-duel-side cmp-duel-b">
+                          <span className={rateHueText(d.losses, d.games)}>{rateText({ wins: d.losses, games: d.games })}</span>
+                          <span className="hint">{d.losses}승 {d.wins}패</span>
+                        </span>
+                        <span className="cmp-bar cmp-duel-bar" role="img" aria-label={`${d.games}경기 중 ${nameA} ${d.wins}승, ${nameB} ${d.losses}승`}>
+                          <span className="cmp-bar-a" style={{ flexGrow: d.wins }} />
+                          <span className="cmp-bar-b" style={{ flexGrow: d.losses }} />
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
           </>
         )}
       </section>

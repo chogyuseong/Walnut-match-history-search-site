@@ -4,6 +4,7 @@ import { linkNames, similarWithinTable, type NameLink } from "../../shared/impor
 import { nameKey } from "../../shared/names";
 import {
   classifyImport,
+  crowdedDays,
   detectMapping,
   hash64,
   nextFreeFingerprint,
@@ -305,6 +306,9 @@ export function SheetImport() {
         (x, y) => x.line - y.line,
       )
     : [];
+  // 날짜가 몰린 날 경고는 이번에 실제로 넣을 경기가 그 날짜에 있을 때만 띄운다. 이미 다 들어간 시트를 다시 열 때마다 뜨면 소음이다.
+  const sendDates = new Set(toSend.map((m) => m.date));
+  const crowded = parsed ? crowdedDays(parsed.matches).filter((d) => sendDates.has(d.date)) : [];
   const undecided = links.filter((l) => l.kind === "similar" && !choices[l.name]);
   const errorCount = parsed?.errors.length ?? 0;
   const ready =
@@ -554,7 +558,7 @@ export function SheetImport() {
       {step === 3 && parsed && classification && (
         <section className="card" aria-label="확인">
           <h2>가져올 내용 확인</h2>
-          <ImportDateWarnings matches={parsed.matches} />
+          <ImportDateWarnings matches={parsed.matches} crowded={crowded} />
           <ul className="list">
             <li className="list-row static">
               <span>읽은 경기</span>

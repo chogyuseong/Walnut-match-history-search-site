@@ -1174,6 +1174,40 @@ export function classifyImport<T extends Fingerprinted>(
   return out;
 }
 
+/**
+ * 하루에 이만큼 이상이면 날짜가 잘못 들어갔다고 의심한다. 실제 기록의 하루 최대는 11경기였고,
+ * 날짜 칸이 빠져 앞 날짜를 이어받은 경우는 수십~백 경기 단위라 그 사이로 잡았다.
+ */
+export const CROWDED_DAY_MIN = 20;
+
+export interface CrowdedDay {
+  date: string;
+  /** 그 날짜로 읽힌 경기 수(읽은 경기 전체 기준). */
+  count: number;
+  /** 그 날짜의 첫 경기(표 순서). 확인할 위치를 알려 주는 데 쓴다. */
+  first: Pick<SheetMatch, "line" | "where">;
+}
+
+/**
+ * 한 날짜에 경기가 몰린 날(날짜순). 가로로 긴 표는 빈 날짜 칸이 왼쪽 날짜를 이어받으므로(parseAcross, 의도된 동작)
+ * 날짜 칸이 비면 경기 수십 개가 하루에 몰린다. 읽기를 막지 않고 미리보기에서 알리기만 한다. 표 모양과 무관하게 센다.
+ */
+export function crowdedDays(
+  matches: readonly Pick<SheetMatch, "date" | "line" | "where">[],
+  min = CROWDED_DAY_MIN,
+): CrowdedDay[] {
+  const byDate = new Map<string, CrowdedDay>();
+  for (const m of matches) {
+    const day = byDate.get(m.date);
+    if (!day) byDate.set(m.date, { date: m.date, count: 1, first: m });
+    else {
+      day.count += 1;
+      if (m.line < day.first.line) day.first = m;
+    }
+  }
+  return [...byDate.values()].filter((d) => d.count >= min).sort((x, y) => x.date.localeCompare(y.date));
+}
+
 /* ------------------------------------------------------------------ */
 /* 서버로 보낼 경기                                                       */
 /* ------------------------------------------------------------------ */

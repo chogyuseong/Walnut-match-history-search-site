@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { laneDuels, laneRivals, laneRivalSummary, type LaneRival } from "../src/shared/headToHead";
+import { laneDuelSplit, laneRivals, laneRivalSummary, type LaneRival } from "../src/shared/headToHead";
 import { headToHead, leadOf, rateLeadOf, recentResults, resultsOf, streakOf, synergyPoints } from "../src/shared/insights";
 import { POSITIONS, type MatchState, type MatchView, type Position, type Team } from "../src/shared/types";
 
@@ -40,29 +40,42 @@ function match(
 
 const ids = (from: number, n = 5) => Array.from({ length: n }, (_, i) => `id${from + i}`);
 
-describe("같은 라인 맞대결(headToHead.ts laneDuels)", () => {
+describe("같은 라인 맞대결(headToHead.ts laneDuelSplit)", () => {
+  const ms = [
+    match(ids(0), ids(5), "A"), // id0 탑 vs id5 탑: id0 승
+    match(ids(0), ids(5), "B"), // 탑 맞대결 id0 패
+    match(ids(0), ids(5), "A", { positions: { id0: "mid", id5: "mid", id2: "top", id7: "top" } }), // 미드 승
+    match(ids(0), ids(5), "A", { positions: { id0: "jungle", id1: "top" } }), // 다른 라인
+    match(ids(0), ids(5), "B", { positions: { id5: "support", id9: "top" } }), // 다른 라인
+    match(ids(0), ids(5), "A", { positions: { id0: null } }), // 포지션 기록 없음(a 쪽)
+    match(ids(0), ids(5), "A", { positions: { id5: null } }), // 포지션 기록 없음(b 쪽)
+    match(["id0", "id5", "id1", "id2", "id3"], ids(6), "A"), // 같은 팀: 안 셈
+    match(ids(0), ids(5), "A", { state: "excluded" }), // 전적 제외: 안 셈
+    match(ids(0), ids(5), null, { state: "awaiting_result" }), // 결과 대기: 안 셈
+    match(ids(0), ids(5), "A", { state: "canceled" }), // 취소: 이긴 팀이 남아 있어도 안 셈
+  ];
+
   it("상대 팀으로 같은 포지션에서 만난 경기만 라인별로 a 기준으로 센다", () => {
-    const ms = [
-      match(ids(0), ids(5), "A"), // id0 탑 vs id5 탑: id0 승
-      match(ids(0), ids(5), "B"), // 탑 맞대결 id0 패
-      match(ids(0), ids(5), "A", { positions: { id0: "mid", id5: "mid", id2: "top", id7: "top" } }), // 미드 승
-      match(ids(0), ids(5), "A", { positions: { id0: "jungle", id1: "top" } }), // 다른 라인: 빼기
-      match(ids(0), ids(5), "A", { positions: { id0: null } }), // 포지션 기록 없음: 빼기
-      match(["id0", "id5", "id1", "id2", "id3"], ids(6), "A"), // 같은 팀: 빼기
-      match(ids(0), ids(5), "A", { state: "excluded" }), // 전적 제외: 빼기
-      match(ids(0), ids(5), null, { state: "awaiting_result" }), // 결과 대기: 빼기
-    ];
-    expect(laneDuels(ms, "id0", "id5")).toEqual([
+    expect(laneDuelSplit(ms, "id0", "id5").duels).toEqual([
       { position: "top", games: 2, wins: 1, losses: 1 },
       { position: "mid", games: 1, wins: 1, losses: 0 },
     ]);
     // 기준을 바꾸면 승패가 뒤집힌다.
-    expect(laneDuels(ms, "id5", "id0")).toEqual([
+    expect(laneDuelSplit(ms, "id5", "id0").duels).toEqual([
       { position: "top", games: 2, wins: 1, losses: 1 },
       { position: "mid", games: 1, wins: 0, losses: 1 },
     ]);
-    expect(laneDuels(ms, "id0", "id0")).toEqual([]);
-    expect(laneDuels([], "id0", "id5")).toEqual([]);
+    expect(laneDuelSplit(ms, "id0", "id0")).toEqual({ duels: [], otherLine: 0, positionUnknown: 0 });
+    expect(laneDuelSplit([], "id0", "id5")).toEqual({ duels: [], otherLine: 0, positionUnknown: 0 });
+  });
+
+  it("다른 라인·포지션 기록 없음을 따로 세고, 세 갈래의 합은 맞대결 경기 수와 같다", () => {
+    const split = laneDuelSplit(ms, "id0", "id5");
+    expect(split.otherLine).toBe(2);
+    expect(split.positionUnknown).toBe(2);
+    const sameLine = split.duels.reduce((sum, d) => sum + d.games, 0);
+    expect(sameLine).toBe(3);
+    expect(sameLine + split.otherLine + split.positionUnknown).toBe(headToHead(ms, "id0", "id5").against.games);
   });
 });
 

@@ -12,6 +12,7 @@ import {
 } from "../src/shared/legacy";
 import {
   acrossDate,
+  crowdedDays,
   detectMapping,
   isAcrossLayout,
   parseSheet,
@@ -350,6 +351,20 @@ describe("가로로 긴 표(기존 사이트 RAW DATA 모양)", () => {
     expect(acrossDate("9월30일")).toEqual({ year: null, month: 9, day: 30, time: null });
     expect(acrossDate("2026-02-30")).toBe("invalid");
     expect(acrossDate("가람")).toBeNull();
+  });
+
+  it("날짜 칸이 빈 경기들이 왼쪽 날짜를 이어받아 하루에 몰리면 crowdedDays가 그 날짜와 첫 경기의 열·행을 알린다", () => {
+    // 날짜는 22경기 묶음의 첫 칸에만 있고, 나머지 21경기는 날짜 칸이 비어 10/1을 이어받는다(의도된 동작). 10/3은 평범한 날.
+    const text = acrossGrid([
+      { date: "10월 1일", matches: Array.from({ length: 22 }, (_, i) => v1Match(i + 1, "x")) },
+      { date: "10/3", matches: [v1Match(30, "x")] },
+    ]);
+    const parsed = parseSheet(parseDelimited(text, "\t"), acrossMappingOf(text), { today: "2026-11-05" });
+    expect(parsed.errors).toEqual([]);
+    expect(crowdedDays(parsed.matches)).toEqual([
+      { date: "2026-10-01", count: 22, first: expect.objectContaining({ where: "C~D열 3행" }) },
+    ]);
+    expect(crowdedDays(parsed.matches)[0]!.first.where).toMatch(/^[A-Z]+~[A-Z]+열 \d+행$/);
   });
 
   it("다른 표 모양(한 줄에 선수 한 명)과 승패가 섞인 요약 표는 가로로 긴 표로 보지 않는다", () => {
