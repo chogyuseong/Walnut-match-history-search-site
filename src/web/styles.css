@@ -1607,6 +1607,18 @@ button.bar-row:hover {
   }
 }
 
+/* PC: 고정 행동 버튼(고르기 "팀 짜기", 준비 "이 팀으로 시작", 경기 "결과 입력")을 오른쪽 끝 320px 이상 한 칸으로.
+   전체 폭(1100px 넘는 골드 막대)이면 화면을 가로질러 다른 내용보다 무겁다. 고르기의 "n명이 더 필요해요"는
+   같은 칸 안에서 버튼 아래 가운데에 온다. 위 1px 선은 고정 줄이 본문 위에 떠 있을 때 경계를 보이려는 것이다. */
+@media (min-width: 1200px) {
+  .action-sticky {
+    display: grid;
+    grid-template-columns: minmax(320px, max-content);
+    justify-content: end;
+    border-top: 1px solid var(--ih-line);
+  }
+}
+
 /* 고정 행동 버튼("이 팀으로 시작" 등)이 있는 화면: 토스트가 그 버튼을 덮지 않게 버튼 위로 올린다. */
 body:has(.action-sticky) .toast {
   bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 84px);
@@ -4009,19 +4021,27 @@ main:focus {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-label);
 }
-/* 전체 목록은 카드 한 장(.list-card) 안의 구분선 줄. 고른 줄은 카드 안에서도 1px 포인트 테두리 + 틴트를
-   유지하고, 마우스를 올려도 그 모양이 풀리지 않게 한다. */
-.list-card .list-row.pick-item.selected {
-  border-top-width: 1px;
-}
+/* 전체 목록은 카드 한 장(.list-card) 안의 구분선 줄. 고른 줄은 옅은 선택 바탕 + 골드 체크 + "선택됨" 글자로만 보인다.
+   열 명을 고르면 골드 테두리 열 개가 화면에서 가장 큰 골드 덩어리가 되어 주 버튼("팀 짜기")보다 무거웠다(5절: 선택은
+   옅은 배경과 강조 글자). 라이트의 선택 바탕(#FBF3E2)은 흰 패널과 명도 차가 작으니 체크와 글자를 빼지 않는다.
+   마우스를 올려도 선택 바탕이 풀리지 않게 한다. */
+.list-card .list-row.pick-item.selected,
 .list-card button.list-row.pick-item.selected:not(:disabled):hover {
   background: var(--ih-selected);
-  border-color: var(--ih-accent);
+  border-color: var(--ih-line);
+  border-width: 1px 0 0;
+  border-radius: 0;
+}
+.list-card > :first-child > .list-row.pick-item.selected {
+  border-top-width: 0;
+}
+.pick-item.selected .name > .line-icon {
+  color: var(--ih-accent);
 }
 @media (min-width: 768px) {
   /* 여러 열: 칸마다 위쪽 구분선을 두고, 카드 자체의 위 테두리는 없앤다. 첫 줄 칸들의 선이 카드 위 테두리를 대신해
      선이 두 겹(2px)으로 보이지 않는다. 참가자가 열 수보다 적으면 위 테두리가 그 칸까지만 그어진다.
-     고른 칸은 안쪽 1px 외곽선(outline-offset -1px)으로 포인트 테두리를 그린다. 테두리를 쓰면 이웃 칸 선과 겹쳐 두 겹이 된다. */
+     고른 칸도 다른 칸과 같은 위쪽 구분선만 둔다(위 .pick-item.selected). */
   .pick-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -4030,14 +4050,9 @@ main:focus {
   .pick-grid.list-card {
     border-top-width: 0;
   }
-  .pick-grid.list-card > li > .list-row {
+  .pick-grid.list-card > li > .list-row,
+  .pick-grid.list-card > :first-child > .list-row.pick-item.selected {
     border-top-width: 1px;
-  }
-  .pick-grid.list-card .list-row.pick-item.selected,
-  .pick-grid.list-card button.list-row.pick-item.selected:not(:disabled):hover {
-    border-color: transparent;
-    outline: 1px solid var(--ih-accent);
-    outline-offset: -1px;
   }
 }
 
@@ -4543,6 +4558,10 @@ main:focus {
   margin: 0;
 }
 /* 신청자 0명: 한 줄(제목 · 상태 · 0명 · 링크 버튼)로 접는다. */
+.join-compact {
+  padding: 0 0 var(--space-3);
+  border-bottom: 1px solid var(--ih-line);
+}
 .join-compact-row {
   display: flex;
   flex-wrap: wrap;
@@ -6975,19 +6994,18 @@ label:has(> select) {
 }
 
 /* 라인별 표: 폭에 따라 세 가지 배치(판 자체의 폭 = 컨테이너 기준).
-   ~419px: 라인+칩 / 블루 / 레드 / 맞대결이 한 줄씩(폰). 420px~: 라인 · 블루 · 칩 · 레드, 맞대결은 아래 줄.
+   ~419px: 라인·맞대결·칩 / 블루 / 레드(폰. 맞대결을 첫 줄로 올려 라인 다섯 줄이 줄마다 한 줄씩 짧다). 420px~: 라인 · 블루 · 칩 · 레드, 맞대결은 아래 줄.
    640px~: 다섯 칸 한 줄. */
 .forecast-lanes {
   margin: 0;
 }
 .fc-lane {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    "pos edge"
-    "blue blue"
-    "red red"
-    "h2h h2h";
+    "pos h2h edge"
+    "blue blue blue"
+    "red red red";
   gap: var(--space-1) var(--space-2);
   align-items: center;
   min-height: 44px;
@@ -7053,8 +7071,12 @@ label:has(> select) {
 }
 .fc-h2h {
   grid-area: h2h;
+  text-align: right;
 }
 @container (min-width: 420px) {
+  .fc-h2h {
+    text-align: left;
+  }
   .fc-lane {
     grid-template-columns: 4.5em minmax(0, 1fr) auto minmax(0, 1fr);
     grid-template-areas:
@@ -7342,6 +7364,13 @@ input[type="search"].filter-search {
   padding: var(--space-4);
   border: 1px dashed var(--ih-line);
   border-radius: var(--radius-panel);
+}
+/* 넓은 화면의 빈 안내 버튼은 글자 폭(최소 240px)으로 문장 바로 아래에. 상자 전체 폭이면 1100px 골드 막대가 된다. */
+@media (min-width: 768px) {
+  .empty-state > .primary.wide {
+    width: auto;
+    min-width: 240px;
+  }
 }
 
 /* ---------- 표 ----------

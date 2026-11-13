@@ -97,7 +97,7 @@ export function Today() {
               </span>
             )
           }
-          desc="오늘 할 입력과 모임 기록 요약"
+          desc="오늘 팀을 짜고 결과를 남기는 곳이에요"
         />
       )}
 

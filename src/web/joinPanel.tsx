@@ -176,9 +176,10 @@ export function JoinPanel(props: {
 
   // 신청자가 없으면 한 줄로 접는다("참가 신청 · 받는 중 · 0명 · 링크 복사"). 고르기 화면의 참가자 목록이 위로 올라온다.
   // 다시 만들기·닫기는 접힌 도움말 안에 둔다(2026-11-08 화면 점검).
+  // 접힌 줄은 카드로 감싸지 않고 아래 구분선만 둔다. 카드면 빈 신청 하나가 이름 입력을 150px 넘게 밀어냈다.
   if (entries.length === 0) {
     return (
-      <section className="card join-panel join-compact" aria-label="참가 신청">
+      <section className="join-panel join-compact" aria-label="참가 신청">
         <div className="join-compact-row">
           <h2>참가 신청</h2>
           <span className="hint">

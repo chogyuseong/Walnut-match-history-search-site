@@ -32,6 +32,16 @@ const TONE: Record<Team, string> = { A: "fc-tone-A", B: "fc-tone-B" };
 const SHORT_TEAM: Record<Team, string> = { A: "블루", B: "레드" };
 
 /**
+ * 순위 줄이 무언가를 말하는지. 모든 나누기가 동점(예: 모두 처음 온 사람이라 MMR이 같다)이면
+ * "126가지 중 1위(공동 126개)"가 되어 아무것도 알려 주지 않으니 줄을 숨긴다. 티어 점수가 갈리면 그것만으로도 보인다.
+ */
+function splitRanksTell(ranks: DraftSplitRanks): boolean {
+  if (!ranks.mmr) return false;
+  const allTied = (r: DraftSplitRanks["mmr"]) => !r || r.ties >= r.total;
+  return !(allTied(ranks.mmr) && allTied(ranks.tier));
+}
+
+/**
  * 접지 않는다: 접혀 있던 "편성 균형"을 아무도 열어 보지 않았다는 피드백에서 나온 판이다.
  * balance는 운영자가 아니면 null이라 티어 점수 부분이 통째로 빠진다.
  */
@@ -100,7 +110,7 @@ export function ForecastSection(props: {
         {/* 실제 경기가 가상 경기(upset.ts CALIBRATION_PRIOR_GAMES)보다 적으면 보정이 절반도 안 들어간다. */}
         {forecast.calibration.games < CALIBRATION_PRIOR_GAMES && "(기록이 적어 조금만 보정)"}
       </p>
-      {props.splitRanks?.mmr && <p className="hint">{splitRanksText(props.splitRanks)}</p>}
+      {props.splitRanks && splitRanksTell(props.splitRanks) && <p className="hint">{splitRanksText(props.splitRanks)}</p>}
 
       {/* ─ 라인별 표. 칸 배치는 판 폭에 따라 CSS 컨테이너 쿼리가 바꾼다(.fc-lane) ─ */}
       <ul className="list list-card forecast-lanes" aria-label="라인별 우위">
@@ -112,7 +122,8 @@ export function ForecastSection(props: {
             <EdgeChip lane={lane} />
             <PersonCell person={lane.blue} side="A" position={lane.position} nameOf={nameOf} placementGames={placementGames} />
             <PersonCell person={lane.red} side="B" position={lane.position} nameOf={nameOf} placementGames={placementGames} />
-            <span className="fc-h2h">맞대결 {matchupText(lane)}</span>
+            {/* "첫 맞대결"은 그 자체로 말이 되므로 앞에 "맞대결"을 또 붙이지 않는다. */}
+            <span className="fc-h2h">{lane.games === 0 ? matchupText(lane) : `맞대결 ${matchupText(lane)}`}</span>
           </li>
         ))}
       </ul>

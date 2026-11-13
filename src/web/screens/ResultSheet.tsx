@@ -221,6 +221,8 @@ export function ResultSheet(props: {
         {winner && championSection}
 
         <ErrorNote error={error} onCheck={() => void save()} />
+        {/* 꺼진 저장 버튼만 보이면 무엇을 해야 하는지 알 수 없다. */}
+        {!winner && <p className="hint">이긴 팀을 누르면 저장할 수 있어요.</p>}
         <button
           type="button"
           className="primary wide"
@@ -313,6 +315,7 @@ export function ResultSheet(props: {
       )}
 
       <ErrorNote error={error} onCheck={() => void save()} />
+      {!winner && <p className="hint">이긴 팀을 누르면 저장할 수 있어요.</p>}
       <button
         type="button"
         className="primary wide"

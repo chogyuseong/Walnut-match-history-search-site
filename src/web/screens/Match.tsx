@@ -193,6 +193,15 @@ export function Match() {
       <MatchTeams match={match} nameOf={nameOf} onPick={(id) => setReplacing(id)} />
       <p className="hint">사람을 누르면 다른 사람으로 바꿀 수 있어요(팀·포지션은 그대로).</p>
 
+      {/* 경기 중 할 일은 결과 입력 하나라 팀 바로 아래 채운 버튼으로 둔다(휴대폰은 하단 메뉴 위에 고정).
+          공유는 보조 버튼, 흐름을 넘기는 행동은 링크로 한 단 더 낮춘다. 결과 입력은 이긴 팀 고르기·저장 두 단계라
+          잘못 눌러도 바로 저장되지 않는다. */}
+      <StickyAction>
+        <button type="button" className="primary wide" onClick={() => setSheetMatch(match)}>
+          결과 입력
+        </button>
+      </StickyAction>
+
       <div className="button-row">
         <button type="button" className="secondary" onClick={() => setSendOpen(true)}>
           참가자에게 편성 보내기
@@ -200,15 +209,12 @@ export function Match() {
         <button type="button" className="secondary" onClick={() => setSharing(true)}>
           명단 공유
         </button>
-        <button type="button" className="secondary" onClick={() => prepareNext(app, match)}>
+      </div>
+      <div className="button-row">
+        <button type="button" className="link" onClick={() => prepareNext(app, match)}>
           {app.draft ? "다음 초안 열기" : "다음 경기 준비"}
         </button>
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() => void run("end-later")}
-        >
+        <button type="button" className="link" disabled={busy} onClick={() => void run("end-later")}>
           결과는 나중에
         </button>
         <button type="button" className="link" onClick={() => setMore(!more)} aria-expanded={more}>
@@ -224,12 +230,6 @@ export function Match() {
         </div>
       )}
       <ErrorNote error={error} />
-
-      <StickyAction>
-        <button type="button" className="primary wide" onClick={() => setSheetMatch(match)}>
-          결과 입력
-        </button>
-      </StickyAction>
 
       {sheet}
 
