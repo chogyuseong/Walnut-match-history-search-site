@@ -630,7 +630,7 @@ export function Group() {
             않습니다. 시즌끼리는 날짜가 겹칠 수 없습니다.
           </Help>
           {snapshot.seasons.length > 0 && (
-            <ul className="list">
+            <ul className="list list-card" aria-label="시즌 목록">
               {snapshot.seasons.map((s) => (
                 <li key={s.id} className="list-row static">
                   <span>

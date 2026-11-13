@@ -3305,12 +3305,33 @@ main:focus {
   white-space: nowrap;
   vertical-align: middle;
 }
-/* 모임 탭 MMR 설정: 숫자 칸 넷과 저장 버튼. 좁은 화면에서는 줄을 바꾼다. */
+/* 모임 탭 MMR 설정: 숫자 칸과 저장 버튼. 좁은 화면에서는 "이름 | 칸" 줄을 위아래로 쌓고 이름 칸 폭을 같게 해
+   숫자 칸 시작점을 맞춘다(이름 길이가 달라 칸이 들쭉날쭉했다). 저장은 맨 아래 줄. 768px 이상은 한 줄로 흐른다. */
 .rating-settings {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.rating-settings .inline-label {
+  display: grid;
+  grid-template-columns: var(--rating-label-width) auto;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
+}
+:root {
+  /* 가장 긴 이름 "MMR 시작 점수"(16px, 600)가 한 줄에 들어가는 폭. */
+  --rating-label-width: 8em;
+}
+@media (min-width: 768px) {
+  .rating-settings {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  .rating-settings .inline-label {
+    grid-template-columns: auto auto;
+  }
 }
 /* 최근 변화(▲48·▼7): 바탕 없이 오름은 본문 글자, 내림은 보조 글자. 오르내림은 ▲·▼ 기호가 전한다
    (초록·빨강은 성공·패배 뜻이라 쓰지 않는다, CLAUDE.md 5절). */
@@ -5740,15 +5761,11 @@ button.row.swap-target:hover {
 }
 
 /* 모임 탭 구역 바로 가기: 작은 칩 한 줄, 좁은 화면에서는 가로로 넘긴다. */
+/* 옆으로 밀어 보는 줄로 두었더니 폰에서 오른쪽 버튼이 반쯤 잘려 깨진 것처럼 보였다. 여섯 개 모두 보이게 줄을 바꾼다. */
 .block-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: var(--space-1);
-  scrollbar-width: none;
-}
-.block-nav::-webkit-scrollbar {
-  display: none;
 }
 .block-nav .chip {
   flex: none;
