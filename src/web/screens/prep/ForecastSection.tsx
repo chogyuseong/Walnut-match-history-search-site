@@ -22,6 +22,7 @@ import { priorityLabel } from "../../../shared/priority";
 import { shownRating } from "../../../shared/rating";
 import { ratePercent } from "../../../shared/stats";
 import type { Team } from "../../../shared/types";
+import { CALIBRATION_MIN_GAMES } from "../../../shared/upset";
 import { POSITION_LABEL } from "../../format";
 import { Help, InfoTip, PosLabel } from "../../screenKit";
 import { prepTeamName } from "./common";
@@ -63,10 +64,13 @@ export function ForecastSection(props: {
       <h2>
         예상 승률{" "}
         <InfoTip label="예상 승률">
-          지난 경기 기록으로 쌓인 각자의 내전 MMR(라인을 나누지 않은 전체 점수)로 낸 추정이에요. 라인 비교도 그 라인에
-          선 두 사람의 전체 MMR을 견준 것이라, 처음 맡는 라인의 실력은 반영하지 않아요. 팀을 나눌 때는 쓰지 않고(팀은
-          티어로 나눠요), 짠 팀이 얼마나 비슷한지 확인할 때 봐요. 아래 "몇 가지 중 몇 위"는 같은 10명을 5:5로 나눌 수
-          있는 모든 방법과 견준 자리예요. 1위면 이 10명으로 이보다 고르게 나눌 방법이 없다는 뜻이고, 이길 확률은 아니에요.
+          지난 경기 기록으로 쌓인 각자의 내전 MMR(라인을 나누지 않은 전체 점수)로 낸 추정이에요. 팀을 티어로 맞춰 짜는
+          모임에서는 MMR 차만으로 낸 확률이 실제보다 한쪽으로 쏠려서, 이 모임 지난 경기의 예상과 실제 결과를 견줘 쏠림을
+          줄이고 블루·레드 진영 차이를 더해 보정해요. 판정할 수 있는 지난 경기가 {CALIBRATION_MIN_GAMES}경기가 안 되면
+          보정하지 않아요. 경기 뒤 "이변" 판정도 같은 보정값을 써요. 라인 비교는 그 라인에 선 두 사람의 전체 MMR을 견준
+          것이라, 처음 맡는 라인의 실력은 반영하지 않아요. 팀을 나눌 때는 쓰지 않고(팀은 티어로 나눠요), 짠 팀이 얼마나
+          비슷한지 확인할 때 봐요. 아래 "몇 가지 중 몇 위"는 같은 10명을 5:5로 나눌 수 있는 모든 방법과 견준 자리예요.
+          1위면 이 10명으로 이보다 고르게 나눌 방법이 없다는 뜻이고, 이길 확률은 아니에요.
         </InfoTip>
       </h2>
       <p className={`forecast-summary${fav ? ` ${TONE[fav]}` : ""}`}>
@@ -91,6 +95,9 @@ export function ForecastSection(props: {
         팀 평균 MMR {shownRating(A.average)} : {shownRating(B.average)}
         {seated > 0 && ` · 배치 완료 ${placed}/${seated}명`}
         {unknown > 0 && ` · 연결 안 된 사람 ${unknown}명(${props.start}으로 계산)`}
+        {forecast.calibration.applied
+          ? ` · 이 모임 ${forecast.calibration.games}경기로 보정`
+          : ` · 보정 전(지난 경기 ${forecast.calibration.games}/${CALIBRATION_MIN_GAMES})`}
       </p>
       {props.splitRanks?.mmr && <p className="hint">{splitRanksText(props.splitRanks)}</p>}
 
@@ -146,7 +153,8 @@ export function ForecastSection(props: {
       )}
 
       <p className="hint">
-        예상은 경기 직전 팀 MMR 평균으로 구한 기대 승률이에요. 라인 우위는 두 사람 MMR 차 {LANE_EDGE_MIN} 이상일 때 표시해요.
+        예상은 팀 MMR 평균 차로 구한 승률을 이 모임 지난 경기 결과에 맞춰 보정한 값이에요. 라인 우위는 두 사람 MMR 차{" "}
+        {LANE_EDGE_MIN} 이상일 때 표시해요.
       </p>
       {/* 줄마다의 title 풍선은 터치 화면에서 뜨지 않아 같은 글을 접힌 도움말에도 둔다. */}
       <Help label="라인별 계산 보기">

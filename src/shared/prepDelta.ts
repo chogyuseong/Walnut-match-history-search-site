@@ -4,6 +4,7 @@ import { forecastBluePercent, teamExpectation } from "./forecast";
 import type { RatingOptions, RatingTable } from "./rating";
 import { repeatPairsOf, type DiversityInput } from "./recommend";
 import { repeatSupporterIds, type RotationContext } from "./rotation";
+import type { ExpectationCalibration } from "./upset";
 
 /**
  * 준비 화면 "직전 편성 대비" 한 줄(2026-11-10 실험 A 축소형, docs/개선-경험-설계-2026-11-10.md 5·6절).
@@ -37,6 +38,8 @@ export function draftDelta(
     ctx: RotationContext;
     diversity?: DiversityInput;
     ratings: RatingTable | null;
+    /** 예상 승률 판과 같은 보정값(upset.ts expectationCalibration). 그래야 이 줄의 %가 판의 %와 같다. */
+    calibration: ExpectationCalibration;
     ratingOptions: Partial<RatingOptions>;
   },
 ): DeltaLine[] {
@@ -64,8 +67,8 @@ export function draftDelta(
   }
 
   if (inputs.ratings) {
-    const a = teamExpectation(before, inputs.ratings, inputs.ratingOptions);
-    const b = teamExpectation(draft, inputs.ratings, inputs.ratingOptions);
+    const a = teamExpectation(before, inputs.ratings, inputs.calibration, inputs.ratingOptions);
+    const b = teamExpectation(draft, inputs.ratings, inputs.calibration, inputs.ratingOptions);
     // 한쪽이라도 신뢰할 수 없으면(전원 배치 중 등) 숫자를 견주지 않는다.
     if (a.reliable && b.reliable) push("forecast", forecastBluePercent(a), forecastBluePercent(b));
   }
