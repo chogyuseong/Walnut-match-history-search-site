@@ -6,6 +6,7 @@ import { computeRatings } from "../src/shared/rating";
 import { diversityFor, recommendTeams } from "../src/shared/recommend";
 import type { RotationContext } from "../src/shared/rotation";
 import { POSITIONS, type MatchView, type Team } from "../src/shared/types";
+import { expectationCalibration, UNCALIBRATED } from "../src/shared/upset";
 
 // 준비 화면 "직전 편성 대비" 한 줄(src/shared/prepDelta.ts, 2026-11-10 실험 A 축소형).
 
@@ -35,7 +36,7 @@ function baseDraft(): Draft {
 }
 
 const off: RotationContext = { enabled: false, cycleId: null, usedIds: new Set(), eventCount: 0 };
-const none = { avoid: {} as AvoidMap, ctx: off, ratings: null, ratingOptions: {} };
+const none = { avoid: {} as AvoidMap, ctx: off, ratings: null, calibration: UNCALIBRATED, ratingOptions: {} };
 
 /** 같은 열 명이 같은 팀으로 n판. winner가 A면 p0~p4가 이긴다. */
 function games(n: number, winner: Team = "A", from = 1): MatchView[] {
@@ -91,6 +92,7 @@ describe("draftDelta: 항목과 순서", () => {
       ctx: off,
       diversity,
       ratings,
+      calibration: UNCALIBRATED,
       ratingOptions: { placementGames: 3 },
     });
     expect(lines.map((l) => l.kind)).toEqual(["repeat", "forecast"]);
@@ -107,6 +109,7 @@ describe("draftDelta: 항목과 순서", () => {
       ctx: off,
       diversity: diversityFor({ matches, settings: {} }, people),
       ratings: computeRatings(matches, { placementGames: 3 }),
+      calibration: UNCALIBRATED,
       ratingOptions: { placementGames: 3 },
     });
     expect(lines.map((l) => [l.kind, l.warn])).toEqual([
@@ -170,6 +173,7 @@ describe("draftDelta: 자료가 없으면 그 항목을 뺀다", () => {
       ...none,
       diversity: diversityFor({ matches, settings: {} }, people),
       ratings: computeRatings(matches),
+      calibration: UNCALIBRATED,
       ratingOptions: { placementGames: 10 },
     });
     expect(lines.map((l) => l.kind)).toEqual(["repeat"]);
@@ -192,6 +196,7 @@ describe("draftDelta: 초안을 바꾸지 않는다", () => {
       ctx: { enabled: true, cycleId: "c", usedIds: new Set(["p0"]), eventCount: 1 },
       diversity: diversityFor({ matches, settings: {} }, people),
       ratings: computeRatings(matches),
+      calibration: UNCALIBRATED,
       ratingOptions: {},
     });
     expect(swapped).toEqual(copy);
@@ -200,12 +205,18 @@ describe("draftDelta: 초안을 바꾸지 않는다", () => {
 });
 
 describe("같은 식을 쓴다", () => {
-  it("teamExpectation은 draftForecast와 같은 예상·신뢰 여부", () => {
-    const matches = games(12);
+  it.each([
+    ["보정 전(12경기)", games(12)],
+    // 50경기를 넘겨 보정이 걸린 경우에도 같은 보정값을 거치는지.
+    ["보정 뒤(70경기)", [...games(40), ...games(30, "B", 41)]],
+  ])("teamExpectation은 draftForecast와 같은 예상·신뢰 여부: %s", (_, matches) => {
     const ratings = computeRatings(matches, { placementGames: 3 });
     const draft = swapPeople(baseDraft(), "p:p0", "p:p5");
     const full = draftForecast(draft, ratings, matches, { placementGames: 3 });
-    const light = teamExpectation(draft, ratings, { placementGames: 3 });
+    const light = teamExpectation(draft, ratings, expectationCalibration(matches, { placementGames: 3 }), {
+      placementGames: 3,
+    });
+    expect(full.calibration.applied).toBe(matches.length >= 50);
     expect(light.expectedA).toBe(full.expectedA);
     expect(light.reliable).toBe(full.reliable);
     expect(light.teams).toEqual(full.teams);

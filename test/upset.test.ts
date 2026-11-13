@@ -4,6 +4,8 @@ import { seasonSummary, seasonSummaryText } from "../src/shared/seasonAwards";
 import { DEFAULT_SETTINGS, type MatchView, type Snapshot, type Team } from "../src/shared/types";
 import {
   BALANCED_MARGIN,
+  calibrateExpectation,
+  expectationCalibration,
   expectedOf,
   fairnessReport,
   fairnessVerdict,
@@ -102,27 +104,29 @@ describe("경기 전 예상", () => {
   });
 });
 
+/** 시드로 재현하는 난수(테스트 전용). */
+function rng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+/** 14명 중 10명을 매번 다르게 뽑아 섞은 경기들. 결과·상태도 무작위(확정이 대부분, 가끔 결과 대기·제외·취소). */
+function randomMatches(seed: number, count: number): MatchView[] {
+  const random = rng(seed);
+  return Array.from({ length: count }, (_, i) => {
+    const pool = Array.from({ length: 14 }, (_, k) => k).sort(() => random() - 0.5).slice(0, 10);
+    const roll = random();
+    const state: MatchView["state"] = roll < 0.06 ? "awaiting_result" : roll < 0.1 ? "excluded" : roll < 0.13 ? "canceled" : "confirmed";
+    return match(i + 1, { teamA: pool.slice(0, 5), teamB: pool.slice(5), winner: random() < 0.5 ? "A" : "B", state });
+  });
+}
+
 describe("경기 전 예상: 미래 결과가 섞이지 않는다(속성, 2026-11-10 설계 4절 D)", () => {
-  /** 시드로 재현하는 난수(테스트 전용). */
-  function rng(seed: number): () => number {
-    let state = seed >>> 0;
-    return () => {
-      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-      return state / 4294967296;
-    };
-  }
-
-  /** 14명 중 10명을 매번 다르게 뽑아 섞은 경기들. 결과·상태도 무작위(확정이 대부분, 가끔 결과 대기·제외·취소). */
-  function randomMatches(seed: number, count: number): MatchView[] {
-    const random = rng(seed);
-    return Array.from({ length: count }, (_, i) => {
-      const pool = Array.from({ length: 14 }, (_, k) => k).sort(() => random() - 0.5).slice(0, 10);
-      const roll = random();
-      const state: MatchView["state"] = roll < 0.06 ? "awaiting_result" : roll < 0.1 ? "excluded" : roll < 0.13 ? "canceled" : "confirmed";
-      return match(i + 1, { teamA: pool.slice(0, 5), teamB: pool.slice(5), winner: random() < 0.5 ? "A" : "B", state });
-    });
-  }
-
+  // 판정 가능 경기가 보정 최소 수(CALIBRATION_MIN_GAMES) 미만인 기록에서만 성립한다. 그 이상이면 모임 전체 기록으로
+  // 맞춘 보정값이 지난 경기 예상에도 들어가 앞부분만 넣은 값과 달라진다(upset.ts 머리 주석의 알려진 한계).
   it("앞부분 경기만 넣어 계산한 그 경기의 예상이 전체 기록으로 계산한 값과 같다", () => {
     for (const seed of [1, 7, 42]) {
       const all = randomMatches(seed, 40);
@@ -138,6 +142,43 @@ describe("경기 전 예상: 미래 결과가 섞이지 않는다(속성, 2026-1
       // 확정 경기 대부분을 실제로 견줬다(예상이 없는 경기끼리만 같아서 통과하는 일이 없게).
       expect(compared).toBeGreaterThan(30);
     }
+  });
+});
+
+describe("이변 판정은 이 모임 기록으로 보정한 예상을 쓴다", () => {
+  it("원래 예상(history.before 평균의 Elo)을 보정한 값으로 예상·이변을 정한다", () => {
+    const options = { placementGames: 3 };
+    // 결과가 무작위라 MMR 차가 실제 전력 차보다 과장된 기록(내전 모임의 과신과 같은 꼴).
+    const matches = randomMatches(5, 150);
+    const calibration = expectationCalibration(matches, options);
+    expect(calibration.applied).toBe(true);
+    expect(calibration.scale).toBeLessThan(1);
+    const expectations = matchExpectations(matches, options);
+    const table = computeRatings(matches, options);
+    const beforeAvg = (m: MatchView, team: Team) => {
+      const ids = m.roster.filter((r) => r.team === team).map((r) => r.participantId);
+      const sum = ids.reduce((s, id) => s + table.get(id)!.history.find((h) => h.matchId === m.id)!.before, 0);
+      return sum / ids.length;
+    };
+    let rawUpsets = 0;
+    let upsets = 0;
+    for (const m of matches) {
+      const e = expectations.get(m.id);
+      if (!e) continue;
+      const raw = expectedScore(beforeAvg(m, "A"), beforeAvg(m, "B"));
+      expect(e.expectedA).toBeCloseTo(calibrateExpectation(raw, m.teamASide, calibration), 12);
+      expect(e.upset).toBe(isUpset(expectedOf(e, e.winnerTeam), e.reliable));
+      if (isUpset(e.winnerTeam === "A" ? raw : 1 - raw, e.reliable)) rawUpsets += 1;
+      if (e.upset) upsets += 1;
+    }
+    // 보정이 예상을 50% 쪽으로 당겨 원래 예상으로 셌을 때보다 이변이 줄어야 한다.
+    expect(upsets).toBeLessThan(rawUpsets);
+  });
+
+  it("같은 경기 배열이면 다시 맞추지 않고 같은 값을 돌려준다", () => {
+    const matches = randomMatches(9, 80);
+    expect(matchExpectations(matches, { placementGames: 3 })).toBe(matchExpectations(matches, { placementGames: 3 }));
+    expect(expectationCalibration(matches, { placementGames: 3 })).toBe(expectationCalibration(matches, { placementGames: 3 }));
   });
 });
 

@@ -8,6 +8,7 @@ import { computeRatings, ratingOptionsOf } from "../../shared/rating";
 import { diversityFor } from "../../shared/recommend";
 import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
 import { DEFAULT_SETTINGS } from "../../shared/types";
+import { UNCALIBRATED } from "../../shared/upset";
 import { draftRosterText, josa, POSITION_LABEL } from "../format";
 import { BackLink, StickyAction, useMediaQuery } from "../screenKit";
 import { CopyButton, ErrorNote } from "../ui";
@@ -141,7 +142,11 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
   let delta: DeltaLine[] = [];
   try {
     // 되돌린 직후(redoSlots 있음)에는 그리지 않는다. 그때 previousSlots는 한 단계 더 앞의 자리라 "방금 변경"이 아니다.
-    if (!draft.redoSlots) delta = draftDelta(draft, { avoid: edit.avoidMap, ctx, diversity, ratings, ratingOptions });
+    if (!draft.redoSlots) {
+      // 예상 승률 판과 같은 보정값을 써야 두 곳의 %가 같다. 스냅숏이 없으면 ratings도 없어 % 항목이 빠진다.
+      const calibration = forecast?.calibration ?? UNCALIBRATED;
+      delta = draftDelta(draft, { avoid: edit.avoidMap, ctx, diversity, ratings, calibration, ratingOptions });
+    }
   } catch {
     // 참고용 한 줄이라 계산이 실패해도 편성 조작과 시작 버튼을 막지 않는다(설계 5절 실패 처리). 줄만 그리지 않는다.
   }

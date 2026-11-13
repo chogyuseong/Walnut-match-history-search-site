@@ -2,15 +2,21 @@ import type { Draft } from "./draft";
 import { laneMatchups, type LaneMatchup } from "./prepTools";
 import { DEFAULT_RATING_OPTIONS, expectedScore, type RatingOptions, type RatingTable } from "./rating";
 import { fractionPercent, personRecordsByLine, type Tally } from "./stats";
-import { POSITIONS, TEAMS, type MatchView, type Position, type Team } from "./types";
+import { POSITIONS, TEAMS, type MatchView, type Position, type Side, type Team } from "./types";
+import { calibrateExpectation, expectationCalibration, type ExpectationCalibration } from "./upset";
 
 /**
  * 준비 화면 예상 승률 판(2026-11-09 추가). 작성 중인 편성(Draft)으로 블루(팀 A)·레드(팀 B)의 예상 승률과 그 이유(라인마다 두 사람의 전체 MMR 우위)를 구한다.
  * 라인별 MMR은 따로 없다: 미드만 하던 사람이 처음 서폿을 가도 같은 MMR로 견준다. 화면 도움말도 그렇게 설명한다.
- * 쓰는 곳: src/web/screens/prep/ForecastSection.tsx. 저장하지 않고 스냅숏의 경기로 매번 계산한다(서버·DB 무관).
+ * 쓰는 곳: src/web/screens/prep/ForecastSection.tsx, prepDelta.ts. 저장하지 않고 스냅숏의 경기로 매번 계산한다(서버·DB 무관).
  * 식은 경기 전 예상(upset.ts matchExpectations)과 같다: 팀 MMR = 팀원 지금 MMR 평균, 경기 없는 사람은 시작값(모임 설정),
- * 예상 = expectedScore(Elo). 신뢰 여부도 같은 규칙(열 명 중 배치를 마친 사람이 한 명이라도 있으면 신뢰).
+ * 예상 = expectedScore(Elo)를 이 모임 지난 경기로 보정한 값(upset.ts calibrateExpectation, 이변 판정과 같은 a·b).
+ * 그래서 준비 화면에 보이는 %와 경기 뒤 이변 판정의 기준이 같은 숫자다. 신뢰 여부도 같은 규칙(열 명 중 배치를 마친 사람이
+ * 한 명이라도 있으면 신뢰).
  */
+
+/** 준비 화면의 팀 A는 늘 블루다(draft.ts teamASide 설명). 보정의 진영 몫이 블루 쪽으로 들어간다. */
+const PREP_TEAM_A_SIDE: Side = "blue";
 
 /**
  * 라인 우위 최소 MMR 차(임시값). 두 사람 MMR 차의 절댓값이 이 값 미만이면 "비슷"으로 본다.
@@ -68,8 +74,10 @@ export interface LaneForecast extends LaneMatchup {
 
 export interface DraftForecast {
   teams: Record<Team, TeamForecast>;
-  /** 팀 A(블루)가 이길 예상 확률(0~1). 한 팀이 비었으면 0.5. */
+  /** 팀 A(블루)가 이길 예상 확률(0~1, 보정 뒤). 한 팀이 비었으면 0.5. */
   expectedA: number;
+  /** 예상에 쓴 보정값. 화면 근거 줄("이 모임 n경기로 보정" 또는 "보정 전")이 쓴다. */
+  calibration: ExpectationCalibration;
   /** 편성된 사람 중 배치를 마친 사람이 한 명이라도 있으면 true(upset.ts와 같은 규칙). */
   reliable: boolean;
   /** 탑~서폿 순서의 다섯 줄. */
@@ -79,8 +87,8 @@ export interface DraftForecast {
 }
 
 /**
- * ratings는 computeRatings(snapshot.matches) 그대로(모임 전체 누적) 넘긴다. matches를 시즌 등으로 좁혀 넣으면
- * 라인 전적과 맞대결만 좁아지고 MMR은 그대로라 두 숫자의 기준이 어긋난다.
+ * ratings는 computeRatings(snapshot.matches) 그대로(모임 전체 누적), matches도 스냅숏의 모임 전체 경기를 넘긴다.
+ * matches를 시즌 등으로 좁혀 넣으면 라인 전적·맞대결·보정값만 좁아지고 MMR은 그대로라 숫자의 기준이 어긋난다.
  */
 export function draftForecast(
   draft: Draft,
@@ -89,7 +97,8 @@ export function draftForecast(
   options: Partial<RatingOptions> = {},
 ): DraftForecast {
   const lineRecords = new Map(POSITIONS.map((pos) => [pos, personRecordsByLine(matches, pos)]));
-  const { teams, expectedA, reliable, personOf } = expectationOf(draft, ratings, options, (participantId, position) => {
+  const calibration = expectationCalibration(matches, options);
+  const { teams, expectedA, reliable, personOf } = expectationOf(draft, ratings, calibration, options, (participantId, position) => {
     const record = lineRecords.get(position)!.get(participantId);
     return { games: record?.games ?? 0, wins: record?.wins ?? 0 };
   });
@@ -104,25 +113,28 @@ export function draftForecast(
     return { ...matchup, blue, red, edge, edgeTeam };
   });
 
-  return { teams, expectedA, reliable, lanes, reasons };
+  return { teams, expectedA, calibration, reliable, lanes, reasons };
 }
 
 /**
  * 팀 평균 MMR과 블루 예상 승률만(라인 전적·맞대결 없이). 준비 화면 "직전 편성 대비" 줄(prepDelta.ts)이
- * 직전 자리와 지금 자리를 같은 식으로 견줄 때 쓴다. draftForecast와 숫자가 같다(같은 함수를 거친다).
+ * 직전 자리와 지금 자리를 같은 식으로 견줄 때 쓴다. calibration은 expectationCalibration(스냅숏 경기)을 넘겨야
+ * draftForecast와 숫자가 같다(같은 함수를 거친다).
  */
 export function teamExpectation(
   draft: Pick<Draft, "people" | "slots">,
   ratings: RatingTable,
+  calibration: ExpectationCalibration,
   options: Partial<RatingOptions> = {},
 ): Pick<DraftForecast, "teams" | "expectedA" | "reliable"> {
-  const { teams, expectedA, reliable } = expectationOf(draft, ratings, options, () => ({ games: 0, wins: 0 }));
+  const { teams, expectedA, reliable } = expectationOf(draft, ratings, calibration, options, () => ({ games: 0, wins: 0 }));
   return { teams, expectedA, reliable };
 }
 
 function expectationOf(
   draft: Pick<Draft, "people" | "slots">,
   ratings: RatingTable,
+  calibration: ExpectationCalibration,
   options: Partial<RatingOptions>,
   lineOf: (participantId: string, position: Position) => Tally,
 ) {
@@ -156,7 +168,10 @@ function expectationOf(
     };
   }
   const bothFilled = teams.A.size > 0 && teams.B.size > 0;
-  const expectedA = bothFilled ? expectedScore(teams.A.average, teams.B.average) : EVEN_PROB;
+  // 한 팀이 비면 견줄 상대가 없어 진영 몫도 더하지 않고 반반으로 둔다.
+  const expectedA = bothFilled
+    ? calibrateExpectation(expectedScore(teams.A.average, teams.B.average), PREP_TEAM_A_SIDE, calibration)
+    : EVEN_PROB;
   return { teams, expectedA, reliable: reliable && bothFilled, personOf };
 }
 

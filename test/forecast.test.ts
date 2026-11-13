@@ -5,10 +5,19 @@ import {
   forecastBluePercent,
   forecastSummaryText,
   LANE_EDGE_MIN,
+  teamExpectation,
   type DraftForecast,
 } from "../src/shared/forecast";
 import { RATING_START, type PersonRating, type RatingTable } from "../src/shared/rating";
-import { POSITIONS, type MatchView, type Team } from "../src/shared/types";
+import { POSITIONS, type MatchView, type Side, type Team } from "../src/shared/types";
+import {
+  CALIBRATION_MIN_GAMES,
+  calibrateExpectation,
+  fitExpectationCalibration,
+  UNCALIBRATED,
+  type CalibrationSample,
+  type ExpectationCalibration,
+} from "../src/shared/upset";
 
 // 준비 화면 예상 승률 판(2026-11-09, src/shared/forecast.ts): 팀 평균 MMR의 Elo 예상, 라인 우위, 빈 슬롯·연결 없는 사람, 신뢰 여부.
 
@@ -142,5 +151,80 @@ describe("예상 승률(draftForecast)", () => {
     expect(f.lanes[1]!.red!.line).toEqual({ games: 1, wins: 0 });
     // 맞대결 전적(laneMatchups)도 함께 담긴다.
     expect(f.lanes[1]).toMatchObject({ games: 1, wins: 1, losses: 0 });
+  });
+});
+
+describe("예상 보정(upset.ts fitExpectationCalibration)", () => {
+  /** 시드로 재현하는 난수(테스트 전용). */
+  function rng(seed: number): () => number {
+    let state = seed >>> 0;
+    return () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  /**
+   * 합성 기록 n판. 원래 예상은 로짓 [−spread, spread]에서 고르게, 진영은 반반.
+   * winChance(원래 예상, 팀 A 진영)가 팀 A가 실제로 이길 확률이다.
+   */
+  function samples(n: number, spread: number, winChance: (p: number, side: Side) => number, seed = 11): CalibrationSample[] {
+    const random = rng(seed);
+    return Array.from({ length: n }, () => {
+      const p = 1 / (1 + Math.exp(-(random() * 2 - 1) * spread));
+      const side: Side = random() < 0.5 ? "blue" : "red";
+      return { expectedA: p, teamASide: side, winnerTeam: random() < winChance(p, side) ? "A" : "B" };
+    });
+  }
+
+  const shown = (p: number, side: Side, c: ExpectationCalibration) => calibrateExpectation(p, side, c);
+
+  it("결과가 예상과 무관하면(동전) 보정된 예상이 50% ± 3%로 모인다", () => {
+    const c = fitExpectationCalibration(samples(4000, Math.log(7 / 3), () => 0.5));
+    expect(c.applied).toBe(true);
+    for (const p of [0.3, 0.4, 0.5, 0.6, 0.7]) {
+      for (const side of ["blue", "red"] as const) {
+        expect(Math.abs(shown(p, side, c) - 0.5)).toBeLessThanOrEqual(0.03);
+      }
+    }
+  });
+
+  it("예상이 잘 맞는 기록이면 배율 a가 1 근처로 남고 진영 몫은 거의 없다", () => {
+    const c = fitExpectationCalibration(samples(3000, Math.log(4), (p) => p));
+    expect(c.scale).toBeGreaterThan(0.9);
+    expect(c.scale).toBeLessThan(1.1);
+    expect(Math.abs(c.blueEdge)).toBeLessThan(0.1);
+  });
+
+  it("블루가 60% 이기는 기록이면 진영 몫 b가 드러난다", () => {
+    const c = fitExpectationCalibration(samples(4000, Math.log(7 / 3), (_, side) => (side === "blue" ? 0.6 : 0.4)));
+    // logit(0.6) ≈ 0.405
+    expect(c.blueEdge).toBeGreaterThan(0.3);
+    expect(c.blueEdge).toBeLessThan(0.5);
+    expect(shown(0.5, "blue", c)).toBeCloseTo(0.6, 1);
+    expect(shown(0.5, "red", c)).toBeCloseTo(0.4, 1);
+    // 진영을 모르는 경기에는 진영 몫을 더하지 않는다.
+    expect(shown(0.5, "unknown", c)).toBe(0.5);
+  });
+
+  it(`판정 가능 경기가 ${CALIBRATION_MIN_GAMES}경기 미만이면 보정하지 않는다`, () => {
+    const few = samples(CALIBRATION_MIN_GAMES - 1, Math.log(7 / 3), () => 0.5);
+    const c = fitExpectationCalibration(few);
+    expect(c).toEqual({ scale: 1, blueEdge: 0, games: CALIBRATION_MIN_GAMES - 1, applied: false });
+    expect(shown(0.62, "blue", c)).toBe(0.62);
+    expect(fitExpectationCalibration(samples(CALIBRATION_MIN_GAMES, Math.log(7 / 3), () => 0.5)).applied).toBe(true);
+  });
+
+  it("준비 화면 %도 보정값을 거친다(진영 몫은 블루 쪽으로 들어간다)", () => {
+    const halved: ExpectationCalibration = { scale: 0.5, blueEdge: 0, games: 100, applied: true };
+    const r = { ...flat(1000), 0: 1300, 1: 1300 }; // 블루 평균 +120점, 보정 전 약 66%
+    const raw = teamExpectation(draftOf(), ratingsOf(r), UNCALIBRATED);
+    const calibrated = teamExpectation(draftOf(), ratingsOf(r), halved);
+    expect(forecastBluePercent(raw)).toBe(67);
+    expect(calibrated.expectedA).toBeCloseTo(calibrateExpectation(raw.expectedA, "blue", halved), 12);
+    expect(forecastBluePercent(calibrated)).toBe(59);
+    // 두 팀 MMR이 같아도 진영 몫이 있으면 블루가 앞선다.
+    const blueSide: ExpectationCalibration = { scale: 1, blueEdge: Math.log(0.6 / 0.4), games: 100, applied: true };
+    expect(forecastBluePercent(teamExpectation(draftOf(), ratingsOf(flat(1100)), blueSide))).toBe(60);
   });
 });
