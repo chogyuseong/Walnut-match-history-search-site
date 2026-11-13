@@ -499,11 +499,11 @@ export function SheetImport() {
               )}
               <p className="hint">시트 내용은 서버에 저장하지 않아요. 확인을 마치고 가져올 때 경기만 저장합니다.</p>
               <p className="hint">
-                기존 사이트(구글 시트 + Apps Script)에서 옮겨 오나요?{" "}
+                기존 사이트(구글 시트 + Apps Script)에서 옮겨 온다면 라인·날짜를 그대로 가져오는 쪽이 더
+                정확해요.{" "}
                 <button type="button" className="link" onClick={() => go("/legacy-import")}>
-                  기존 사이트 기록 가져오기
+                  기존 사이트에서 옮기기
                 </button>
-                가 더 정확해요(라인·날짜를 그대로 가져와요).
               </p>
             </>
           ) : (

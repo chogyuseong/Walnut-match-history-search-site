@@ -186,3 +186,66 @@ test("디자인 비교 사진: 첫 화면·예시 모임·로그인·빈 오늘�
 
   writeFileSync(join(SHOTS_DIR!, "layout.json"), JSON.stringify(layout, null, 2));
 });
+
+const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
+
+test("디자인 비교 사진: 모임 관리 화면(설정·가져오기·합치기·날짜·삭제·운영 기록·시즌·경기 상세)", async ({ page }) => {
+  test.setTimeout(900000);
+  mkdirSync(SHOTS_DIR!, { recursive: true });
+  await page.clock.setFixedTime(FIXED_NOW);
+  await page.route("**/ddragon.leagueoflegends.com/**", (route) => route.fulfill({ contentType: "image/png", body: BLANK_PNG }));
+  const post = async (path: string, data: unknown) => {
+    const response = await page.request.post(path, { data });
+    expect(response.ok(), `${path} → ${response.status()}`).toBe(true);
+    return response.json();
+  };
+  await post("/api/auth/fake-login", { subject: `e2e-shots-manage-${Date.now().toString(36)}` });
+  const group = await post("/api/groups", { requestId: crypto.randomUUID(), name: "디자인 사진 모임" });
+  const { participants } = await post(`/api/groups/${group.id}/participants`, {
+    requestId: crypto.randomUUID(),
+    names: NAMES,
+  });
+  // 확정 경기 셋: 기록·시즌·경기 상세·날짜 확인이 빈 화면이 아니게.
+  let matchId = "";
+  for (const [round, winnerTeam] of (["A", "B", "A"] as const).entries()) {
+    const snapshot = await (await page.request.get(`/api/groups/${group.id}/snapshot`)).json();
+    const roster = participants.slice(round, round + 10).map((p: { id: string }, i: number) => ({
+      participantId: p.id,
+      team: i < 5 ? "A" : "B",
+      position: POSITIONS[i % 5],
+    }));
+    const started = await post(`/api/groups/${group.id}/matches/start`, {
+      requestId: crypto.randomUUID(),
+      baseLiveVersion: snapshot.group.liveVersion,
+      roster,
+    });
+    await post(`/api/groups/${group.id}/matches/${started.match.id}/result`, {
+      requestId: crypto.randomUUID(),
+      baseMatchVersion: started.match.version,
+      winnerTeam,
+      winnerSide: "blue",
+    });
+    matchId = started.match.id;
+  }
+
+  const screens = [
+    ["20-group", "#/group"],
+    ["21-import", "#/import"],
+    ["22-sheet-import", "#/sheet-import"],
+    ["23-legacy-import", "#/legacy-import"],
+    ["24-backfill", "#/backfill"],
+    ["25-merge", "#/merge"],
+    ["26-dates", "#/dates"],
+    ["27-delete", "#/delete"],
+    ["28-records", "#/records"],
+    ["29-season", "#/season"],
+    ["30-match-detail", `#/m/${matchId}`],
+  ];
+  for (const [name, hash] of screens) {
+    await page.goto(`/${hash}`);
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+    await capture(page, name!);
+  }
+  writeFileSync(join(SHOTS_DIR!, "layout-manage.json"), JSON.stringify(layout, null, 2));
+});

@@ -115,7 +115,7 @@ export function DateCheck() {
   const preview = (items: MatchView[], years: 1 | -1) => {
     const shown = items.length <= 4 ? items : [...items.slice(0, 3), items[items.length - 1]!];
     return (
-      <ul className="list" aria-label="바뀌기 전과 후">
+      <ul className="list list-card" aria-label="바뀌기 전과 후">
         {shown.map((m, i) => (
           <li key={m.id} className="list-row static">
             <span className="name">
@@ -200,7 +200,7 @@ export function DateCheck() {
           <h2>
             같은 시각 경기 <span className="side">{findings.sameTime.length}묶음</span>
           </h2>
-          <ul className="list" aria-label="같은 시각 목록">
+          <ul className="list list-card" aria-label="같은 시각 목록">
             {findings.sameTime.map((g) => (
               <li key={g.at} className="list-row static same-time">
                 <span className="name">

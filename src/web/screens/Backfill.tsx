@@ -173,11 +173,10 @@ export function Backfill() {
       </header>
       <p className="hint">
         이미 끝난 경기 하나를 결과까지 넣습니다. 오늘 내전, 진행 중인 경기, 서포터 횟수에는 영향이
-        없습니다. 여러 경기는{" "}
+        없습니다. 여러 경기를 한꺼번에 넣으려면{" "}
         <button type="button" className="link" onClick={() => go("/import")}>
-          표 일괄 입력
+          표 일괄 입력으로 가기
         </button>
-        을 쓰세요.
       </p>
 
       <form

@@ -1010,7 +1010,7 @@ export function MatchDetail(props: {
       )}
 
       {match.state === "confirmed" && (
-        <ul className="list">
+        <ul className="list list-card">
           <li className="list-row static">
             <span>승리 팀: {teamName(match.winnerTeam!, match.teamASide)}</span>
             {operator && (

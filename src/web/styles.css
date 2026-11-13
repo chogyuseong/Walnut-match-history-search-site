@@ -202,6 +202,9 @@
   --icon-check-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M6.75 10.25l2.25 2.25 4.25-4.5'/%3E%3C/svg%3E");
   --icon-alert-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.25l7.25 12.5H2.75z'/%3E%3Cpath d='M10 8.25v3.25M10 13.75v.01'/%3E%3C/svg%3E");
   --icon-error-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.25'/%3E%3Cpath d='M10 6.25v4.25M10 13.25v.01'/%3E%3C/svg%3E");
+  /* 접는 상자(summary) 끝의 꺾쇠: 닫힘은 아래, 열림은 위. 돌리지 않고 그림 둘로 바꾼다(움직임 없음). */
+  --icon-chevron-down-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 8l4.5 4.5 4.5-4.5'/%3E%3C/svg%3E");
+  --icon-chevron-up-16: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.875' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 12l4.5-4.5 4.5 4.5'/%3E%3C/svg%3E");
 }
 @media (min-width: 768px) {
   :root {
@@ -704,7 +707,8 @@ details.help > .help-body p {
   .badge.warn-badge::before,
   .tag.warn-tag::before,
   .warn-text::before,
-  .field-problem::before {
+  .field-problem::before,
+  summary::after {
     forced-color-adjust: none;
     background: CanvasText;
   }
@@ -967,12 +971,34 @@ details {
   border-radius: var(--radius-panel);
   padding: var(--space-1) var(--space-3) var(--space-2);
 }
+/* summary를 flex로 두면 브라우저의 펼침 삼각형이 사라진다. 그래서 닫힌 "계정 관리"·"더보기" 상자가 빈 칸이나 입력 칸처럼
+   보였다. 끝에 꺾쇠를 직접 그린다. 상자형은 오른쪽 끝, 글자 링크형(.help)은 글자 바로 뒤. */
 summary {
   min-height: 44px;
   display: flex;
   align-items: center;
+  column-gap: var(--space-2);
   cursor: pointer;
   font-weight: 500;
+}
+summary::after {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  background: currentColor;
+  mask: var(--icon-chevron-down-16) center / contain no-repeat;
+}
+details[open] > summary::after {
+  mask-image: var(--icon-chevron-up-16);
+}
+details.help > summary::after {
+  margin-left: 0;
+}
+/* 사파리는 flex여도 자기 삼각형을 그릴 수 있어 꺾쇠와 겹치지 않게 지운다. */
+summary::-webkit-details-marker {
+  display: none;
 }
 details > *:not(summary) {
   margin-top: var(--space-2);
@@ -4111,15 +4137,32 @@ main:focus {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* 삭제·탈퇴 상자. 안의 경고 문단·백업 안내·확인 입력이 맞붙어 한 덩어리로 읽혀서 8px씩 띄운다.
+   안쪽 여백은 다른 패널과 같이 휴대폰 16px, 768px부터 24px. */
 .danger-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--ih-panel);
   border: 1px solid var(--ih-danger);
   border-radius: var(--radius-panel);
-  padding: var(--space-3);
+  padding: var(--space-4);
   margin: var(--space-3) 0;
 }
+.danger-box > * {
+  margin: 0;
+}
+/* 설명 문단과 확인 입력 사이는 한 칸 더(16px) 띄워 "읽을 것"과 "할 것"을 가른다. */
+.danger-box > label:first-of-type {
+  margin-top: var(--space-2);
+}
 .danger-box h2 {
-  margin-top: 0;
   overflow-wrap: anywhere;
+}
+@media (min-width: 768px) {
+  .danger-box {
+    padding: var(--space-5);
+  }
 }
 
 /* 모임 탭의 묶음(접고 펴기). 묶음 제목은 구역 제목(h2)과 같은 크기, 묶음 안의 구역은 선으로 나눈다.
@@ -4128,9 +4171,32 @@ main:focus {
   padding: var(--space-1) var(--space-4) var(--space-3);
   scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
 }
+/* 묶음 머리는 안쪽 구역 제목(h2, 20px/600)보다 약해 보이면 안 되므로 같은 굵기로 둔다. */
 .group-block > summary {
   min-height: 44px;
   font-size: var(--text-section);
+  font-weight: 600;
+}
+/* 묶음(details)이 이미 카드라 그 안의 참가자 목록·접는 상자는 카드를 한 겹 더 두르지 않는다(2절 카드 중첩 금지).
+   목록은 위아래 구분선만, 접는 상자는 테두리 없이 꺾쇠 달린 줄로. */
+.group-block-body .list-card {
+  border-width: 1px 0;
+  border-radius: 0;
+  background: transparent;
+}
+.group-block-body .list-card :where(.list-row) {
+  padding-inline: 0;
+}
+/* 카드·모임 묶음 안의 묶음 칸(fieldset)과 접는 상자도 같은 까닭으로 상자를 벗긴다. 묶음은 legend 제목으로,
+   접는 상자는 꺾쇠로 읽힌다. 화면 바로 아래에 놓인 것은 그대로 상자다. */
+:is(.card, .group-block-body) :is(fieldset, details) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+:is(.card, .group-block-body) fieldset > legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
 }
 /* 긴 세로 목록의 리듬: 구역마다 위쪽 옅은 구분선 + 그 아래 24px 뒤에 구역 제목(h2),
    첫 구역은 선 없이. 접는 묶음 머리(summary)는 44px 그대로다.
