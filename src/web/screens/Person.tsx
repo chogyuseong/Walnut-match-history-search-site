@@ -105,6 +105,8 @@ export function Person(props: {
   openPerson: (id: string) => void;
   /** 이 사람과 다른 사람을 비교하는 화면으로 간다. other가 있으면 그 사람과 바로 비교한다. */
   openCompare?: (id: string, other?: string) => void;
+  /** 그래프 분석을 이 사람을 고른 채로 연다(#/graphs/ID). 검색에서 한 명만 맞으면 이 화면으로 오므로 검색 → 분석이 한 번에 이어진다. */
+  openGraphs?: (id: string) => void;
 }) {
   const { snapshot, participantId } = props;
   const [scope, setScope] = useState<Scope>({ kind: "all" });
@@ -342,11 +344,18 @@ export function Person(props: {
         badge={person.status === "archived" && <span className="badge">보관</span>}
         desc={`${scopeLabel} 기록 · 배치와 칭호는 누적 기준`}
         actions={
-          props.openCompare && (
-            <button type="button" className="secondary" onClick={() => props.openCompare!(participantId)}>
-              다른 사람과 비교
-            </button>
-          )
+          <>
+            {props.openGraphs && (
+              <button type="button" className="secondary" onClick={() => props.openGraphs!(participantId)}>
+                그래프 분석 보기
+              </button>
+            )}
+            {props.openCompare && (
+              <button type="button" className="secondary" onClick={() => props.openCompare!(participantId)}>
+                다른 사람과 비교
+              </button>
+            )}
+          </>
         }
       />
 

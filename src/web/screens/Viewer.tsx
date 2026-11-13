@@ -371,6 +371,7 @@ export function viewerPage(
         openMatch={(id) => go(`${base}/d/${id}`)}
         openPerson={(id) => go(`${base}/p/${id}`)}
         openCompare={(id, other) => go(`${base}/compare/${id}/${other ?? "-"}`)}
+        openGraphs={(id) => go(`${base}/graphs/${id}`)}
       />
       ),
     };

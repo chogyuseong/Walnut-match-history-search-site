@@ -432,3 +432,18 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
   );
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("검색 → 개인 통계 → 그래프 분석 보기: 그 사람을 고른 채로 분석이 열린다(예시 모임, 휴대폰 폭)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#/demo/search");
+  const box = page.getByRole("searchbox", { name: "플레이어 이름" });
+  await box.fill("밤송이");
+  await box.press("Enter");
+  await expect(page.getByRole("heading", { name: "밤송이", level: 1 })).toBeVisible();
+  const personId = page.url().split("/p/")[1]!;
+
+  await page.getByRole("button", { name: "그래프 분석 보기" }).click();
+  await expect(page).toHaveURL(new RegExp(`#/demo/graphs/${personId}$`));
+  await expect(page.getByRole("heading", { name: "그래프 분석", level: 1 })).toBeVisible();
+  await expect(page.getByLabel("플레이어", { exact: true })).toHaveValue(personId);
+});
