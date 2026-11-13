@@ -18,17 +18,27 @@ export function isFirstVisit(): boolean {
   }
 }
 
+/**
+ * 기능 옆 예시 사진. public/intro/{name}-{dark,light}.jpg를 scripts/capture-intro-shots.mjs가 휴대폰 폭(390px)으로 찍는다.
+ * 화면 모양이 바뀌면 사진을 다시 찍는다. height는 찍은 사진의 CSS px 높이라, 다시 찍어 높이가 달라지면 같이 고친다
+ * (스크립트가 크기를 출력한다). 자리를 미리 잡아 사진이 늦게 와도 아래 내용이 밀리지 않게 하려는 값이다.
+ */
+type IntroShot = { name: string; alt: string; height: number };
+const SHOT_WIDTH = 390;
+
 /** 소개에 적는 기능. 모두 지금 있는 기능만 적는다. 넷을 넘기지 않는다(첫 화면은 행동이 먼저다). */
-const FEATURES: { icon: LineIconName; title: string; text: string }[] = [
+const FEATURES: { icon: LineIconName; title: string; text: string; shot?: IntroShot }[] = [
   {
     icon: "group",
     title: "팀 짜기",
     text: "10명을 넣으면 티어로 실력을 맞춘 두 팀을 추천하고, 서포터를 돌아가며 맡도록 순서를 챙겨요.",
+    shot: { name: "prep", alt: "팀 짜기 화면 예시: 블루팀·레드팀에 라인별로 다섯 명씩 배치되고 아래에 섞기 버튼이 있다", height: 551 },
   },
   {
     icon: "ranking",
     title: "전적 · 랭킹 · 개인 통계",
     text: "경기 결과를 저장하면 승률 랭킹, 라인별 기록, 함께 뛴 사람별 기록이 쌓여요.",
+    shot: { name: "ranking", alt: "MMR 랭킹 화면 예시: 순위, 이름, MMR, 경기 수와 승률, 최근 10경기 승패가 줄마다 보인다", height: 448 },
   },
   {
     icon: "link",
@@ -40,8 +50,32 @@ const FEATURES: { icon: LineIconName; title: string; text: string }[] = [
     icon: "summary",
     title: "시즌 요약",
     text: "시즌이나 한 해를 골라 요약과 시상을 보고 이미지로 나눌 수 있어요.",
+    shot: { name: "season", alt: "시즌 요약 화면 예시: 경기 수, 참가자 수, 블루·레드 승률과 최고 승률 시상이 보인다", height: 504 },
   },
 ];
+
+/**
+ * 테마마다 한 장씩 두고 CSS로 지금 테마의 것만 보인다(styles.css .intro-shot). 숨은 쪽은 loading="lazy"라 받지 않는다.
+ * display:none인 쪽은 화면 읽기 프로그램에도 나오지 않아 같은 설명이 두 번 읽히지 않는다.
+ */
+function IntroShotImages({ shot }: { shot: IntroShot }) {
+  return (
+    <>
+      {(["dark", "light"] as const).map((theme) => (
+        <img
+          key={theme}
+          className={`intro-shot intro-shot-${theme}`}
+          src={`/intro/${shot.name}-${theme}.jpg`}
+          alt={shot.alt}
+          width={SHOT_WIDTH}
+          height={shot.height}
+          loading="lazy"
+          decoding="async"
+        />
+      ))}
+    </>
+  );
+}
 
 /**
  * 첫 화면의 소개(로그인하지 않았고 이 기기에 기억한 모임·조회 링크·편성이 없을 때만, src/web/screens/Today.tsx).
@@ -86,6 +120,7 @@ export function Intro() {
                 <h3>{f.title}</h3>
                 <p>{f.text}</p>
               </div>
+              {f.shot && <IntroShotImages shot={f.shot} />}
             </li>
           ))}
         </ul>

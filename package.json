@@ -15,6 +15,7 @@
     "audit:design": "node scripts/design-audit.mjs",
     "e2e": "playwright test",
     "seed": "node scripts/seed.mjs",
+    "shots:intro": "node scripts/capture-intro-shots.mjs",
     "deploy:staging": "node scripts/predeploy-check.mjs staging --skip-build && vite build && wrangler deploy --env staging",
     "deploy:production": "node scripts/predeploy-check.mjs production --skip-build && vite build --mode deploy-production && wrangler deploy --env production"
   },

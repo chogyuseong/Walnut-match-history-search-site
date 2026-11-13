@@ -5168,11 +5168,44 @@ main:focus {
   list-style: none;
   border-top: 1px solid var(--ih-line);
 }
+/* 줄 하나 = 아이콘 | 제목·설명, 예시 사진은 좁은 화면에서 설명 아래(아이콘 칸은 비움), 768px 이상에서 설명 오른쪽. */
 .intro-features li {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-3);
+  align-items: start;
   padding: var(--space-4) 0;
   border-bottom: 1px solid var(--ih-line);
+}
+/* 예시 사진(src/web/screens/Intro.tsx IntroShotImages). 글자를 얹지 않고 1px 경계만 둔다(CLAUDE.md 6절).
+   테마마다 한 장씩 있어 지금 테마가 아닌 쪽은 숨긴다. 기본 테마는 다크다(src/web/theme.ts). */
+.intro-shot {
+  grid-column: 2;
+  display: block;
+  width: 100%;
+  max-width: var(--intro-shot-max);
+  height: auto;
+  border: 1px solid var(--ih-line);
+  border-radius: 8px;
+}
+:root {
+  /* 사진 폭 상한. 찍은 폭(390px)보다 넓히면 글자가 번진다. 넓은 화면에서는 설명 칸에 자리를 남기려 더 좁힌다. */
+  --intro-shot-max: 320px;
+}
+:root[data-theme="light"] .intro-shot-dark,
+:root:not([data-theme="light"]) .intro-shot-light {
+  display: none;
+}
+@media (min-width: 768px) {
+  .intro-features li {
+    grid-template-columns: auto minmax(0, 1fr) var(--intro-shot-max);
+  }
+  .intro-shot {
+    grid-column: 3;
+  }
+  :root {
+    --intro-shot-max: 240px;
+  }
 }
 .intro-features li:last-child {
   border-bottom: 0;
