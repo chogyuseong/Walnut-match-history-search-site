@@ -18,7 +18,23 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
-[2026-11-14 낮: 운영 46ac26d3 — 지금 상태]
+[2026-11-14 밤: 70a9044 — staging만 올림, 운영 배포 대기]
+
+- 70a9044 = staging e4539029. 운영은 아직 아래 46ac26d3. 마이그레이션 없음.
+- "이 팀으로 시작"이 느린 원인: 이 컴퓨터(한국 통신망)의 요청이 Cloudflare LAX 지점으로 들어가 Worker가 미국에서 돌고,
+  D1(운영 HKG, staging ICN)까지 질의마다 태평양을 왕복했다(질의 한 번 약 0.2초, 시작 요청 안에 10여 번).
+  wrangler.jsonc에 placement 지역 지정(운영 aws:ap-east-1, staging aws:ap-northeast-2)을 넣어 Worker를 D1 옆에서 돌린다.
+  응답 헤더 cf-placement: remote-ICN / remote-HKG로 확인. 다른 API도 모두 같은 이득을 본다.
+- staging 실측(경기 500개 모임): 시작 요청 2.9~3.2초 → 0.73~1.7초, 화면에서 누름 → 경기 화면 2.9~4.9초(11-13 점검 7~15초).
+  남은 시간 대부분은 브라우저가 617KB 스냅숏을 받아 계산하는 몫이다.
+- 화면: 시작 뒤 준비 화면에 "작성 중인 편성이 없어요"가 잠깐 보이던 것을 고침(usePrepStart.ts, 스냅숏을 다시 읽고 경기 화면으로
+  바뀐 뒤에 편성을 지움). staging 화면 측정 3회 모두 빈 문구 안 보임. E2E 시작 흐름 15개 통과, 단위 1181개 통과.
+- 운영에 올리려면 main에서 ! npm run deploy:production. 올린 뒤 /api/health 응답에 cf-placement: remote-HKG가 있는지 본다.
+- 주의: 로컬 테스트 서버가 떠 있는 채로 deploy:*를 돌리면 dist가 배포용 빌드로 바뀌어, 그 서버를 재사용한 E2E가
+  첫 화면부터 실패한다(11-14 한 번 겪음). E2E 전에 떠 있는 로컬 서버(workerd)를 끈다.
+
+
+[2026-11-14 낮: 운영 46ac26d3]
 
 - 운영 46ac26d3 = main 044937b(사용자가 직접 배포, origin/main과 같음). 마이그레이션 없음(0028까지 그대로).
   배포 뒤 /api/health·첫 화면·robots.txt 200, 첫 화면이 새 묶음(index-YztWDF2H, index-C3bzMqvw.css)을 가리키고
