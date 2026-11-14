@@ -170,6 +170,44 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
       {busy ? "저장 중" : "이 팀으로 시작"}
     </button>
   );
+  // 명단 복사·편성 이미지·되돌리기·다시 고르기 줄. 1200px 이상은 아래 고정 줄 왼쪽에 둔다(styles.css .prep-deskbar).
+  // 본문 맨 아래에 두면 1440×900에서 처음 열었을 때 이 줄이 고정 줄 뒤에 반쯤 걸려 잘려 보였다.
+  const draftTools = (
+    <div className="button-row">
+      <CopyButton label="명단 텍스트 복사" text={() => draftRosterText(draft)} />
+      <button
+        type="button"
+        className="secondary"
+        title="블루팀·레드팀 명단을 이미지로 만들어 공유하거나 내려받아요. 티어·서포터 횟수는 넣지 않아요."
+        onClick={() => setImageOpen(true)}
+      >
+        편성 이미지
+      </button>
+      {undoSteps > 0 && (
+        <button
+          type="button"
+          className="link"
+          title={`최근 ${undoSteps}단계까지 되돌릴 수 있어요.`}
+          onClick={() => edit.stepHistory("undo")}
+        >
+          직전 편성으로 ({undoSteps})
+        </button>
+      )}
+      {draft.redoSlots && (
+        <button
+          type="button"
+          className="link"
+          title="방금 되돌린 편성으로 다시 가요."
+          onClick={() => edit.stepHistory("redo")}
+        >
+          다시 앞으로
+        </button>
+      )}
+      <button type="button" className="link" onClick={() => go("/pick")}>
+        참가자 다시 고르기
+      </button>
+    </div>
+  );
   const shuffle = (
     <ShuffleSection
       ctx={ctx}
@@ -297,40 +335,7 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
         </div>
       </div>
 
-      <div className="button-row">
-        <CopyButton label="명단 텍스트 복사" text={() => draftRosterText(draft)} />
-        <button
-          type="button"
-          className="secondary"
-          title="블루팀·레드팀 명단을 이미지로 만들어 공유하거나 내려받아요. 티어·서포터 횟수는 넣지 않아요."
-          onClick={() => setImageOpen(true)}
-        >
-          편성 이미지
-        </button>
-        {undoSteps > 0 && (
-          <button
-            type="button"
-            className="link"
-            title={`최근 ${undoSteps}단계까지 되돌릴 수 있어요.`}
-            onClick={() => edit.stepHistory("undo")}
-          >
-            직전 편성으로 ({undoSteps})
-          </button>
-        )}
-        {draft.redoSlots && (
-          <button
-            type="button"
-            className="link"
-            title="방금 되돌린 편성으로 다시 가요."
-            onClick={() => edit.stepHistory("redo")}
-          >
-            다시 앞으로
-          </button>
-        )}
-        <button type="button" className="link" onClick={() => go("/pick")}>
-          참가자 다시 고르기
-        </button>
-      </div>
+      {!twoColumns && draftTools}
 
       <ErrorNote error={error} onCheck={start.retryLast} />
 
@@ -339,6 +344,11 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
           // 섞기 버튼은 왼쪽, 시작은 오른쪽에 떨어뜨린다(styles.css .prep-quickbar). 섞으려다 시작을 누르지 않게.
           <div className="prep-quickbar">
             <QuickShuffleButtons edit={edit} lineShuffle={inQuickBar.lineShuffle} />
+            {startButton}
+          </div>
+        ) : twoColumns ? (
+          <div className="prep-deskbar">
+            {draftTools}
             {startButton}
           </div>
         ) : (

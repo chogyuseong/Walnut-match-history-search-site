@@ -1643,6 +1643,21 @@ button.bar-row:hover {
     justify-content: end;
     border-top: 1px solid var(--ih-line);
   }
+  /* 준비 화면은 고정 줄을 한 줄 도구 막대로 쓴다: 왼쪽 명단 복사·편성 이미지·되돌리기 ··· 오른쪽 "이 팀으로 시작"(320px).
+     자리 옮김은 Prep.tsx(twoColumns)가 한다. */
+  .action-sticky:has(> .prep-deskbar) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .prep-deskbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .prep-deskbar > .primary {
+    flex: 0 0 320px;
+    width: auto;
+  }
 }
 
 /* 고정 행동 버튼("이 팀으로 시작" 등)이 있는 화면: 토스트가 그 버튼을 덮지 않게 버튼 위로 올린다. */
