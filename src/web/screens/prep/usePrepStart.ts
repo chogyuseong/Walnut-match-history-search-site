@@ -147,9 +147,19 @@ export function usePrepStart(app: AppValue, draft: Draft, status: PrepStatus) {
         // 성공한 뒤에만 오늘 명단을 이 세션에 묶고 팀 조건을 남긴다(실패하면 초안·명단 모두 그대로 둔다).
         bindNightPool(plan.snapshot, started.match.sessionId, current);
         saveCarry(plan.snapshot.group.id, current);
-        app.setDraft(null);
+        // 편성은 새 스냅숏을 받고 경기 화면으로 바뀐 뒤에 지운다. 먼저 지우면 그 사이 준비 화면이
+        // "작성 중인 편성이 없어요"로 바뀌어 보였다(다시 읽기 1초 남짓 + go가 부르는 hashchange까지).
+        // 화면이 바뀌기 전까지 준비 화면이 남아 있으므로, 편성의 기준 버전도 맞춰 "다른 기기에서 바뀌었어요" 줄이 뜨지 않게 한다.
         await app.refreshAfterOwnChange();
+        // useRoute의 hashchange 처리기가 먼저 등록돼 있어 이 처리기보다 앞서 경로를 바꾼다.
+        // 주소가 이미 경기 화면이면 hashchange가 오지 않으므로 기다리지 않는다(준비 화면은 #/prep에서만 열리지만 막아 둔다).
+        const routed =
+          location.hash === "#/match"
+            ? Promise.resolve()
+            : new Promise((resolve) => window.addEventListener("hashchange", resolve, { once: true }));
         go("/match");
+        await routed;
+        app.setDraft(null);
       } catch (e) {
         if (
           e instanceof ApiFailure &&

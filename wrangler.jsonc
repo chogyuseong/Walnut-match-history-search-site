@@ -142,6 +142,14 @@
       "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "naejeon-prod-backups" }],
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "triggers": { "crons": ["*/5 18-20 * * *"] },
+      // Worker를 D1 옆에서 돌린다(Placement Hint, https://developers.cloudflare.com/workers/configuration/placement/).
+      // 한국 통신망의 요청이 LAX 같은 먼 Cloudflare 지점으로 들어가는 일이 많고, 그 자리에서 Worker가 돌면 D1 질의마다
+      // 태평양을 왕복해 "이 팀으로 시작"(질의 10여 번)이 3초 넘게 걸렸다. 지정하면 요청은 한 번만 D1 옆으로 넘어가고
+      // 질의는 그 안에서 끝난다(staging 실측 2026-11-14: 시작 요청 약 3.1초 → 0.75초, 응답 헤더 cf-placement: remote-ICN).
+      // 운영 D1(naejeon-db) 주 위치는 HKG라 AWS 홍콩 지역. D1 위치는
+      // `npx wrangler d1 execute naejeon-db --remote --command "SELECT 1" --json`의 served_by_colo로 본다.
+      // D1을 새로 만들어 위치가 바뀌면 이 값도 바꾼다. 정적 파일(화면)은 이 설정과 상관없이 가까운 지점에서 나간다.
+      "placement": { "region": "aws:ap-east-1" },
       // Workers Logs: console.log·console.error와 요청 기록을 Cloudflare 대시보드에서 본다(무료 요금제 하루 20만 줄, 3일 보관).
       // 형식은 공식 문서(https://developers.cloudflare.com/workers/observability/logs/workers-logs/)에서 2026-11-06에 확인.
       // 실행 기록(invocation logs)은 끈다(2026-11-10 보안 감사, 키 이름은 같은 문서에서 확인). 실행 기록에는 요청 주소가
@@ -208,6 +216,8 @@
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       // 크론은 계정당 5개까지라 staging은 하루 한 번만 돈다(한 번에 BACKUP_GROUPS_PER_RUN개).
       "triggers": { "crons": ["0 18 * * *"] },
+      // Worker를 D1 옆에서 돌린다(운영 칸의 placement 설명 참고). staging D1 주 위치는 ICN(서울)이라 AWS 서울 지역.
+      "placement": { "region": "aws:ap-northeast-2" },
       "observability": {
         "enabled": true,
         "head_sampling_rate": 1
