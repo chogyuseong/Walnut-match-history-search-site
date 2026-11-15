@@ -43,10 +43,20 @@ export function usePrepStart(app: AppValue, draft: Draft, status: PrepStatus) {
   const [needLogin, setNeedLogin] = useState(false);
   const [ask, setAsk] = useState<StartAsk | null>(null);
   const [newSession, setNewSession] = useState(true);
-  const lastAttempt = useRef<(() => Promise<void>) | null>(null);
+  // 응답을 못 받은 시작 요청. 서버가 받았을 수도 있어서, 같은 편성이면 새 요청 ID가 아니라 이 시도를 그대로 다시
+  // 보낸다(본문이 한 글자라도 다르면 서버가 REQUEST_ID_REUSED로 거절하므로 시도 함수째 붙잡아 둔다).
+  // error는 그때 화면에 띄운 오류 객체다. 서포터 횟수 초기화도 같은 오류 칸을 쓰므로, 지금 보이는 오류가
+  // 이것일 때만 "확인하기"가 이 시도를 다시 보낸다.
+  const unsureStart = useRef<{ attempt: () => Promise<void>; draftKey: string; error: unknown } | null>(null);
 
   /** 시작 전 준비: 로그인, 모임, 참가자 ID, 최신 상태 확인. 물어볼 것이 없으면 바로 보낸다. */
   async function beginStart(justLoggedIn = false) {
+    const unsure = unsureStart.current;
+    if (unsure && unsure.draftKey === startKey(draft)) {
+      await unsure.attempt();
+      return;
+    }
+    unsureStart.current = null;
     setError(null);
     // 로그인 직후에는 이 함수가 로그인 전 상태를 붙잡고 있으므로 다시 묻지 않는다.
     if (!justLoggedIn && !app.me?.accountId) {
@@ -134,6 +144,7 @@ export function usePrepStart(app: AppValue, draft: Draft, status: PrepStatus) {
           teamASide: current.teamASide ?? "blue",
           ...(series ? { series } : {}),
         } as { requestId: string });
+        unsureStart.current = null;
         setAsk(null);
         // 대기자가 있는데 살아 있는 오늘 명단이 없으면 지금 시작한 초안(편성 + 대기자)으로 명단을 만든다.
         // 고르기 화면은 모임 ID가 있으면 대기자가 있을 때 늘 명단을 쓰므로(Pick.tsx buildTeams), 여기 오는 것은
@@ -161,6 +172,8 @@ export function usePrepStart(app: AppValue, draft: Draft, status: PrepStatus) {
         await routed;
         app.setDraft(null);
       } catch (e) {
+        unsureStart.current =
+          e instanceof ApiFailure && e.kind === "unknown" ? { attempt, draftKey: startKey(current), error: e } : null;
         if (
           e instanceof ApiFailure &&
           (e.code === "SUPPORT_REPEAT" ||
@@ -176,14 +189,30 @@ export function usePrepStart(app: AppValue, draft: Draft, status: PrepStatus) {
         setBusy(false);
       }
     };
-    lastAttempt.current = attempt;
     await attempt();
   }
 
-  /** 오류 안내의 "저장됐는지 확인"(응답을 못 받은 마지막 시도를 같은 요청 ID로 다시 보낸다). */
-  const retryLast = () => void lastAttempt.current?.();
+  /**
+   * 오류 안내의 "확인하기". 지금 보이는 오류가 응답을 잃은 시작 요청이면 같은 요청 ID로 다시 보내고,
+   * 그 밖(참가자 ID 준비·최신 상태 읽기·서포터 횟수 초기화에서 난 오류)이면 최신 상태만 다시 읽는다.
+   */
+  const retryLast = () => {
+    const unsure = unsureStart.current;
+    if (unsure && unsure.error === status.error) void unsure.attempt();
+    else void app.refresh();
+  };
 
   return { needLogin, setNeedLogin, ask, setAsk, newSession, setNewSession, beginStart, sendStart, retryLast };
 }
 
 export type PrepStart = ReturnType<typeof usePrepStart>;
+
+/** 시작 요청 본문을 바꾸는 편성 내용(자리·사람·진영·시리즈). 같으면 응답을 잃은 시도를 그대로 다시 보내도 된다. */
+function startKey(draft: Draft): string {
+  return JSON.stringify([
+    draft.slots,
+    draft.people.map((p) => [p.key, p.participantId]),
+    draft.teamASide ?? "blue",
+    draft.series,
+  ]);
+}

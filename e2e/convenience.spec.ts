@@ -309,3 +309,27 @@ test("6) 진행 중 화면에서 교체: 서포터를 누르고 다른 사람으
   expect(events.map((e: { participantId: string }) => e.participantId)).toContain(s.people[10]!.id);
   expect(events.map((e: { participantId: string }) => e.participantId)).not.toContain(s.people[4]!.id);
 });
+
+test("6-2) 교체 창에서 참가자 목록에 없는 이름을 적으면 새 참가자로 넣고 교체한다, 결과를 미룬 뒤 오늘 화면에서 이어 준비", async ({
+  page,
+}) => {
+  const s = await setup(page, "새 얼굴 교체", true);
+  await startApi(page.request, s, s.people.slice(0, 10));
+  await page.goto("/#/match");
+  await page.getByRole("region", { name: "블루팀" }).getByRole("button", { name: /선수01 교체/ }).click();
+  const dialog = page.getByRole("dialog", { name: "다른 사람으로 교체" });
+  await dialog.getByLabel("이름 찾기").fill("늦게온사람");
+  await dialog.getByRole("button", { name: "늦게온사람 님을 새 참가자로 넣고 교체" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".toast")).toContainText("선수01 자리에 늦게온사람 님이 들어갔어요.");
+  const snap = await snapshotOf(page.request, s);
+  const added = snap.participants.find((p: { name: string }) => p.name === "늦게온사람");
+  expect(added).toBeTruthy();
+  const live = snap.matches.find((m: { state: string }) => m.state === "in_progress");
+  expect(live.roster.map((r: { participantId: string }) => r.participantId)).toContain(added.id);
+
+  // 결과를 미루면 오늘 화면에 그 경기에서 이어 준비하는 보조 버튼이 생긴다.
+  await page.getByRole("button", { name: "결과는 나중에" }).click();
+  await page.getByRole("button", { name: "1경기에서 이어 다음 경기 준비" }).click();
+  await expect(page).toHaveURL(/#\/prep$/);
+});

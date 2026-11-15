@@ -8465,6 +8465,33 @@ input[type="search"].filter-search {
     order: 2;
   }
 }
+@media (max-width: 480px) {
+  /* 정렬 머리 칸 넷이 누르는 폭(44px 이상)을 지키면 챔피언 칸이 390px에서 106px만 남아, 초상화 옆 이름이
+     "그레이/브즈"처럼 낱말 중간에서 꺾였다. 이름을 초상화 아래로 내려 칸 폭을 다 쓰고, 띄어쓰기에서만 바꾼다
+     ("자르반 4세"). 칸보다 긴 한 낱말만 넘칠 때 끊는다. 줄은 높아지지만 표 칸을 빼지 않아도 된다. */
+  .ct-table .ct-name {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-1) 0;
+    text-align: left;
+  }
+  .ct-table .ct-name > span {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 400px) {
+  /* 360px에서는 이름을 내려도 칸이 60px뿐이라 "블리츠크랭크"가 꺾였다. 칸 좌우 여백을 4px로 줄여 이름 칸에 몰아 준다.
+     정렬 버튼의 44px 누르는 폭(.dt-sort min-width)은 그대로다. */
+  .ct-table th,
+  .ct-table td,
+  .ct-table th > .dt-sort,
+  .ct-table th > .dt-sort:not(:disabled):hover {
+    padding-left: var(--space-1);
+    padding-right: var(--space-1);
+  }
+}
 
 /* 참가자 편성 화면(ViewerLive.tsx): 맨 위 "내 자리" 칸과 명단의 "나"·"바뀜" 글자 꼬리표.
    강조는 색만으로 하지 않는다(글자 꼬리표가 늘 함께 있다). 움직임은 넣지 않는다. */

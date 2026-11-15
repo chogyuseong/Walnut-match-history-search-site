@@ -45,6 +45,7 @@ export function Today() {
   const today = useMemo(() => (snapshot ? todayMatches(snapshot) : []), [snapshot]);
   const todayIds = useMemo(() => new Set(today.map((m) => m.id)), [today]);
   const confirmedToday = today.filter((m) => m.state === "confirmed");
+  const nextFrom = awaiting.find((m) => todayIds.has(m.id)) ?? null;
   const hasAnyMatch = (snapshot?.matches.length ?? 0) > 0;
   // 결과를 저장한 경기(통계에 드는 경기)가 하나라도 있는지. 없으면 전적 검색·요약 대신 "지금 할 일" 안내 하나만 둔다
   // (CLAUDE.md 8절: 빈 통계 패널 여러 개를 보여 주지 않는다). 그래프·기록 화면의 빈 안내와 같은 모양(.empty-state)이다.
@@ -155,6 +156,18 @@ export function Today() {
               <button type="button" className="primary wide" onClick={() => go("/pick")}>
                 참가자 고르기
               </button>
+              {/* "결과는 나중에"로 넘긴 오늘 경기가 있으면 그 경기에서 이어 짜는 길(같은 팀·오늘 명단의 쉬는 사람)을 남긴다.
+                  이 줄이 없으면 결과를 미룬 뒤에는 처음부터 고르기만 남았다.
+                  prepareNext는 운영자 화면 묶음(Match.tsx)에 있어 누를 때 불러온다(첫 화면 묶음을 키우지 않게). */}
+              {nextFrom && (
+                <button
+                  type="button"
+                  className="secondary wide"
+                  onClick={() => void import("./Match").then((m) => m.prepareNext(app, nextFrom))}
+                >
+                  {nextFrom.matchNo}경기에서 이어 다음 경기 준비
+                </button>
+              )}
             </>
           ) : (
             <>

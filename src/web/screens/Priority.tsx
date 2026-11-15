@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MAX_AVOID } from "../../shared/avoid";
 import { normalizePriority, priorityLabel, PRIORITY_CLASSES, type Priority } from "../../shared/priority";
 import {
@@ -274,6 +274,17 @@ interface SaveLine<T> {
 function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
   const { pending, error, save, saving } = useQueuedSaves<Priority>(app, snapshot, "skillGroup");
   const [suggesting, setSuggesting] = useState(false);
+  // 티어를 누르면 그 사람 줄이 다른 티어 구역으로 옮겨 가며 버튼이 새로 그려져 초점이 문서 처음으로 날아간다.
+  // 키보드로 여러 사람을 차례로 고치는 흐름이 끊기므로, 옮겨 간 줄의 같은 버튼(사람 ID·티어로 찾는다)에 다시 둔다.
+  const refocus = useRef<{ id: string; tier: string } | null>(null);
+  useLayoutEffect(() => {
+    const target = refocus.current;
+    if (!target) return;
+    refocus.current = null;
+    document
+      .querySelector<HTMLButtonElement>(`button[data-pid="${CSS.escape(target.id)}"][data-tier="${CSS.escape(target.tier)}"]`)
+      ?.focus();
+  });
 
   const valueOf = (id: string, saved: number | null | undefined): Priority =>
     id in pending ? pending[id]! : normalizePriority(saved);
@@ -319,8 +330,12 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
                             type="button"
                             aria-label={`${p.name} ${priorityLabel(value)}`}
                             aria-pressed={valueOf(p.id, p.skillGroup) === value}
+                            data-pid={p.id}
+                            data-tier={priorityLabel(value)}
                             onClick={() => {
-                              if (valueOf(p.id, p.skillGroup) !== value) save(p.id, value, `${p.name}: ${priorityLabel(value)}`);
+                              if (valueOf(p.id, p.skillGroup) === value) return;
+                              refocus.current = { id: p.id, tier: priorityLabel(value) };
+                              save(p.id, value, `${p.name}: ${priorityLabel(value)}`);
                             }}
                           >
                             {value === null ? "미정" : value}

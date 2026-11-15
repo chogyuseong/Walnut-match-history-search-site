@@ -283,6 +283,13 @@ export function SheetImport() {
     openTable({ rows: parseDelimited(text), kind: "paste", sourceKey: null, title: null });
   }
 
+  // 저장 계획에는 진영이 박혀 있어, 첫 시도가 실패한 뒤 진영을 바꾸면 계획을 버려야 새 값으로 저장된다.
+  // 한 묶음이라도 저장되면 고르는 칸을 잠근다. 응답만 잃은 묶음은 서버가 같은 지문을 거절해 두 번 들어가지 않는다.
+  function chooseSide(mode: SheetSideMode) {
+    setSideMode(mode);
+    plan.current = null;
+  }
+
   async function goConfirm() {
     if (!loaded || !mapping) return;
     rememberMapping(loaded, mapping);
@@ -677,10 +684,10 @@ export function SheetImport() {
               새로 넣을 경기가 없어요. 이 시트의 경기는 이미 모두 들어가 있어요.
             </p>
           ) : (
-            <fieldset>
+            <fieldset disabled={busy || saved > 0}>
               <legend>진영을 어떻게 넣을까요?</legend>
               <label className={sideMode === "unknown" ? "choice chosen" : "choice"}>
-                <input type="radio" name="sheet-side" checked={sideMode === "unknown"} onChange={() => setSideMode("unknown")} />
+                <input type="radio" name="sheet-side" checked={sideMode === "unknown"} onChange={() => chooseSide("unknown")} />
                 <span>
                   <strong>진영 미상으로 넣기</strong>
                   <br />
@@ -688,7 +695,7 @@ export function SheetImport() {
                 </span>
               </label>
               <label className={sideMode === "a-blue" ? "choice chosen" : "choice"}>
-                <input type="radio" name="sheet-side" checked={sideMode === "a-blue"} onChange={() => setSideMode("a-blue")} />
+                <input type="radio" name="sheet-side" checked={sideMode === "a-blue"} onChange={() => chooseSide("a-blue")} />
                 <span>
                   <strong>팀 A는 블루, 팀 B는 레드로 넣기</strong>
                   <br />
@@ -697,7 +704,7 @@ export function SheetImport() {
               </label>
               {mapping?.columns.side !== undefined && (
                 <label className={sideMode === "column" ? "choice chosen" : "choice"}>
-                  <input type="radio" name="sheet-side" checked={sideMode === "column"} onChange={() => setSideMode("column")} />
+                  <input type="radio" name="sheet-side" checked={sideMode === "column"} onChange={() => chooseSide("column")} />
                   <span>
                     <strong>표의 진영 열대로 넣기</strong>
                     <br />

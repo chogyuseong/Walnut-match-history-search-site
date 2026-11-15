@@ -117,3 +117,16 @@ test("연달아 누르기: 기다리지 않고 눌러지며, 같은 사람을 �
   await page.reload();
   await expect(button(names[0]!, "3티어")).toHaveAttribute("aria-pressed", "true");
 });
+
+test("키보드로 티어를 고르면 줄이 다른 구역으로 옮겨 가도 초점이 누른 버튼에 남는다", async ({ page }) => {
+  const { names } = await setup(page, "초점", 2);
+  await page.goto("/#/priority");
+  const button = (label: string) => page.getByRole("button", { name: `${names[0]} ${label}`, exact: true });
+  await button("2티어").focus();
+  await page.keyboard.press("Enter");
+  await expect(button("2티어")).toHaveAttribute("aria-pressed", "true");
+  await expect(button("2티어")).toBeFocused();
+  // 이어서 Tab으로 옆 버튼에 가 다시 고를 수 있다(초점이 문서 처음으로 날아가지 않았다).
+  await page.keyboard.press("Tab");
+  await expect(button("3티어")).toBeFocused();
+});

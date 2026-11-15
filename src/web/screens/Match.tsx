@@ -3,6 +3,7 @@ import { avoidMapFor } from "../../shared/avoid";
 import { draftFromMatch } from "../../shared/draft";
 import { nextLineup, planNextDraft, sessionMatchesOf } from "../../shared/nightPool";
 import { TEAM_SIZE_TOTAL } from "../../shared/prepTools";
+import { cleanName, nameKey } from "../../shared/names";
 import { matchesName } from "../../shared/search";
 import type { MatchView, Snapshot } from "../../shared/types";
 import { ApiFailure, mutate, newRequestId } from "../api";
@@ -352,13 +353,46 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
   const request = useRef<{ id: string; key: string } | null>(null);
   const seat = props.match.roster.find((r) => r.participantId === props.outId);
   const inRoster = new Set(props.match.roster.map((r) => r.participantId));
+  const active = snapshot.participants.filter((p) => p.status === "active" && !p.mergedInto);
+  // 오늘 명단(11명 이상 온 밤)에서 쉬는 사람을 맨 앞에 둔다. 처음 온 사람은 첫 경기에 뛰기 전까지 참가자 ID가
+  // 없어(usePrepStart는 편성에 든 사람만 만든다) 참가자 목록에 없으므로 이름으로 따로 보여 주고, 누르면 만든 뒤 넣는다.
+  const pool = liveNightPool(snapshot)?.pool.people ?? [];
+  const waitingIds = new Set(pool.flatMap((p) => (p.participantId ? [p.participantId] : [])));
+  const activeNames = new Set(active.map((p) => nameKey(p.name)));
+  const newcomers = pool
+    .filter((p) => p.participantId === null && !activeNames.has(nameKey(p.name)))
+    .filter((p) => matchesName(p.name, query));
   // 공백·대소문자를 무시하고 초성("ㄱㅅ")으로도 찾는다(전적 검색과 같은 규칙).
-  const candidates = snapshot.participants
-    .filter((p) => p.status === "active" && !p.mergedInto && !inRoster.has(p.id))
+  const candidates = active
+    .filter((p) => !inRoster.has(p.id))
     .filter((p) => matchesName(p.name, query))
-    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    .sort((a, b) => Number(waitingIds.has(b.id)) - Number(waitingIds.has(a.id)) || a.name.localeCompare(b.name, "ko"));
+  // 적은 이름이 참가자·대기자 누구와도 같지 않으면 새 참가자로 넣는 줄을 띄운다.
+  const typed = cleanName(query);
+  const canAddTyped =
+    typed !== "" && !activeNames.has(nameKey(typed)) && !newcomers.some((p) => nameKey(p.name) === nameKey(typed));
 
-  async function replace(inId: string, ackRepeat: boolean) {
+  /** 아직 참가자가 아닌 사람을 모임에 넣고(이미 있는 이름이면 서버가 그 사람을 돌려준다) 그 사람으로 교체한다. */
+  async function replaceWithNew(name: string) {
+    setBusy(true);
+    setError(null);
+    let inId: string;
+    try {
+      const ensured = await mutate<{ participants: { id: string }[] }>(`/api/groups/${snapshot.group.id}/participants`, {
+        requestId: newRequestId(),
+        names: [name],
+      });
+      inId = ensured.participants[0]!.id;
+    } catch (e) {
+      setError(e);
+      setBusy(false);
+      return;
+    }
+    await replace(inId, false, name);
+  }
+
+  // inName: 방금 만든 참가자는 아직 스냅숏에 없어 nameOf로 이름을 못 찾으므로 알림 글에 쓸 이름을 받는다.
+  async function replace(inId: string, ackRepeat: boolean, inName = nameOf(inId)) {
     const key = `${props.outId}:${inId}:${ackRepeat}`;
     if (!request.current || request.current.key !== key) request.current = { id: newRequestId(), key };
     setBusy(true);
@@ -377,7 +411,7 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
       );
       request.current = null;
       await app.refreshAfterOwnChange();
-      app.setNotice(`${nameOf(props.outId)} 자리에 ${nameOf(inId)} 님이 들어갔어요.`);
+      app.setNotice(`${nameOf(props.outId)} 자리에 ${inName} 님이 들어갔어요.`);
       props.onClose();
     } catch (e) {
       if (!(e instanceof ApiFailure) || e.kind !== "unknown") request.current = null;
@@ -432,12 +466,27 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
             />
           </label>
           <div ref={candidateJump.results} tabIndex={-1} className="search-results">
-            {candidates.length === 0 ? (
+            {candidates.length === 0 && newcomers.length === 0 && !canAddTyped ? (
               <p className="hint">
-                {query.trim() === "" ? "바꿀 수 있는 다른 참가자가 없어요. 모임 탭에서 참가자를 먼저 넣어 주세요." : "일치하는 이름이 없어요."}
+                {query.trim() === ""
+                  ? "바꿀 수 있는 다른 참가자가 없어요. 위 칸에 이름을 적으면 새 참가자로 넣을 수 있어요."
+                  : "일치하는 이름이 없어요."}
               </p>
             ) : (
               <ul className="list" aria-label="들어갈 사람">
+                {newcomers.map((p) => (
+                  <li key={p.key}>
+                    <button
+                      type="button"
+                      className="list-row"
+                      disabled={busy}
+                      onClick={() => void replaceWithNew(p.name)}
+                    >
+                      <span className="name">{p.name}</span>
+                      <span className="hint">대기 중 · 처음 옴</span>
+                    </button>
+                  </li>
+                ))}
                 {candidates.map((p) => (
                   <li key={p.id}>
                     <button
@@ -447,9 +496,22 @@ function ReplaceDialog(props: { match: MatchView; outId: string; onClose: () => 
                       onClick={() => void replace(p.id, false)}
                     >
                       <span className="name">{p.name}</span>
+                      {waitingIds.has(p.id) && <span className="hint">대기 중</span>}
                     </button>
                   </li>
                 ))}
+                {canAddTyped && (
+                  <li>
+                    <button
+                      type="button"
+                      className="list-row"
+                      disabled={busy}
+                      onClick={() => void replaceWithNew(typed)}
+                    >
+                      <span className="name">{typed} 님을 새 참가자로 넣고 교체</span>
+                    </button>
+                  </li>
+                )}
               </ul>
             )}
           </div>

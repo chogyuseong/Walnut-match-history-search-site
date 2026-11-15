@@ -24,11 +24,17 @@ import type { MemberRequestView } from "../../shared/types";
 /** 모임 탭 참가자 목록에서 처음 보여주는 사람 수. */
 const PEOPLE_PREVIEW = 10;
 
+/** 대화 상자 밖에서 저장하는 구역. 그 구역 안에 오류를 띄운다(Group의 run). */
+type GroupErrorPlace = "people" | "rotation" | "team" | "imports" | "seasons" | "rating" | "name" | "backup";
+
 /** 모임 탭. 첫 경기에 필요하지 않은 설정이 여기에 모여 있다. */
 export function Group() {
   const app = useAppValue();
   const snapshot = app.snapshot;
   const [error, setError] = useState<unknown>(null);
+  // 마지막 오류를 띄울 구역. null이면 화면 맨 위(run 주석 참고).
+  const [errorPlace, setErrorPlace] = useState<GroupErrorPlace | null>(null);
+  const [resetAsk, setResetAsk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState<string | null>(null);
   const [previewPublic, setPreviewPublic] = useState(false);
@@ -71,10 +77,15 @@ export function Group() {
   // 공동 운영자에게는 대표 전용 작업(넘기기·복원·모임 삭제·공동 운영자 관리)을 보여주지 않는다. 서버도 거절한다.
   const isOwner = (app.me?.groups.find((g) => g.id === gid)?.role ?? "owner") === "owner";
 
-  /** 저장하고 최신 상태를 다시 읽는다. 성공하면 true를 돌려준다. */
-  async function run(work: () => Promise<unknown>, done?: string): Promise<boolean> {
+  /**
+   * 저장하고 최신 상태를 다시 읽는다. 성공하면 true를 돌려준다.
+   * place: 오류를 띄울 구역(placeError). 모임 탭은 길어서 맨 위에만 띄우면 아래 구역에서 누른 사람이 오류를 못 본다.
+   * 대화 상자 안 작업은 상자 안에 따로 ErrorNote가 있으므로 place 없이 부른다(맨 위에도 함께 뜬다).
+   */
+  async function run(work: () => Promise<unknown>, done?: string, place?: GroupErrorPlace): Promise<boolean> {
     setBusy(true);
     setError(null);
+    setErrorPlace(place ?? null);
     try {
       await work();
       await app.refreshAfterOwnChange();
@@ -89,7 +100,7 @@ export function Group() {
     }
   }
 
-  const saveSettings = (next: Settings, done: string) =>
+  const saveSettings = (next: Settings, done: string, place?: GroupErrorPlace) =>
     run(
       () =>
         mutate(
@@ -102,15 +113,17 @@ export function Group() {
           "PUT",
         ),
       done,
+      place,
     );
+  const placeError = (place: GroupErrorPlace) => (errorPlace === place ? <ErrorNote error={error} /> : null);
 
   /**
    * 참가자 수정. 요청 ID(재시도에 같은 값)와 화면이 본 버전(baseVersion)을 보낸다. 다른 기기에서 먼저 고쳤으면
    * 서버가 409 VERSION_CONFLICT로 거절하고, run이 오류 안내("그 사이 내용이 바뀌었어요 … 입력은 그대로")를 띄우고
    * 스냅숏을 새로 읽는다. 대화 상자는 성공했을 때만 닫으므로 입력한 이름은 그대로 남는다.
    */
-  const patchOne = (id: string, body: Record<string, unknown>, done: string) =>
-    run(() => patchParticipant(snapshot, id, body), done);
+  const patchOne = (id: string, body: Record<string, unknown>, done: string, place?: GroupErrorPlace) =>
+    run(() => patchParticipant(snapshot, id, body), done, place);
 
   const people = snapshot.participants
     .filter((p) => (showArchived ? true : p.status === "active"))
@@ -144,7 +157,7 @@ export function Group() {
           실행해 주세요.
         </p>
       )}
-      <ErrorNote error={error} />
+      {errorPlace === null && <ErrorNote error={error} />}
 
       {/* 구역 바로 가기(2026-11-08): 모임 탭이 길어 원하는 구역으로 바로 간다. 누르면 그 구역을 펼치고 그리로 내려간다. */}
       <nav className="block-nav" aria-label="구역 바로 가기">
@@ -241,6 +254,7 @@ export function Group() {
                         p.id,
                         { skillGroup: e.target.value === "" ? null : Number(e.target.value) },
                         `${p.name}의 티어를 바꿨어요.`,
+                        "people",
                       )
                     }
                   >
@@ -268,6 +282,7 @@ export function Group() {
             {people.length === 0 && <li className="hint">참가자가 없어요.</li>}
             {people.length > 0 && matchedPeople.length === 0 && <li className="hint">일치하는 이름이 없어요.</li>}
           </ul>
+          {placeError("people")}
           {matchedPeople.length > listedPeople.length && (
             <button type="button" className="link" onClick={() => setAllPeople(true)}>
               나머지 {matchedPeople.length - listedPeople.length}명 더 보기
@@ -409,6 +424,7 @@ export function Group() {
                   e.target.checked
                     ? "서포터 횟수를 다시 셉니다. 이전 기록을 이어갑니다."
                     : "서포터 횟수 세기를 껐어요. 기록은 지우지 않았습니다.",
+                  "rotation",
                 )
               }
             />{" "}
@@ -421,21 +437,16 @@ export function Group() {
                 type="button"
                 className="link"
                 disabled={busy}
-                onClick={() =>
-                  void run(
-                    () =>
-                      mutate(`/api/groups/${gid}/rotation/new-cycle`, {
-                        requestId: newRequestId(),
-                        baseLiveVersion: snapshot.group.liveVersion,
-                      } as { requestId: string }),
-                    "서포터 횟수를 초기화했어요. 전적은 그대로입니다.",
-                  )
-                }
+                onClick={() => {
+                  setError(null);
+                  setResetAsk(true);
+                }}
               >
                 서포터 횟수 초기화
               </button>
             </p>
           )}
+          {placeError("rotation")}
           {settings.rotationEnabled && (
             <details>
               <summary>서포터 횟수 보기·고치기</summary>
@@ -466,12 +477,14 @@ export function Group() {
                   e.target.checked
                     ? "팀 추천에서 최근 조합을 피하도록 했어요."
                     : "팀 추천이 최근 조합을 따지지 않도록 했어요.",
+                  "team",
                 )
               }
             />{" "}
             티어 균형이 같은 후보 중에서 최근 8경기에 같은 팀이었던 사람끼리 덜 묶이는 조합을 먼저 추천합니다
           </label>
           <p className="hint">균형(티어 합계·인원)과 같은 팀·다른 팀 조건이 항상 먼저입니다.</p>
+          {placeError("team")}
         </section>
         <section aria-label="티어 공개">
           <h2>티어 공개</h2>
@@ -579,6 +592,7 @@ export function Group() {
                           allExcluded
                             ? `${b.count}경기를 복구했어요.`
                             : `이때 넣은 경기를 모두 전적 제외했어요. 같은 자리에서 복구할 수 있습니다.`,
+                          "imports",
                         );
                       }}
                     >
@@ -607,6 +621,7 @@ export function Group() {
                                     skipOverlapping: true,
                                   }),
                                 `겹치지 않는 ${count}경기를 복구했어요.`,
+                                "imports",
                               ).then((ok) => {
                                 if (ok) setRestoreOverlap(null);
                               });
@@ -622,6 +637,7 @@ export function Group() {
               })}
             </ul>
           )}
+          {placeError("imports")}
         </section>
         <section aria-label="시즌">
           <h2>시즌</h2>
@@ -648,6 +664,7 @@ export function Group() {
                       void run(
                         () => mutate(`/api/groups/${gid}/seasons/${s.id}`, { requestId: newRequestId() }, "DELETE"),
                         `'${s.name}' 시즌을 지웠어요. 경기 기록은 그대로입니다.`,
+                        "seasons",
                       )
                     }
                   >
@@ -669,6 +686,7 @@ export function Group() {
               void run(
                 () => mutate(`/api/groups/${gid}/seasons`, { requestId, ...seasonForm }),
                 "시즌을 만들었어요.",
+                "seasons",
               ).then((ok) => {
                 if (!ok) return;
                 seasonRequest.current = null;
@@ -715,8 +733,10 @@ export function Group() {
               시즌 만들기
             </button>
           </form>
+          {placeError("seasons")}
         </section>
-        <RatingSettings settings={settings} busy={busy} onSave={saveSettings} />
+        <RatingSettings settings={settings} busy={busy} onSave={(next, done) => saveSettings(next, done, "rating")} />
+        {placeError("rating")}
         <TitleSettings settings={settings} busy={busy} error={error} onSave={saveSettings} />
       </GroupBlock>
 
@@ -731,6 +751,7 @@ export function Group() {
               void run(
                 () => mutate(`/api/groups/${gid}`, { requestId: newRequestId(), name }, "PATCH"),
                 "모임 이름을 바꿨어요.",
+                "name",
               ).then((ok) => ok && setName(null));
             }}
           >
@@ -744,6 +765,7 @@ export function Group() {
               저장
             </button>
           </form>
+          {placeError("name")}
         </section>
         <section aria-label="백업">
           <h2>백업</h2>
@@ -764,11 +786,12 @@ export function Group() {
                 anchor.download = `naejeon-backup-${new Date().toISOString().slice(0, 10)}.json`;
                 anchor.click();
                 URL.revokeObjectURL(url);
-              }, "백업 파일을 내려받았어요.")
+              }, "백업 파일을 내려받았어요.", "backup")
             }
           >
             백업 내려받기
           </button>
+          {placeError("backup")}
         </section>
         {isOwner ? <CoOperatorsSection gid={gid} /> : <CoOperatorSelfSection gid={gid} />}
         {isOwner && (
@@ -854,6 +877,40 @@ export function Group() {
               {settings.groupsPublic ? "비공개로 바꾸기" : "공개로 바꾸기"}
             </button>
             <button type="button" className="secondary" onClick={() => setPreviewPublic(false)}>
+              그대로 두기
+            </button>
+          </div>
+        </Dialog>
+      )}
+
+      {resetAsk && (
+        <Dialog title="서포터 횟수 초기화" onClose={() => setResetAsk(false)}>
+          {/* 새 주기를 열면 지금까지 센 횟수로 되돌아갈 수 없다(되돌리기 API가 없다). 한 번 눌러 바로 바뀌지 않게 묻는다.
+              문구는 준비 화면의 같은 확인 창(prep/SupportCountSection.tsx)과 맞춘다. */}
+          <p>
+            모든 사람의 서포터 횟수를 0으로 되돌리고, 초기화한 뒤에 시작하는 경기부터 다시 셉니다. 그 전 경기의 기록과
+            전적은 그대로예요. 되돌릴 수 없어요.
+          </p>
+          <ErrorNote error={error} />
+          <div className="button-row">
+            <button
+              type="button"
+              className="danger"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  () =>
+                    mutate(`/api/groups/${gid}/rotation/new-cycle`, {
+                      requestId: newRequestId(),
+                      baseLiveVersion: snapshot.group.liveVersion,
+                    } as { requestId: string }),
+                  "서포터 횟수를 초기화했어요. 전적은 그대로입니다.",
+                ).then((ok) => ok && setResetAsk(false))
+              }
+            >
+              {busy ? "저장 중" : "초기화"}
+            </button>
+            <button type="button" className="secondary" onClick={() => setResetAsk(false)}>
               그대로 두기
             </button>
           </div>
