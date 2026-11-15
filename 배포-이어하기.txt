@@ -18,7 +18,12 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
-[2026-11-15 밤: 11-14 점검 낮음·정책 — staging efd991ab = main af55dce, 운영 배포 전]
+[2026-11-15 밤: 운영 c6efe700 = staging efd991ab = main af55dce(11-14 점검 낮음·정책)]
+
+- 운영(사용자가 직접 배포): /api/health 200·cf-placement: remote-HKG, 첫 화면·robots.txt 200, 새 묶음 index-DsgTf0Ih.js,
+  noindex meta·X-Robots-Tag 없음, 로그인 없는 스냅숏 401, RATE_SNAPSHOT_ROWS_SITE_DAY 3500000 들어감. 로그인이 필요한
+  화면은 운영에서 눌러 보지 않았다(staging에서 확인, 아래). 배포 때 나온 PASSWORD_PEPPER·RATE_FEEDBACK_PER_IP 경고는
+  예전과 같다(운영은 비밀값, 피드백 한도는 코드 기본값 3).
 
 - staging 시험 계정 둘로 390×844 확인(끝에 모임 삭제 200·탈퇴 200·재로그인 400): 공동 운영자 내보내기에서 "링크도
   새로 만들기" → 조회 토큰 바뀜·옛 링크 404, 참가 신청 링크 바뀜·닫힌 채 그대로. 넘겨받기 화면에서 같은 칸 → 다시 바뀜,
