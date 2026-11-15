@@ -22,6 +22,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 - 운영(사용자가 직접 배포): /api/health 200·cf-placement: remote-HKG, 첫 화면 200, PASSWORD_PBKDF2_ITERATIONS 100000 들어감.
   로그인 cpuTime은 아직 보지 않았다.
+- 이어서(606597d, staging 37c66130만 올림, 운영 배포 대기): staging 크론을 운영과 같은 */5 18-20 * * *로, 개인정보 표
+  overflow-wrap anywhere → break-word(390px에서 "운영자/, 본인"처럼 쉼표 앞에서 꺾이던 것). staging 시험 계정·피드백 지움.
+- staging 522경기(가짜 이름) 복원 실측: 성공, cpuTime 68ms. 가입 20~29ms·로그인 19ms. 자세한 것은 docs/배포안내.md 13-1절 끝.
+  staging은 다시 계정·모임·경기 0.
 
 - 사용자가 Cloudflare를 Workers Paid(월 5달러)로 바꿨다. 공식 문서 확인: 요청당 CPU 기본 30초, 크론 250개,
   D1은 하루 한도 없이 월 포함량(읽기 250억·쓰기 5천만 행)을 넘으면 청구. 자세한 것은 docs/배포안내.md 13-1절 끝.
