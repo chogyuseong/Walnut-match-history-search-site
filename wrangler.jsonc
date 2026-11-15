@@ -113,9 +113,10 @@
         "RATE_SIGNUP_PER_IP": "5",
         "RATE_LOGIN_PER_IP": "10",
         "RATE_RECOVER_PER_IP": "5",
-        // 비밀번호 해시 반복 횟수. 무료 요금제(요청당 CPU 10ms) 대응으로 20000. 서버 비밀값 페퍼(HMAC)를 먼저 씌우므로
-        // DB만 새어서는 추측할 수 없다(src/server/local.ts). Paid로 올리면 "100000"으로 바꾼다(다음 로그인 때 다시 저장된다).
-        "PASSWORD_PBKDF2_ITERATIONS": "20000",
+        // 비밀번호 해시 반복 횟수. Workers Paid(요청당 CPU 기본 30초)라 런타임 상한 100000을 쓴다. 무료 요금제 때 20000으로
+        // 저장된 해시는 다음 로그인 때 100000으로 다시 저장된다(src/server/local.ts verifyPassword의 outdated).
+        // 무료로 되돌리면 20000으로 낮춘다(10ms 한도). 강한 해시는 낮춰도 그대로 맞는다.
+        "PASSWORD_PBKDF2_ITERATIONS": "100000",
         // 화면 오류 보고(로그인 없음)의 IP별 한도.
         "RATE_CLIENT_ERROR_PER_IP": "10",
         // 대량 쓰기 하루 예산: 가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수(UTC 하루, src/server/ratelimit.ts).
@@ -126,7 +127,8 @@
         // 여럿이 한 IP를 나눠 쓰는 저녁(PC방·같은 와이파이)에 몇 번 걸리는 것은 정상이라 넉넉히 둔다.
         "RATE_STRIKES_PER_IP_DAY": "20",
         // 스냅숏 200의 하루 읽기 예산(읽은 행 수 추정 = 300 + 경기 수 × 16, src/server/ratelimit.ts snapshotCost).
-        // D1 무료 하루 읽기 500만 행을 한 계정·한 IP·한 조회 링크가 혼자 다 쓰지 못하게 한다. 정상 사용 추정은
+        // 무료 요금제 때 D1 하루 읽기 500만 행 보호로 정한 값이다. Workers Paid(2026-11-15 전환)에는 하루 한도가 없고 월 250억 행
+        // 포함·넘으면 100만 행당 0.001달러라, 지금은 한 주체가 기록 화면을 과하게 여는 것을 막는 뜻만 남았다. 정상 사용 추정은
         // 100경기 모임 저녁 약 50만 행, 522경기 모임 약 230만 행(실측 기준, test/snapshot-rows.test.ts).
         "RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY": "3000000",
         "RATE_SNAPSHOT_ROWS_PER_IP_DAY": "4000000",
@@ -201,7 +203,7 @@
         "RATE_SIGNUP_PER_IP": "5",
         "RATE_LOGIN_PER_IP": "10",
         "RATE_RECOVER_PER_IP": "5",
-        "PASSWORD_PBKDF2_ITERATIONS": "20000",
+        "PASSWORD_PBKDF2_ITERATIONS": "100000",
         "RATE_CLIENT_ERROR_PER_IP": "10",
         // 대량 쓰기 하루 예산: 가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수(UTC 하루, src/server/ratelimit.ts).
         "RATE_BULK_ROWS_PER_ACCOUNT": "3000",

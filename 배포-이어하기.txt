@@ -18,6 +18,17 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-15 Workers Paid 전환 뒤: 설정만 바뀜, 배포 대기]
+
+- 사용자가 Cloudflare를 Workers Paid(월 5달러)로 바꿨다. 공식 문서 확인: 요청당 CPU 기본 30초, 크론 250개,
+  D1은 하루 한도 없이 월 포함량(읽기 250억·쓰기 5천만 행)을 넘으면 청구. 자세한 것은 docs/배포안내.md 13-1절 끝.
+- wrangler.jsonc: PASSWORD_PBKDF2_ITERATIONS 20000 → 100000(운영·staging). 기존 해시는 다음 로그인 때 다시 저장된다.
+  마이그레이션 없음. 하루 읽기 예산(RATE_SNAPSHOT_ROWS_*)은 그대로 둠.
+- 점검 해제 탈출구: 만들지 않는 것으로 닫음(복원이 CPU로 끊길 일이 사실상 없어짐).
+- 사용자가 할 것: 대시보드에서 사용량 알림 걸기(Billing → Notifications), staging·운영 배포
+  (! npm run deploy:staging → 확인 → ! npm run deploy:production), 배포 뒤 staging에서 로그인 한 번(가입 cpuTime 확인).
+
+
 [2026-11-15 밤: 운영 c6efe700 = staging efd991ab = main af55dce(11-14 점검 낮음·정책)]
 
 - 운영(사용자가 직접 배포): /api/health 200·cf-placement: remote-HKG, 첫 화면·robots.txt 200, 새 묶음 index-DsgTf0Ih.js,

@@ -353,7 +353,7 @@ describe("페퍼·반복 횟수(2026-11-07)", () => {
     expect((await call("POST", "/api/auth/login", { username: s.username, password: PASSWORD })).status).toBe(200);
   });
 
-  it("운영 설정(20000회)에서: 가입은 20000회 새 형식, 예전 형식 100000회는 20000회 새 형식으로, 새 형식 100000회는 그대로", async () => {
+  it("낮춘 설정(20000회, 무료 요금제용)에서: 가입은 20000회 새 형식, 예전 형식 100000회는 20000회 새 형식으로, 새 형식 100000회는 그대로", async () => {
     const low = { PASSWORD_PBKDF2_ITERATIONS: "20000" } as Partial<Env>;
     const a = await call("POST", "/api/auth/signup", { username: newName(), password: PASSWORD }, { overrides: low });
     expect(a.status).toBe(200);

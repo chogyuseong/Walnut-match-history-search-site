@@ -81,7 +81,7 @@ export interface Env {
   LOCAL_ACCOUNTS?: string;
   /**
    * 비밀번호 PBKDF2 반복 횟수. 기본·최대 100000(Workers 런타임의 상한). 저장한 해시에 횟수가 함께 적힌다.
-   * 운영(무료 요금제, 요청당 CPU 10ms)은 20000으로 둔다(wrangler.jsonc). Paid로 올리면 100000으로 되돌린다.
+   * 운영은 Workers Paid라 100000이다(wrangler.jsonc). 무료 요금제(요청당 CPU 10ms)로 돌아가면 20000으로 낮춘다.
    */
   PASSWORD_PBKDF2_ITERATIONS?: string;
 
