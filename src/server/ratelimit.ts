@@ -12,7 +12,7 @@
  * IP는 원문을 저장하지 않는다. 서명 키로 HMAC한 앞 16자만 키로 쓰고, 지난 창의 행은 바로 지운다.
  */
 import type { Env } from "./env";
-import { ApiError } from "./http";
+import { ApiError, positiveInt } from "./http";
 
 export type Bucket =
   | "write-account"
@@ -122,11 +122,6 @@ const LIMIT_VARS: Record<Bucket, keyof Env> = {
 
 /** 시계. 테스트에서 창이 지난 상황을 만들 때 바꿔 끼운다. */
 export const rateClock = { now: (): number => Date.now() };
-
-function positiveInt(value: unknown, fallback: number): number {
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : fallback;
-}
 
 export function limitOf(env: Env, bucket: Bucket): number {
   return positiveInt(env[LIMIT_VARS[bucket]], DEFAULT_LIMITS[bucket]);

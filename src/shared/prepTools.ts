@@ -1,5 +1,6 @@
 import { replacePerson, type Draft, type DraftPerson } from "./draft";
 import { pairRecord } from "./headToHead";
+import { lastLiveMatch } from "./lastPick";
 import { normalizePriority, priorityCounts, type PriorityCount, type PriorityMap } from "./priority";
 import type { RatingTable } from "./rating";
 import { priorityWeightOf, splitRank, weightSumDiff, type RecommendPerson, type SplitRank } from "./recommend";
@@ -232,16 +233,6 @@ export function draftRoster(draft: Draft): RosterEntry[] {
     team: s.team,
     position: s.position,
   }));
-}
-
-/** 직전 경기: 미진행 취소가 아닌 실시간(live) 경기 중 경기 번호가 가장 큰 것. 없으면 null. */
-export function lastLiveMatch(matches: readonly MatchView[]): MatchView | null {
-  let last: MatchView | null = null;
-  for (const m of matches) {
-    if (m.state === "canceled" || m.source !== "live") continue;
-    if (!last || m.matchNo > last.matchNo) last = m;
-  }
-  return last;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { resolveMerged } from "../shared/merge";
+import { mergeResolver } from "../shared/merge";
 import type { ParticipantView, SupportAdjustmentView } from "../shared/types";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, nowIso, requireInt, requireString } from "./http";
@@ -49,8 +49,9 @@ function fold(
   participants: readonly Pick<ParticipantView, "id" | "mergedInto">[],
 ): Map<string, number> {
   const sum = new Map<string, number>();
+  const resolve = mergeResolver(participants);
   for (const r of rows) {
-    const id = resolveMerged(participants, r.participant_id);
+    const id = resolve(r.participant_id);
     sum.set(id, (sum.get(id) ?? 0) + r.delta);
   }
   for (const [id, delta] of sum) if (delta === 0) sum.delete(id);
@@ -141,8 +142,9 @@ export async function saveSupportCounts(env: Env, groupId: string, body: Body): 
       // 이 사람에게 합쳐진 다른 이름의 보정값(보여줄 때 더해지는 몫).
       const rows = await loadRows(env, groupId, cycleId);
       const fromMerged = new Map<string, number>();
+      const resolve = mergeResolver(participants);
       for (const r of rows) {
-        const target = resolveMerged(participants, r.participant_id);
+        const target = resolve(r.participant_id);
         if (target !== r.participant_id) fromMerged.set(target, (fromMerged.get(target) ?? 0) + r.delta);
       }
       const now = nowIso();

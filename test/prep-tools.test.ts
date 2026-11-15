@@ -15,6 +15,7 @@ import {
   type DraftPerson,
 } from "../src/shared/draft";
 import { HISTORY_MAX, parseStoredDraft, swapSides } from "../src/shared/storedDraft";
+import { lastLiveMatch } from "../src/shared/lastPick";
 import { remapDraft } from "../src/shared/merge";
 import {
   balanceText,
@@ -22,7 +23,6 @@ import {
   draftBalance,
   draftSplitRanks,
   laneMatchups,
-  lastLiveMatch,
   matchupText,
   sameTeamsAsLast,
   splitBench,

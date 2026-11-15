@@ -21,7 +21,7 @@
  */
 import { fakeLoginEnabled, readSession } from "./auth";
 import type { Env } from "./env";
-import { ApiError, assertOnlyKeys, requireString } from "./http";
+import { ApiError, assertOnlyKeys, readLimitedText, requireString } from "./http";
 import { clientIp, hit } from "./ratelimit";
 import {
   isLegacyRedirectHost,
@@ -79,35 +79,6 @@ function failure(kind: LegacyFailure, detail?: string): ApiError {
     detail ? `${LEGACY_FAILURE_MESSAGES[kind]} (${detail})` : LEGACY_FAILURE_MESSAGES[kind],
     { reason: kind },
   );
-}
-
-async function readLimited(response: Response, limit: number): Promise<string> {
-  const declared = Number(response.headers.get("Content-Length"));
-  if (Number.isFinite(declared) && declared > limit) {
-    await response.body?.cancel().catch(() => undefined);
-    throw failure("too-large");
-  }
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) {
-      await reader.cancel();
-      throw failure("too-large");
-    }
-    chunks.push(value);
-  }
-  const all = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    all.set(chunk, at);
-    at += chunk.byteLength;
-  }
-  return new TextDecoder("utf-8").decode(all);
 }
 
 /** Apps Script에 읽기 요청을 보내고 응답 글(JSON)을 받는다. 실패는 사용자 안내가 담긴 ApiError로 던진다. */
@@ -174,7 +145,7 @@ export async function fetchLegacyText(deploymentId: string, fetcher: Fetcher): P
       throw failure(type.startsWith("text/html") ? "not-public" : "not-json");
     }
     try {
-      return await readLimited(response, MAX_LEGACY_BYTES);
+      return await readLimitedText(response, MAX_LEGACY_BYTES, () => failure("too-large"));
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw failure("unreachable");

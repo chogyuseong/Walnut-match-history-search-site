@@ -16,16 +16,29 @@ function tooLarge(): ApiError {
   return new ApiError(413, "BODY_TOO_LARGE", "요청이 너무 큽니다.");
 }
 
+/** 본문을 maxBytes까지만 읽는다(검토 L6). 넘으면 413 BODY_TOO_LARGE. */
+export function readBodyText(req: Request, maxBytes: number): Promise<string> {
+  return readLimitedText(req, maxBytes, tooLarge);
+}
+
 /**
- * 본문을 maxBytes까지만 읽는다(검토 L6).
- * - Content-Length가 있고 상한보다 크면 읽지 않고 바로 거절한다.
- * - 길이가 없거나 거짓이어도 스트림으로 읽으면서 상한을 넘는 순간 읽기를 멈추고 거절한다(전체를 메모리에 올리지 않는다).
+ * 요청 본문이나 바깥 응답(구글 시트·기존 사이트 읽기)을 maxBytes까지만 UTF-8 글로 읽는다.
+ * - Content-Length가 있고 상한보다 크면 읽지 않고 바로 tooLarge()를 던진다.
+ * - 길이가 없거나 거짓이어도 스트림으로 읽으면서 상한을 넘는 순간 읽기를 멈추고 던진다(전체를 메모리에 올리지 않는다).
+ * 오류 코드는 부르는 쪽마다 달라서(BODY_TOO_LARGE, SHEET_TOO_LARGE, LEGACY_TOO_LARGE) tooLarge로 받는다.
  */
-export async function readBodyText(req: Request, maxBytes: number): Promise<string> {
-  const declared = req.headers.get("Content-Length");
-  if (declared !== null && /^\d+$/.test(declared.trim()) && Number(declared) > maxBytes) throw tooLarge();
-  if (req.body === null) return "";
-  const reader = req.body.getReader();
+export async function readLimitedText(
+  message: Request | Response,
+  maxBytes: number,
+  tooLarge: () => ApiError,
+): Promise<string> {
+  const declared = message.headers.get("Content-Length");
+  if (declared !== null && /^\d+$/.test(declared.trim()) && Number(declared) > maxBytes) {
+    await message.body?.cancel().catch(() => undefined);
+    throw tooLarge();
+  }
+  if (message.body === null) return "";
+  const reader = message.body.getReader();
   const parts: Uint8Array[] = [];
   let total = 0;
   for (;;) {
@@ -202,6 +215,12 @@ export function requireInt(value: unknown, field: string): number {
     throw new ApiError(400, "INVALID_FIELD", `${field} 값이 올바르지 않습니다.`);
   }
   return value;
+}
+
+/** 환경 변수(wrangler.jsonc vars)의 양의 정수. 비었거나 잘못 적었으면 기본값으로 돈다(배포가 설정 오타로 멈추지 않게). */
+export function positiveInt(value: unknown, fallback: number): number {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
 export function requireOneOf<T extends string>(

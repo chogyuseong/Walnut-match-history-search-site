@@ -18,7 +18,6 @@ import {
   matchesInScope,
   personDetail,
   personRecords,
-  ratePercent,
   scopeLabel as scopeLabelOf,
   SMALL_SAMPLE,
   type Scope,
@@ -34,13 +33,13 @@ import {
   ratingOptionsOf,
 } from "../../shared/rating";
 import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
-import { nameMap, rateHueClass, rateHueText, standingsOf } from "../format";
+import { nameMap, rateHueClass, rateHueText, rateText as tallyRateText, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, FormDots, PosLabel, ScopePicker, ScreenHead, StandingNote } from "../screenKit";
 
 function rateText(t: Tally): string {
-  return t.games === 0 ? "기록 없음" : `${ratePercent(t.wins, t.games)}%`;
+  return tallyRateText(t.wins, t.games);
 }
 
 function wl(t: Tally): string {

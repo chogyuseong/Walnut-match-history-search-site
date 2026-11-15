@@ -1,5 +1,5 @@
 import { withoutHistory, type Draft, type DraftPerson } from "./draft";
-import { remapPeople, resolveMerged } from "./merge";
+import { mergeResolver, remapPeople } from "./merge";
 import { nameKey } from "./names";
 import { TEAM_SIZE_TOTAL, withBench } from "./prepTools";
 import type { TeamConstraint } from "./recommend";
@@ -69,10 +69,11 @@ export function goneFromSession(snapshot: Snapshot, people: readonly DraftPerson
   if (!session || !(nowMs - Date.parse(session.lastActivityAt) < NIGHT_GAP_MS)) return [];
   const here = new Set(people.map((p) => p.key));
   const gone = new Set<string>();
+  const resolve = mergeResolver(snapshot.participants);
   for (const match of snapshot.matches) {
     if (match.sessionId !== session.id || match.state === "canceled") continue;
     for (const entry of match.roster) {
-      const key = `p:${resolveMerged(snapshot.participants, entry.participantId)}`;
+      const key = `p:${resolve(entry.participantId)}`;
       if (!here.has(key)) gone.add(key);
     }
   }
@@ -111,10 +112,11 @@ export function syncPool(pool: NightPool, snapshot: Snapshot): { pool: NightPool
   });
   const keys = new Set([...people.map((p) => p.key), ...(pool.left ?? [])]);
   const added: DraftPerson[] = [];
+  const resolve = mergeResolver(snapshot.participants);
   for (const match of sessionMatchesOf(pool, snapshot.matches)) {
     for (const entry of match.roster) {
       // 합치기는 서버에서 경기 명단도 옮기지만, 옮기기 전 스냅숏이어도 같은 사람이 두 번 들어가지 않게 남은 사람으로 본다.
-      const id = resolveMerged(snapshot.participants, entry.participantId);
+      const id = resolve(entry.participantId);
       const key = `p:${id}`;
       if (keys.has(key)) continue;
       keys.add(key);

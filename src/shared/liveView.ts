@@ -1,4 +1,4 @@
-import { resolveMerged } from "./merge";
+import { mergeResolver } from "./merge";
 import { POSITIONS, type MatchView, type Position, type RosterEntry, type Snapshot, type Team } from "./types";
 
 /**
@@ -46,7 +46,7 @@ export function liveDataOf(snapshot: Snapshot): LiveData {
     shown,
     phase: live ? "playing" : sessionOpen ? "waiting" : "idle",
     nameOf: (id) => names.get(id) ?? "(알 수 없음)",
-    resolve: (id) => resolveMerged(snapshot.participants, id),
+    resolve: mergeResolver(snapshot.participants),
   };
 }
 

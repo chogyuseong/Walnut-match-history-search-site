@@ -991,16 +991,18 @@ async function foreignIdCollision(env: Env, groupId: string, data: BackupData): 
     ["participant_merges", data.merges.map((r) => r.id)],
     ["match_series", data.series.map((r) => r.id)],
   ];
-  for (const [table, ids] of checks) {
-    if (ids.length === 0) continue;
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM ${table} WHERE group_id <> ?1 AND id IN (SELECT value FROM json_each(?2))`,
-    )
-      .bind(groupId, JSON.stringify(ids))
-      .first<{ n: number }>();
-    if ((row?.n ?? 0) > 0) return table;
-  }
-  return null;
+  // 표마다 따로 기다리면 D1까지 최대 9번 왕복한다. batch 한 번으로 묻고, 겹친 표 중 위 순서의 첫 번째를 알린다.
+  const asked = checks.filter(([, ids]) => ids.length > 0);
+  if (asked.length === 0) return null;
+  const results = await env.DB.batch<{ n: number }>(
+    asked.map(([table, ids]) =>
+      env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM ${table} WHERE group_id <> ?1 AND id IN (SELECT value FROM json_each(?2))`,
+      ).bind(groupId, JSON.stringify(ids)),
+    ),
+  );
+  const hit = results.findIndex((r) => (r.results[0]?.n ?? 0) > 0);
+  return hit === -1 ? null : asked[hit]![0];
 }
 
 export interface RestorePreview {

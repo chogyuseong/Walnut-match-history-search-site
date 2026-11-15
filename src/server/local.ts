@@ -30,6 +30,7 @@ import {
 import { fromBase64Url, revokeSessions, toBase64Url, type SessionAccount } from "./auth";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, nowIso } from "./http";
+import { sha256Hex } from "./mutation";
 import { ipKey, rateClock } from "./ratelimit";
 
 export const LOCAL_PROVIDER = "local";
@@ -184,11 +185,6 @@ export async function newRecoveryCode(): Promise<{ code: string; hash: string }>
   }
   const code = text.match(/.{4}/g)!.join("-");
   return { code, hash: await recoveryHash(text) };
-}
-
-async function sha256Hex(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function recoveryHash(normalized: string): Promise<string> {

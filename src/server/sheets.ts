@@ -21,7 +21,7 @@ import { localDate, safeTimeZone } from "../shared/stats";
 import type { Position, Team } from "../shared/types";
 import { fakeLoginEnabled, readSession } from "./auth";
 import type { Env } from "./env";
-import { ApiError, assertOnlyKeys, requireString } from "./http";
+import { ApiError, assertOnlyKeys, readLimitedText, requireString } from "./http";
 import { clientIp, hit } from "./ratelimit";
 import {
   exportUrlOf,
@@ -132,32 +132,6 @@ export function titleFromDisposition(header: string | null): string | null {
   return [...title].slice(0, 100).join("");
 }
 
-async function readLimited(response: Response, limit: number): Promise<string> {
-  const declared = Number(response.headers.get("Content-Length"));
-  if (Number.isFinite(declared) && declared > limit) throw failure("too-large", 413);
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) {
-      await reader.cancel();
-      throw failure("too-large", 413);
-    }
-    chunks.push(value);
-  }
-  const all = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    all.set(chunk, at);
-    at += chunk.byteLength;
-  }
-  return new TextDecoder("utf-8").decode(all);
-}
-
 export interface SheetReadResult {
   csv: string;
   title: string | null;
@@ -240,7 +214,7 @@ async function fetchGoogle(
     }
     let text: string;
     try {
-      text = await readLimited(response, MAX_SHEET_BYTES);
+      text = await readLimitedText(response, MAX_SHEET_BYTES, () => failure("too-large", 413));
     } catch (error) {
       // 내려받는 중 시간 제한에 걸리거나 연결이 끊겼다.
       if (error instanceof ApiError) throw error;

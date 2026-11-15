@@ -18,7 +18,7 @@
  */
 import type { Env } from "./env";
 import { exportBackup } from "./groups";
-import { nowIso } from "./http";
+import { nowIso, positiveInt } from "./http";
 
 const DEFAULT_GROUPS_PER_RUN = 5;
 const DEFAULT_KEEP_DAYS = 30;
@@ -26,11 +26,6 @@ const KST_OFFSET_MS = 9 * 3600_000;
 const DAY_MS = 24 * 3600_000;
 
 export const BACKUP_PREFIX = "backups/";
-
-function positiveInt(value: unknown, fallback: number): number {
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : fallback;
-}
 
 /** 시각(ms)의 한국 날짜(YYYY-MM-DD). */
 export function kstDay(ms: number): string {

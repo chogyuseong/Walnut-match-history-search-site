@@ -13,7 +13,7 @@
  * - 합쳐진 사람의 신청은 행을 옮기지 않고 보여줄 때 남은 사람 것으로 본다(중복이면 먼저 신청한 시각 하나로).
  * - 신청 목록은 경기를 시작해도 지우지 않는다(같은 날 여러 판). 운영자가 "신청 비우기"로 지운다.
  */
-import { resolveMerged } from "../shared/merge";
+import { mergeResolver } from "../shared/merge";
 import { nameKey } from "../shared/names";
 import { memberParticipantId, newViewToken, operatorRole } from "./auth";
 import type { Env } from "./env";
@@ -113,7 +113,7 @@ async function loadEntries(env: Env, groupId: string, people?: PersonRow[]): Pro
 
 /** 이미 읽은 신청 행을 사람 단위로 묶는다(loadEntries와 공개 응답의 batch가 함께 쓴다). */
 function groupEntries(rows: readonly EntryRow[], list: readonly PersonRow[]): Grouped[] {
-  const merged = list.map((p) => ({ id: p.id, mergedInto: p.merged_into ?? undefined }));
+  const resolve = mergeResolver(list.map((p) => ({ id: p.id, mergedInto: p.merged_into ?? undefined })));
   const byId = new Map(list.map((p) => [p.id, p]));
   const activeByKey = new Map(activePeople(list).map((p) => [p.name_key, p]));
   const groups = new Map<string, Grouped>();
@@ -121,7 +121,7 @@ function groupEntries(rows: readonly EntryRow[], list: readonly PersonRow[]): Gr
     let participantId: string | null = null;
     let name: string;
     if (r.participant_id) {
-      participantId = resolveMerged(merged, r.participant_id);
+      participantId = resolve(r.participant_id);
       name = byId.get(participantId)?.name ?? "";
     } else {
       const same = activeByKey.get(r.name_key!);
