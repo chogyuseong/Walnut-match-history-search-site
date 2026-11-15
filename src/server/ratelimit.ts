@@ -35,7 +35,8 @@ export type Bucket =
   | "day-strike-ip"
   | "day-snapshot-rows-account"
   | "day-snapshot-rows-ip"
-  | "day-snapshot-rows-token";
+  | "day-snapshot-rows-token"
+  | "day-snapshot-rows-site";
 
 /**
  * 하루 창(UTC 0시 기준 86400초)으로 세는 버킷의 키 접두어. 요청 수가 아니라 양(경기 수·읽은 행 수·벌점)을 센다.
@@ -93,6 +94,10 @@ export const DEFAULT_LIMITS: Record<Bucket, number> = {
   "day-snapshot-rows-account": 3_000_000,
   "day-snapshot-rows-ip": 4_000_000,
   "day-snapshot-rows-token": 4_000_000,
+  // 같은 예산의 사이트 전체 합계(2026-11-15 사용자 결정). 위 셋은 주체별이라 계정·IP가 다른 둘이 각자 한도 안에서
+  // 읽기만 해도 합계가 D1 하루 읽기 500만 행을 넘을 수 있었다. 무거운 읽기만 350만 행에서 막고 나머지 약 150만 행은
+  // 경기 시작·결과 저장 같은 쓰기 경로와 304 확인에 남긴다. 무거운 읽기가 막혀도 경기 입력은 그날 계속 된다.
+  "day-snapshot-rows-site": 3_500_000,
 };
 export const DEFAULT_WINDOW_SECONDS = 60;
 
@@ -118,6 +123,7 @@ const LIMIT_VARS: Record<Bucket, keyof Env> = {
   "day-snapshot-rows-account": "RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY",
   "day-snapshot-rows-ip": "RATE_SNAPSHOT_ROWS_PER_IP_DAY",
   "day-snapshot-rows-token": "RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY",
+  "day-snapshot-rows-site": "RATE_SNAPSHOT_ROWS_SITE_DAY",
 };
 
 /** 시계. 테스트에서 창이 지난 상황을 만들 때 바꿔 끼운다. */
@@ -394,11 +400,16 @@ export function snapshotCost(matchCount: number): number {
 }
 
 export const SNAPSHOT_BUDGET_MESSAGE = "오늘 이 모임 기록을 받아 갈 수 있는 양을 넘었어요.";
+export const SITE_BUDGET_MESSAGE = "오늘 사이트 전체에서 기록을 읽은 양이 많아 기록 화면을 잠시 닫았어요.";
+
+/** 사이트 전체 버킷의 주체. 하나뿐이라 고정 값이다. */
+const SITE_SUBJECT = "site";
 
 /**
  * 스냅숏 200 응답의 하루 읽기 예산(2026-11-10 보안 감사). 본문을 만들기 직전에 부른다(304는 부르지 않는다).
  * 누가 쓰는지: 운영자·멤버 스냅숏은 계정과 IP, 조회 링크는 IP와 그 모임(조회 링크 버킷. 토큰 대신 모임 ID로 세어
- * 토큰 원문을 키에 남기지 않고, 링크를 다시 만들어도 그날 예산이 이어진다).
+ * 토큰 원문을 키에 남기지 않고, 링크를 다시 만들어도 그날 예산이 이어진다). 모든 경우 사이트 전체 합계에서도 쓴다.
+ * 사이트 전체 행 하나를 모든 요청이 고치지만, 무거운 읽기 200만 세므로(304 제외) 저녁에도 분당 몇십 번이다.
  */
 export async function spendSnapshotRows(
   env: Env,
@@ -408,11 +419,11 @@ export async function spendSnapshotRows(
   const spends: [Bucket, string][] = [["day-snapshot-rows-ip", who.ip]];
   if (who.accountId) spends.push(["day-snapshot-rows-account", who.accountId]);
   if (who.viewGroupId) spends.push(["day-snapshot-rows-token", who.viewGroupId]);
-  await spendDaily(
-    env,
-    spends,
-    snapshotCost(matchCount),
-    (now) => `${SNAPSHOT_BUDGET_MESSAGE} ${dayResetPhrase(now)} 이후에 다시 열 수 있어요.`,
+  spends.push(["day-snapshot-rows-site", SITE_SUBJECT]);
+  await spendDaily(env, spends, snapshotCost(matchCount), (now, _retryAfter, bucket) =>
+    bucket === "day-snapshot-rows-site"
+      ? `${SITE_BUDGET_MESSAGE} ${dayResetPhrase(now)} 이후에 다시 열려요. 경기 시작·결과 저장은 그대로 할 수 있어요.`
+      : `${SNAPSHOT_BUDGET_MESSAGE} ${dayResetPhrase(now)} 이후에 다시 열 수 있어요.`,
   );
 }
 
@@ -424,7 +435,7 @@ async function spendDaily(
   env: Env,
   spends: [Bucket, string][],
   amount: number,
-  message: (now: number, retryAfter: number) => string,
+  message: (now: number, retryAfter: number, bucket: Bucket) => string,
 ): Promise<void> {
   if (!Number.isInteger(amount) || amount <= 0) return;
   const now = rateClock.now();
@@ -433,7 +444,7 @@ async function spendDaily(
   for (const [bucket, subject] of spends) buckets.push([bucket, await bucketKey(env, bucket, subject)]);
   const over = async (bucket: Bucket): Promise<never> => {
     await countLimited(env, bucket, now, null);
-    throw new ApiError(429, "RATE_LIMITED", message(now, retryAfter), { retryAfter, daily: true });
+    throw new ApiError(429, "RATE_LIMITED", message(now, retryAfter, bucket), { retryAfter, daily: true });
   };
   // 한 번에 하루 한도보다 많으면 볼 것도 없이 거절한다.
   const tooBig = buckets.find(([bucket]) => amount > limitOf(env, bucket));

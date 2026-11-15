@@ -117,11 +117,12 @@ export function App() {
         <TopBar />
         <main className="bleed" tabIndex={-1}>
           <Suspense fallback={LOADING}>
-            {/* 참가자 편성(#/v/토큰/live)은 진행 중 편성만 보여 주는 작은 화면이라 조회 화면 묶음을 받지 않는다. */}
+            {/* 참가자 편성(#/v/토큰/live)은 진행 중 편성만 보여 주는 작은 화면이라 조회 화면 묶음을 받지 않는다.
+                Viewer의 key: 다른 링크로 옮기면 화면을 새로 만든다(받기 전까지 이전 모임 자료가 새 주소 아래 보이지 않게). */}
             {route[2] === "live" ? (
               <ViewerLive token={route[1]!} />
             ) : (
-              <Viewer token={route[1]!} rest={route.slice(2)} />
+              <Viewer key={route[1]} token={route[1]!} rest={route.slice(2)} />
             )}
           </Suspense>
           {/* 조회 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
@@ -465,10 +466,15 @@ function OperatorScreen(props: { route: string[] }) {
   if (page === "co-invite" && id) return <CoInvite token={id} />;
   // 참가자 본인 연결(migrations/0019): 연결 링크와 참가 중인 모임의 읽기 전용 화면.
   if (page === "claim" && id) return <Claim token={id} />;
-  if (page === "mine" && id) return <Member gid={id} rest={props.route.slice(2)} />;
+  // key: 참가 중인 모임 A에서 B로 옮기면 화면을 새로 만든다(A의 자료·쓰던 요청 글이 B 주소 아래 남지 않게).
+  if (page === "mine" && id) return <Member key={id} gid={id} rest={props.route.slice(2)} />;
   if (page === "records") return <OperatorRecords />;
   if (page === "m" && id) {
-    if (!app.snapshot) return <p className="screen">기록이 없어요.</p>;
+    if (!app.snapshot) {
+      // 공유받은 경기 주소를 로그인 없이 열면 "기록이 없어요"가 아니라 로그인 안내를 보여 준다(로그인하면 같은 주소가 열린다).
+      if (app.me && !app.me.accountId) return <LoginRequired title="경기 상세" />;
+      return <p className="screen">기록이 없어요.</p>;
+    }
     return (
       <MatchDetail
         snapshot={app.snapshot}

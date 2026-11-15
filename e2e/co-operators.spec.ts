@@ -118,3 +118,47 @@ test("초대 링크로 공동 운영자가 되어 경기 결과를 저장하고,
   await coContext.close();
   await thirdContext.close();
 });
+
+test("내보낼 때 '링크도 새로 만들기'를 고르면 옛 조회 링크가 막히고, 닫혀 있던 참가 신청 링크는 새 주소로 닫힌 채 남는다", async ({
+  browser,
+}) => {
+  const ownerContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const owner = await ownerContext.newPage();
+  await apiLogin(owner, "e2e-owner-renew");
+  const gid = ((await (await owner.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "링크 바꾸기 모임" } })).json()) as {
+    id: string;
+  }).id;
+  const viewTokenOf = async () =>
+    ((await (await owner.request.get(`/api/groups/${gid}/snapshot`)).json()) as { group: { viewToken: string } }).group.viewToken;
+  const oldView = await viewTokenOf();
+  const oldJoin = ((await (await owner.request.post(`/api/groups/${gid}/join/link`)).json()) as { token: string }).token;
+  expect((await owner.request.post(`/api/groups/${gid}/join/open`, { data: { requestId: crypto.randomUUID(), open: false } })).ok()).toBe(true);
+
+  const invite = (await (await owner.request.post(`/api/groups/${gid}/co-operators/invite`)).json()) as { token: string };
+  const coContext = await browser.newContext();
+  const co = await coContext.newPage();
+  await apiLogin(co, "e2e-co-renew");
+  expect((await co.request.post(`/api/co-invite/${invite.token}/accept`)).ok()).toBe(true);
+
+  await owner.goto("/#/group");
+  const section = owner.getByRole("region", { name: "공동 운영자" });
+  await section.getByRole("button", { name: "내보내기" }).click();
+  const dialog = owner.getByRole("dialog", { name: "공동 운영자 내보내기" });
+  await dialog.getByRole("checkbox", { name: /조회 링크와 참가 신청 링크도 새로 만들기/ }).check();
+  await dialog.getByRole("button", { name: "내보내기" }).click();
+  await expect(owner.getByText("두 링크를 새로 만들었어요")).toBeVisible();
+  // 고른 경우에는 "다시 만들라"는 안내를 띄우지 않는다.
+  await expect(section.getByRole("status", { name: "링크 다시 만들기 안내" })).toHaveCount(0);
+
+  const newView = await viewTokenOf();
+  expect(newView).not.toBe(oldView);
+  expect((await co.request.get(`/api/view/${oldView}`)).status()).toBe(404);
+  expect((await co.request.get(`/api/view/${newView}`)).status()).toBe(200);
+  const join = (await (await owner.request.get(`/api/groups/${gid}/join`)).json()) as { link: { open: boolean; token: string } };
+  expect(join.link.token).not.toBe(oldJoin);
+  expect(join.link.open).toBe(false);
+  expect((await co.request.get(`/api/join/${oldJoin}`)).status()).toBe(404);
+
+  await ownerContext.close();
+  await coContext.close();
+});

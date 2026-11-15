@@ -60,8 +60,12 @@ export function RestoreSection() {
   const [step, setStep] = useState<string | null>(null);
   // 요청 ID는 파일을 확인할 때 한 번 만들고, 다시 누를 때(응답을 못 받았을 때)는 같은 값을 쓴다.
   const requestId = useRef<string>(newRequestId());
+  // 같은 파일로 다시 누를 때(비밀번호를 틀렸거나 응답을 못 받음)는 "복원 직전 상태"를 또 받지 않는다. 실패한 복원은
+  // 자료를 바꾸지 않으므로 처음 받은 파일이 그대로 쓸모 있다. 예전에는 틀릴 때마다 파일이 하나씩 늘었다(모임 삭제와 같은 방식).
+  const backedUp = useRef(false);
 
   function reset() {
+    backedUp.current = false;
     setFileName(null);
     setBackup(null);
     setPreview(null);
@@ -106,10 +110,11 @@ export function RestoreSection() {
       if (preview.sameGroup) {
         // 1) 복원 직전 상태를 먼저 내려받는다. 실패하면 복원하지 않는다.
         //    점검 상태(복원이 중간에 멈춤)에서는 지금 상태가 불완전하므로 내려받지 않는다.
-        if (!maintenance) {
+        if (!maintenance && !backedUp.current) {
           setStep("지금 상태를 백업 파일로 내려받는 중");
           const current = await call<Record<string, unknown>>("GET", `/api/groups/${gid}/export`);
           downloadJson(current, `naejeon-before-restore-${today()}.json`);
+          backedUp.current = true;
         }
         setStep("복원하는 중");
         const result = await mutate<Counts>(`/api/groups/${gid}/restore`, {

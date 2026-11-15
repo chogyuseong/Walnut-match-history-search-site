@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { MAX_AVOID } from "../../shared/avoid";
 import { MEMO_MAX, memoLength } from "../../shared/memo";
 import {
@@ -16,7 +16,7 @@ import { Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { Dashboard } from "./Dashboard";
 import { LoginDialog } from "./Login";
-import { MaintenanceNote, ViewerNav, viewerPage } from "./Viewer";
+import { MaintenanceNote, useReadOnlySnapshot, ViewerNav, viewerPage } from "./Viewer";
 
 /** 서버 상한(src/server/members.ts)과 같은 값. */
 const REQUEST_TEXT_MAX = MEMO_MAX;
@@ -42,28 +42,7 @@ export const REQUEST_STATUS_LABEL: Record<MemberRequestStatus, string> = {
 export function Member(props: { gid: string; rest: string[] }) {
   const { gid, rest } = props;
   const app = useAppValue();
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [error, setError] = useState<ApiFailure | null>(null);
-  const [loadedAt, setLoadedAt] = useState<number | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setSnapshot(await call<Snapshot>("GET", `/api/member/${gid}/snapshot`));
-      setLoadedAt(Date.now());
-      setError(null);
-    } catch (e) {
-      if (e instanceof ApiFailure) setError(e);
-    }
-  }, [gid]);
-
-  useEffect(() => {
-    void load();
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [load]);
+  const { snapshot, error, loadedAt, load } = useReadOnlySnapshot(`/api/member/${gid}/snapshot`);
 
   if (!snapshot || !snapshot.me) {
     return (

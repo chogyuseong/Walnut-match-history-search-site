@@ -65,6 +65,7 @@ export interface Env {
   RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY?: string;
   RATE_SNAPSHOT_ROWS_PER_IP_DAY?: string;
   RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY?: string;
+  RATE_SNAPSHOT_ROWS_SITE_DAY?: string;
 
   /**
    * 사이트 운영자(이 서비스의 주인. 모임 운영자와 다르다). 쉼표로 구분한 계정 ID 목록.

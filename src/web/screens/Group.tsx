@@ -25,7 +25,7 @@ import type { MemberRequestView } from "../../shared/types";
 const PEOPLE_PREVIEW = 10;
 
 /** 대화 상자 밖에서 저장하는 구역. 그 구역 안에 오류를 띄운다(Group의 run). */
-type GroupErrorPlace = "people" | "rotation" | "team" | "imports" | "seasons" | "rating" | "name" | "backup";
+type GroupErrorPlace = "people" | "rotation" | "team" | "imports" | "seasons" | "rating" | "name" | "backup" | "account";
 
 /** 모임 탭. 첫 경기에 필요하지 않은 설정이 여기에 모여 있다. */
 export function Group() {
@@ -761,10 +761,11 @@ export function Group() {
               maxLength={20}
               onChange={(e) => setName(e.target.value)}
             />
-            <button type="submit" className="secondary" disabled={busy || name === null}>
+            <button type="submit" className="secondary" disabled={busy || name === null || name.trim() === ""}>
               저장
             </button>
           </form>
+          {name !== null && name.trim() === "" && <p className="hint">모임 이름을 한 글자 이상 적어 주세요.</p>}
           {placeError("name")}
         </section>
         <section aria-label="백업">
@@ -813,8 +814,24 @@ export function Group() {
         <section aria-label="로그아웃">
           <h2>로그아웃</h2>
           <p className="hint">이 기기에서 로그아웃합니다. 작성 중인 편성은 이 기기에 남습니다.</p>
-          <button type="button" className="secondary" onClick={() => void app.logout().then(() => go("/"))}>
-            로그아웃
+          {placeError("account")}
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={() => {
+              // run을 쓰지 않는다: run은 끝나고 스냅숏을 다시 읽는데, 로그아웃 뒤에는 읽을 모임이 없다.
+              setBusy(true);
+              setError(null);
+              setErrorPlace("account");
+              void app
+                .logout()
+                .then(() => go("/"))
+                .catch(setError)
+                .finally(() => setBusy(false));
+            }}
+          >
+            {busy ? "로그아웃 중" : "로그아웃"}
           </button>
         </section>
       </GroupBlock>

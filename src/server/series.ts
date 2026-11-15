@@ -163,6 +163,35 @@ export async function seriesRestoreGuards(
   return [seriesStillGuard(env, groupId, series)];
 }
 
+/**
+ * 일괄 입력 묶음 복구(matches.ts restoreImportBatch)용 seriesRestoreGuards. 복구할 경기들이 든 시리즈마다 같은 기준
+ * (복구로 승부 뒤에 판이 새로 생기면 거절)으로 본다. 묶음 복구는 늘 "확정"으로 되돌린다.
+ * 경기가 몇 개든 질의는 소속 1회·시리즈 1회·경기 1회다(무료 요금제 호출당 질의 50회 한도).
+ */
+export async function seriesBatchRestoreGuards(
+  env: Env,
+  groupId: string,
+  matchIds: readonly string[],
+): Promise<D1PreparedStatement[]> {
+  if (matchIds.length === 0) return [];
+  const seriesIds = new Set((await seriesOfMatches(env, groupId, matchIds)).values());
+  if (seriesIds.size === 0) return [];
+  const touched = (await loadSeries(env, groupId)).filter((s) => seriesIds.has(s.id));
+  if (touched.length === 0) return [];
+  const members = await loadMatchesByIds(env, groupId, touched.flatMap((s) => s.matchIds));
+  const restoring = new Set(matchIds);
+  const guards: D1PreparedStatement[] = [];
+  for (const series of touched) {
+    const before = members.filter((m) => series.matchIds.includes(m.id));
+    const after = before.map((m) => (restoring.has(m.id) ? { ...m, state: "confirmed" as const } : m));
+    if (seriesScore(series, after).overflow && !seriesScore(series, before).overflow) {
+      throw seriesOverflow(series, "이미 승부가 났어요", "이 묶음을 복구하면");
+    }
+    guards.push(seriesStillGuard(env, groupId, series));
+  }
+  return guards;
+}
+
 /** 경기가 든 시리즈와 그 시리즈의 지우지 않은 경기. 시리즈에 없거나 시리즈가 보이지 않으면 null. */
 async function seriesWith(
   env: Env,

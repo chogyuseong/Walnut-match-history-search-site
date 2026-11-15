@@ -389,14 +389,21 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
   );
 }
 
-/** 쉬던 사람이 들어간 초안의 안내 줄 첫 문장. "3경기 · 오늘 온 12명 중 10명이에요. 쉬던 호두알·잣송이가 도토리(블루 미드)·… 자리에 들어갔어요." */
+/**
+ * 쉬던 사람이 들어간 초안의 안내 줄 첫 문장.
+ * "3경기 · 오늘 온 12명 중 10명이에요. 쉬던 호두알·잣송이가 들어갔어요: 호두알은 도토리 대신 블루 미드, 잣송이는 …."
+ * 자리(블루 미드)는 들어온 사람이 새로 맡은 자리다. 예전 "도토리(블루 미드) 자리에"는 도토리가 원래 미드였던 것처럼 읽혔다.
+ */
 function nightLine(note: NonNullable<NightDraft["night"]>, poolSize: number | undefined): string {
   const ins = note.swaps.map((s) => s.inName).join("·");
-  const outs = note.swaps
-    .map((s) => `${s.outName}(${s.team === "A" ? "블루" : "레드"} ${POSITION_LABEL[s.position]})`)
-    .join("·");
+  const seats = note.swaps
+    .map(
+      (s) =>
+        `${s.inName}${josa(s.inName, ["은", "는"])} ${s.outName} 대신 ${s.team === "A" ? "블루" : "레드"} ${POSITION_LABEL[s.position]}`,
+    )
+    .join(", ");
   const last = note.swaps[note.swaps.length - 1]!.inName;
-  return `${note.matchNo}경기 · 오늘 온 ${poolSize ?? note.poolSize}명 중 10명이에요. 쉬던 ${ins}${josa(last, ["이", "가"])} ${outs} 자리에 들어갔어요.`;
+  return `${note.matchNo}경기 · 오늘 온 ${poolSize ?? note.poolSize}명 중 10명이에요. 쉬던 ${ins}${josa(last, ["이", "가"])} 들어갔어요: ${seats}.`;
 }
 
 /** 안내 줄 끝에 붙는 문장: 다른 기기에서 넣은 사람을 명단에 더한 것, 지난 경기의 팀 조건을 이어 온 것. */

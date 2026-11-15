@@ -96,7 +96,9 @@ test("12명 밤: 결과 저장 창의 제안 → 쉬던 두 명이 들어간 초
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
 
   const note = page.getByRole("status").filter({ hasText: /오늘 온 \d+명 중 10명이에요/ });
-  await expect(note).toContainText(/^2경기 · 오늘 온 12명 중 10명이에요\. 쉬던 꿀떡·모래알이 도토리\((블루|레드) \S+\)·밤송이\((블루|레드) \S+\) 자리에 들어갔어요\./);
+  await expect(note).toContainText(
+    /^2경기 · 오늘 온 12명 중 10명이에요\. 쉬던 꿀떡·모래알이 들어갔어요: 꿀떡은 도토리 대신 (블루|레드) \S+, 모래알은 밤송이 대신 (블루|레드) \S+\./,
+  );
   // 사람이 바뀐 초안에는 "포지션 유지"가 없다.
   await expect(page.getByRole("button", { name: "포지션 유지" })).toHaveCount(0);
   const second = await playing(page);

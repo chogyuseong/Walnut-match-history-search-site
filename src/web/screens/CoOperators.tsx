@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiFailure, call } from "../api";
+import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { formatDate, formatTime } from "../format";
 import { CopyButton, Dialog, ErrorNote, scrollBehavior } from "../ui";
 import { go, useAppValue } from "../useApp";
@@ -34,6 +34,30 @@ function showViewLinkSection() {
   document.getElementById("group-view-link")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
 }
 
+/**
+ * 조회 링크와 참가 신청 링크를 새로 만든다(이전 주소는 더 이상 열리지 않는다). 공동 운영자를 내보낼 때·운영자를 넘겨받을 때
+ * 고를 수 있다(2026-11-15 사용자 결정: 자동으로 바꾸지 않고 확인 창에서 고른다. 자동이면 참가자들이 가진 링크까지 끊긴다).
+ * 참가 신청 링크는 원래 있을 때만 바꾼다. 만들기 경로(join/link)는 링크를 열린 상태로 만들므로, 닫혀 있던 링크는 다시 닫는다.
+ */
+export async function renewShareLinks(gid: string): Promise<void> {
+  await mutate(`/api/groups/${gid}/view-token`, { requestId: newRequestId() });
+  const join = await call<{ link: { open: boolean } | null }>("GET", `/api/groups/${gid}/join`);
+  if (!join.link) return;
+  await call("POST", `/api/groups/${gid}/join/link`);
+  if (!join.link.open) await mutate(`/api/groups/${gid}/join/open`, { requestId: newRequestId(), open: false });
+}
+
+/** 확인 창의 "링크도 새로 만들기" 선택 칸. */
+export function RenewLinksChoice(props: { checked: boolean; onChange: (next: boolean) => void; who: string }) {
+  return (
+    <label className="toggle">
+      <input type="checkbox" checked={props.checked} onChange={(e) => props.onChange(e.target.checked)} />
+      조회 링크와 참가 신청 링크도 새로 만들기({props.who}도 지금 주소는 계속 열 수 있어요. 새로 만들면 참가자에게 새 주소를
+      다시 보내야 해요)
+    </label>
+  );
+}
+
 /** 모임 탭(대표 운영자): 공동 운영자 목록, 초대 링크 만들기, 내보내기. */
 export function CoOperatorsSection(props: { gid: string }) {
   const app = useAppValue();
@@ -44,6 +68,7 @@ export function CoOperatorsSection(props: { gid: string }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [removing, setRemoving] = useState<CoOperatorRow | null>(null);
+  const [renewLinks, setRenewLinks] = useState(false);
   // 내보낸 뒤 링크를 다시 만들라는 안내. 닫거나 화면을 떠날 때까지 둔다(잠깐 뜨는 알림으로는 놓치기 쉽다).
   const [removedHint, setRemovedHint] = useState(false);
 
@@ -86,7 +111,15 @@ export function CoOperatorsSection(props: { gid: string }) {
                 <br />
                 <span className="hint">{formatDate(row.joinedAt)}부터 공동 운영</span>
               </span>
-              <button type="button" className="danger" disabled={busy} onClick={() => setRemoving(row)}>
+              <button
+                type="button"
+                className="danger"
+                disabled={busy}
+                onClick={() => {
+                  setRenewLinks(false);
+                  setRemoving(row);
+                }}
+              >
                 내보내기
               </button>
             </li>
@@ -178,6 +211,7 @@ export function CoOperatorsSection(props: { gid: string }) {
             <strong>{accountLabel(removing)}</strong>을(를) 내보내면 그 계정은 바로 이 모임을 보거나 고칠 수 없게 됩니다.
             그동안 저장한 기록은 그대로 남아요.
           </p>
+          <RenewLinksChoice checked={renewLinks} onChange={setRenewLinks} who="내보낸 사람" />
           <ErrorNote error={error} />
           <div className="button-row">
             <button
@@ -190,11 +224,25 @@ export function CoOperatorsSection(props: { gid: string }) {
                 try {
                   await call("DELETE", `/api/groups/${props.gid}/co-operators/${removing.accountId}`);
                   setRemoving(null);
-                  app.setNotice("공동 운영자를 내보냈어요.");
-                  setRemovedHint(true);
                   await load();
                 } catch (e) {
                   setError(e);
+                  setBusy(false);
+                  return;
+                }
+                // 내보내기는 끝났다. 링크 바꾸기만 실패하면 아래 안내(다시 만들기 버튼)로 이어 가게 한다.
+                try {
+                  if (renewLinks) {
+                    await renewShareLinks(props.gid);
+                    await app.refreshAfterOwnChange();
+                    app.setNotice("공동 운영자를 내보내고 두 링크를 새로 만들었어요. 참가자에게 새 주소를 보내 주세요.");
+                  } else {
+                    app.setNotice("공동 운영자를 내보냈어요.");
+                    setRemovedHint(true);
+                  }
+                } catch (e) {
+                  setError(e);
+                  setRemovedHint(true);
                 } finally {
                   setBusy(false);
                 }

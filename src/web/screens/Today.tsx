@@ -346,11 +346,9 @@ export function Today() {
           mode="result"
           nameOf={nameOf}
           onClose={() => setResultFor(null)}
+          // 닫기는 창 머리에 이미 있어 여기에 두지 않는다(같은 이름 버튼 둘).
           afterSave={(saved) => (
             <div className="button-row">
-              <button type="button" className="secondary" onClick={() => setResultFor(null)}>
-                닫기
-              </button>
               <button type="button" className="link" onClick={() => go(`/m/${saved.id}`)}>
                 수정
               </button>

@@ -1,7 +1,7 @@
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { resolveMerged } from "../../shared/merge";
 import type { Snapshot } from "../../shared/types";
-import { ApiFailure, call } from "../api";
+import { ApiFailure, getWithEtag } from "../api";
 import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
 import { ChampionTier } from "../lazyScreens";
 import { KpiStrip, MatchTeams, ScreenHead } from "../screenKit";
@@ -18,6 +18,53 @@ import { Search } from "./Search";
 import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./SeasonSummary";
 
 /**
+ * 조회 링크·멤버 화면의 스냅숏 읽기. 처음 열 때와 탭으로 돌아올 때마다 다시 읽는다.
+ * - ETag가 지난번과 같으면 이전 객체를 그대로 둔다. 새 객체를 넣으면 MMR(522경기면 수십 ms) 같은 memo 계산이
+ *   내용이 같아도 전부 다시 돈다(운영자 화면 useApp.ts loadSnapshot과 같은 방식).
+ * - 순번으로 늦게 온 응답을 버린다(탭을 빠르게 오가면 예전 요청이 나중에 도착할 수 있다).
+ * path가 바뀌어도 이전 자료를 비우지 않는다. 다른 모임·링크로 옮길 때는 App이 key로 화면을 새로 만든다.
+ */
+export function useReadOnlySnapshot(path: string) {
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
+  const [error, setError] = useState<ApiFailure | null>(null);
+  const seq = useRef(0);
+  const last = useRef<{ path: string; etag: string } | null>(null);
+
+  const load = useCallback(async () => {
+    const mine = ++seq.current;
+    try {
+      const { data, etag } = await getWithEtag<Snapshot>(path);
+      if (mine !== seq.current) return;
+      const same = etag !== null && last.current?.path === path && last.current.etag === etag;
+      last.current = etag === null ? null : { path, etag };
+      if (!same) setSnapshot(data);
+      setLoadedAt(Date.now());
+      setError(null);
+    } catch (e) {
+      if (mine !== seq.current) return;
+      if (e instanceof ApiFailure) setError(e);
+    }
+  }, [path]);
+
+  useEffect(() => {
+    const counter = seq;
+    void load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      // 떠난 뒤 도착한 응답은 버린다.
+      counter.current++;
+    };
+  }, [load]);
+
+  return { snapshot, loadedAt, error, load };
+}
+
+/**
  * 화면 7 — 조회 화면(링크). 로그인이 없고 읽기만 한다.
  * 주소: #/v/토큰/now(현재 경기) · #/v/토큰/m/경기번호 · #/v/토큰/records · #/v/토큰/search(?q=질의, App이 떼어 낸다)
  *       · #/v/토큰/home(모임 요약) · #/v/토큰/ranking(MMR 랭킹) · #/v/토큰/compare/A/B(두 사람 비교)
@@ -27,9 +74,7 @@ import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./Se
  */
 export function Viewer(props: { token: string; rest: string[] }) {
   const { token, rest } = props;
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [loadedAt, setLoadedAt] = useState<number | null>(null);
-  const [error, setError] = useState<ApiFailure | null>(null);
+  const { snapshot, loadedAt, error, load } = useReadOnlySnapshot(`/api/view/${token}`);
   const [choosing, setChoosing] = useState(false);
   const meKey = `naejeon.me.${token}`;
   const [myId, setMyId] = useState<string | null>(() => {
@@ -39,25 +84,6 @@ export function Viewer(props: { token: string; rest: string[] }) {
       return null;
     }
   });
-
-  const load = useCallback(async () => {
-    try {
-      setSnapshot(await call<Snapshot>("GET", `/api/view/${token}`));
-      setLoadedAt(Date.now());
-      setError(null);
-    } catch (e) {
-      if (e instanceof ApiFailure) setError(e);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    void load();
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [load]);
 
   // 처리방침은 모임을 불러오지 못해도(링크가 만료돼도) 열린다.
   if (rest[0] === "privacy") {

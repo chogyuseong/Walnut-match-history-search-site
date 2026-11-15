@@ -35,7 +35,14 @@ import {
   type Plan,
 } from "./mutation";
 import { spendBulkRows, type BulkActor } from "./ratelimit";
-import { parseSeriesContinue, seriesContinuePlan, seriesRestoreGuards, seriesUndeleteGuards, type SeriesContinue } from "./series";
+import {
+  parseSeriesContinue,
+  seriesBatchRestoreGuards,
+  seriesContinuePlan,
+  seriesRestoreGuards,
+  seriesUndeleteGuards,
+  type SeriesContinue,
+} from "./series";
 import { groupFingerprints } from "./sheets";
 import { loadGroup, loadMatch, loadOpenSession, loadSettings, ROSTER_IN_GROUP } from "./snapshot";
 
@@ -236,16 +243,13 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
             `UPDATE matches SET state = 'awaiting_result', ended_at = ?1, version = version + 1
              WHERE id = ?2 AND group_id = ?3`,
           ).bind(now, current.id, groupId),
+          // 아래 확인은 batch 밖이라 동시에 들어온 되살리기·결과는 나중에와 겹치면 넘을 수 있다. 옮긴 뒤 다시 센다.
+          awaitingLimitGuard(env, groupId),
           insertRevision(env, groupId, current.id, "end", {}, now),
         );
       }
 
-      const awaiting = await env.DB.prepare(
-        "SELECT COUNT(*) AS n FROM matches WHERE group_id = ?1 AND state = 'awaiting_result' AND deleted_at IS NULL",
-      )
-        .bind(groupId)
-        .first<{ n: number }>();
-      if ((awaiting?.n ?? 0) + (current ? 1 : 0) > MAX_AWAITING) {
+      if ((await countAwaiting(env, groupId)) + (current ? 1 : 0) > MAX_AWAITING) {
         throw new ApiError(
           409,
           "TOO_MANY_AWAITING",
@@ -391,6 +395,14 @@ export async function endLater(
       const match = await loadMatch(env, groupId, matchId);
       assertMatchVersion(match, baseMatchVersion);
       assertState(match, ["in_progress"]);
+      // 경기 시작의 "결과는 나중에"와 같은 상한. 이 경로만 빠져 있어 미입력 경기가 끝없이 쌓일 수 있었다.
+      if ((await countAwaiting(env, groupId)) + 1 > MAX_AWAITING) {
+        throw new ApiError(
+          409,
+          "TOO_MANY_AWAITING",
+          `결과를 입력하지 않은 경기가 이미 ${MAX_AWAITING}개예요. 이 경기 결과를 바로 입력하거나 다른 경기의 결과를 먼저 입력해 주세요.`,
+        );
+      }
       const now = nowIso();
       return {
         stored: { matchId },
@@ -400,6 +412,8 @@ export async function endLater(
             `UPDATE matches SET state = 'awaiting_result', ended_at = ?1, version = version + 1
              WHERE id = ?2 AND group_id = ?3`,
           ).bind(now, matchId, groupId),
+          // 바꾼 뒤의 개수로 센다. 그래서 UPDATE 다음에 둔다.
+          awaitingLimitGuard(env, groupId),
           bumpLiveVersion(env, groupId),
           insertRevision(env, groupId, matchId, "end", {}, now),
         ],
@@ -989,6 +1003,15 @@ export async function restoreMatch(
       }
       // 시리즈: 제외한 사이 판을 더 넣어 승부가 났으면 복구로 승부 뒤에 판이 붙는다(거절).
       guards.push(...(await seriesRestoreGuards(env, groupId, match, target as MatchView["state"])));
+      // 결과 미입력이던 경기를 복구하면 미입력으로 돌아간다. 제외한 사이 새 경기가 쌓였으면 상한을 넘을 수 있다.
+      const backToAwaiting = target === "awaiting_result";
+      if (backToAwaiting && (await countAwaiting(env, groupId)) + 1 > MAX_AWAITING) {
+        throw new ApiError(
+          409,
+          "TOO_MANY_AWAITING",
+          `결과를 입력하지 않은 경기가 이미 ${MAX_AWAITING}개라 복구할 수 없어요. 다른 경기의 결과를 먼저 입력한 뒤 복구하세요.`,
+        );
+      }
       const now = nowIso();
       return {
         stored: { matchId },
@@ -999,6 +1022,8 @@ export async function restoreMatch(
             `UPDATE matches SET state = ?1, prev_state = NULL, version = version + 1
              WHERE id = ?2 AND group_id = ?3`,
           ).bind(target, matchId, groupId),
+          // 바꾼 뒤의 개수로 센다. 그래서 UPDATE 다음에 둔다.
+          ...(backToAwaiting ? [awaitingLimitGuard(env, groupId)] : []),
           insertRevision(
             env,
             groupId,
@@ -1118,16 +1143,12 @@ export async function undeleteMatch(
       // 결과 미입력 경기를 지운 사이 새 경기가 쌓였으면, 되살리는 순간 상한(MAX_AWAITING)을 넘을 수 있다.
       // 경기 시작과 같은 상한을 여기서도 지킨다. 저장 batch 안의 awaitingLimitGuard가 동시에 들어온 시작까지 막는다.
       if (match.state === "awaiting_result") {
-        const awaiting = await env.DB.prepare(
-          "SELECT COUNT(*) AS n FROM matches WHERE group_id = ?1 AND state = 'awaiting_result' AND deleted_at IS NULL",
-        )
-          .bind(groupId)
-          .first<{ n: number }>();
-        if ((awaiting?.n ?? 0) + 1 > MAX_AWAITING) {
+        const awaiting = await countAwaiting(env, groupId);
+        if (awaiting + 1 > MAX_AWAITING) {
           throw new ApiError(
             409,
             "TOO_MANY_AWAITING",
-            `결과를 입력하지 않은 경기가 이미 ${awaiting?.n ?? 0}개라 되살리면 ${MAX_AWAITING}개를 넘어요. 다른 경기의 결과를 먼저 입력한 뒤 되살리세요.`,
+            `결과를 입력하지 않은 경기가 이미 ${awaiting}개라 되살리면 ${MAX_AWAITING}개를 넘어요. 다른 경기의 결과를 먼저 입력한 뒤 되살리세요.`,
           );
         }
       }
@@ -1167,7 +1188,17 @@ export async function undeleteMatch(
   return loadMatch(env, groupId, matchId);
 }
 
-/** 지우지 않은 결과 미입력 경기가 MAX_AWAITING개를 넘으면 batch 전체를 실패시킨다(되살리기 경합용). */
+/** 지우지 않은 결과 미입력 경기 수. 경기 시작·결과는 나중에·되살리기가 같은 상한(MAX_AWAITING)을 이 값으로 잰다. */
+async function countAwaiting(env: Env, groupId: string): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM matches WHERE group_id = ?1 AND state = 'awaiting_result' AND deleted_at IS NULL",
+  )
+    .bind(groupId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** 지우지 않은 결과 미입력 경기가 MAX_AWAITING개를 넘으면 batch 전체를 실패시킨다(동시에 들어온 요청 경합용). */
 function awaitingLimitGuard(env: Env, groupId: string): D1PreparedStatement {
   return env.DB.prepare(
     `INSERT INTO guard (version_conflict)
@@ -1915,6 +1946,8 @@ async function restoreImportBatch(env: Env, groupId: string, batchId: string, sk
   }
   const skip = new Set(overlaps.map((o) => o.matchId));
   const restore = ids.filter((id) => !skip.has(id));
+  // 시리즈: 한 경기 복구(restoreMatch)와 같은 기준. 제외한 사이 판을 더 넣어 승부가 났으면 거절한다.
+  const seriesGuards = await seriesBatchRestoreGuards(env, groupId, restore);
   const now = nowIso();
   const where = `group_id = ?1 AND id IN (SELECT value FROM json_each(?2)) AND state = 'excluded' AND prev_state = 'confirmed'
     AND deleted_at IS NULL`;
@@ -1925,6 +1958,7 @@ async function restoreImportBatch(env: Env, groupId: string, batchId: string, sk
       // 확인 뒤 범위가 바뀌었거나(다른 탭의 가져오기·복구) 고른 경기가 이미 바뀌었으면 batch 전체를 실패시킨다.
       fingerprintScopeGuard(env, groupId, stamp),
       storedFingerprintRestoreGuard(env, groupId, restore),
+      ...seriesGuards,
       env.DB.prepare(
         `INSERT INTO guard (version_conflict)
          SELECT 1 WHERE (SELECT COUNT(*) FROM matches WHERE ${where}) <> ?3`,

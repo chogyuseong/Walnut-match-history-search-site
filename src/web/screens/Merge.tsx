@@ -72,7 +72,9 @@ export function Merge() {
   const [undoing, setUndoing] = useState<string | null>(null);
   // 요청 ID는 미리보기를 받을 때 만들고, 응답을 못 받아 다시 누를 때는 같은 값을 쓴다.
   const requestId = useRef(newRequestId());
-  const undoRequestId = useRef(newRequestId());
+  // 되돌리기 요청 ID는 합치기마다 따로 둔다. 하나로 두면 X 되돌리기의 응답만 잃은 뒤 Y를 되돌릴 때 같은 ID가 나가
+  // 서버가 REQUEST_ID_REUSED로 거절했다(새로 고칠 때까지 Y를 못 되돌림).
+  const undoRequest = useRef<{ id: string; mergeId: string } | null>(null);
 
   if (!snapshot) {
     return (
@@ -143,17 +145,18 @@ export function Merge() {
   async function runUndo(mergeId: string, sourceName: string, targetName: string) {
     setBusy(true);
     setError(null);
+    if (undoRequest.current?.mergeId !== mergeId) undoRequest.current = { id: newRequestId(), mergeId };
     try {
       const result = await mutate<{ matchCount: number; link?: UndoLink | null }>(
         `/api/groups/${gid}/merges/${mergeId}/undo`,
-        { requestId: undoRequestId.current },
+        { requestId: undoRequest.current.id },
       );
       await app.refreshAfterOwnChange();
       app.setNotice(
         `합치기를 되돌렸어요. 경기 ${result.matchCount}개를 원래 이름으로 돌렸습니다.` +
           undoLinkText(result.link, sourceName, targetName),
       );
-      undoRequestId.current = newRequestId();
+      undoRequest.current = null;
       setUndoing(null);
     } catch (e) {
       setError(e);

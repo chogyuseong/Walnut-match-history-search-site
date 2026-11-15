@@ -67,6 +67,7 @@
     "RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY": "1000000000",
     "RATE_SNAPSHOT_ROWS_PER_IP_DAY": "1000000000",
     "RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY": "1000000000",
+    "RATE_SNAPSHOT_ROWS_SITE_DAY": "1000000000",
     // 사이트 운영자(현황 화면 #/admin). 로컬 전용 꼴 "fake:로그인이름": 가짜 로그인 "e2e-site-admin"이 사이트 운영자다
     // (브라우저 테스트 e2e/error-admin.spec.ts가 쓴다). 가짜 로그인이 닫힌 곳에서는 이 꼴을 무시한다(src/server/siteAdmin.ts).
     "SITE_ADMIN_ACCOUNT_IDS": "fake:e2e-site-admin"
@@ -130,6 +131,8 @@
         "RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY": "3000000",
         "RATE_SNAPSHOT_ROWS_PER_IP_DAY": "4000000",
         "RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY": "4000000",
+        // 위 예산의 사이트 전체 합계. D1 하루 읽기 500만 행 중 약 150만 행을 쓰기·304 확인 몫으로 남긴다.
+        "RATE_SNAPSHOT_ROWS_SITE_DAY": "3500000",
         // 자동 백업: 예정 작업 한 번에 백업할 모임 수, 보관 날수(src/server/backupCron.ts).
         "BACKUP_GROUPS_PER_RUN": "5",
         "BACKUP_KEEP_DAYS": "30",
@@ -207,6 +210,7 @@
         "RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY": "3000000",
         "RATE_SNAPSHOT_ROWS_PER_IP_DAY": "4000000",
         "RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY": "4000000",
+        "RATE_SNAPSHOT_ROWS_SITE_DAY": "3500000",
         "BACKUP_GROUPS_PER_RUN": "5",
         "BACKUP_KEEP_DAYS": "30",
         "SITE_ADMIN_ACCOUNT_IDS": ""

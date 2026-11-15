@@ -280,7 +280,11 @@ export async function ensureParticipants(
     }>();
   const byKey = new Map(rows.results.map((r) => [r.name_key, r]));
   return keys.map((key) => {
-    const row = byKey.get(key)!;
+    const row = byKey.get(key);
+    // 넣은 뒤 다시 읽기 전에 다른 기기가 같은 사람을 보관하거나 이름을 바꾸면 없을 수 있다(예전에는 500).
+    if (!row) {
+      throw new ApiError(409, "STATE_CONFLICT", "그 사이 참가자 이름이 바뀌었어요. 화면을 새로 고친 뒤 다시 해 주세요.");
+    }
     return { id: row.id, name: row.name, status: row.status, skillGroup: row.skill_group };
   });
 }

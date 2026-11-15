@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
-import { rateClock, SNAPSHOT_BUDGET_MESSAGE, snapshotCost } from "../src/server/ratelimit";
+import { rateClock, SITE_BUDGET_MESSAGE, SNAPSHOT_BUDGET_MESSAGE, snapshotCost } from "../src/server/ratelimit";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
 import { api, login, playConfirmed, rosterOf, setupGroup, unique, type TestGroup } from "./helpers";
@@ -195,6 +195,25 @@ describe("스냅숏 하루 읽기 예산(2026-11-10 보안 감사)", () => {
     expect(((await over.json()) as { error: { message: string } }).error.message).toContain(SNAPSHOT_BUDGET_MESSAGE);
     // 같은 예산이라 스냅숏도 막힌다.
     expect((await getter(limits, `/api/groups/${g.gid}/snapshot`, g.cookie)()).status).toBe(429);
+  });
+
+  it("사이트 전체 합계: 계정·IP가 달라도 합쳐 세고, 넘으면 사이트 전체 안내로 429", async () => {
+    const a = await setupGroup(2);
+    const b = await setupGroup(2);
+    fixDay(12);
+    // 경기 0개 모임의 비용은 300. 사이트 예산 700이면 두 번까지(주체별 예산은 넉넉히).
+    const limits: Partial<Env> = {
+      RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY: BIG,
+      RATE_SNAPSHOT_ROWS_PER_IP_DAY: BIG,
+      RATE_SNAPSHOT_ROWS_SITE_DAY: "700",
+    };
+    expect((await getter(limits, `/api/groups/${a.gid}/snapshot`, a.cookie)()).status).toBe(200);
+    expect((await getter(limits, `/api/groups/${b.gid}/snapshot`, b.cookie)()).status).toBe(200);
+    const over = await getter(limits, `/api/groups/${a.gid}/export`, a.cookie)();
+    expect(over.status).toBe(429);
+    const message = ((await over.json()) as { error: { message: string } }).error.message;
+    expect(message).toContain(SITE_BUDGET_MESSAGE);
+    expect(message).toContain("경기 시작·결과 저장은 그대로");
   });
 
   it("멤버 스냅숏도 계정 예산을 쓴다", async () => {
