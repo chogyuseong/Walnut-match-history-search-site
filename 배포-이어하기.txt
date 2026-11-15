@@ -18,6 +18,16 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-15: 운영 cb50f0fe = main 47b50ec(중복·비효율 정리)]
+
+- staging e90c49bd 거쳐 운영 cb50f0fe. 마이그레이션 없음. 70a9044(placement 지역 지정)도 이번에 함께 운영에 들어감.
+- 운영 /api/health 200·cf-placement: remote-HKG, 첫 화면·robots.txt 200, 새 묶음 index-DG_2j9y8.js, noindex meta 없음 확인.
+- 47b50ec: 합친 사람 찾기(mergeResolver)를 반복문마다 다시 만들지 않게(스냅숏 보정값·참가 신청·편성 명단), 복원 ID 겹침
+  검사를 batch 한 번으로, 크기 제한 읽기·sha256Hex·positiveInt·lastLiveMatch 중복 제거. 단위 1181·관련 E2E 54 통과.
+  로그인이 필요한 경로(참가 신청 목록·서포터 횟수·복원 미리보기)는 staging·운영 화면에서 눌러 보지 않았다.
+- 11-14 점검의 고칠 것 목록(아래)은 그대로 남아 있다.
+
+
 [2026-11-14 밤 늦게: 전체 기능·CSS 점검 결과 — 고칠 것 고르기 대기]
 
 - 다섯 갈래로 점검(자동 검사 전부, staging 화면 77개 × 390·768·1440 × 다크·라이트, staging 기능 12묶음, 서버·화면 코드 검토).
