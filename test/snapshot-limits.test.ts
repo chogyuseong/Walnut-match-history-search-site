@@ -178,6 +178,25 @@ describe("스냅숏 하루 읽기 예산(2026-11-10 보안 감사)", () => {
     expect((await view(perIp, tokenB)).status).toBe(200);
   });
 
+  it("백업 내려받기·합치기 미리보기·가져오기 지문 목록도 스냅숏과 같은 계정 예산을 쓴다(11-14 점검)", async () => {
+    const g = await setupGroup(2);
+    fixDay(11);
+    // 경기 0개 모임의 비용은 300. 예산 1000이면 셋째까지 되고 넷째는 429.
+    const limits: Partial<Env> = { RATE_SNAPSHOT_ROWS_PER_ACCOUNT_DAY: "1000", RATE_SNAPSHOT_ROWS_PER_IP_DAY: BIG };
+    const [a, b] = g.people;
+    const paths = [
+      `/api/groups/${g.gid}/export`,
+      `/api/groups/${g.gid}/imports/fingerprints`,
+      `/api/groups/${g.gid}/merges/preview?source=${a!.id}&target=${b!.id}`,
+    ];
+    for (const path of paths) expect((await getter(limits, path, g.cookie)()).status, path).toBe(200);
+    const over = await getter(limits, `/api/groups/${g.gid}/export`, g.cookie)();
+    expect(over.status).toBe(429);
+    expect(((await over.json()) as { error: { message: string } }).error.message).toContain(SNAPSHOT_BUDGET_MESSAGE);
+    // 같은 예산이라 스냅숏도 막힌다.
+    expect((await getter(limits, `/api/groups/${g.gid}/snapshot`, g.cookie)()).status).toBe(429);
+  });
+
   it("멤버 스냅숏도 계정 예산을 쓴다", async () => {
     const g = await setupGroup(2);
     const member = await link(g, g.people[0]!.id);

@@ -369,6 +369,9 @@ export function Pick() {
               }
             }}
             onKeyDown={(event) => {
+              // 한글 조합 중의 Enter는 조합을 끝내는 키다. 여기서 추가하면 마지막 글자가 빠진 이름이 들어가고
+              // 조합이 끝난 뒤 남은 글자가 칸에 다시 남는다(keyCode 229는 isComposing을 안 주는 옛 브라우저용).
+              if (event.nativeEvent.isComposing || event.keyCode === 229) return;
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 submitText(text);

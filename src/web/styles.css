@@ -1848,12 +1848,6 @@ li.match-row.tone-red:hover {
   /* "● 블루팀"·"■ 레드팀"이 좁은 화면에서도 한 줄로 보이게. */
   white-space: nowrap;
 }
-/* 전역 .side-blue/.side-red(진영 막대 칸, 채움 색)를 덮도록 바탕을 표면 색으로 다시 둔다. */
-.team.side-blue,
-.team.side-red {
-  background: var(--ih-panel);
-  box-shadow: none;
-}
 .team.side-blue {
   border-color: var(--ih-win-accent);
 }
@@ -5119,10 +5113,12 @@ main:focus {
   flex-basis: 0;
   min-width: 0;
 }
-.side-blue {
+/* 진영 막대 칸의 채움 색. 막대 안으로만 좁힌다: 전역으로 두면 같은 이름을 쓰는 팀 상자·기록 카드 머리 글자에도
+   바탕색이 칠해져, 진영 색 글자가 진영 색 바탕 위에 놓였다(대비 1.3~1.5:1, 11-14 점검). */
+.side-bar > .side-blue {
   background: var(--ih-win-accent);
 }
-.side-red {
+.side-bar > .side-red {
   background: var(--ih-loss-accent);
 }
 .season-tiles .tile-sub {

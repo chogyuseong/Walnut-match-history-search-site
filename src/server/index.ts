@@ -200,6 +200,20 @@ async function countSnapshot(env: Env, req: Request, accountId: string, head: { 
 }
 
 /**
+ * 비싼 읽기(HEAVY_READ: 백업 내려받기·합치기 미리보기·가져오기 지문 목록)도 스냅숏과 같은 하루 읽기 예산을 쓴다.
+ * 분당 한도(heavy-*)만으로는 큰 모임 백업을 되풀이해 D1 하루 읽기 500만 행을 한 사람이 다 쓸 수 있었다(11-14 점검).
+ * 셋 다 모임 경기 수에 비례해 읽으므로 비용은 snapshotCost로 어림한다(지문 목록은 그보다 적게 읽어 넉넉한 쪽이다).
+ * 운영자 확인 뒤, 본문을 만들기 전에 부른다. 모임 행 1행을 더 읽는다.
+ */
+async function spendHeavyRead(env: Env, req: Request, accountId: string, gid: string): Promise<void> {
+  const row = await env.DB.prepare("SELECT next_match_no FROM groups WHERE id = ?1")
+    .bind(gid)
+    .first<{ next_match_no: number }>();
+  if (!row) return;
+  await spendSnapshotRows(env, { accountId, ip: clientIp(req) }, row.next_match_no - 1);
+}
+
+/**
  * 대표 운영자의 되돌리기 어려운 작업(모임 삭제·넘기기·복원) 앞에서 지금 비밀번호를 한 번 더 확인한다(2026-11-10 보안 감사):
  * 세션 쿠키만 훔친 사람이 모임을 지우거나 가져가지 못하게. 비밀번호가 없는 계정(카카오·Google·개발용)은 건너뛴다.
  */
@@ -643,7 +657,8 @@ app.post("/api/account/delete", async (c) => {
 // 미리보기: 옮길 경기 수, 겹치는 경기, 합친 뒤 승패·배치·칭호. 아무것도 쓰지 않는다.
 app.get("/api/groups/:gid/merges/preview", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
+  await spendHeavyRead(c.env, c.req.raw, accountId, gid);
   return c.json(
     await previewMerge(c.env, gid, { sourceId: c.req.query("source"), targetId: c.req.query("target") }),
   );
@@ -663,7 +678,8 @@ app.post("/api/groups/:gid/merges/:mid/undo", async (c) => {
 
 app.get("/api/groups/:gid/export", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
+  await spendHeavyRead(c.env, c.req.raw, accountId, gid);
   return c.json(await exportBackup(c.env, gid));
 });
 
@@ -708,7 +724,8 @@ app.post("/api/groups/:gid/legacy/read", async (c) => {
 // 다시 가져오기에서 이미 들어간 경기를 가려내기 위한 지문 목록.
 app.get("/api/groups/:gid/imports/fingerprints", async (c) => {
   const gid = c.req.param("gid");
-  await requireOperator(c.env, c.req.raw, gid);
+  const accountId = await requireOperator(c.env, c.req.raw, gid);
+  await spendHeavyRead(c.env, c.req.raw, accountId, gid);
   return c.json(await listImportFingerprints(c.env, gid));
 });
 
