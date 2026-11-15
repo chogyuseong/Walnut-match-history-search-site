@@ -18,7 +18,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
-[2026-11-15 Workers Paid 전환 뒤: 설정만 바뀜, 배포 대기]
+[2026-11-15 Workers Paid 전환 뒤: 운영 94d02098 = staging 99b77099 = main bba6e62(설정만 바뀜)]
+
+- 운영(사용자가 직접 배포): /api/health 200·cf-placement: remote-HKG, 첫 화면 200, PASSWORD_PBKDF2_ITERATIONS 100000 들어감.
+  로그인 cpuTime은 아직 보지 않았다.
 
 - 사용자가 Cloudflare를 Workers Paid(월 5달러)로 바꿨다. 공식 문서 확인: 요청당 CPU 기본 30초, 크론 250개,
   D1은 하루 한도 없이 월 포함량(읽기 250억·쓰기 5천만 행)을 넘으면 청구. 자세한 것은 docs/배포안내.md 13-1절 끝.
