@@ -2522,10 +2522,12 @@ table {
   min-width: 34em;
 }
 /* 개인정보·사이트 현황 표는 문장이 든 칸이라 좁은 열에서도 낱말을 자르지 않는다("막/기"처럼 끊겼다).
-   전역 table의 word-break: normal을 여기서만 되돌린다. 표는 .table-scroll 안이라 넓어지면 그 영역만 스크롤된다. */
+   전역 table의 word-break: normal을 여기서만 되돌린다. 표는 .table-scroll 안이라 넓어지면 그 영역만 스크롤된다.
+   anywhere로 두면 표가 칸 최소 폭을 글자 하나로 잡아 390px에서 "운영자/, 본인"처럼 쉼표 앞에서 줄이 바뀌었다.
+   break-word는 칸 폭을 낱말 기준으로 잡고, 칸보다 긴 낱말만 넘칠 때 자른다. */
 .privacy-table :is(th, td) {
   word-break: keep-all;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 /* 표 행 최소 48px(CLAUDE.md 7절). 칸 높이는 최소값으로 동작해 긴 칸은 그대로 늘어난다. */
 .privacy-table tbody :is(th, td) {

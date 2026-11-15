@@ -220,8 +220,8 @@
       // [만들어야 함] npx wrangler r2 bucket create naejeon-staging-backups
       "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "naejeon-staging-backups" }],
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
-      // 크론은 계정당 5개까지라 staging은 하루 한 번만 돈다(한 번에 BACKUP_GROUPS_PER_RUN개).
-      "triggers": { "crons": ["0 18 * * *"] },
+      // 운영과 같은 주기(Workers Paid는 크론 계정당 250개, 무료 5개 때는 하루 한 번이었다).
+      "triggers": { "crons": ["*/5 18-20 * * *"] },
       // Worker를 D1 옆에서 돌린다(운영 칸의 placement 설명 참고). staging D1 주 위치는 ICN(서울)이라 AWS 서울 지역.
       "placement": { "region": "aws:ap-northeast-2" },
       "observability": {
