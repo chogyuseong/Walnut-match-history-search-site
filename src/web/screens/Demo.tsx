@@ -31,7 +31,6 @@ export function Demo(props: { rest: string[] }) {
   const page = snapshot ? viewerPage(snapshot, "/demo", rest) : null;
   return (
     <>
-      <DemoBanner />
       <DemoNav current={page?.tab ?? "home"} />
       <div className="bleed-body">
       {!snapshot ? (
@@ -60,21 +59,11 @@ export function Demo(props: { rest: string[] }) {
   );
 }
 
-/** 모든 예시 화면 위의 안내. 높이가 바뀌지 않게 데이터와 상관없이 바로 그린다. */
-function DemoBanner() {
-  return (
-    <div className="demo-banner" role="note" aria-label="예시 데이터 안내">
-      <p>
-        <strong>예시 데이터예요.</strong> 가짜 이름으로 만든 기록이에요.
-      </p>
-      {/* 예시 화면의 주 버튼은 화면 본문 쪽에 둔다(primary 하나 규칙). 안내 줄의 행동은 secondary. */}
-      <button type="button" className="secondary" onClick={() => go("/group")}>
-        내 모임 만들기
-      </button>
-    </div>
-  );
-}
-
+/**
+ * 예시 화면 위의 한 줄: 왼쪽은 예시 데이터 안내 + "내 모임 만들기", 오른쪽은 화면 칸. 안내를 따로 한 줄로 두면 사이트 바까지
+ * 띠가 세 줄이라 화면 제목이 186px 아래에서 시작해서 한 줄로 합쳤다. 데이터와 상관없이 바로 그려 높이가 바뀌지 않는다.
+ * 휴대폰에서는 화면 칸 묶음(> span)이 하단 고정 메뉴로 내려가고 안내 줄만 남는다(styles.css .viewer-nav).
+ */
 function DemoNav(props: { current: ViewerTab }) {
   const item = (tab: ViewerTab, label: string) => (
     <button
@@ -89,7 +78,15 @@ function DemoNav(props: { current: ViewerTab }) {
   );
   return (
     <nav className="viewer-nav demo-nav" aria-label="예시 모임 메뉴">
-      <strong>예시 모임</strong>
+      <div className="demo-note" role="note" aria-label="예시 데이터 안내">
+        <p>
+          <strong>예시 모임</strong> 가짜 이름으로 만든 예시 데이터예요
+        </p>
+        {/* 예시 화면의 주 버튼은 화면 본문 쪽에 둔다(primary 하나 규칙). 안내 줄의 행동은 secondary. */}
+        <button type="button" className="secondary" onClick={() => go("/group")}>
+          내 모임 만들기
+        </button>
+      </div>
       <span>
         {item("home", "요약")} {item("search", "검색")} {item("records", "기록")} {item("ranking", "랭킹")}{" "}
         {item("champions", "챔피언")}

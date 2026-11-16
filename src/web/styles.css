@@ -2870,6 +2870,34 @@ main:focus {
   border-color: var(--ih-loss-border);
   color: var(--ih-loss-text);
 }
+/* 글자로만 쓰는 최근 승패(FormDots letters): 칸·진영색 없이 "승패승"이 붙어 한 낱말처럼 읽힌다.
+   승은 본문 색 500, 패는 보조 색 400이라 색 없이도 이긴 판이 먼저 눈에 든다. 뜻은 글자가 전한다. */
+.form-dots.letters {
+  gap: 0;
+  font-variant-numeric: tabular-nums;
+}
+.form-dots.letters .form-dot,
+.form-dots.letters .form-dot.win,
+.form-dots.letters .form-dot.loss {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  font-size: var(--text-label);
+}
+.form-dots.letters .form-dot.win {
+  color: var(--ih-text);
+  font-weight: 500;
+}
+.form-dots.letters .form-dot.loss {
+  color: var(--ih-text-secondary);
+  font-weight: 400;
+}
+/* 요약 화면 랭킹 상위 5명: 줄의 색 강조는 승률 숫자 하나만 남기고 칭호는 보조 글자 색으로 둔다(엠블럼·이름은 그대로).
+   칭호 등급 색은 랭킹·개인 통계처럼 칭호를 보러 가는 화면에서 보인다(CLAUDE.md 5절 칭호 예외). */
+.dash-rank-list .title-chip[class*="grade-"] {
+  color: var(--ih-text-secondary);
+}
 .streak {
   font-size: var(--text-label);
   font-weight: 500;
@@ -5469,44 +5497,55 @@ main:focus {
     --intro-shot-max: 390px;
   }
 }
+/* 소개 단을 첫 화면 높이만큼 세우고 글을 세로 가운데보다 조금 위에 둔다. 위에 붙여 두면 오른쪽 목록 옆으로
+   버튼 아래가 500px 가까이 비어 첫 화면이 덜 짜인 것처럼 보였다. 따라올 때(sticky)도 같은 높이라 창 안에 들어온다. */
 @media (min-width: 1200px) and (min-height: 720px) {
+  :root {
+    /* 첫 화면에서 소개 단 위에 쓰이는 높이: 상단 바 64 + 탭 줄 61 + 위 여백 24 ≈ 152. 탭 줄 높이가 바뀌면 같이 고친다. */
+    --intro-chrome-above: 152px;
+  }
   .intro-hero {
     position: sticky;
     top: calc(var(--topbar-height) + var(--space-5));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(100vh - var(--intro-chrome-above) - var(--space-5));
+    /* 아래 여백만큼 글 덩어리가 위로 올라가 눈으로 본 가운데에 놓인다. */
+    padding-bottom: var(--space-7);
   }
 }
-/* 예시 모임(#/demo) 위 안내. 데이터와 상관없이 바로 그려 높이가 바뀌지 않는다. */
-.demo-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--bleed-inline);
-  background: var(--ih-subtle);
-  border-bottom: 1px solid var(--ih-line);
+/* 예시 모임(#/demo) 메뉴 줄 왼쪽의 안내(src/web/screens/Demo.tsx DemoNav). 메뉴 줄과 같은 패널 바탕이고, 안내 글은
+   보조 글자라 오른쪽 화면 칸보다 앞서 보이지 않는다. 768~1199px에서 줄이 좁으면 화면 칸이 다음 줄로 내려간다. */
+.demo-nav {
+  gap: var(--space-2) var(--space-4);
+  padding-block: var(--space-2);
 }
-.demo-banner p {
+.demo-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.demo-note p {
   margin: 0;
   min-width: 0;
-  overflow-wrap: anywhere;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
 }
-/* 휴대폰: 안내와 버튼을 한 줄에 둬 본문이 빨리 나오게 한다. 메뉴 칸은 하단 고정 메뉴로 내려가고 화면 제목이
-   "예시 모임 요약"이라, 위에 남는 "예시 모임" 줄은 숨긴다(조회 링크의 .viewer-nav는 모임 이름이라 그대로 둔다). */
+.demo-note strong {
+  margin-right: var(--space-2);
+  color: var(--ih-text);
+  font-weight: 500;
+}
+.demo-note > button {
+  flex-shrink: 0;
+}
+/* 휴대폰: 화면 칸은 하단 고정 메뉴로 내려가 이 줄에는 안내와 버튼만 남는다. 버튼 폭을 지키고 글이 두 줄로 꺾인다. */
 @media (max-width: 767px) {
-  .demo-banner {
-    flex-wrap: nowrap;
-  }
-  .demo-banner > button {
-    flex-shrink: 0;
-  }
-  .demo-nav {
-    min-height: 0;
-    padding: 0;
-    border-bottom: 0;
-  }
-  .demo-nav > strong {
-    display: none;
+  .demo-note {
+    flex: 1;
+    justify-content: space-between;
   }
 }
 /* 예시 데이터를 만드는 동안 자리를 잡아 둔다(아래 푸터가 크게 튀지 않게). */

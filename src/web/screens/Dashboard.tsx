@@ -152,7 +152,7 @@ export function Dashboard(props: {
             </button>
           </div>
           <p className="sub-head">칭호와 배치는 누적 기준</p>
-          <ul className="list list-card">
+          <ul className="list list-card dash-rank-list">
             {top.map((r) => (
               <li key={r.participantId}>
                 <button
@@ -166,7 +166,7 @@ export function Dashboard(props: {
                       <span className="rank-person">{r.name}</span>
                     </span>
                     <span className="form-line">
-                      <FormDots results={recentResults(forms.get(r.participantId))} />
+                      <FormDots results={recentResults(forms.get(r.participantId))} letters />
                     </span>
                   </span>
                   <span className="stat">

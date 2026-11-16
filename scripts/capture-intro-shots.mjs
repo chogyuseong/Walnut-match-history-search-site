@@ -74,8 +74,9 @@ const SHOTS = [
       await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
       const heading = page.getByRole("heading", { name: "다음 경기 준비" });
       await heading.waitFor();
-      const tools = page.getByRole("region", { name: "섞기" });
-      return clipBetween(page, heading, tools.getByRole("button").nth(1));
+      // 블루·레드 보드에서 자른다. 그 아래 사용 안내 문장·섞기 버튼까지 넣으면 사진이 설명서처럼 읽히고 길어져
+      // 1200px 이상 소개에서 첫 화면이 사진 하나로 찬다.
+      return clipBetween(page, heading, page.getByRole("main").locator(".teams").first());
     },
   },
   {

@@ -440,11 +440,13 @@ export function StickyAction(props: { children: ReactNode }) {
 /**
  * 최근 승패 칸. 최근 경기가 왼쪽이다. 색만이 아니라 칸 안의 글자(승·패)로도 구분한다.
  * 읽는 사람에게는 "최근 5경기 승 패 승…"처럼 읽힌다.
+ * letters: 칸·진영색 없이 "승패승"을 글자로만 쓴다(승은 본문 색, 패는 보조 색). 줄마다 다른 색 표시(승률·칭호)가
+ * 이미 있는 짧은 목록에서 색칸이 줄당 다섯 개씩 겹쳐 시선을 나누던 곳에 쓴다(요약 화면 랭킹 상위 5명).
  */
-export function FormDots(props: { results: readonly boolean[]; label?: string }) {
+export function FormDots(props: { results: readonly boolean[]; label?: string; letters?: boolean }) {
   if (props.results.length === 0) return null;
   return (
-    <span className="form-dots">
+    <span className={props.letters ? "form-dots letters" : "form-dots"}>
       <span className="sr-only">{props.label ?? `최근 ${props.results.length}경기`}</span>
       {props.results.map((won, i) => (
         <span key={i} className={won ? "form-dot win" : "form-dot loss"}>

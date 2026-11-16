@@ -32,7 +32,7 @@ const FEATURES: { icon: LineIconName; title: string; text: string; shot?: IntroS
     icon: "group",
     title: "팀 짜기",
     text: "10명을 넣으면 티어로 실력을 맞춘 두 팀을 추천하고, 서포터를 돌아가며 맡도록 순서를 챙겨요.",
-    shot: { name: "prep", alt: "팀 짜기 화면 예시: 블루팀·레드팀에 라인별로 다섯 명씩 배치되고 아래에 섞기 버튼이 있다", height: 551 },
+    shot: { name: "prep", alt: "팀 짜기 화면 예시: 블루팀·레드팀에 탑부터 서폿까지 라인별로 다섯 명씩 배치돼 있다", height: 362 },
   },
   {
     icon: "ranking",
@@ -47,7 +47,7 @@ const FEATURES: { icon: LineIconName; title: string; text: string; shot?: IntroS
     shot: {
       name: "join",
       alt: "참가 신청 화면 예시: 신청한 사람 2명이 위에 있고, 아래 명단에서 자기 이름 옆의 '오늘 참가' 버튼을 누른다",
-      height: 764,
+      height: 776,
     },
   },
   {
