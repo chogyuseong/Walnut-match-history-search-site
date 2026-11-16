@@ -145,7 +145,7 @@ const RATING_START_FOR_SORT = 1200;
 /**
  * 랭킹 정렬. 누적 50경기 이상 → 배치 완료 → 배치 진행 중 순으로 묶고(모두 모임 전체 누적 기준),
  * 묶음 안에서 고른 기준으로 정렬한다.
- * - 승률: 승률 → 경기 수 → 이름 → ID (묶음 안에서는 stats.sortRanking과 같다)
+ * - 승률: 승률 → 경기 수 → 이름 → ID (stats.sortByWinRate)
  * - 경기 수: 경기 수 → 승률 → 이름 → ID
  * - 승수: 승수 → 승률 → 경기 수 → 이름 → ID
  * - MMR 순: MMR(누적, ratings) → 승률 → 경기 수 → 이름 → ID. ratings에 없는 사람은 기본 시작값(1200)으로 본다.
@@ -351,7 +351,7 @@ export interface CompareMetrics {
 
 /**
  * 비교 지표. pairs는 범위가 적용된 personDetail의 시너지·상대 전적이고,
- * cumulative는 모임 전체 누적 경기 수(standings·placements)다.
+ * cumulative는 모임 전체 누적 경기 수(titles.ts standings)다.
  */
 export function compareMetrics(
   detail: { participantId: string; synergy: readonly PairTally[]; versus: readonly PairTally[] },

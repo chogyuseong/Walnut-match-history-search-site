@@ -1,3 +1,4 @@
+import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import { describe, expect, it } from "vitest";
 import { mmrRanking, ratingTierCounts } from "../src/shared/ranking";
 import {
@@ -8,7 +9,6 @@ import {
   ratingOptionsOf,
   ratingTierOf,
 } from "../src/shared/rating";
-import { placements } from "../src/shared/stats";
 import type { MatchView, Snapshot, Team } from "../src/shared/types";
 import { api, requestId, setupGroup, snapshot, type TestGroup } from "./helpers";
 
@@ -89,14 +89,14 @@ describe("MMR 티어 이름표(LoL 시즌 2 Elo 구간)", () => {
   it("티어별 인원은 배치 완료자만, 높은 티어부터 센다", () => {
     const matches = Array.from({ length: 10 }, (_, i) => match(i + 1, "A"));
     const table = computeRatings(matches, { start: 1500 });
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const { ranked } = mmrRanking(matches, table, placement, (id) => id, "");
     const counts = ratingTierCounts(ranked, table, placement);
     expect(counts.map(({ tier, count }) => [tier.short, count])).toEqual([
       ["골드", 5],
       ["실버", 5],
     ]);
-    expect(ratingTierCounts(ranked, table, placements(matches.slice(0, 9)))).toEqual([]);
+    expect(ratingTierCounts(ranked, table, standings(matches.slice(0, 9), DEFAULT_TITLE_BANDS))).toEqual([]);
   });
 });
 

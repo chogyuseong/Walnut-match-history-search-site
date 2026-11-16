@@ -3,8 +3,8 @@ import { buildDemoSnapshot, DEMO_GROUP_NAME } from "../src/shared/demo";
 import { personForms, rankAndSearch, trends } from "../src/shared/insights";
 import { seasonSummary } from "../src/shared/seasonAwards";
 import { seriesScore } from "../src/shared/series";
-import { isCounted, matchesInScope, personDetail, personRecords, placements } from "../src/shared/stats";
-import { standings, titleBandsOf } from "../src/shared/titles";
+import { isCounted, matchesInScope, personDetail, personRecords } from "../src/shared/stats";
+import { DEFAULT_TITLE_BANDS, standings, titleBandsOf } from "../src/shared/titles";
 
 // 예시 모임(#/demo)의 합성 데이터(src/shared/demo.ts).
 
@@ -67,7 +67,7 @@ describe("예시 모임 합성 데이터", () => {
   it("통계 함수가 오류 없이 계산한다(랭킹·개인·흐름·시즌 요약·칭호)", () => {
     const records = personRecords(snapshot.matches);
     expect(records.size).toBeGreaterThanOrEqual(16);
-    const { ranked } = rankAndSearch([...records.values()], placements(snapshot.matches), nameOf, "rate", "");
+    const { ranked } = rankAndSearch([...records.values()], standings(snapshot.matches, DEFAULT_TITLE_BANDS), nameOf, "rate", "");
     expect(ranked[0]!.rank).toBe(1);
     const first = snapshot.participants[0]!;
     const detail = personDetail(snapshot.matches, first.id, nameOf);

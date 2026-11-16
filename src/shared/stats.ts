@@ -10,8 +10,6 @@ import type { MatchView, Settings, Snapshot } from "./types";
  * 모임 설정(Settings.placementGames)에 값이 없으면 이 값을 쓴다. 바꾸면 그 설정을 저장하지 않은 모든 모임의 배치가 달라진다.
  */
 export const PLACEMENT_GAMES_DEFAULT = 10;
-/** 기본값의 옛 이름(테스트·기본 인자용). 계산은 placementGamesOf(settings)로 읽은 값을 넘겨 쓴다. */
-export const PLACEMENT_GAMES = PLACEMENT_GAMES_DEFAULT;
 /** 설정에서 고를 수 있는 배치 경기 수 범위. 서버 검증과 설정 화면 입력 칸이 같이 쓴다. */
 export const PLACEMENT_GAMES_MIN = 1;
 export const PLACEMENT_GAMES_MAX = 30;
@@ -59,22 +57,11 @@ export function personRecords(matches: readonly MatchView[]): Map<string, Person
   return records;
 }
 
+/** 배치 상태. 계산은 titles.ts standings()가 하고(칭호도 함께), 순위 함수들은 이 두 값만 읽는다. */
 export interface Placement {
   /** 모임 전체 누적 유효 확정 경기 수. 시즌·오늘 필터로 바뀌지 않는다. */
   games: number;
   done: boolean;
-}
-
-/** 배치 상태. 항상 모임 전체 누적 기준이다. */
-export function placements(
-  allMatches: readonly MatchView[],
-  placementGames: number = PLACEMENT_GAMES_DEFAULT,
-): Map<string, Placement> {
-  const result = new Map<string, Placement>();
-  for (const [id, record] of personRecords(allMatches)) {
-    result.set(id, { games: record.games, done: record.games >= placementGames });
-  }
-  return result;
 }
 
 /** "오늘"은 가장 최근 세션이다. 열린 세션이 있으면 그것, 없으면 마지막으로 경기한 세션. */
@@ -543,22 +530,6 @@ export function playerLineMatrix(
     }
   }
   return matrix;
-}
-
-/**
- * 순위형 목록의 정렬: 배치 완료자를 먼저 두고 그 안에서 승률순.
- * 배치 여부는 범위와 무관하게 전체 누적 기준(placement)이다.
- * 범위 안에 경기가 없는 사람은 records에 없으므로 순위에 들어가지 않는다.
- */
-export function sortRanking(
-  records: PersonRecord[],
-  placement: ReadonlyMap<string, Placement>,
-  nameOf: (id: string) => string,
-): PersonRecord[] {
-  const sorted = sortByWinRate(records, nameOf);
-  const done = (r: PersonRecord) => (placement.get(r.participantId)?.done ? 0 : 1);
-  // sort는 안정 정렬이라 같은 묶음 안의 승률 순서가 유지된다.
-  return sorted.sort((a, b) => done(a) - done(b));
 }
 
 /**

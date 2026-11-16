@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseMatchTable, toImportMatches } from "../src/shared/importTable";
 import { nameKey } from "../src/shared/names";
-import { personRecords, placements, sideTotals } from "../src/shared/stats";
+import { personRecords, sideTotals } from "../src/shared/stats";
+import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import { api, fingerprint, requestId, rosterOf, setupGroup, snapshot, start } from "./helpers";
 
 const HEADER = "날짜\tA탑\tA정글\tA미드\tA원딜\tA서폿\tB탑\tB정글\tB미드\tB원딜\tB서폿\t승리팀";
@@ -101,7 +102,7 @@ describe("지난 기록 한꺼번에 넣기 (서버)", () => {
     expect(after.matches.filter((m) => m.state === "in_progress")).toHaveLength(1);
     // 진영 미상이어도 개인 승패와 배치 판수에는 들어간다.
     expect(personRecords(after.matches).get(g.people[0]!.id)).toMatchObject({ games: 3, wins: 2 });
-    expect(placements(after.matches).get(g.people[0]!.id)).toEqual({ games: 3, done: false });
+    expect(standings(after.matches, DEFAULT_TITLE_BANDS).get(g.people[0]!.id)).toMatchObject({ games: 3, done: false });
     expect(sideTotals(after.matches)).toMatchObject({ known: 0, unknown: 3 });
   });
 

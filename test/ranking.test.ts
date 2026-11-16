@@ -5,12 +5,11 @@ import {
   mmrRanking,
   mmrScale,
   podiumOf,
-  rankEmphasis,
   rankingGroupSizes,
   rankingHighlights,
 } from "../src/shared/ranking";
+import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import { computeRatings } from "../src/shared/rating";
-import { placements } from "../src/shared/stats";
 import type { MatchView, Team } from "../src/shared/types";
 
 // MMR 랭킹 화면의 계산(src/shared/ranking.ts): 기록 화면 MMR 순과 같은 순서, 요약 타일 세 칸, 묶음 인원.
@@ -55,7 +54,7 @@ function season(): MatchView[] {
 describe("MMR 랭킹", () => {
   it("경기가 없으면 빈 순위표, 요약 타일은 모두 비고 묶음 인원은 0", () => {
     const table = computeRatings([]);
-    const placement = placements([]);
+    const placement = standings([], DEFAULT_TITLE_BANDS);
     const ranking = mmrRanking([], table, placement, nameOf, "");
     expect(ranking.ranked).toEqual([]);
     expect(rankingHighlights(ranking.ranked, table, placement)).toEqual({ leader: null, riser: null, peak: null });
@@ -65,7 +64,7 @@ describe("MMR 랭킹", () => {
   it("묶음(50경기 이상 → 배치 완료 → 배치 진행 중) 안에서 MMR 내림차순, 묶음 인원", () => {
     const matches = season();
     const table = computeRatings(matches);
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
     expect(ranked.map((r) => r.rank)).toEqual(ranked.map((_, i) => i + 1));
     expect(rankingGroupSizes(ranked, placement)).toEqual({ 0: 10, 1: 2, 2: 2 });
@@ -86,7 +85,7 @@ describe("MMR 랭킹", () => {
   it("검색해도 순위 숫자는 검색 전 그대로", () => {
     const matches = season();
     const table = computeRatings(matches);
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const all = mmrRanking(matches, table, placement, nameOf, "");
     const found = mmrRanking(matches, table, placement, nameOf, "선수12");
     expect(found.shown).toHaveLength(1);
@@ -96,7 +95,7 @@ describe("MMR 랭킹", () => {
   it("요약 타일: 세 칸 모두 누적 50경기 이상인 사람 중에서 고르고, 1위는 순위표 맨 위다", () => {
     const matches = season();
     const table = computeRatings(matches);
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
     // 50경기 미만(id10 배치 완료, id12 배치 진행 중)의 최근 상승·최고 MMR을 누구보다 크게 만든다.
     for (const id of ["id10", "id12"]) {
@@ -119,7 +118,7 @@ describe("MMR 랭킹", () => {
     // 열 명이 12경기씩: 모두 배치 완료(50경기 미만)다.
     const matches = Array.from({ length: 12 }, (_, i) => match(i + 1, [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], i % 3 === 0 ? "B" : "A"));
     const table = computeRatings(matches);
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
     expect(ranked).toHaveLength(10);
     expect(ranked.every((r) => rankingGroup(placement, r.participantId) === 1)).toBe(true);
@@ -129,7 +128,7 @@ describe("MMR 랭킹", () => {
   it("최근 10경기 변화가 반올림해 +1 미만이면 최고 상승 후보가 아니다", () => {
     const matches = season();
     const table = computeRatings(matches);
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
     // 배치 완료자의 최근 변화를 모두 +0.4 이하로 바꾼다(반올림하면 0).
     for (const person of table.values()) person.delta10 = Math.min(person.delta10, 0.4);
@@ -141,33 +140,19 @@ describe("MMR 랭킹", () => {
   it("시상대는 누적 50경기 이상 묶음의 1~3위, 그런 사람이 없으면 비어 있다", () => {
     const matches = season();
     const table = computeRatings(matches);
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
     expect(podiumOf(ranked, placement).map((r) => r.rank)).toEqual([1, 2, 3]);
     const fresh = [match(1, [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], "A")];
-    const freshPlacement = placements(fresh);
+    const freshPlacement = standings(fresh, DEFAULT_TITLE_BANDS);
     const freshRanked = mmrRanking(fresh, computeRatings(fresh), freshPlacement, nameOf, "").ranked;
     expect(podiumOf(freshRanked, freshPlacement)).toEqual([]);
-  });
-
-  it("순위별 강조: 1~3 금·은·동, 4~5 브랜드, 6~10 굵게, 11부터·배치 진행 중은 없음", () => {
-    expect([1, 2, 3, 4, 5, 6, 10, 11].map((rank) => rankEmphasis(rank, false))).toEqual([
-      "medal-1",
-      "medal-2",
-      "medal-3",
-      "tier-brand",
-      "tier-brand",
-      "tier-bold",
-      "tier-bold",
-      null,
-    ]);
-    expect(rankEmphasis(1, true)).toBeNull();
   });
 
   it("MMR 막대 눈금: 배치 완료자의 최저·최고에 시작값을 넣어 넓히고, 배치 완료자가 없으면 null", () => {
     const matches = season();
     const table = computeRatings(matches);
-    const placement = placements(matches);
+    const placement = standings(matches, DEFAULT_TITLE_BANDS);
     const { ranked } = mmrRanking(matches, table, placement, nameOf, "");
     const placed = ranked.filter((r) => rankingGroup(placement, r.participantId) !== 2);
     const values = placed.map((r) => table.get(r.participantId)!.rating);

@@ -57,11 +57,6 @@ function initialOf(ch: string): string {
   return INITIALS[Math.floor((code - SYLLABLE_FIRST) / PER_INITIAL)]!;
 }
 
-/** 정규화한 글의 초성열. 음절이 아닌 글자(영문·숫자)는 그대로 둔다. 예: "김 선우" → "ㄱㅅㅇ". */
-export function chosungOf(s: string): string {
-  return Array.from(normalizeForSearch(s), initialOf).join("");
-}
-
 /** 질의 글자(한 글자)가 이름 글자(한 글자)에 맞는지. last면 받침 없는 음절의 입력 중 일치를 허용한다. */
 function charMatches(q: string, n: string, last: boolean): boolean {
   if (q === n) return true;

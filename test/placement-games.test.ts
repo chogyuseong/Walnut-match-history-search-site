@@ -2,11 +2,9 @@ import { describe, expect, it } from "vitest";
 import { rankingGroup } from "../src/shared/insights";
 import { computeRatings } from "../src/shared/rating";
 import {
-  PLACEMENT_GAMES,
   PLACEMENT_GAMES_DEFAULT,
   PLACEMENT_GAMES_MAX,
   PLACEMENT_GAMES_MIN,
-  placements,
   placementGamesOf,
 } from "../src/shared/stats";
 import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
@@ -41,9 +39,9 @@ function match(no: number, winner: Team): MatchView {
 const alternating = (n: number) => Array.from({ length: n }, (_, i) => match(i + 1, i % 2 === 0 ? "A" : "B"));
 
 describe("배치 경기 수 설정(계산)", () => {
-  it("저장하지 않았으면 기본 10이고, 옛 이름 PLACEMENT_GAMES도 같은 값이다", () => {
+  it("저장하지 않았으면 기본 10이다", () => {
+    expect(placementGamesOf({})).toBe(PLACEMENT_GAMES_DEFAULT);
     expect(placementGamesOf({})).toBe(10);
-    expect(PLACEMENT_GAMES).toBe(PLACEMENT_GAMES_DEFAULT);
     expect(placementGamesOf({ placementGames: 5 })).toBe(5);
     expect([PLACEMENT_GAMES_MIN, PLACEMENT_GAMES_MAX]).toEqual([1, 30]);
   });
@@ -64,9 +62,9 @@ describe("배치 경기 수 설정(계산)", () => {
 
   it("랭킹 묶음(배치 완료·진행 중)도 설정값을 따른다", () => {
     const matches = alternating(4);
-    expect(rankingGroup(placements(matches), "id0")).toBe(2);
-    expect(rankingGroup(placements(matches, 4), "id0")).toBe(1);
-    expect(rankingGroup(placements(matches, 5), "id0")).toBe(2);
+    expect(rankingGroup(standings(matches, DEFAULT_TITLE_BANDS), "id0")).toBe(2);
+    expect(rankingGroup(standings(matches, DEFAULT_TITLE_BANDS, 4), "id0")).toBe(1);
+    expect(rankingGroup(standings(matches, DEFAULT_TITLE_BANDS, 5), "id0")).toBe(2);
   });
 });
 

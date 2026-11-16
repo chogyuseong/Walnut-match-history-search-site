@@ -70,10 +70,6 @@ export function rankingHighlights(
 
 /** 시상대에 세우는 순위 수(금·은·동). */
 export const PODIUM_PLACES = 3;
-/** 순위 숫자를 브랜드 색으로 강조하는 마지막 순위(4위부터 여기까지). */
-export const BRAND_PLACES = 5;
-/** 왼쪽 색 띠와 굵은 순위 숫자를 주는 마지막 순위. 늘리면 강조가 흔해져 상위가 덜 눈에 띈다. */
-export const HIGHLIGHT_PLACES = 10;
 
 /**
  * 시상대: 누적 50경기 이상 묶음의 1~3위. 그 묶음이 맨 위라 순위 숫자 그대로 1·2·3이다.
@@ -81,17 +77,6 @@ export const HIGHLIGHT_PLACES = 10;
  */
 export function podiumOf(ranked: readonly RankedRow[], placement: ReadonlyMap<string, Placement>): RankedRow[] {
   return ranked.filter((row) => row.rank <= PODIUM_PLACES && rankingGroup(placement, row.participantId) === 0);
-}
-
-const MEDALS = ["medal-1", "medal-2", "medal-3"] as const;
-
-export type RankEmphasis = (typeof MEDALS)[number] | "tier-brand" | "tier-bold" | null;
-
-/** 순위별 강조 단계. 배치 진행 중인 사람은 순위가 높아 보여도 강조하지 않는다(점수가 아직 흔들린다). */
-export function rankEmphasis(rank: number, placing: boolean): RankEmphasis {
-  if (placing || rank > HIGHLIGHT_PLACES) return null;
-  if (rank <= PODIUM_PLACES) return MEDALS[rank - 1]!;
-  return rank <= BRAND_PLACES ? "tier-brand" : "tier-bold";
 }
 
 /** 시작값 기준 막대의 눈금: 왼쪽 끝 lo · 오른쪽 끝 hi · 기준선 start. */

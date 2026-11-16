@@ -15,7 +15,8 @@ import {
   streakMultiplier,
   type RatingOptions,
 } from "../src/shared/rating";
-import { personRecords, placements } from "../src/shared/stats";
+import { personRecords } from "../src/shared/stats";
+import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import type { MatchView, Team } from "../src/shared/types";
 
 // 결과 기반 MMR(src/shared/rating.ts): 전체 기록 일괄 계산(팀 평균 로지스틱, 가상 반반 경기, 최근 가중, 3연승·3연패부터 가중).
@@ -228,7 +229,7 @@ describe("랭킹: MMR 순", () => {
     const matches = [match(1), match(2, { teamA: [0, 5, 6, 7, 8], teamB: [1, 2, 3, 4, 9] })];
     const records = [...personRecords(matches).values()];
     const ratings = ratingValues(computeRatings(matches, LEGACY));
-    const sorted = ids(sortRankingBy(records, placements(matches), nameOf, "rating", ratings));
+    const sorted = ids(sortRankingBy(records, standings(matches, DEFAULT_TITLE_BANDS), nameOf, "rating", ratings));
     const values = sorted.map((id) => ratings.get(id)!);
     expect([...values].sort((a, b) => b - a)).toEqual(values);
     expect(sorted[0]).toBe("id0");
@@ -240,11 +241,11 @@ describe("랭킹: MMR 순", () => {
     ]);
     expect(ids(sortRankingBy(records, placement, nameOf, "rating", ratings))[0]).toBe("id9");
     // MMR 표가 없으면 모두 같은 시작값으로 보고 승률 순.
-    const noTable = ids(sortRankingBy(records, placements(matches), nameOf, "rating"));
+    const noTable = ids(sortRankingBy(records, standings(matches, DEFAULT_TITLE_BANDS), nameOf, "rating"));
     expect(noTable[0]).toBe("id0");
     // 검색해도 순위 숫자는 그대로.
-    const all = rankAndSearch(records, placements(matches), nameOf, "rating", "", ratings);
-    const searched = rankAndSearch(records, placements(matches), nameOf, "rating", "선수09", ratings);
+    const all = rankAndSearch(records, standings(matches, DEFAULT_TITLE_BANDS), nameOf, "rating", "", ratings);
+    const searched = rankAndSearch(records, standings(matches, DEFAULT_TITLE_BANDS), nameOf, "rating", "선수09", ratings);
     expect(searched.shown.map((r) => r.rank)).toEqual([all.ranked.find((r) => r.participantId === "id9")!.rank]);
   });
 });

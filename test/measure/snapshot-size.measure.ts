@@ -2,8 +2,8 @@ import { expect, it } from "vitest";
 import { buildDemoSnapshot } from "../../src/shared/demo";
 import { personForms, rankAndSearch, trends } from "../../src/shared/insights";
 import { seasonSummary } from "../../src/shared/seasonAwards";
-import { personDetail, personRecords, placements } from "../../src/shared/stats";
-import { standings, titleBandsOf } from "../../src/shared/titles";
+import { personDetail, personRecords } from "../../src/shared/stats";
+import { DEFAULT_TITLE_BANDS, standings, titleBandsOf } from "../../src/shared/titles";
 import type { Snapshot } from "../../src/shared/types";
 
 // 운영자 스냅숏 응답 크기와 기기 통계 계산 시간 측정(docs/구현현황.md "응답 크기 기준").
@@ -39,7 +39,7 @@ function computeAll(snapshot: Snapshot): void {
   const names = new Map(snapshot.participants.map((p) => [p.id, p.name]));
   const nameOf = (id: string) => names.get(id) ?? "?";
   const records = personRecords(snapshot.matches);
-  rankAndSearch([...records.values()], placements(snapshot.matches), nameOf, "rate", "");
+  rankAndSearch([...records.values()], standings(snapshot.matches, DEFAULT_TITLE_BANDS), nameOf, "rate", "");
   personForms(snapshot.matches);
   trends(snapshot.matches, nameOf);
   standings(snapshot.matches, titleBandsOf(snapshot.group.settings));

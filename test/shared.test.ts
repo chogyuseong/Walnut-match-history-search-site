@@ -26,7 +26,8 @@ import {
   supporterKey,
   type RotationContext,
 } from "../src/shared/rotation";
-import { personRecords, placements, PLACEMENT_GAMES } from "../src/shared/stats";
+import { personRecords } from "../src/shared/stats";
+import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import {
   sideOfTeam,
   teamASideFromWinner,
@@ -463,17 +464,17 @@ describe("배치와 승패", () => {
 
   it("0판·9판·10판 경계 (31)", () => {
     const nine = Array.from({ length: 9 }, (_, i) => match(i, "confirmed", "A"));
-    expect(placements([]).get("id0")).toBeUndefined();
-    expect(placements(nine).get("id0")).toEqual({ games: 9, done: false });
+    expect(standings([], DEFAULT_TITLE_BANDS).get("id0")).toBeUndefined();
+    expect(standings(nine, DEFAULT_TITLE_BANDS).get("id0")).toMatchObject({ games: 9, done: false, title: null });
     const ten = [...nine, match(9, "confirmed", "B")];
-    expect(placements(ten).get("id0")).toEqual({ games: PLACEMENT_GAMES, done: true });
+    expect(standings(ten, DEFAULT_TITLE_BANDS).get("id0")).toMatchObject({ games: 10, done: true });
   });
 
   it("제외하면 9판으로 돌아가고 복구하면 다시 10판이다 (32)", () => {
     const ten = Array.from({ length: 10 }, (_, i) => match(i, "confirmed", "A"));
     const excluded = ten.map((m, i) => (i === 3 ? { ...m, state: "excluded" as const } : m));
-    expect(placements(excluded).get("id0")).toEqual({ games: 9, done: false });
-    expect(placements(ten).get("id0")!.done).toBe(true);
+    expect(standings(excluded, DEFAULT_TITLE_BANDS).get("id0")).toMatchObject({ games: 9, done: false });
+    expect(standings(ten, DEFAULT_TITLE_BANDS).get("id0")!.done).toBe(true);
   });
 
   it("대기·취소·진행 중 경기는 세지 않는다 (28)", () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sortRankingBy } from "../src/shared/insights";
 import {
   localDate,
   matchesInScope,
@@ -7,10 +8,9 @@ import {
   personRecordsByLine,
   playerLineMatrix,
   sideTotals,
-  placements,
   searchByName,
-  sortRanking,
 } from "../src/shared/stats";
+import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import type { MatchView, Position, Side, Snapshot, Team } from "../src/shared/types";
 import { api, playConfirmed, rosterOf, setupGroup, snapshot } from "./helpers";
 
@@ -126,7 +126,7 @@ describe("범위 필터", () => {
     const seasonRecord = personRecords(seasonMatches).get("id0");
     expect(seasonRecord).toMatchObject({ games: 1, wins: 0, losses: 1 });
     // 배치와 칭호의 근거는 시즌 필터와 무관하게 전체 누적이다.
-    expect(placements(s.matches).get("id0")).toEqual({ games: 100, done: true });
+    expect(standings(s.matches, DEFAULT_TITLE_BANDS).get("id0")).toMatchObject({ games: 100, done: true });
   });
 
   it("취소된 경기는 어느 범위에도 없다", () => {
@@ -139,7 +139,7 @@ describe("개인 통계", () => {
   it("기록이 없는 라인은 0%가 아니라 항목 자체가 없다 (33)", () => {
     const tenGames = Array.from({ length: 10 }, (_, i) => match(i + 1));
     const detail = personDetail(tenGames, "id0", nameOf);
-    expect(placements(tenGames).get("id0")?.done).toBe(true);
+    expect(standings(tenGames, DEFAULT_TITLE_BANDS).get("id0")?.done).toBe(true);
     expect(detail.byPosition.top).toEqual({ games: 10, wins: 10 });
     expect(detail.byPosition.support).toBeUndefined();
     expect(Object.keys(detail.byPosition)).toEqual(["top"]);
@@ -233,7 +233,7 @@ describe("순위와 검색 (35)", () => {
       ["id2", { games: 12, done: true }],
       ["id3", { games: 20, done: true }],
     ]);
-    const ranked = sortRanking(records, placement, nameOf).map((r) => r.participantId);
+    const ranked = sortRankingBy(records, placement, nameOf, "rate").map((r) => r.participantId);
     expect(ranked).toEqual(["id3", "id2", "id1"]);
   });
 
@@ -244,7 +244,7 @@ describe("순위와 검색 (35)", () => {
       { participantId: "id3", games: 20, wins: 10, losses: 10 },
     ];
     const placement = new Map(records.map((r) => [r.participantId, { games: r.games, done: true }]));
-    expect(sortRanking(records, placement, nameOf).map((r) => r.participantId)).toEqual([
+    expect(sortRankingBy(records, placement, nameOf, "rate").map((r) => r.participantId)).toEqual([
       "id3",
       "id1",
       "id2",

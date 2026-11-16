@@ -27,7 +27,8 @@ import {
   trends,
   winnerSideOf,
 } from "../src/shared/insights";
-import { personDetail, personRecords, placements, sortRanking } from "../src/shared/stats";
+import { personDetail, personRecords } from "../src/shared/stats";
+import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import type { MatchView, Position, Side, Team } from "../src/shared/types";
 
 // 전적 사이트 화면이 쓰는 계산(연승·최근 흐름·라인별 랭킹·맞대결·추이·경기 거르기)을 확인한다.
@@ -180,11 +181,8 @@ describe("랭킹 정렬 기준", () => {
   ]);
   const ids = (rows: { participantId: string }[]) => rows.map((r) => r.participantId);
 
-  it("승률(기본): 배치 완료 먼저, 그 안에서 승률. stats.sortRanking과 같다", () => {
+  it("승률(기본): 배치 완료 먼저, 그 안에서 승률", () => {
     expect(ids(sortRankingBy(records, placement, nameOf, "rate"))).toEqual(["id3", "id1", "id2", "id0"]);
-    expect(ids(sortRankingBy(records, placement, nameOf, "rate"))).toEqual(
-      ids(sortRanking([...records], placement, nameOf)),
-    );
   });
 
   it("경기 수: 배치 완료 먼저, 경기 수 → 승률", () => {
@@ -295,7 +293,7 @@ describe("랭킹: 누적 50경기 이상 먼저", () => {
     for (let i = 51; i <= 70; i++) {
       matches.push(match(i, { people, teamA: [10, 11, 12, 13, 14], winner: "A" }));
     }
-    const all = placements(matches);
+    const all = standings(matches, DEFAULT_TITLE_BANDS);
     expect(all.get("id0")!.games).toBe(70);
     expect(all.get("id10")!.games).toBe(20);
     // 범위: 마지막 20경기만. 그 안에서 id0은 20경기 0%, id10은 20경기 100%지만 id0이 위다.
@@ -311,7 +309,7 @@ describe("랭킹: 누적 50경기 이상 먼저", () => {
       ["id10", 2],
     ]);
     // 범위 안 경기 수(20)로 판정했다면 같은 묶음이라 id10(100%)이 먼저였을 것이다.
-    const scopedOnly = placements(scoped);
+    const scopedOnly = standings(scoped, DEFAULT_TITLE_BANDS);
     expect(
       rankAndSearch(lineRanking(scoped, "top"), scopedOnly, nameOf, "rate", "").ranked[0]!.participantId,
     ).toBe("id10");
@@ -486,14 +484,14 @@ describe("개인 요약", () => {
     it("범위를 좁혀도 누적 경기 수로 판단한다", () => {
       // id0~9가 30경기. 범위는 마지막 3경기뿐이어도 모두 누적 30경기라 보인다.
       const all = Array.from({ length: 30 }, (_, i) => match(i + 1));
-      const cumulative = placements(all);
+      const cumulative = standings(all, DEFAULT_TITLE_BANDS);
       const scoped = personDetail(all.slice(-3), "id0", nameOf);
       const r = compareMetrics(scoped, cumulative);
       expect(r.ready).toBe(true);
       expect(r.synergy.map((p) => p.participantId).sort()).toEqual(["id1", "id2", "id3", "id4"]);
       expect(r.synergy[0]!.games).toBe(3);
       // 누적 29경기면 범위와 상관없이 막힌다.
-      const fewer = placements(all.slice(1));
+      const fewer = standings(all.slice(1), DEFAULT_TITLE_BANDS);
       expect(compareMetrics(personDetail(all.slice(-3), "id0", nameOf), fewer)).toMatchObject({
         ready: false,
         games: 29,
@@ -634,7 +632,7 @@ describe("규모", () => {
     }
     const t0 = performance.now();
     const forms = personForms(matches);
-    const ranked = rankAndSearch(lineRanking(matches, null), placements(matches), nameOf, "rate", "");
+    const ranked = rankAndSearch(lineRanking(matches, null), standings(matches, DEFAULT_TITLE_BANDS), nameOf, "rate", "");
     trends(matches, nameOf);
     for (const r of ranked.ranked.slice(0, 5)) {
       personDetail(matches, r.participantId, nameOf);

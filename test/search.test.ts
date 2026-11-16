@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  chosungOf,
   matchesName,
   matchRank,
   NO_MATCH,
@@ -28,10 +27,11 @@ describe("정규화", () => {
     expect(normalizeForSearch("김선우".normalize("NFD"))).toBe("김선우");
   });
 
-  it("초성열: 음절은 초성, 영문·숫자는 그대로", () => {
-    expect(chosungOf("김 선우")).toBe("ㄱㅅㅇ");
-    expect(chosungOf("홍진호2")).toBe("ㅎㅈㅎ2");
-    expect(chosungOf("까치")).toBe("ㄲㅊ");
+  it("초성 질의: 음절은 초성끼리, 영문·숫자는 그대로 맞춘다", () => {
+    expect(matchesName("김 선우", "ㄱㅅㅇ")).toBe(true);
+    expect(matchesName("홍진호2", "ㅎㅈㅎ2")).toBe(true);
+    expect(matchesName("까치", "ㄲㅊ")).toBe(true);
+    expect(matchesName("까치", "ㄱㅊ")).toBe(false);
   });
 });
 
