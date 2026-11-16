@@ -16,7 +16,6 @@ import { ratingTierOf } from "../shared/rating";
 import type { TitleGrade } from "../shared/titles";
 import { TEAMS, type MatchView, type Position, type Snapshot } from "../shared/types";
 import {
-  formatTime,
   heatClass,
   rateHueClass,
   type ShownStanding,
@@ -308,11 +307,6 @@ export function KpiStrip(props: { snapshot: Snapshot }) {
       </span>
     </p>
   );
-}
-
-export function SavedBadge(props: { at: string | null | undefined; timeZone?: string }) {
-  if (!props.at) return null;
-  return <span className="badge ok">저장됨 · {formatTime(props.at, props.timeZone)} 확인</span>;
 }
 
 /**

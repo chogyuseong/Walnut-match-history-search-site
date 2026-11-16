@@ -8,6 +8,7 @@
  * - 챔피언: 앞쪽 경기는 비워 두고(기록을 나중에 시작한 모임처럼) 그 뒤로도 가끔 빠뜨려, 챔피언 티어 화면의 입력률이
  *   100%가 아니게 한다. 사람마다 라인별로 즐겨 쓰는 챔피언이 있어 "주로 쓴 사람"이 고르게 갈린다.
  */
+import { rngFromSeed } from "./draft";
 import {
   DEFAULT_SETTINGS,
   POSITIONS,
@@ -72,18 +73,6 @@ const MEMOS = [
   "용 네 마리 먼저 가져감",
 ];
 
-/** 시드 고정 난수(mulberry32). */
-function seeded(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 const DAY_MS = 24 * 3600_000;
 /** 마지막 모임 날(금요일). 지금 시각과 상관없이 고정이다. */
 const LAST_DAY = Date.UTC(2026, 9, 30); // 2026-10-30
@@ -98,7 +87,7 @@ export interface DemoOptions {
 
 /** 예시 모임 스냅숏(조회 링크 응답과 같은 모양, role "viewer"). */
 export function buildDemoSnapshot(options: DemoOptions = {}): Snapshot {
-  const random = seeded(options.seed ?? 20261106);
+  const random = rngFromSeed(options.seed ?? 20261106);
   const people: ParticipantView[] = NAMES.map((name, i) => ({
     id: `demo-p${String(i + 1).padStart(2, "0")}`,
     name,
@@ -235,7 +224,7 @@ export function buildDemoSnapshot(options: DemoOptions = {}): Snapshot {
  * - 한 경기 안에서는 같은 챔피언이 겹치지 않게 한다(실제 게임처럼).
  */
 function addChampions(matches: MatchView[], people: readonly ParticipantView[], seed: number): void {
-  const random = seeded(seed ^ 0x5eed);
+  const random = rngFromSeed(seed ^ 0x5eed);
   const favorites = new Map<string, string[]>();
   for (const person of people) {
     for (const position of POSITIONS) {

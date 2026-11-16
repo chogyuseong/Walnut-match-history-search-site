@@ -4,6 +4,7 @@ import { linkNames, similarWithinTable, type NameLink } from "../../shared/impor
 import { nameKey } from "../../shared/names";
 import {
   classifyImport,
+  columnName,
   crowdedDays,
   detectMapping,
   hash64,
@@ -65,17 +66,6 @@ interface Plan {
 }
 
 const STEP_NAMES = ["링크", "열 맞추기", "확인", "가져오기"] as const;
-
-function columnLetter(index: number): string {
-  let n = index + 1;
-  let out = "";
-  while (n > 0) {
-    const r = (n - 1) % 26;
-    out = String.fromCharCode(65 + r) + out;
-    n = Math.floor((n - 1) / 26);
-  }
-  return out;
-}
 
 function parseRowList(text: string): number[] {
   const out = new Set<number>();
@@ -930,7 +920,7 @@ function MappingStep(props: {
             <li key={col} className="sheet-col">
               <label>
                 <span className="sheet-col-name">
-                  열 {columnLetter(col)}
+                  열 {columnName(col)}
                   {header[col]?.trim() ? ` · ${header[col]!.trim()}` : ""}
                 </span>
                 <span className="hint sheet-col-sample">{samples.length > 0 ? `예: ${samples.join(", ")}` : "예: (빈 칸)"}</span>
@@ -940,7 +930,7 @@ function MappingStep(props: {
                     <option key={role} value={role}>
                       {roleLabel(mapping.layout, role)}
                       {mapping.columns[role] !== undefined && mapping.columns[role] !== col
-                        ? ` (지금 열 ${columnLetter(mapping.columns[role]!)})`
+                        ? ` (지금 열 ${columnName(mapping.columns[role]!)})`
                         : ""}
                     </option>
                   ))}
@@ -1005,7 +995,7 @@ function MappingStep(props: {
               <th scope="col">줄</th>
               {Array.from({ length: previewCols }, (_, col) => (
                 <th key={col} scope="col">
-                  {columnLetter(col)}
+                  {columnName(col)}
                   <br />
                   <span className="sheet-role">
                     {roleOfColumn.has(col) ? roleLabel(mapping.layout, roleOfColumn.get(col)!).replace(/\(.*\)$/, "") : "—"}

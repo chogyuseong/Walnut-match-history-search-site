@@ -21,6 +21,14 @@ export function placementGamesOf(settings: Pick<Settings, "placementGames">): nu
   return settings.placementGames ?? PLACEMENT_GAMES_DEFAULT;
 }
 
+/**
+ * 경기 시각 순서(오래된 것부터). 같은 시각이면 경기 번호가 작은 것이 먼저다.
+ * 연승·연패·최근 흐름·추이·시리즈 판 순서·출석이 모두 이 순서를 쓴다. 바꾸면 그 화면들의 순서가 함께 바뀐다.
+ */
+export function byPlayedAt(a: MatchView, b: MatchView): number {
+  return a.playedAt.localeCompare(b.playedAt) || a.matchNo - b.matchNo;
+}
+
 export function isCounted(match: MatchView): boolean {
   return match.state === "confirmed" && match.winnerTeam !== null;
 }

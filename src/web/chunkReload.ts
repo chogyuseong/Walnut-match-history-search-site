@@ -17,11 +17,6 @@ export const CHUNK_RELOAD_KEY = "naejeon:chunk-reload";
 
 let reloading = false;
 
-/** 조각 실패로 새로 고치는 중인지(새로 고침이 끝날 때까지 화면을 대체 화면으로 둔다). */
-export function isReloadingForChunk(): boolean {
-  return reloading;
-}
-
 /**
  * 조각을 받지 못해 생긴 오류 메시지인지. 오류 수집에서 거르는 데 쓴다(errorReport.tsx).
  * 배포 직후 옛 탭이나 순간적인 네트워크 끊김에서 나며, 코드로 고칠 수 있는 오류가 아니다.

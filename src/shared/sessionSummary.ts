@@ -1,4 +1,4 @@
-import { isCounted } from "./stats";
+import { byPlayedAt, isCounted } from "./stats";
 import type { MatchView } from "./types";
 
 /**
@@ -46,10 +46,6 @@ export interface SessionSummary {
 /** 연승을 알리는 최소 연승 수. */
 export const STREAK_MIN = 2;
 
-function byPlayed(a: MatchView, b: MatchView): number {
-  return a.playedAt.localeCompare(b.playedAt) || a.matchNo - b.matchNo;
-}
-
 /**
  * sessionMatches: 오늘 경기(stats.ts todayMatches), allMatches: 모임의 모든 경기(연승 계산용).
  */
@@ -58,7 +54,7 @@ export function sessionSummary(
   allMatches: readonly MatchView[],
   nameOf: (id: string) => string,
 ): SessionSummary {
-  const counted = sessionMatches.filter(isCounted).sort(byPlayed);
+  const counted = sessionMatches.filter(isCounted).sort(byPlayedAt);
   const pending = sessionMatches.filter((m) => m.state === "in_progress" || m.state === "awaiting_result").length;
   const ko = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "ko");
 
@@ -82,7 +78,7 @@ export function sessionSummary(
 
   // 지금 연승: 모든 확정 경기를 시간 순으로 보며 사람마다 이기면 +1, 지면 0.
   const current = new Map<string, number>();
-  for (const match of allMatches.filter(isCounted).sort(byPlayed)) {
+  for (const match of allMatches.filter(isCounted).sort(byPlayedAt)) {
     for (const entry of match.roster) {
       current.set(entry.participantId, entry.team === match.winnerTeam ? (current.get(entry.participantId) ?? 0) + 1 : 0);
     }

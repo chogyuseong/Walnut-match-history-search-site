@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { formatDate, formatTime } from "../format";
 import { CopyButton, Dialog, ErrorNote, scrollBehavior } from "../ui";
-import { go, useAppValue } from "../useApp";
+import { go, GROUP_KEY, useAppValue } from "../useApp";
 import { LoginDialog } from "./Login";
 
 /** 서버의 공동 운영자 목록 한 줄(src/server/coOperators.ts CoOperatorView). */
@@ -334,7 +334,7 @@ export function CoInvite(props: { token: string }) {
     try {
       const result = await call<{ groupId: string }>("POST", `/api/co-invite/${props.token}/accept`);
       try {
-        localStorage.setItem("naejeon.group", result.groupId);
+        localStorage.setItem(GROUP_KEY, result.groupId);
       } catch {
         // 보관하지 못하면 첫 모임이 열린다. 모임 탭의 "내 모임"에서 바꿀 수 있다.
       }

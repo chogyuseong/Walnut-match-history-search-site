@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { formatDate, formatTime } from "../format";
 import { ErrorNote } from "../ui";
-import { useAppValue } from "../useApp";
+import { GROUP_KEY, useAppValue } from "../useApp";
 
 /** 서버의 복원 미리보기 응답(src/server/restore.ts의 RestorePreview). */
 interface Counts {
@@ -136,7 +136,7 @@ export function RestoreSection() {
         });
         // 가져온 모임을 열어 둔다.
         try {
-          localStorage.setItem("naejeon.group", result.groupId);
+          localStorage.setItem(GROUP_KEY, result.groupId);
         } catch {
           // 저장소를 못 쓰면 첫 모임이 열린다.
         }
@@ -365,7 +365,7 @@ export function NewGroupFromBackup() {
         backup,
       });
       try {
-        localStorage.setItem("naejeon.group", result.groupId);
+        localStorage.setItem(GROUP_KEY, result.groupId);
       } catch {
         // 저장소를 못 쓰면 첫 모임이 열린다.
       }

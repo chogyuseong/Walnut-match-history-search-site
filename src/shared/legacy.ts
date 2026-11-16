@@ -248,10 +248,6 @@ export function legacyPayloadProblem(v: unknown): string | null {
   return null;
 }
 
-export function validLegacyPayload(v: unknown): boolean {
-  return legacyPayloadProblem(v) === null;
-}
-
 /** 가져오지 않는 값의 요약(화면에 한 줄로 알린다). */
 export interface LegacySummary {
   matches: number;

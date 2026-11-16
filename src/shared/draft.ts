@@ -105,7 +105,7 @@ export function withoutHistory(draft: Draft): Draft {
   return { ...rest, previousSlots: null };
 }
 
-/** 시드로 재현할 수 있는 난수. */
+/** 시드로 재현할 수 있는 난수(mulberry32). 예시 모임(demo.ts)도 이것을 쓰므로 바꾸면 예시 데이터가 달라진다. */
 export function rngFromSeed(seed: number): () => number {
   let state = seed >>> 0;
   return () => {

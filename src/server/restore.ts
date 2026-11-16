@@ -32,7 +32,7 @@ import {
   parseSettings,
   tooManyGroupsError,
 } from "./groups";
-import { ApiError, assertOnlyKeys, nowIso, readJsonBody, readJsonBodyWithText, requireInt, requireString } from "./http";
+import { ApiError, assertOnlyKeys, nowIso, readJsonBody, readJsonBodyWithText, requireInt, requireRequestId } from "./http";
 import { ANON_NAME_PATTERN, MAX_LINKS_PER_ACCOUNT } from "./members";
 import type { MovedLink } from "./merge";
 import { runMutation, sha256Hex, type Plan } from "./mutation";
@@ -1485,7 +1485,7 @@ async function buildRestorePlan(
 }
 
 function parseApplyBody(body: Body): { requestId: string; backup: unknown } {
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   if (body.confirm !== RESTORE_CONFIRM_TEXT) {
     throw new ApiError(400, "CONFIRM_REQUIRED", `확인 문구 '${RESTORE_CONFIRM_TEXT}'를 입력해 주세요.`);
   }

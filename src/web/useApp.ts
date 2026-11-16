@@ -5,8 +5,9 @@ import { remapDraft, remapPeople } from "../shared/merge";
 import type { Snapshot } from "../shared/types";
 import { ApiFailure, call, getWithEtag, mutate, newRequestId } from "./api";
 
-const DRAFT_KEY = "naejeon.draft.v1";
-const GROUP_KEY = "naejeon.group";
+export const DRAFT_KEY = "naejeon.draft.v1";
+/** 마지막으로 연 모임 ID를 두는 localStorage 키. 초대·넘겨받기·복원 뒤 그 모임을 바로 열 때도 쓴다. */
+export const GROUP_KEY = "naejeon.group";
 /** 참가자 고르기 화면(Pick.tsx)이 기기에 보관하는 고른 목록. 모임마다 따로 둔다(pickKey). */
 const PICK_KEY = "naejeon.pick.v1";
 

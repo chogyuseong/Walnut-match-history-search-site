@@ -18,7 +18,7 @@ import { nameKey } from "../shared/names";
 import { memberParticipantId, newViewToken, operatorRole } from "./auth";
 import type { Env } from "./env";
 import { parseName } from "./groups";
-import { ApiError, assertOnlyKeys, newId, nowIso, requireString } from "./http";
+import { ApiError, assertOnlyKeys, newId, nowIso, requireRequestId, requireString } from "./http";
 import { maintenanceError, maintenanceGuard, runMutation, sha256Hex } from "./mutation";
 import { etagMatches } from "./snapshot";
 
@@ -223,7 +223,7 @@ export async function createJoinLink(env: Env, groupId: string): Promise<{ token
 /** 신청 받기 열기·닫기. */
 export async function setJoinOpen(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "open"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   if (typeof body.open !== "boolean") throw new ApiError(400, "INVALID_FIELD", "open 값이 올바르지 않습니다.");
   const open = body.open;
   await runMutation(env, {
@@ -253,7 +253,7 @@ export async function setJoinOpen(env: Env, groupId: string, body: Body): Promis
 /** 신청 목록 비우기. */
 export async function clearJoinEntries(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   await runMutation(env, {
     groupId,
     requestId,
@@ -269,7 +269,7 @@ export async function clearJoinEntries(env: Env, groupId: string, body: Body): P
 /** 한 사람의 신청을 지운다(운영자). 이미 없으면 그대로 성공. */
 export async function removeJoinEntry(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "key"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const key = requireString(body.key, "key", 3, 100);
   await runMutation(env, {
     groupId,
@@ -366,11 +366,6 @@ async function publicView(env: Env, link: LinkRow, accountId: string | null): Pr
     : null;
   if (mine && active.some((p) => p.id === mine)) view.me = { participantId: mine };
   return view;
-}
-
-/** 공개 정보. accountId는 로그인한 사람의 계정(없으면 null): 멤버면 내 이름·내 신청 표시가 붙는다. */
-export async function joinInfo(env: Env, token: string, accountId: string | null = null): Promise<JoinPublicView> {
-  return publicView(env, await findLink(env, token), accountId);
 }
 
 /**

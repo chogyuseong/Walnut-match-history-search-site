@@ -1,4 +1,5 @@
 import {
+  byPlayedAt,
   isCounted,
   personRecordsByLine,
   roundRatio,
@@ -18,14 +19,6 @@ import { POSITIONS, sideOfTeam, type MatchView, type Position } from "./types";
  * 집계 기준은 stats.ts와 같다: 유효 확정 경기(isCounted)만 세고, 대기·진행 중·취소·제외 경기는 건너뛴다.
  * 범위(오늘·시즌·연도·전체)는 호출하는 쪽이 matchesInScope로 이미 좁힌 경기를 넘긴다.
  */
-
-/**
- * 경기 시각 순서(오래된 것부터). 같은 시각이면 경기 번호가 작은 것이 먼저다.
- * 연승·연패·최근 흐름·추이는 모두 이 순서를 쓴다.
- */
-export function byPlayedAt(a: MatchView, b: MatchView): number {
-  return a.playedAt.localeCompare(b.playedAt) || a.matchNo - b.matchNo;
-}
 
 /** 유효 확정 경기만 시각 순서로. */
 export function countedChronological(matches: readonly MatchView[]): MatchView[] {

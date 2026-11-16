@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiFailure, call } from "../api";
 import { formatDate, formatTime } from "../format";
 import { ErrorNote } from "../ui";
-import { useAppValue } from "../useApp";
+import { GROUP_KEY, useAppValue } from "../useApp";
 import { RenewLinksChoice, renewShareLinks } from "./CoOperators";
 import { LoginDialog } from "./Login";
 
@@ -39,7 +39,7 @@ export function Transfer(props: { token: string }) {
     try {
       const result = await call<{ groupId: string }>("POST", `/api/transfer/${props.token}/accept`);
       try {
-        localStorage.setItem("naejeon.group", result.groupId);
+        localStorage.setItem(GROUP_KEY, result.groupId);
       } catch {
         // 보관하지 못해도 첫 모임으로 열린다.
       }

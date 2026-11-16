@@ -1,5 +1,4 @@
-import { byPlayedAt } from "./insights";
-import { localDate } from "./stats";
+import { byPlayedAt, localDate } from "./stats";
 import type { MatchView, ParticipantView } from "./types";
 
 /**

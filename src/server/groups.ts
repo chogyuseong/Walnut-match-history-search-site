@@ -12,14 +12,7 @@ import {
 } from "../shared/types";
 import { newViewToken } from "./auth";
 import type { Env } from "./env";
-import {
-  ApiError,
-  assertOnlyKeys,
-  newId,
-  nowIso,
-  requireInt,
-  requireString,
-} from "./http";
+import { ApiError, assertOnlyKeys, newId, nowIso, requireInt, requireRequestId, requireString } from "./http";
 import { bumpLiveVersion, liveVersionGuard, runMutation, sha256Hex, type Plan } from "./mutation";
 import { loadGroup, loadOpenSession, parseSnapshot, snapshotStatements } from "./snapshot";
 
@@ -83,15 +76,6 @@ export function groupLimitGuard(env: Env, accountId: string, exceptCoGroupId: st
 /** batch 실패가 모임 수 한도 보호 문장(groupLimitGuard)에 걸린 것인지. */
 export function isGroupLimitError(error: unknown): boolean {
   return String(error instanceof Error ? error.message : error).includes("guard_group_limit");
-}
-
-/**
- * 요청 ID(필수). runMutation이 같은 요청 ID를 한 번만 처리한다(재전송 안전).
- * 2026-11-07에는 선택이었고(없으면 서버가 만듦), 웹이 모든 운영자 쓰기에서 보내게 된 2026-11-08에 필수로 바꿨다
- * (docs/개선-서버-2026-11-08.md). 없거나 모양이 틀리면 400 INVALID_FIELD.
- */
-export function requireRequestId(body: Body): string {
-  return requireString(body.requestId, "requestId", 8, 64);
 }
 
 /** (계정, 요청 ID)에서 정해지는 모임 ID. 같은 요청을 다시 보내면 같은 모임이 된다(백업으로 새 모임과 같은 방식). */
@@ -604,7 +588,7 @@ export function parseSettings(value: unknown): Settings {
 /** 설정은 병합하지 않고 전체 스냅샷을 새 버전으로 저장한다. */
 export async function saveSettings(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "baseSettingsVersionId", "settings"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const baseId = requireString(body.baseSettingsVersionId, "baseSettingsVersionId", 1, 64);
   const settings = parseSettings(body.settings);
   await runMutation(env, {
@@ -653,7 +637,7 @@ export async function saveSettings(env: Env, groupId: string, body: Body): Promi
  */
 export async function startNewCycle(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "baseLiveVersion"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const baseLiveVersion = requireInt(body.baseLiveVersion, "baseLiveVersion");
   await runMutation(env, {
     groupId,
@@ -695,7 +679,7 @@ export async function startNewCycle(env: Env, groupId: string, body: Body): Prom
 /** 오늘 내전을 마친다. 진행 중인 경기가 있으면 마칠 수 없다. */
 export async function closeSession(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "baseLiveVersion"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const baseLiveVersion = requireInt(body.baseLiveVersion, "baseLiveVersion");
   await runMutation(env, {
     groupId,

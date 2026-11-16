@@ -24,6 +24,7 @@ import {
   requireInt,
   requireIsoTime,
   requireOneOf,
+  requireRequestId,
   requireString,
 } from "./http";
 import {
@@ -49,10 +50,6 @@ import { loadGroup, loadMatch, loadOpenSession, loadSettings, ROSTER_IN_GROUP } 
 const MAX_AWAITING = 10;
 
 type Body = Record<string, unknown>;
-
-function requestIdOf(body: Body): string {
-  return requireString(body.requestId, "requestId", 8, 64);
-}
 
 /** 명단 10명을 검증한다: 서로 다른 10명, 팀당 5명, 팀 내 포지션 중복 없음. */
 function parseRoster(value: unknown, positionsRequired: boolean): RosterEntry[] {
@@ -175,7 +172,7 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
     "teamASide",
     "series",
   ]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseLiveVersion = requireInt(body.baseLiveVersion, "baseLiveVersion");
   const roster = parseRoster(body.roster, true);
   // 준비 화면에서 고른 팀 A의 진영(선택). 블루·레드만 받는다("나중에"는 보내지 않는다).
@@ -383,7 +380,7 @@ export async function endLater(
   body: Body,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   await runMutation(env, {
     groupId,
@@ -430,7 +427,7 @@ export async function confirmResult(
   body: Body,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion", "winnerTeam", "winnerSide", "memo", "champions"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   const winnerTeam = requireOneOf<Team>(body.winnerTeam, TEAMS, "winnerTeam");
   const winnerSide = requireOneOf<Side>(body.winnerSide, SIDES, "winnerSide");
@@ -509,7 +506,7 @@ export async function replaceLiveParticipant(
   body: Body,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion", "outParticipantId", "inParticipantId", "ackRepeat"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   const outId = requireString(body.outParticipantId, "outParticipantId", 1, 64);
   const inId = requireString(body.inParticipantId, "inParticipantId", 1, 64);
@@ -623,7 +620,7 @@ const MEMO_STATES = ["in_progress", "awaiting_result", "confirmed"] as const;
  */
 export async function saveMemo(env: Env, groupId: string, matchId: string, body: Body): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "memo", "baseMemo"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const memo = parseMemo(body.memo);
   if (body.baseMemo !== null && typeof body.baseMemo !== "string") {
     throw new ApiError(400, "INVALID_FIELD", "baseMemo 값이 올바르지 않습니다.");
@@ -715,7 +712,7 @@ function setChampions(
  */
 export async function saveChampions(env: Env, groupId: string, matchId: string, body: Body): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion", "champions"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   const champions = parseChampions(body.champions);
   await runMutation(env, {
@@ -761,7 +758,7 @@ export async function cancelMatch(
   body: Body,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion", "convertRepeats"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   const convertRepeats = typeof body.convertRepeats === "boolean" ? body.convertRepeats : null;
   await runMutation(env, {
@@ -839,7 +836,7 @@ export async function excludeMatch(
   body: Body,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   await runMutation(env, {
     groupId,
@@ -970,7 +967,7 @@ export async function restoreMatch(
   body: Body,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   await runMutation(env, {
     groupId,
@@ -1079,7 +1076,7 @@ export async function deleteMatch(
   accountId: string,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   await runMutation(env, {
     groupId,
@@ -1123,7 +1120,7 @@ export async function undeleteMatch(
   accountId: string,
 ): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "baseMatchVersion"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   await runMutation(env, {
     groupId,
@@ -1248,7 +1245,7 @@ export async function correctMatch(
     "inParticipantId",
     "fixRotation",
   ]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const baseMatchVersion = requireInt(body.baseMatchVersion, "baseMatchVersion");
   const field = requireOneOf<CorrectionField>(body.field, CORRECTION_FIELDS, "field");
   const fixRotation = typeof body.fixRotation === "boolean" ? body.fixRotation : null;
@@ -1471,7 +1468,7 @@ export async function correctMatch(
  */
 export async function backfillMatch(env: Env, groupId: string, body: Body, actor: BulkActor): Promise<MatchView> {
   assertOnlyKeys(body, ["requestId", "playedAt", "roster", "winnerTeam", "winnerSide"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   const playedAt = requireIsoTime(body.playedAt, "playedAt");
   // 일괄 입력(importMatches)과 같은 기준: 화면 검사(backfillProblems)를 거치지 않은 요청도 미래 경기는 거절한다.
   if (Date.parse(playedAt) > Date.now() + FUTURE_TOLERANCE_MS) {
@@ -1602,7 +1599,7 @@ export async function importMatches(
   actor: BulkActor,
 ): Promise<{ matchIds: string[] }> {
   assertOnlyKeys(body, ["requestId", "batchId", "matches", "source"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   // 한 번의 일괄 입력을 여러 묶음으로 나눠 보내도 같은 batchId를 쓴다. 되돌릴 때 이 값으로 찾는다.
   const batchId = requireString(body.batchId, "batchId", 8, 64);
   const source = parseImportSource(body.source);
@@ -1843,7 +1840,7 @@ export async function setImportBatchExcluded(
   body: Body,
 ): Promise<{ changed: number; skipped?: number }> {
   assertOnlyKeys(body, ["requestId", "exclude", "skipOverlapping"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   if (typeof body.exclude !== "boolean") {
     throw new ApiError(400, "INVALID_FIELD", "exclude 값이 올바르지 않습니다.");
   }
@@ -1995,7 +1992,7 @@ export const SHIFT_DATES_BODY_BYTES = 64 * 1024;
  */
 export async function shiftMatchDates(env: Env, groupId: string, body: Body): Promise<{ changed: number }> {
   assertOnlyKeys(body, ["requestId", "matchIds", "years"]);
-  const requestId = requestIdOf(body);
+  const requestId = requireRequestId(body);
   if (!Array.isArray(body.matchIds) || body.matchIds.length < 1 || body.matchIds.length > MAX_SHIFT_MATCHES) {
     throw new ApiError(400, "INVALID_FIELD", `matchIds는 1~${MAX_SHIFT_MATCHES}개여야 합니다.`);
   }

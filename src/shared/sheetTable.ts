@@ -1308,7 +1308,8 @@ export function acrossDate(value: string): DateCell | "invalid" | null {
   return { year, month, day, time: null };
 }
 
-function columnName(index: number): string {
+/** 0부터 센 열 번호 → 시트 열 이름(0 → A, 25 → Z, 26 → AA). */
+export function columnName(index: number): string {
   let n = index + 1;
   let out = "";
   while (n > 0) {

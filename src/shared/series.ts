@@ -9,7 +9,7 @@
  *   기준 구성은 첫 판이 아니라 "가장 많은 판이 쓴 구성"이다(seriesReferenceOf, 2026-11-08).
  * 통계(승률·랭킹)는 지금처럼 판 단위로 센다. 여기의 점수는 보여 주기만 한다.
  */
-import { isCounted } from "./stats";
+import { byPlayedAt, isCounted } from "./stats";
 import type { MatchView, RosterEntry, SeriesFormat, SeriesView, Team } from "./types";
 
 export const SERIES_FORMAT_LABEL: Record<SeriesFormat, string> = {
@@ -69,11 +69,6 @@ export interface SeriesScore {
   mismatched: number;
 }
 
-/** 경기 시각 → 경기 번호 순. 시리즈 안의 판 순서다. */
-export function byPlayOrder(a: MatchView, b: MatchView): number {
-  return a.playedAt.localeCompare(b.playedAt) || a.matchNo - b.matchNo;
-}
-
 /**
  * 시리즈의 기준 판(2026-11-08 정합성 점검에서 바꿈). 전적 제외·미진행 취소가 아닌 판들 중 가장 많은 판이 쓴 두 팀
  * 구성을 고르고(같으면 그 구성의 첫 판이 이른 쪽), 그 구성의 첫 판을 돌려준다. 그런 판이 없으면(모두 제외·취소) 첫 판.
@@ -82,7 +77,7 @@ export function byPlayOrder(a: MatchView, b: MatchView): number {
  * 모두 이 함수를 쓴다.
  */
 export function seriesReferenceOf(members: readonly MatchView[]): MatchView | null {
-  const ordered = [...members].sort(byPlayOrder);
+  const ordered = [...members].sort(byPlayedAt);
   const groups = new Map<string, { first: MatchView; count: number }>();
   for (const m of ordered) {
     if (m.state === "excluded" || m.state === "canceled") continue;
@@ -103,7 +98,7 @@ export function seriesScore(series: SeriesView, matches: readonly MatchView[]): 
   const members = series.matchIds
     .map((id) => byId.get(id))
     .filter((m): m is MatchView => m !== undefined)
-    .sort(byPlayOrder);
+    .sort(byPlayedAt);
   // 점수의 0쪽은 기준 판(seriesReferenceOf)의 팀 A였던 사람들이다.
   const first = seriesReferenceOf(members) ?? undefined;
   const teams: [string[], string[]] = first

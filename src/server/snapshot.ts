@@ -73,33 +73,6 @@ export async function loadOpenSession(env: Env, groupId: string): Promise<Sessio
   return { id: row.id, startedAt: row.started_at, lastActivityAt: row.last_activity_at };
 }
 
-export async function loadActiveRotation(
-  env: Env,
-  sessionId: string,
-): Promise<RotationView | null> {
-  const cycle = await env.DB.prepare(
-    "SELECT id, created_at FROM rotation_cycles WHERE session_id = ?1 AND status = 'active'",
-  )
-    .bind(sessionId)
-    .first<{ id: string; created_at: string }>();
-  if (!cycle) return null;
-  const events = await env.DB.prepare(
-    `SELECT match_id, participant_id, kind FROM rotation_events
-     WHERE cycle_id = ?1 AND voided = 0 ORDER BY created_at, id`,
-  )
-    .bind(cycle.id)
-    .all<{ match_id: string; participant_id: string; kind: "used" | "repeat" }>();
-  return {
-    cycleId: cycle.id,
-    cycleStartedAt: cycle.created_at,
-    events: events.results.map((e) => ({
-      matchId: e.match_id,
-      participantId: e.participant_id,
-      kind: e.kind,
-    })),
-  };
-}
-
 interface MatchRow {
   id: string;
   match_no: number;

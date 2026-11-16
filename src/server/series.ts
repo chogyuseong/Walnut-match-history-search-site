@@ -24,7 +24,7 @@ import {
 import { cleanName } from "../shared/names";
 import { SERIES_FORMATS, type MatchView, type RosterEntry, type SeriesFormat, type SeriesView } from "../shared/types";
 import type { Env } from "./env";
-import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireString } from "./http";
+import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireRequestId, requireString } from "./http";
 import { runMutation, type Plan } from "./mutation";
 import { loadMatch, loadMatchesByIds, loadSeries } from "./snapshot";
 
@@ -341,7 +341,7 @@ async function loadJoinables(env: Env, groupId: string, matchIds: readonly strin
 /** 새 시리즈: 확정 경기 1판 이상, 두 팀 구성이 모두 같아야 한다. */
 export async function createSeries(env: Env, groupId: string, body: Body): Promise<{ series: SeriesView }> {
   assertOnlyKeys(body, ["requestId", "name", "format", "matchIds"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const name = parseName(body.name);
   const format = parseFormat(body.format);
   if (!Array.isArray(body.matchIds) || body.matchIds.length < 1 || body.matchIds.length > MAX_SERIES_GAMES) {
@@ -385,7 +385,7 @@ export async function addToSeries(
   body: Body,
 ): Promise<{ series: SeriesView }> {
   assertOnlyKeys(body, ["requestId", "matchId"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const matchId = requireString(body.matchId, "matchId", 1, 64);
   const { stored } = await runMutation(env, {
     groupId,
@@ -420,7 +420,7 @@ export async function removeFromSeries(
   body: Body,
 ): Promise<{ series: SeriesView | null }> {
   assertOnlyKeys(body, ["requestId", "matchId"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const matchId = requireString(body.matchId, "matchId", 1, 64);
   const { stored } = await runMutation(env, {
     groupId,
@@ -469,7 +469,7 @@ export async function updateSeries(
   body: Body,
 ): Promise<{ series: SeriesView }> {
   assertOnlyKeys(body, ["requestId", "name", "format"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const name = parseName(body.name);
   const format = parseFormat(body.format);
   const { stored } = await runMutation(env, {

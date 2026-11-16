@@ -1,7 +1,7 @@
 import { mergeResolver } from "../shared/merge";
 import type { ParticipantView, SupportAdjustmentView } from "../shared/types";
 import type { Env } from "./env";
-import { ApiError, assertOnlyKeys, nowIso, requireInt, requireString } from "./http";
+import { ApiError, assertOnlyKeys, nowIso, requireInt, requireRequestId, requireString } from "./http";
 import { bumpLiveVersion, liveVersionGuard, runMutation } from "./mutation";
 import { loadGroup, loadOpenSession } from "./snapshot";
 
@@ -58,16 +58,6 @@ function fold(
   return sum;
 }
 
-/** 스냅숏(운영자)에 내려줄 보정값. 활성 주기의 것, 주기가 없으면 첫 경기 전에 받아 둔 것. */
-export async function loadAdjustmentsView(
-  env: Env,
-  groupId: string,
-  cycleId: string | null,
-  participants: readonly Pick<ParticipantView, "id" | "mergedInto">[],
-): Promise<SupportAdjustmentView[]> {
-  return foldAdjustments(await loadRows(env, groupId, cycleId), participants);
-}
-
 /** 이미 읽은 보정값 행을 화면용으로 바꾼다(스냅숏의 batch가 행을 함께 읽는다, src/server/snapshot.ts). */
 export function foldAdjustments(
   rows: readonly { participant_id: string; delta: number }[],
@@ -83,7 +73,7 @@ export function foldAdjustments(
  */
 export async function saveSupportCounts(env: Env, groupId: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "counts"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   if (!Array.isArray(body.counts) || body.counts.length === 0 || body.counts.length > MAX_ENTRIES) {
     throw new ApiError(400, "INVALID_FIELD", "counts 값이 올바르지 않습니다.");
   }

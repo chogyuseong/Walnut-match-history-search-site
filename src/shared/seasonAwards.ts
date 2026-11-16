@@ -8,8 +8,8 @@
  *   "헌신상"은 그 범위의 확정 경기에서 서포터 포지션으로 뛴 판 수다(서포터 순환 기록이 아니다).
  */
 import { ratingOptionsOf } from "./rating";
-import { byPlayOrder } from "./series";
 import {
+  byPlayedAt,
   isCounted,
   localDate,
   localYear,
@@ -186,7 +186,7 @@ export function seasonSummary(
   const tz = snapshot.group.timezone;
   const range = rangeOf(snapshot, scope) ?? { startsOn: "", endsOn: "" };
   const today = localDate(now.toISOString(), tz);
-  const counted = matchesInScope(snapshot, scope).filter(isCounted).sort(byPlayOrder);
+  const counted = matchesInScope(snapshot, scope).filter(isCounted).sort(byPlayedAt);
   const byName = (a: string, b: string) => nameOf(a).localeCompare(nameOf(b), "ko") || a.localeCompare(b);
   const idsOrder = (a: { ids: string[] }, b: { ids: string[] }) => {
     for (let i = 0; i < Math.max(a.ids.length, b.ids.length); i++) {

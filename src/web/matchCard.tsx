@@ -312,15 +312,6 @@ export function MatchScoreboard(props: {
   );
 }
 
-/** 경기 카드 목록. 비어 있으면 아무것도 그리지 않는다. */
-export function MatchCardList(props: { children: ReactNode; label?: string }) {
-  return (
-    <ul className="list match-cards" aria-label={props.label}>
-      {props.children}
-    </ul>
-  );
-}
-
 /**
  * 경기마다의 경기 전 예상(이변 지수, src/shared/upset.ts). 모임 전체 누적 MMR로 계산하므로 스냅숏이 바뀔 때만 다시 센다.
  * 경기 ID → 예상. 유효 확정 경기가 아니면 없다.

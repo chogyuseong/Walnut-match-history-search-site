@@ -29,8 +29,8 @@ import { placementGamesOf } from "../shared/stats";
 import { titleBandsOf } from "../shared/titles";
 import type { MatchState, MatchView } from "../shared/types";
 import type { Env } from "./env";
-import { ApiError, assertOnlyKeys, newId, nowIso, requireString } from "./http";
-import { ANON_NAME_PATTERN, MAX_LINKS_PER_ACCOUNT } from "./members";
+import { ApiError, assertOnlyKeys, newId, nowIso, requireRequestId, requireString } from "./http";
+import { ANON_NAME_PATTERN, loadPerson, MAX_LINKS_PER_ACCOUNT, stateGuard, type PersonRow } from "./members";
 import { bumpLiveVersion, runMutation } from "./mutation";
 import { buildSnapshot } from "./snapshot";
 
@@ -40,14 +40,6 @@ type Body = Record<string, unknown>;
 export const mergeHooks: { midBatch: ((env: Env) => D1PreparedStatement) | null } = {
   midBatch: null,
 };
-
-interface PersonRow {
-  id: string;
-  name: string;
-  name_key: string;
-  status: "active" | "archived";
-  merged_into: string | null;
-}
 
 interface EventRow {
   id: string;
@@ -113,20 +105,6 @@ export interface MergePreview {
   rotation: { moved: number; converted: number };
   /** 합치기 전후의 누적 승패·배치·칭호. */
   standings: MergeStandings;
-}
-
-async function loadPerson(env: Env, groupId: string, id: string): Promise<PersonRow> {
-  const row = await env.DB.prepare(
-    `SELECT p.id, p.name, p.name_key, p.status, m.target_id AS merged_into
-     FROM participants p
-     LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
-     WHERE p.id = ?1 AND p.group_id = ?2`,
-  )
-    .bind(id, groupId)
-    .first<PersonRow>();
-  // 다른 모임의 참가자는 없는 것과 같은 답을 준다.
-  if (!row) throw new ApiError(404, "NOT_FOUND", "참가자를 찾을 수 없습니다.");
-  return row;
 }
 
 async function loadEvents(env: Env, groupId: string, participantId: string): Promise<EventRow[]> {
@@ -290,9 +268,6 @@ export async function previewMerge(
   };
 }
 
-const stateGuard = (env: Env, sql: string, ...values: unknown[]) =>
-  env.DB.prepare(`INSERT INTO guard (state_conflict) SELECT 1 WHERE ${sql}`).bind(...values);
-
 interface LinkRow {
   participant_id: string;
   account_id: string;
@@ -376,7 +351,7 @@ export async function mergeParticipants(
   body: Body,
 ): Promise<{ mergeId: string; matchCount: number }> {
   assertOnlyKeys(body, ["requestId", "sourceId", "targetId"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const { sourceId, targetId } = parseIds(body);
   const { stored } = await runMutation(env, {
     groupId,
@@ -662,7 +637,7 @@ export async function undoMerge(
   body: Body,
 ): Promise<{ mergeId: string; matchCount: number; link: UndoLinkResult | null }> {
   assertOnlyKeys(body, ["requestId"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const { stored } = await runMutation(env, {
     groupId,
     requestId,

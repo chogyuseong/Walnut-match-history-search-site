@@ -210,6 +210,14 @@ export function requireString(value: unknown, field: string, min = 1, max = 200)
   return value;
 }
 
+/**
+ * 요청 ID(필수). runMutation이 같은 요청 ID를 한 번만 처리한다(재전송 안전). 없거나 모양이 틀리면 400 INVALID_FIELD.
+ * 2026-11-08에 웹이 모든 운영자 쓰기에서 보내게 되면서 필수가 됐다(docs/개선-서버-2026-11-08.md).
+ */
+export function requireRequestId(body: Record<string, unknown>): string {
+  return requireString(body.requestId, "requestId", 8, 64);
+}
+
 export function requireInt(value: unknown, field: string): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
     throw new ApiError(400, "INVALID_FIELD", `${field} 값이 올바르지 않습니다.`);

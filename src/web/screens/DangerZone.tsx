@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ApiFailure, call } from "../api";
 import { ErrorNote } from "../ui";
-import { forgetGroupStorage, go, useAppValue } from "../useApp";
+import { DRAFT_KEY, forgetGroupStorage, go, GROUP_KEY, useAppValue } from "../useApp";
 import { downloadJson } from "./Restore";
 
 /** 서버의 확인 문구(src/server/deletion.ts). */
@@ -79,8 +79,8 @@ export function DangerZone() {
         if (!(e instanceof ApiFailure && e.status === 404 && backedUp.current)) throw e;
       }
       try {
-        localStorage.removeItem("naejeon.group");
-        localStorage.removeItem("naejeon.draft.v1");
+        localStorage.removeItem(GROUP_KEY);
+        localStorage.removeItem(DRAFT_KEY);
         forgetGroupStorage(gid);
       } catch {
         // 저장소를 못 써도 삭제는 끝났다.

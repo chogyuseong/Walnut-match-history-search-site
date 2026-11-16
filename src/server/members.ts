@@ -21,7 +21,7 @@ import { decodeAvoid } from "../shared/avoid";
 import { newViewToken, type MemberContext } from "./auth";
 import type { Env } from "./env";
 import { parseAvoidField } from "./groups";
-import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireString } from "./http";
+import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireRequestId, requireString } from "./http";
 import { maintenanceError, maintenanceGuard, runMutation, sha256Hex } from "./mutation";
 import { buildSnapshot, loadEtagHead, loadMemberRequests, snapshotEtag, type EtagHead } from "./snapshot";
 
@@ -66,15 +66,16 @@ function guardError(message: string): "state" | "version" | null {
   return null;
 }
 
-interface PersonRow {
+export interface PersonRow {
   id: string;
   name: string;
   name_key: string;
-  status: string;
+  status: "active" | "archived";
   merged_into: string | null;
 }
 
-async function loadPerson(env: Env, groupId: string, participantId: string): Promise<PersonRow> {
+/** 참가자 한 명과 지금 합쳐져 있는 대상. 다른 모임의 참가자는 없는 것과 같은 404를 준다(합치기·익명 처리도 쓴다). */
+export async function loadPerson(env: Env, groupId: string, participantId: string): Promise<PersonRow> {
   const row = await env.DB.prepare(
     `SELECT p.id, p.name, p.name_key, p.status, m.target_id AS merged_into
      FROM participants p LEFT JOIN participant_merges m ON m.source_id = p.id AND m.undone_at IS NULL
@@ -284,7 +285,7 @@ export async function unlinkByOperator(
   assertOnlyKeys(body, ["requestId"]);
   const { stored } = await runMutation(env, {
     groupId,
-    requestId: requireString(body.requestId, "requestId", 8, 64),
+    requestId: requireRequestId(body),
     op: "unlink-participant",
     payload: { participantId },
     build: async () => {
@@ -516,7 +517,7 @@ function tooManyRequests(): ApiError {
  */
 export async function resolveMemberRequest(env: Env, groupId: string, id: string, body: Body): Promise<void> {
   assertOnlyKeys(body, ["requestId", "status", "reply"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   const status = requireOneOf(body.status, ["done", "declined"] as const, "status");
   const reply = parseText(body.reply, "reply", false);
   const alreadyResolved = () => new ApiError(409, "ALREADY_RESOLVED", "이미 처리한 요청이에요.");
@@ -561,7 +562,8 @@ export async function resolveMemberRequest(env: Env, groupId: string, id: string
 /* 익명 처리(운영자)                                                      */
 /* ------------------------------------------------------------------ */
 
-const stateGuard = (env: Env, sql: string, ...values: unknown[]) =>
+/** sql 조건이 참이면 guard 표 트리거가 실패시켜 batch 전체를 되돌린다(읽은 뒤 바뀐 상태를 막는다). */
+export const stateGuard = (env: Env, sql: string, ...values: unknown[]) =>
   env.DB.prepare(`INSERT INTO guard (state_conflict) SELECT 1 WHERE ${sql}`).bind(...values);
 
 export interface AnonymizeResult {
@@ -587,7 +589,7 @@ export async function anonymizeParticipant(
   body: Body,
 ): Promise<AnonymizeResult> {
   assertOnlyKeys(body, ["requestId", "confirm"]);
-  const requestId = requireString(body.requestId, "requestId", 8, 64);
+  const requestId = requireRequestId(body);
   if (body.confirm !== ANONYMIZE_CONFIRM_TEXT) {
     throw new ApiError(400, "CONFIRM_REQUIRED", `확인 문구 '${ANONYMIZE_CONFIRM_TEXT}'를 입력해 주세요.`);
   }

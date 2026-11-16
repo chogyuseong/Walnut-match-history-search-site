@@ -286,15 +286,6 @@ export async function requireMember(env: Env, req: Request, groupId: string): Pr
   return { groupId, accountId, participantId };
 }
 
-/** 조회 토큰으로 모임 ID를 찾는다. */
-export async function groupIdFromViewToken(env: Env, token: string): Promise<string> {
-  const row = await env.DB.prepare("SELECT id FROM groups WHERE view_token = ?1")
-    .bind(token)
-    .first<{ id: string }>();
-  if (!row) throw new ApiError(404, "NOT_FOUND", "모임을 찾을 수 없습니다.");
-  return row.id;
-}
-
 /** 추측할 수 없는 조회 토큰(128비트). */
 export function newViewToken(): string {
   const bytes = new Uint8Array(16);
