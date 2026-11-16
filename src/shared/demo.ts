@@ -8,7 +8,7 @@
  * - 챔피언: 앞쪽 경기는 비워 두고(기록을 나중에 시작한 모임처럼) 그 뒤로도 가끔 빠뜨려, 챔피언 티어 화면의 입력률이
  *   100%가 아니게 한다. 사람마다 라인별로 즐겨 쓰는 챔피언이 있어 "주로 쓴 사람"이 고르게 갈린다.
  */
-import { rngFromSeed } from "./draft";
+import { rngFromSeed } from "./random";
 import {
   DEFAULT_SETTINGS,
   POSITIONS,

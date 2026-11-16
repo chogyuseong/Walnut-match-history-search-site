@@ -1,6 +1,10 @@
+import { rngFromSeed } from "./random";
 import { satisfies, type TeamConstraint } from "./recommend";
 import { DRAFT_FORMAT_VERSION, HISTORY_MAX, normalizeDraftSide, swapSides } from "./storedDraft";
 import { POSITIONS, TEAMS, type MatchView, type Position, type SeriesFormat, type Team } from "./types";
+
+// 편성 섞기를 쓰는 모듈(priority·recommend·rotation)과 테스트는 여기서 가져간다. 본문은 잎 모듈 random.ts에 있다.
+export { rngFromSeed } from "./random";
 
 export interface DraftPerson {
   /** 초안 안에서의 고유 키. 참가자 ID가 있으면 "p:ID", 아직 없으면 "n:이름키". */
@@ -103,18 +107,6 @@ export function pushHistory(base: Draft, next: Draft): Draft {
 export function withoutHistory(draft: Draft): Draft {
   const { history: _history, redoSlots: _redo, ...rest } = draft;
   return { ...rest, previousSlots: null };
-}
-
-/** 시드로 재현할 수 있는 난수(mulberry32). 예시 모임(demo.ts)도 이것을 쓰므로 바꾸면 예시 데이터가 달라진다. */
-export function rngFromSeed(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 export function shuffle<T>(items: readonly T[], rng: () => number): T[] {
