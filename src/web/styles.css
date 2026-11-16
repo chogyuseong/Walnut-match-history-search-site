@@ -2870,8 +2870,8 @@ main:focus {
   border-color: var(--ih-loss-border);
   color: var(--ih-loss-text);
 }
-/* 글자로만 쓰는 최근 승패(FormDots letters): 칸·진영색 없이 "승패승"이 붙어 한 낱말처럼 읽힌다.
-   승은 본문 색 500, 패는 보조 색 400이라 색 없이도 이긴 판이 먼저 눈에 든다. 뜻은 글자가 전한다. */
+/* 글자로만 쓰는 최근 승패(FormDots letters): 칸 없이 "승패승"이 붙어 한 낱말처럼 읽힌다.
+   승은 승리 글자색(파랑), 패는 패배 글자색(빨강)으로 칠한다. 채운 칸보다 가벼워 줄마다 다섯 개여도 덜 무겁다. */
 .form-dots.letters {
   gap: 0;
   font-variant-numeric: tabular-nums;
@@ -2886,12 +2886,12 @@ main:focus {
   font-size: var(--text-label);
 }
 .form-dots.letters .form-dot.win {
-  color: var(--ih-text);
+  color: var(--ih-win-text);
   font-weight: 500;
 }
 .form-dots.letters .form-dot.loss {
-  color: var(--ih-text-secondary);
-  font-weight: 400;
+  color: var(--ih-loss-text);
+  font-weight: 500;
 }
 /* 요약 화면 랭킹 상위 5명: 줄의 색 강조는 승률 숫자 하나만 남기고 칭호는 보조 글자 색으로 둔다(엠블럼·이름은 그대로).
    칭호 등급 색은 랭킹·개인 통계처럼 칭호를 보러 가는 화면에서 보인다(CLAUDE.md 5절 칭호 예외). */
