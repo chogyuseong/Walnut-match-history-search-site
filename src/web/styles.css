@@ -3823,6 +3823,10 @@ main:focus {
   border-bottom: 1px solid var(--ih-line);
   text-align: left;
   vertical-align: top;
+  /* 전역 table의 word-break: normal을 물려받으면 390px에서 "많이 플레이/한 라인", "누/적 기준"처럼 낱말 가운데가
+     끊겼다. 이 표는 칸 폭이 고정(table-layout: fixed)이라 keep-all이어도 표가 넓어지지 않는다.
+     칸보다 긴 낱말(긴 이름)만 anywhere로 자른다. */
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 .cmp-table tbody tr:last-child > * {

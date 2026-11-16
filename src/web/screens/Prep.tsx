@@ -23,7 +23,7 @@ import { DrawSummary } from "./prep/DrawSummary";
 import { ForecastSection } from "./prep/ForecastSection";
 import { LateDialog, RecommendDialog, ReplaceDialog } from "./prep/EditDialogs";
 import { SeriesSection } from "./prep/SeriesSection";
-import { QUICK_BAR_NARROW_MAX, QuickShuffleButtons, ShuffleSection, SideSection } from "./prep/ShuffleSection";
+import { QUICK_BAR_NARROW_MAX, QuickShuffleButtons, ShuffleSection, ShuffleSettings, SideSection } from "./prep/ShuffleSection";
 import { StartAskDialog } from "./prep/StartAskDialog";
 import { supportCountLabel, SupportCountSection } from "./prep/SupportCountSection";
 import { SelectionBar, TeamBoards } from "./prep/TeamBoards";
@@ -209,8 +209,9 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
       </button>
     </div>
   );
-  const shuffle = (
-    <ShuffleSection
+  const shuffle = <ShuffleSection ctx={ctx} edit={edit} inQuickBar={inQuickBar} />;
+  const shuffleSettings = (
+    <ShuffleSettings
       ctx={ctx}
       edit={edit}
       inQuickBar={inQuickBar}
@@ -298,7 +299,9 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
             폰(390×844)에서 섞기 버튼이 보이는 위치에 두 팀 10명 중 6명만 보여, 누른 결과를 보려고 위로 올라가야 했다.
           - 1200px 이상(두 단): 오른쪽 단 맨 위, 두 팀 상자 옆. 왼쪽 단(두 팀·쉬는 사람)은 따라 내려와(sticky) 두 팀에서
             쉬는 사람으로 끌어다 놓을 수 있어야 하므로, 섞기를 왼쪽에 넣어 단을 화면보다 길게 만들지 않는다.
-          섞은 결과 줄(DeltaNote·DrawSummary)은 두 경우 모두 쉬는 사람보다 앞에 둔다. */}
+          섞은 결과 줄(DeltaNote·DrawSummary)은 두 경우 모두 쉬는 사람보다 앞에 둔다.
+          섞기 기준(티어·기피 라인·서포터 횟수·도움말)은 한 단에서는 쉬는 사람 뒤로 뺀다. 섞기 구역에 붙여 두었을 때
+          쉬는 사람이 약 500px 밀려 팀 ↔ 쉬는 사람 바꾸기에 스크롤이 필요했다. 두 단에서는 섞기 바로 아래다. */}
       <div className="prep-layout">
         <div className="prep-boards">
           <TeamBoards draft={draft} ctx={ctx} edit={edit} />
@@ -316,9 +319,11 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
             />
           )}
           <BenchSection edit={edit} night={night} onAddLate={() => setLateOpen(true)} />
+          {!twoColumns && shuffleSettings}
         </div>
         <div className="prep-tools-col">
           {twoColumns && shuffle}
+          {twoColumns && shuffleSettings}
           <SideSection edit={edit} />
           {forecast && (
             <ForecastSection

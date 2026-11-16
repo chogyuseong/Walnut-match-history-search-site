@@ -124,8 +124,9 @@ test("기록으로 제안받기 → 고른 사람만 적용, 티어 점검, 기�
   for (const name of names.slice(0, 10)) await all.getByRole("button", { name: new RegExp(name) }).click();
   await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
   await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
-  const tools = page.getByRole("region", { name: "섞기", exact: true });
-  await expect(tools).toContainText("서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요");
+  // 기피 라인 안내는 섞기 버튼 구역이 아니라 "섞기 기준" 구역에 있다(한 단 화면에서는 쉬는 사람 아래).
+  const settings = page.getByRole("region", { name: "섞기 기준", exact: true });
+  await expect(settings).toContainText("서폿 돌아가며·서포터만 바꾸기는 서포터 횟수 규칙이 먼저예요");
   // 처음 팀 짜기도 기피를 피했다.
   let seen = await lineup(page);
   expect(seen.get("기피01")![1]).toBe("서폿");

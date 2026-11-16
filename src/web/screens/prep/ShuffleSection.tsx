@@ -51,18 +51,21 @@ export function QuickShuffleButtons(props: { edit: PrepEditing; lineShuffle: boo
   );
 }
 
-/** 섞기 구역: 팀을 새로 짜기(팀·라인 모두 섞기, 균형 팀 추천)와 팀은 그대로(라인·서포터 섞기, 진영 바꾸기). */
-export function ShuffleSection(props: {
-  ctx: RotationContext;
-  edit: PrepEditing;
-  /** 서포터 횟수 버튼과 그 아래 펼쳐지는 판(서포터 돌아가며가 꺼져 있으면 없음). */
-  support?: { label: string; open: boolean; needsReset: boolean; onToggle: () => void; panel: ReactNode };
-  /** 휴대폰에서 아래 고정 줄로 옮긴 버튼. 같은 버튼이 두 번 보이지 않게 구역에서는 뺀다. */
-  inQuickBar?: { teamShuffle: boolean; lineShuffle: boolean };
-}) {
-  const { ctx, edit, support } = props;
-  const quick = props.inQuickBar ?? { teamShuffle: false, lineShuffle: false };
-  const hasAvoid = Object.keys(edit.avoidMap).length > 0;
+/** 휴대폰에서 아래 고정 줄로 옮긴 버튼. 같은 버튼이 두 번 보이지 않게 구역에서는 뺀다. */
+type QuickBarPlacement = { teamShuffle: boolean; lineShuffle: boolean };
+const NOTHING_IN_QUICK_BAR: QuickBarPlacement = { teamShuffle: false, lineShuffle: false };
+
+/** 서포터 횟수 버튼과 그 아래 펼쳐지는 판(서포터 돌아가며가 꺼져 있으면 없음). */
+export type SupportCountToggle = { label: string; open: boolean; needsReset: boolean; onToggle: () => void; panel: ReactNode };
+
+/**
+ * 섞기 구역: 팀을 새로 짜기(팀·라인 모두 섞기, 균형 팀 추천)와 팀은 그대로(라인·서포터 섞기, 진영 바꾸기).
+ * 가끔 바꾸는 "섞기 기준"(티어·기피 라인·서포터 횟수)과 도움말은 ShuffleSettings로 나눴다. 한 단 화면에서 둘이
+ * 붙어 있으면 섞기 구역이 약 500px이 되어 쉬는 사람 명단이 그만큼 밀렸고, 팀 ↔ 쉬는 사람 바꾸기에 스크롤이 필요했다.
+ */
+export function ShuffleSection(props: { ctx: RotationContext; edit: PrepEditing; inQuickBar?: QuickBarPlacement }) {
+  const { ctx, edit } = props;
+  const quick = props.inQuickBar ?? NOTHING_IN_QUICK_BAR;
   const movedNames = [quick.teamShuffle && QUICK_LABEL.teamShuffle, quick.lineShuffle && QUICK_LABEL.lineShuffle].filter(Boolean);
   return (
     <section className="prep-tools" aria-label="섞기">
@@ -135,16 +138,35 @@ export function ShuffleSection(props: {
           </button>
         </p>
       )}
-      {/* 안내문은 줄마다 짧은 꼬리표(.row-label)만 남기고 설명은 맨 아래 도움말 하나에 모았다(2026-11-08 위계 정리).
-          순서(2026-11-08 화면 점검): 자주 누르는 섞기 줄을 위에, 가끔 바꾸는 "섞기 기준" 줄을 그 아래에 둔다.
-          "섞기 기준" 버튼은 다른 섞기 버튼과 같은 크기다. 이름은 그대로라 브라우저 테스트의 선택자가 바뀌지 않는다. */}
-      <p className="row-label">
+    </section>
+  );
+}
+
+/**
+ * 섞기 기준 구역: 티어 배정·기피 라인·서포터 횟수와 섞기 도움말. 섞기 버튼보다 덜 누르므로 한 단 화면에서는
+ * 쉬는 사람 아래에, 두 단(1200px 이상)에서는 섞기 구역 바로 아래에 둔다(Prep.tsx).
+ * 서포터 횟수 판(초기화 확인 포함)이 이 구역 안에서 펼쳐진다.
+ */
+export function ShuffleSettings(props: {
+  ctx: RotationContext;
+  edit: PrepEditing;
+  support?: SupportCountToggle;
+  inQuickBar?: QuickBarPlacement;
+}) {
+  const { ctx, edit, support } = props;
+  const quick = props.inQuickBar ?? NOTHING_IN_QUICK_BAR;
+  const hasAvoid = Object.keys(edit.avoidMap).length > 0;
+  return (
+    <section className="prep-tools" aria-label="섞기 기준">
+      {/* 설명은 짧은 InfoTip과 맨 아래 도움말 하나에 모았다(2026-11-08 위계 정리). 버튼 이름은 그대로라
+          브라우저 테스트의 선택자가 바뀌지 않는다. */}
+      <h2>
         섞기 기준{" "}
         <InfoTip label="섞기 기준">
           팀은 MMR이 아니라 티어로 나눠요. 같은 티어끼리 양 팀에 갈라지고, 균형 팀 추천은 티어 점수 합이 가장 비슷한
           편성을 골라요. 티어 미정인 사람은 정한 사람들의 중간 티어로 쳐요. MMR은 아래 예상 승률에만 써요.
         </InfoTip>
-      </p>
+      </h2>
       <div className="button-row">
         <button
           type="button"
