@@ -16,7 +16,7 @@ import {
   type DraftPerson,
 } from "../src/shared/draft";
 import { parseStoredDraft } from "../src/shared/storedDraft";
-import { parseNameList } from "../src/shared/names";
+import { josa, parseNameList, roJosa } from "../src/shared/names";
 import { recommendTeams, type RecommendPerson } from "../src/shared/recommend";
 import {
   drawCandidates,
@@ -65,6 +65,27 @@ function ctx(used: string[] = [], eventCount = used.length, cycleId = "c1"): Rot
 function positionOf(draft: Draft, key: string): Position {
   return draft.slots.find((s) => s.key === key)!.position;
 }
+
+describe("조사", () => {
+  it("한글 받침, 읽는 소리로 받침이 있는 숫자·영문을 함께 본다(코멘트·준비 화면이 같은 규칙)", () => {
+    expect(josa("블루팀", ["은", "는"])).toBe("은");
+    expect(josa("아리", ["은", "는"])).toBe("는");
+    expect(josa("사람01", ["이", "가"])).toBe("이"); // 공일
+    expect(josa("사람02", ["이", "가"])).toBe("가"); // 공이
+    expect(josa("팀 A", ["은", "는"])).toBe("는");
+    expect(josa("팀 M", ["은", "는"])).toBe("은"); // 엠
+    expect(josa("", ["은", "는"])).toBe("는");
+  });
+
+  it("(으)로: 받침이 없거나 ㄹ이면 로, 그 밖의 받침이면 으로", () => {
+    expect(roJosa("아리")).toBe("로");
+    expect(roJosa("카밀")).toBe("로");
+    expect(roJosa("탈론")).toBe("으로");
+    expect(roJosa("+1")).toBe("로"); // 일
+    expect(roJosa("+80")).toBe("으로"); // 영
+    expect(roJosa("팀 L")).toBe("로"); // 엘
+  });
+});
 
 describe("이름 입력", () => {
   it("줄바꿈·탭·쉼표로 나누고 공백과 빈 줄을 정리한다", () => {

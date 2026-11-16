@@ -17,6 +17,7 @@ import {
   SMALL_SAMPLE,
   type Tally,
 } from "./stats";
+import { josa, roJosa } from "./names";
 import { shownRating, type RatingTable } from "./rating";
 import { POSITIONS, type MatchView, type Position, type RosterEntry } from "./types";
 import {
@@ -263,28 +264,13 @@ const FLOW_TEXT = { up: "최근 상승세", down: "최근 주춤", flat: "최근
 
 type Flow = keyof typeof FLOW_TEXT;
 
-/** 받침으로 끝나게 읽히는 숫자: 영·일·삼·육·칠·팔. 이름 끝 숫자("사람01")의 조사에 쓴다. */
-const DIGIT_WITH_CODA = "013678";
-
-/** 받침 유무에 맞는 조사. 한글·숫자가 아니면 받침 없는 쪽. */
-function josa(word: string, withCoda: string, withoutCoda: string): string {
-  const last = word.at(-1) ?? "";
-  const code = last.charCodeAt(0) - 0xac00;
-  const coda = code >= 0 && code <= 11171 ? code % 28 !== 0 : DIGIT_WITH_CODA.includes(last) && last !== "";
-  return word + (coda ? withCoda : withoutCoda);
+/** 낱말 + 받침에 맞춘 조사. 규칙은 names.ts finalSound 하나다. */
+function withJosa(word: string, withCoda: string, withoutCoda: string): string {
+  return word + josa(word, [withCoda, withoutCoda]);
 }
 
-/** 받침 ㄹ로 끝나게 읽히는 숫자: 일·칠·팔. "(으)로"는 받침 ㄹ 뒤에서 "로"다. */
-const DIGIT_WITH_RIEUL = "178";
-
-/** "으로/로": 받침이 없거나 ㄹ이면 "로"(아리로, 카밀로, +1로), 그 밖의 받침이면 "으로"(+80으로, 탈론으로). */
 function withRo(word: string): string {
-  const last = word.at(-1) ?? "";
-  const code = last.charCodeAt(0) - 0xac00;
-  const final = code >= 0 && code <= 11171 ? code % 28 : -1;
-  const rieul = final === 8 || DIGIT_WITH_RIEUL.includes(last);
-  const coda = final > 0 || (final === -1 && DIGIT_WITH_CODA.includes(last) && last !== "");
-  return word + (coda && !rieul ? "으로" : "로");
+  return word + roJosa(word);
 }
 
 function rateOf(tally: Tally): number {
@@ -380,7 +366,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
         text:
           judged(best.tally.games, `${bestName}에서 가장 강해요`, `${bestName}에서 가장 강한 편으로 보여요`) +
           `(${rateOf(best.tally)}%, ${best.tally.games}경기). ` +
-          judged(worst.tally.games, `${josa(worstName, "은", "는")} 약점이에요`, `${josa(worstName, "은", "는")} 약점으로 보여요`) +
+          judged(worst.tally.games, `${withJosa(worstName, "은", "는")} 약점이에요`, `${withJosa(worstName, "은", "는")} 약점으로 보여요`) +
           `(${rateOf(worst.tally)}%, ${worst.tally.games}경기).`,
         tone: "good",
         basis: `라인별 승률(${LINE_MIN_GAMES}경기 이상 라인)${chanceNote(lineChance)}`,
@@ -480,7 +466,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   const pairEvidence: EvidenceGroup[] = [];
   if (buddy) {
     pairEvidence.push({
-      label: `${josa(nameOf(buddy.participantId), "과", "와")} 같은 팀`,
+      label: `${withJosa(nameOf(buddy.participantId), "과", "와")} 같은 팀`,
       matches: myEvidence(scoped, id, withOther(buddy.participantId, true)),
     });
   }
@@ -493,20 +479,20 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   if (buddy && rival && buddy.participantId === rival.participantId) {
     // 같은 사람이 동료이자 상대면 한 문장으로: 편이 갈리면 결과가 뒤집힌다는 뜻이다.
     pairParts.push(
-      `${josa(nameOf(buddy.participantId), "과", "와")}는 같은 팀이면 ${rateOf(buddy)}%, 상대 팀이면 ${rateOf(rival)}%라 ` +
+      `${withJosa(nameOf(buddy.participantId), "과", "와")}는 같은 팀이면 ${rateOf(buddy)}%, 상대 팀이면 ${rateOf(rival)}%라 ` +
         `함께일 때 확실히 강해요(시너지 +${synergy}%p).`,
     );
   } else {
     if (buddy) {
       pairParts.push(
-        `${josa(nameOf(buddy.participantId), "과", "와")} 같은 팀일 때 ` +
+        `${withJosa(nameOf(buddy.participantId), "과", "와")} 같은 팀일 때 ` +
           judged(buddy.games, "가장 강해요", "가장 강한 편으로 보여요") +
           `(${rateOf(buddy)}%, 시너지 +${synergy}%p).`,
       );
     }
     if (rival) {
       pairParts.push(
-        `${josa(nameOf(rival.participantId), "을", "를")} 상대로는 ` +
+        `${withJosa(nameOf(rival.participantId), "을", "를")} 상대로는 ` +
           judged(rival.games, "약해요", "약한 편으로 보여요") +
           `(${rateOf(rival)}%, ${rival.games}경기).`,
       );
@@ -628,7 +614,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   );
   const duelParts: string[] = [];
   if (hardest) {
-    duelParts.push(`${LANE_NAME[hardest.position]}에서 ${josa(nameOf(hardest.opponentId), "을", "를")} 만나면 ${hardest.wins}승 ${hardest.losses}패로 고전해요.`);
+    duelParts.push(`${LANE_NAME[hardest.position]}에서 ${withJosa(nameOf(hardest.opponentId), "을", "를")} 만나면 ${hardest.wins}승 ${hardest.losses}패로 고전해요.`);
   }
   if (easiest) {
     duelParts.push(`${LANE_NAME[easiest.position]}에서 ${nameOf(easiest.opponentId)} 상대로는 ${easiest.wins}승 ${easiest.losses}패예요.`);
@@ -661,7 +647,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   if (champBest || champWorst) {
     const bits: string[] = [];
     if (champBest) bits.push(`${withRo(championName(champBest.key))} ${champBest.games}판 ${rateOf(champBest)}%를 이겼어요.`);
-    if (champWorst) bits.push(`${josa(championName(champWorst.key), "은", "는")} ${champWorst.games}판 ${rateOf(champWorst)}%예요.`);
+    if (champWorst) bits.push(`${withJosa(championName(champWorst.key), "은", "는")} ${champWorst.games}판 ${rateOf(champWorst)}%예요.`);
     const shown = Math.max(champBest ? champChance(champBest) : 0, champWorst ? champChance(champWorst) : 0);
     remarks.push({
       text: bits.join(" "),
@@ -843,13 +829,13 @@ function playerCoaching(c: {
   }
   if (c.laneHard) {
     tips.push({
-      text: `${c.laneHard.line}에서 ${josa(c.laneHard.name, "을", "를")} 만나면 ${c.laneHard.wins}승 ${c.laneHard.losses}패예요. 맞라인이 되면 무리하지 말고 정글 도움을 요청하거나 라인을 바꿔 보세요.`,
+      text: `${c.laneHard.line}에서 ${withJosa(c.laneHard.name, "을", "를")} 만나면 ${c.laneHard.wins}승 ${c.laneHard.losses}패예요. 맞라인이 되면 무리하지 말고 정글 도움을 요청하거나 라인을 바꿔 보세요.`,
       tone: "warn",
       basis: `맞라인 상대(${LANE_FOCUS_MIN}경기 이상)`,
     });
   } else if (c.rival) {
     tips.push({
-      text: `${josa(c.rival.name, "을", "를")} 상대로 ${rateOf(c.rival.tally)}%예요(${c.rival.tally.games}경기). 상대 팀에 있으면 어느 라인인지 먼저 보고 맞라인을 피하거나 도움을 받아 보세요.`,
+      text: `${withJosa(c.rival.name, "을", "를")} 상대로 ${rateOf(c.rival.tally)}%예요(${c.rival.tally.games}경기). 상대 팀에 있으면 어느 라인인지 먼저 보고 맞라인을 피하거나 도움을 받아 보세요.`,
       tone: "warn",
       basis: "상대 팀 전적(누적 30경기 이상인 사람끼리)",
     });
@@ -866,7 +852,7 @@ function playerCoaching(c: {
     const strongName = LANE_NAME[c.strong.position];
     const weakName = LANE_NAME[c.weak.position];
     tips.push({
-      text: `라인을 고를 수 있으면 ${josa(strongName, "을", "를")} 먼저 맡아 보세요. ${josa(weakName, "은", "는")} 부담이 덜한 판에서 연습해 보세요(${strongName} ${rateOf(c.strong.tally)}% · ${weakName} ${rateOf(c.weak.tally)}%).`,
+      text: `라인을 고를 수 있으면 ${withJosa(strongName, "을", "를")} 먼저 맡아 보세요. ${withJosa(weakName, "은", "는")} 부담이 덜한 판에서 연습해 보세요(${strongName} ${rateOf(c.strong.tally)}% · ${weakName} ${rateOf(c.weak.tally)}%).`,
       tone: "good",
       basis: `라인별 승률(${LINE_MIN_GAMES}경기 이상 라인)`,
     });
@@ -883,14 +869,14 @@ function playerCoaching(c: {
   }
   if (c.champBest) {
     tips.push({
-      text: `${withRo(c.champBest.name)} ${c.champBest.tally.games}판 ${rateOf(c.champBest.tally)}%를 이겼어요. 중요한 판에는 ${josa(c.champBest.name, "을", "를")} 먼저 꺼내 보세요.`,
+      text: `${withRo(c.champBest.name)} ${c.champBest.tally.games}판 ${rateOf(c.champBest.tally)}%를 이겼어요. 중요한 판에는 ${withJosa(c.champBest.name, "을", "를")} 먼저 꺼내 보세요.`,
       tone: "good",
       basis: `기록한 챔피언(${CHAMP_MIN_GAMES}판 이상)`,
     });
   }
   if (c.champWorst) {
     tips.push({
-      text: `${josa(c.champWorst.name, "은", "는")} ${c.champWorst.tally.games}판 ${rateOf(c.champWorst.tally)}%예요. 내전에서는 잠시 내려놓고 연습 모드에서 손에 익혀 보세요.`,
+      text: `${withJosa(c.champWorst.name, "은", "는")} ${c.champWorst.tally.games}판 ${rateOf(c.champWorst.tally)}%예요. 내전에서는 잠시 내려놓고 연습 모드에서 손에 익혀 보세요.`,
       tone: "warn",
       basis: `기록한 챔피언(${CHAMP_MIN_GAMES}판 이상)`,
     });
@@ -948,7 +934,7 @@ function playerCoaching(c: {
   }
   if (c.buddy) {
     tips.push({
-      text: `${josa(c.buddy.name, "과", "와")} 같은 팀일 때 특히 잘 풀려요(시너지 +${c.buddy.synergy}%p). 같은 팀이 되면 합을 맞춰 적극적으로 움직여 보세요.`,
+      text: `${withJosa(c.buddy.name, "과", "와")} 같은 팀일 때 특히 잘 풀려요(시너지 +${c.buddy.synergy}%p). 같은 팀이 되면 합을 맞춰 적극적으로 움직여 보세요.`,
       tone: "good",
       basis: "같은 팀 전적",
     });
@@ -1135,7 +1121,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
       const oldLeader = leader(before);
       if (newLeader && oldLeader && newLeader !== oldLeader) {
         remarks.push({
-          text: `${josa(nameOf(newLeader), "이", "가")} 마지막 모임에서 MMR 1위로 올라섰어요(전에는 ${nameOf(oldLeader)}).`,
+          text: `${withJosa(nameOf(newLeader), "이", "가")} 마지막 모임에서 MMR 1위로 올라섰어요(전에는 ${nameOf(oldLeader)}).`,
           tone: "good",
           basis: "MMR 순위(누적)",
         });
@@ -1150,7 +1136,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
         const climber = topBy(climbers, (c) => c.jump, (c) => nameOf(c.id));
         if (climber) {
           remarks.push({
-            text: `${josa(nameOf(climber.id), "이", "가")} 마지막 모임에서 ${climber.jump}계단 올라 ${climber.now}위예요.`,
+            text: `${withJosa(nameOf(climber.id), "이", "가")} 마지막 모임에서 ${climber.jump}계단 올라 ${climber.now}위예요.`,
             tone: "good",
             basis: "MMR 순위(누적)",
           });
@@ -1214,7 +1200,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   if (pair && pair.share >= PAIR_SHARE) {
     const names = [nameOf(pair.a), nameOf(pair.b)].sort((x, y) => x.localeCompare(y, "ko"));
     remarks.push({
-      text: `${names[0]}·${josa(names[1]!, "이", "가")} 자주 같은 팀이에요(함께 나온 ${pair.both}경기 중 ${pair.n}회, ${ratePercent(pair.n, pair.both)}%). 모임 설정 "팀 추천"의 최근 조합 피하기를 켜 두면 더 섞여요.`,
+      text: `${names[0]}·${withJosa(names[1]!, "이", "가")} 자주 같은 팀이에요(함께 나온 ${pair.both}경기 중 ${pair.n}회, ${ratePercent(pair.n, pair.both)}%). 모임 설정 "팀 추천"의 최근 조합 피하기를 켜 두면 더 섞여요.`,
       tone: "warn",
       basis: "함께 나온 경기 중 같은 팀 비율(무작위면 약 44%)",
     });
@@ -1250,7 +1236,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   const supporter = topBy(supportLoad, (s) => s.share, (s) => nameOf(s.id));
   if (supporter) {
     remarks.push({
-      text: `${josa(nameOf(supporter.id), "이", "가")} 서폿을 많이 맡아요(자기 경기의 ${Math.round(supporter.share * 100)}%).`,
+      text: `${withJosa(nameOf(supporter.id), "이", "가")} 서폿을 많이 맡아요(자기 경기의 ${Math.round(supporter.share * 100)}%).`,
       tone: "warn",
       basis: "사람별 라인 경기 수",
     });
@@ -1275,7 +1261,7 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
   const streaks = currentStreaks(counted);
   const hot = topBy(streaks.filter((s) => s.streak >= GROUP_STREAK), (s) => s.streak, (s) => nameOf(s.id));
   if (hot) {
-    remarks.push({ text: `${josa(nameOf(hot.id), "이", "가")} ${hot.streak}연승 중이에요.`, tone: "good", basis: "사람별 현재 연승" });
+    remarks.push({ text: `${withJosa(nameOf(hot.id), "이", "가")} ${hot.streak}연승 중이에요.`, tone: "good", basis: "사람별 현재 연승" });
   }
 
   // 5-6. 챔피언 기록률.
@@ -1357,14 +1343,14 @@ export function groupCommentary(input: GroupCommentaryInput): Commentary {
     if (pair && pair.share >= PAIR_SHARE) {
       const names = [nameOf(pair.a), nameOf(pair.b)].sort((x, y) => x.localeCompare(y, "ko"));
       tips.push({
-        text: `${names[0]}·${josa(names[1]!, "을", "를")} 가끔 다른 팀으로 나눠 보세요(같은 팀 ${ratePercent(pair.n, pair.both)}%).`,
+        text: `${names[0]}·${withJosa(names[1]!, "을", "를")} 가끔 다른 팀으로 나눠 보세요(같은 팀 ${ratePercent(pair.n, pair.both)}%).`,
         tone: "neutral",
         basis: "함께 나온 경기 중 같은 팀 비율",
       });
     }
     if (hot) {
       tips.push({
-        text: `${josa(nameOf(hot.id), "이", "가")} ${hot.streak}연승 중이에요. 다음 판은 상대 팀에 강한 사람을 넣어 균형을 맞춰 보세요.`,
+        text: `${withJosa(nameOf(hot.id), "이", "가")} ${hot.streak}연승 중이에요. 다음 판은 상대 팀에 강한 사람을 넣어 균형을 맞춰 보세요.`,
         tone: "neutral",
         basis: "사람별 현재 연승",
       });

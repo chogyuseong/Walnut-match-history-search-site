@@ -65,3 +65,37 @@ export function parseNameList(text: string): ParsedNames {
   }
   return { names, duplicates, tooLong };
 }
+
+/** 받침으로 끝나게 읽히는 숫자: 영·일·삼·육·칠·팔("사람01"은 "사람공일"). */
+const DIGIT_WITH_CODA = "013678";
+/** 그 가운데 받침이 ㄹ인 숫자: 일·칠·팔. */
+const DIGIT_WITH_RIEUL = "178";
+/** 받침이 있다고 읽는 영문 끝 글자: 엘·엠·엔·알("팀 L"은 "팀 엘"). 엘은 받침 ㄹ이다. */
+const LETTER_WITH_CODA = /[LMNRlmnr]/;
+
+/**
+ * 낱말 끝소리의 받침: 없음·ㄹ·그 밖. 한글은 실제 받침, 숫자·영문은 읽는 소리로 보고, 기호 등은 받침 없음으로 본다.
+ * 조사(josa)와 "(으)로"(roJosa)가 함께 쓴다. 코멘트·준비 화면 문장이 모두 이 규칙을 따른다.
+ */
+export function finalSound(word: string): "none" | "rieul" | "other" {
+  const last = word.trim().slice(-1);
+  if (last === "") return "none";
+  const code = last.charCodeAt(0) - 0xac00;
+  if (code >= 0 && code <= 11171) {
+    const final = code % 28;
+    return final === 0 ? "none" : final === 8 ? "rieul" : "other";
+  }
+  if (DIGIT_WITH_RIEUL.includes(last) || last === "l" || last === "L") return "rieul";
+  if (DIGIT_WITH_CODA.includes(last) || LETTER_WITH_CODA.test(last)) return "other";
+  return "none";
+}
+
+/** 받침에 맞춘 조사만. pair는 [받침 있을 때, 없을 때]. 예: josa("블루팀", ["은", "는"]) → "은", josa("팀 A", ["은", "는"]) → "는". */
+export function josa(word: string, pair: readonly [string, string]): string {
+  return finalSound(word) === "none" ? pair[1] : pair[0];
+}
+
+/** "(으)로": 받침이 없거나 ㄹ이면 "로"(아리로, 카밀로, +1로), 그 밖의 받침이면 "으로"(+80으로, 탈론으로). */
+export function roJosa(word: string): string {
+  return finalSound(word) === "other" ? "으로" : "로";
+}

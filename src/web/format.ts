@@ -73,16 +73,6 @@ export function teamBoxClass(team: Team, teamASide: Side | null | undefined): st
   return side ? `team side-${side}` : "team";
 }
 
-/**
- * 받침에 맞춘 조사. pair는 [받침 있을 때, 없을 때]. 예: josa("블루팀", ["은", "는"]) → "은", josa("팀 A", ["은", "는"]) → "는".
- * 끝이 영문이면 읽는 소리로 본다(L·M·N·R은 받침이 있다고 본다).
- */
-export function josa(word: string, pair: readonly [string, string]): string {
-  const last = word.trim().slice(-1);
-  const code = last.charCodeAt(0);
-  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 0 ? pair[1] : pair[0];
-  return /[LMNRlmnr]/.test(last) ? pair[0] : pair[1];
-}
 
 export const STATE_LABEL: Record<MatchView["state"], string> = {
   in_progress: "진행 중",

@@ -9,6 +9,7 @@
  *   대조했고 다른 것이 없었다. 새 챔피언의 id가 이름과 달라도(오공 = MonkeyKing) Data Dragon의 id를 키로 쓰면 된다.
  * - 한글 이름은 Data Dragon ko_KR 자료(champion.json의 name)와 같게 둔다. 실행 중에는 그 자료를 받지 않는다.
  */
+import { matchRank, NO_MATCH } from "./search";
 
 export interface Champion {
   key: string;
@@ -216,60 +217,22 @@ const HANGUL_FIRST = 0xac00;
 const HANGUL_LAST = 0xd7a3;
 /** 첫소리 19개(호환 자모). 사용자가 "ㅇㄹ"처럼 자음만 치면 이 글자들이 들어온다. */
 const INITIALS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
-/** 끝소리 28개(0번은 받침 없음). 겹받침(ㄳ 등)은 다음 글자의 첫소리로 넘길 수 없어 빈칸으로 둔다. */
-const FINALS = ["", "ㄱ", "ㄲ", "", "ㄴ", "", "", "ㄷ", "ㄹ", "", "", "", "", "", "", "", "ㅁ", "ㅂ", "", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
 
 function isSyllable(code: number): boolean {
   return code >= HANGUL_FIRST && code <= HANGUL_LAST;
 }
 
-/** 검색어의 글자 하나가 이름의 글자 하나와 맞는지. 자음만 친 글자는 그 첫소리로 시작하는 모든 글자와 맞는다. */
-function charMatches(q: string, c: string): boolean {
-  if (q === c) return true;
-  const code = c.charCodeAt(0);
-  return INITIALS.includes(q) && isSyllable(code) && INITIALS[Math.floor((code - HANGUL_FIRST) / 588)] === q;
-}
-
-/** 검색어가 처음 맞는 자리(없으면 -1). */
-function indexIn(text: string, query: string): number {
-  for (let start = 0; start + query.length <= text.length; start++) {
-    let i = 0;
-    while (i < query.length && charMatches(query[i]!, text[start + i]!)) i++;
-    if (i === query.length) return start;
-  }
-  return -1;
-}
-
-/** 찾기 비교용 꼴: 공백을 지우고 영문은 소문자로. */
-function fold(text: string): string {
-  return text.replace(/\s+/g, "").toLowerCase();
-}
+/** 사람 이름 검색 등급(search.ts) 가운데 글자 중간에서 맞은 것. 나머지(완전·앞부분·초성 앞부분)는 앞부분 일치로 묶는다. */
+const MIDDLE_RANKS: ReadonlySet<number> = new Set([2, 4]);
 
 /**
- * 한글 입력기는 "아리"를 치는 도중에 "알"을 보여 준다(ㄹ이 아직 받침 자리에 있다). 그 순간에 아리가 목록에서 사라졌다
- * 나타나지 않게, 마지막 글자의 받침을 떼어 다음 글자의 첫소리로 본 검색어("아ㄹ")도 함께 찾는다.
+ * 0: 앞부분 일치, 1: 중간 일치, null: 안 맞음. 한글 이름·별칭·영문 키 중 가장 좋은 값.
+ * 맞추는 규칙(초성, 입력 중 받침 넘김 "알" → "아리", 구분 기호 무시 "카이사" → "카이'사")은 사람 이름 검색과 같다.
  */
-function composingVariant(query: string): string | null {
-  const last = query.charCodeAt(query.length - 1);
-  if (!isSyllable(last)) return null;
-  const finalIndex = (last - HANGUL_FIRST) % 28;
-  const final = FINALS[finalIndex];
-  if (!final) return null;
-  return query.slice(0, -1) + String.fromCharCode(last - finalIndex) + final;
-}
-
-/** 0: 앞부분 일치, 1: 중간 일치, null: 안 맞음. 한글 이름·별칭·영문 키 중 가장 좋은 값. */
-function matchRank(champion: Champion, queries: readonly string[]): 0 | 1 | null {
-  let best: 0 | 1 | null = null;
-  for (const text of [champion.name, ...champion.aliases, champion.key]) {
-    const hay = fold(text);
-    for (const q of queries) {
-      const at = indexIn(hay, q);
-      if (at === 0) return 0;
-      if (at > 0) best = 1;
-    }
-  }
-  return best;
+function championRank(champion: Champion, query: string): 0 | 1 | null {
+  const best = Math.min(...[champion.name, ...champion.aliases, champion.key].map((text) => matchRank(text, query)));
+  if (best === NO_MATCH) return null;
+  return MIDDLE_RANKS.has(best) ? 1 : 0;
 }
 
 /** 초성 줄(챔피언 티어 화면의 왼쪽 격자)의 묶음 순서. 된소리는 예사소리 묶음에 넣는다(까 → ㄱ). */
@@ -300,11 +263,10 @@ export function searchChampions(
   query: string,
   options: { usage?: ReadonlyMap<string, number>; taken?: ReadonlySet<string> } = {},
 ): ChampionOption[] {
-  const q = fold(query);
-  const queries = q === "" ? [] : [q, composingVariant(q)].filter((v): v is string => v !== null);
+  const q = query.trim();
   const found: { option: ChampionOption; rank: number; order: number }[] = [];
   CHAMPIONS.forEach((champion, order) => {
-    const rank = q === "" ? 0 : matchRank(champion, queries);
+    const rank = q === "" ? 0 : championRank(champion, q);
     if (rank === null) return;
     const option = {
       champion,
