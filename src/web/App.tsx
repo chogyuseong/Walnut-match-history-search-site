@@ -367,10 +367,9 @@ function LegalFooter(props: { privacyHref?: string }) {
           도형입니다.
         </p>
       )}
-      <p>
-        무료 요금제로 운영하는 사이트라 하루 이용량이 한도를 넘으면 그날 한국 시각 오전 9시까지 멈출 수
-        있습니다. 그때는 잠시 뒤 다시 열어 주세요.
-      </p>
+      {/* 2026-11-15 유료 요금제로 바꾼 뒤에는 사이트가 멈추지 않는다. 남은 제한은 사이트 자체의 하루 무거운 읽기 예산
+          (RATE_SNAPSHOT_ROWS_SITE_DAY)이고, 걸려도 경기 시작·결과 저장은 막지 않는다(서버 index.ts spendHeavyRead). */}
+      <p>이용량이 많은 날에는 일부 화면이 잠시 느리거나 막힐 수 있어요. 경기 시작·결과 저장은 그대로 됩니다.</p>
       <p className="legal-links">
         <a href={props.privacyHref ?? "#/privacy"}>개인정보 처리방침</a>
       </p>
