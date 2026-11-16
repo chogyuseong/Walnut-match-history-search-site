@@ -63,6 +63,12 @@ export function searchIndex() {
         tags: [
           { tag: "link", attrs: { rel: "canonical", href: `${SITE_ORIGIN}/` }, injectTo: "head" },
           { tag: "meta", attrs: { property: "og:url", content: `${SITE_ORIGIN}/` }, injectTo: "head" },
+          // 링크 미리보기 사진. 카카오톡 등은 상대 주소를 못 읽어서 운영 주소를 붙인다. 그림은 scripts/make-og-image.mjs가 만든다.
+          // og:image:* 는 OG 규칙상 og:image 바로 뒤에 와야 한다. 크기는 public/og-image.png와 같아야 한다.
+          { tag: "meta", attrs: { property: "og:image", content: `${SITE_ORIGIN}/og-image.png` }, injectTo: "head" },
+          { tag: "meta", attrs: { property: "og:image:width", content: "1200" }, injectTo: "head" },
+          { tag: "meta", attrs: { property: "og:image:height", content: "630" }, injectTo: "head" },
+          { tag: "meta", attrs: { property: "og:image:alt", content: "내전로그 — 내전 팀 짜기와 전적 관리" }, injectTo: "head" },
         ],
       };
     },
