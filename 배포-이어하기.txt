@@ -18,6 +18,11 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-16: 운영 87b7cd96 = main(피드백 한도 설정에 드러냄)]
+
+- wrangler.jsonc의 production·staging vars에 RATE_FEEDBACK_PER_IP "3"을 적었다(코드 기본값과 같아 동작은 그대로).
+  배포 때마다 뜨던 RATE_FEEDBACK_PER_IP 경고가 사라짐. PASSWORD_PEPPER 경고는 로컬 가짜 값 때문이라 그대로 둔다
+  (운영 vars에 같은 이름을 넣으면 secret을 덮을 수 있음). Claude가 배포. /api/health 200, 바인딩 목록에 RATE_FEEDBACK_PER_IP ("3") 확인.
 [2026-11-16: 운영 66ca55df = main 32ea5ff(랭킹 상위 5명 최근 승패 글자에 색)]
 
 - 요약 랭킹 상위 5명의 "승승패" 글자에 승 파랑(--ih-win-text)·패 빨강(--ih-loss-text)을 다시 넣음(사용자 요청). 칸은 없음.
