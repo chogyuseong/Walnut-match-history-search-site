@@ -18,6 +18,11 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-16: 운영 66ca55df = main 32ea5ff(랭킹 상위 5명 최근 승패 글자에 색)]
+
+- 요약 랭킹 상위 5명의 "승승패" 글자에 승 파랑(--ih-win-text)·패 빨강(--ih-loss-text)을 다시 넣음(사용자 요청). 칸은 없음.
+  마이그레이션 없음. Claude가 배포(.claude/settings.local.json에 deploy:production 허용 규칙을 넣음, git 제외 파일).
+  /api/health 200, 첫 화면이 새 index-48j6DCX8.css를 가리키고 그 안에 승패 글자색 규칙 있음 확인.
 [2026-11-16: 운영 1a52f1c0 = main aedb694(unslop 점검: 소개 정렬·예시 모임 띠·랭킹 상위 5명 색)]
 
 - 첫 화면 소개(1200px 이상) 글을 첫 화면 세로 가운데로, 팀 짜기 사진을 블루·레드 보드까지만 다시 찍음(prep 두 장).
