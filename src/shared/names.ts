@@ -70,15 +70,19 @@ export function parseNameList(text: string): ParsedNames {
 const DIGIT_WITH_CODA = "013678";
 /** 그 가운데 받침이 ㄹ인 숫자: 일·칠·팔. */
 const DIGIT_WITH_RIEUL = "178";
-/** 받침이 있다고 읽는 영문 끝 글자: 엘·엠·엔·알("팀 L"은 "팀 엘"). 엘은 받침 ㄹ이다. */
-const LETTER_WITH_CODA = /[LMNRlmnr]/;
+/** 영어 낱말 끝에서도 받침으로 읽히는 글자: Paul(폴)·Kim(킴)·John(존). l은 받침 ㄹ이다. */
+const LETTER_WITH_CODA = /[LMNlmn]/;
+/** 낱자로 쓰일 때만 받침이 있는 글자: R(알). 낱말 끝의 r은 Faker(페이커)·Tyler(타일러)처럼 받침이 없다. */
+const LONE_LETTER_WITH_CODA = /[Rr]/;
+const LATIN_LETTER = /[A-Za-z]/;
 
 /**
  * 낱말 끝소리의 받침: 없음·ㄹ·그 밖. 한글은 실제 받침, 숫자·영문은 읽는 소리로 보고, 기호 등은 받침 없음으로 본다.
  * 조사(josa)와 "(으)로"(roJosa)가 함께 쓴다. 코멘트·준비 화면 문장이 모두 이 규칙을 따른다.
  */
 export function finalSound(word: string): "none" | "rieul" | "other" {
-  const last = word.trim().slice(-1);
+  const trimmed = word.trim();
+  const last = trimmed.slice(-1);
   if (last === "") return "none";
   const code = last.charCodeAt(0) - 0xac00;
   if (code >= 0 && code <= 11171) {
@@ -87,6 +91,7 @@ export function finalSound(word: string): "none" | "rieul" | "other" {
   }
   if (DIGIT_WITH_RIEUL.includes(last) || last === "l" || last === "L") return "rieul";
   if (DIGIT_WITH_CODA.includes(last) || LETTER_WITH_CODA.test(last)) return "other";
+  if (LONE_LETTER_WITH_CODA.test(last) && !LATIN_LETTER.test(trimmed.slice(-2, -1))) return "other";
   return "none";
 }
 

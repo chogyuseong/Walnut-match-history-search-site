@@ -125,12 +125,12 @@ export function dateTimeFormat(locale: string, options: Intl.DateTimeFormatOptio
   return format;
 }
 
-/** 주어진 시각의 모임 표시 시간대 날짜(YYYY-MM-DD). */
 /** 지금 모임 시간대의 날짜(YYYY-MM-DD). 내려받는 백업 파일 이름에 쓴다(UTC로 하면 한국 오전 9시 전에 전날이 된다). */
 export function todayIn(timeZone: string): string {
   return localDate(new Date().toISOString(), timeZone);
 }
 
+/** 주어진 시각의 모임 표시 시간대 날짜(YYYY-MM-DD). */
 export function localDate(iso: string, timeZone: string): string {
   return dateTimeFormat("en-CA", {
     timeZone: safeTimeZone(timeZone),

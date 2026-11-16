@@ -74,6 +74,9 @@ describe("조사", () => {
     expect(josa("사람02", ["이", "가"])).toBe("가"); // 공이
     expect(josa("팀 A", ["은", "는"])).toBe("는");
     expect(josa("팀 M", ["은", "는"])).toBe("은"); // 엠
+    expect(josa("팀 R", ["은", "는"])).toBe("은"); // 알
+    expect(josa("Faker", ["은", "는"])).toBe("는"); // 페이커: 낱말 끝 r은 받침이 없다
+    expect(josa("Kim", ["은", "는"])).toBe("은"); // 킴
     expect(josa("", ["은", "는"])).toBe("는");
   });
 
