@@ -11,10 +11,10 @@ import {
   type LegacyMatch,
   type LegacySummary,
 } from "../../shared/legacy";
-import { nameKey } from "../../shared/names";
 import {
   classifyImport,
-  nextFreeFingerprint,
+  namesToLink,
+  promoteAgain,
   toSheetPayload,
   type ExistingImport,
   type ImportClassification,
@@ -22,16 +22,14 @@ import {
 } from "../../shared/sheetTable";
 import { looksLikeSheetUrl } from "../../shared/sheetUrl";
 import { CreateGroupButton } from "../account";
-import { call, mutate, newRequestId } from "../api";
+import { call } from "../api";
 import { takeLegacyUrl } from "../sheetHandoff";
 import { ImportAgainPicker } from "../importAgain";
 import { ImportDateWarnings } from "../importDateWarnings";
+import { ImportProgress, NameLinks, prepareImport, sendImport, splitNameLinks, type ImportPlan } from "../importSave";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
-import { NameLinks } from "./SheetImport";
 
-const CHUNK = 50;
-const NAME_CHUNK = 30;
 const LIST_LIMIT = 20;
 const TIMELINE_LIMIT = 40;
 
@@ -45,12 +43,6 @@ interface Read {
   remembered: LegacyChoice | null;
   /** 읽은 시각. 아직 오지 않은 경기의 기준이다(화면을 다시 그려도 바뀌지 않게). */
   readAt: number;
-}
-
-interface Plan {
-  batchId: string;
-  chunks: { requestId: string; matches: SheetImportPayload[] }[];
-  total: number;
 }
 
 type SideMode = "unknown" | "column";
@@ -85,7 +77,7 @@ export function LegacyImport() {
   const [done, setDone] = useState(false);
   // "이미 들어간 경기"로 분류됐지만 한 번 더 한 경기라고 고른 줄(줄 번호). src/web/importAgain.tsx 설명.
   const [asNew, setAsNew] = useState<ReadonlySet<number>>(new Set());
-  const plan = useRef<Plan | null>(null);
+  const plan = useRef<ImportPlan<SheetImportPayload> | null>(null);
 
   // 시트 가져오기 화면의 주소 칸에서 넘어온 주소.
   useEffect(() => {
@@ -110,32 +102,17 @@ export function LegacyImport() {
     [conv, existing, read],
   );
   // 고른 줄은 이미 쓰인 지문(모임에 있는 것 + 이번에 넣을 것)을 피한 다음 순번 지문으로 바꿔 새 경기로 보낸다.
-  const promoted: LegacyConverted[] = useMemo(() => {
-    if (!classification || !existing) return [];
-    const taken = new Set([
-      ...existing.map((e) => e.fingerprint),
-      ...classification.fresh.map((m) => m.fingerprint),
-      ...classification.changed.map((c) => c.match.fingerprint),
-    ]);
-    return classification.already
-      .filter((m) => asNew.has(m.line))
-      .map((m) => {
-        const fingerprint = nextFreeFingerprint(m, taken);
-        taken.add(fingerprint);
-        return { ...m, fingerprint };
-      });
-  }, [classification, existing, asNew]);
-  const links: NameLink[] = useMemo(() => {
-    if (!conv || !snapshot || !classification) return [];
-    const used = new Set<string>();
-    for (const m of [...classification.fresh, ...classification.changed.map((c) => c.match), ...promoted]) {
-      for (const p of [...m.teamA, ...m.teamB]) used.add(nameKey(p.name));
-    }
-    return linkNames(
-      conv.names.filter((n) => used.has(nameKey(n))),
-      snapshot.participants,
-    );
-  }, [conv, snapshot, classification, promoted]);
+  const promoted: LegacyConverted[] = useMemo(
+    () => (classification && existing ? promoteAgain(classification, existing, asNew) : []),
+    [classification, existing, asNew],
+  );
+  const links: NameLink[] = useMemo(
+    () =>
+      conv && snapshot && classification
+        ? linkNames(namesToLink(conv.names, classification, promoted), snapshot.participants)
+        : [],
+    [conv, snapshot, classification, promoted],
+  );
 
   if (!snapshot) {
     return (
@@ -204,45 +181,14 @@ export function LegacyImport() {
     setBusy(true);
     setError(null);
     try {
-      if (!plan.current) {
-        const idOf = new Map<string, string>();
-        const create: string[] = [];
-        for (const link of links) {
-          const choice = link.kind === "similar" ? choices[link.name] : undefined;
-          if (link.participantId) idOf.set(nameKey(link.name), link.participantId);
-          else if (choice && choice !== "new") idOf.set(nameKey(link.name), choice);
-          else create.push(link.name);
-        }
-        for (let i = 0; i < create.length; i += NAME_CHUNK) {
-          const names = create.slice(i, i + NAME_CHUNK);
-          const ensured = await mutate<{ participants: { id: string }[] }>(`/api/groups/${gid}/participants`, {
-            requestId: newRequestId(),
-            names,
-          });
-          names.forEach((name, k) => idOf.set(nameKey(name), ensured.participants[k]!.id));
-        }
-        const matches = toSheetPayload(toSend, (name) => idOf.get(nameKey(name))!, sideMode, timeZone);
-        const chunks: Plan["chunks"] = [];
-        for (let i = 0; i < matches.length; i += CHUNK) {
-          chunks.push({ requestId: newRequestId(), matches: matches.slice(i, i + CHUNK) });
-        }
-        plan.current = { batchId: newRequestId(), chunks, total: matches.length };
-      }
+      plan.current ??= await prepareImport(gid, splitNameLinks(links, choices), (idOf) =>
+        toSheetPayload(toSend, idOf, sideMode, timeZone),
+      );
       // 고른 날짜 처리를 묶음에 남긴다. 기준은 실제로 쓴 날짜(기본이면 아직 오지 않은 첫 날짜)로 고정해,
       // 시간이 지나 그 경기들이 "지난 날짜"가 돼도 다시 가져올 때 같은 경기를 옮긴다.
       const options = conv.affected.count > 0 ? { futureMode, from: effectiveFrom } : null;
       const source = { kind: "legacy", sourceKey: read.sourceKey, label: "기존 사이트", ...(options ? { options } : {}) };
-      let count = 0;
-      for (const chunk of plan.current.chunks) {
-        await mutate(`/api/groups/${gid}/matches/import`, {
-          requestId: chunk.requestId,
-          batchId: plan.current.batchId,
-          source,
-          matches: chunk.matches,
-        });
-        count += chunk.matches.length;
-        setSaved(count);
-      }
+      await sendImport(gid, plan.current, source, setSaved);
       setDone(true);
       await app.refreshAfterOwnChange();
     } catch (e) {
@@ -600,45 +546,16 @@ export function LegacyImport() {
       )}
 
       {step === 3 && (
-        <section className="card" aria-label="가져오기">
-          {!done && (
-            <p role="status">
-              {busy
-                ? `저장 중 · ${saved}/${plan.current?.total ?? toSend.length}경기`
-                : `${plan.current?.total ?? toSend.length}경기 중 ${saved}경기까지 저장됐습니다.`}
-            </p>
-          )}
-          <ErrorNote error={error} onCheck={() => void run()} />
-          {!done && !busy && (
-            <>
-              <p className="hint">이어서 넣으면 이미 들어간 묶음은 다시 들어가지 않습니다.</p>
-              <button type="button" className="primary wide" onClick={() => void run()}>
-                이어서 넣기
-              </button>
-            </>
-          )}
-          {done && (
-            <>
-              <p className="saved" role="status">
-                <strong>
-                  {saved}경기 저장됨 · {sideMode === "unknown" ? "진영 미상" : "기존 사이트의 블루·레드"}
-                </strong>
-              </p>
-              <p className="hint">
-                잘못 넣었다면 모임 탭의 표 일괄 입력 기록(기존 사이트)에서 이번에 넣은 경기를 한 번에 전적 제외할 수
-                있습니다.
-              </p>
-              <div className="button-row">
-                <button type="button" className="primary" onClick={() => go("/records")}>
-                  기록 보기
-                </button>
-                <button type="button" className="secondary" onClick={() => go("/group")}>
-                  모임으로
-                </button>
-              </div>
-            </>
-          )}
-        </section>
+        <ImportProgress
+          busy={busy}
+          done={done}
+          saved={saved}
+          total={plan.current?.total ?? toSend.length}
+          error={error}
+          onRun={() => void run()}
+          sideText={sideMode === "unknown" ? "진영 미상" : "기존 사이트의 블루·레드"}
+          undoHint="잘못 넣었다면 모임 탭의 표 일괄 입력 기록(기존 사이트)에서 이번에 넣은 경기를 한 번에 전적 제외할 수 있습니다."
+        />
       )}
     </div>
   );

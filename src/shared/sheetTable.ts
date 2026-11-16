@@ -1175,6 +1175,46 @@ export function classifyImport<T extends Fingerprinted>(
 }
 
 /**
+ * "이미 들어간 경기"로 분류됐지만 사용자가 한 번 더 한 경기라고 고른 줄(picked, 줄 번호)을 새 지문으로 바꿔 돌려준다.
+ * 모임에 이미 있는 지문과 이번에 넣을 지문을 모두 피한 다음 순번을 쓴다(같은 내용의 줄을 둘 골라도 서로 다른 지문).
+ * 시트 가져오기·기존 사이트 가져오기가 쓴다(src/web/importAgain.tsx 설명).
+ */
+export function promoteAgain<T extends SheetMatch>(
+  classification: ImportClassification<T>,
+  existing: readonly ExistingImport[],
+  picked: ReadonlySet<number>,
+): T[] {
+  const taken = new Set([
+    ...existing.map((e) => e.fingerprint),
+    ...classification.fresh.map((m) => m.fingerprint),
+    ...classification.changed.map((c) => c.match.fingerprint),
+  ]);
+  return classification.already
+    .filter((m) => picked.has(m.line))
+    .map((m) => {
+      const fingerprint = nextFreeFingerprint(m, taken);
+      taken.add(fingerprint);
+      return { ...m, fingerprint };
+    });
+}
+
+/**
+ * 넣을 수 있는 경기(새 경기·바뀐 줄·다시 넣기로 고른 줄)에 나오는 이름만 남긴다. 건너뛸 경기에만 있는 이름은
+ * 참가자 연결 칸에 띄우지도, 새로 만들지도 않는다.
+ */
+export function namesToLink<T extends SheetMatch>(
+  names: readonly string[],
+  classification: ImportClassification<T>,
+  promoted: readonly T[],
+): string[] {
+  const used = new Set<string>();
+  for (const m of [...classification.fresh, ...classification.changed.map((c) => c.match), ...promoted]) {
+    for (const p of [...m.teamA, ...m.teamB]) used.add(nameKey(p.name));
+  }
+  return names.filter((n) => used.has(nameKey(n)));
+}
+
+/**
  * 하루에 이만큼 이상이면 날짜가 잘못 들어갔다고 의심한다. 실제 기록의 하루 최대는 11경기였고,
  * 날짜 칸이 빠져 앞 날짜를 이어받은 경우는 수십~백 경기 단위라 그 사이로 잡았다.
  */

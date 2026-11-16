@@ -11,22 +11,13 @@ import {
 import { nameKey } from "../../shared/names";
 import { parseDelimited } from "../../shared/csv";
 import { classifyImport, isLegacyLayout, type ExistingImport } from "../../shared/sheetTable";
-import { call, mutate, newRequestId } from "../api";
+import { call } from "../api";
 import { handOffPaste } from "../sheetHandoff";
 import { ImportAgainPicker } from "../importAgain";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { CreateGroupButton } from "../account";
-
-const CHUNK = 50;
-const NAME_CHUNK = 30;
-
-interface Plan {
-  /** 이번 일괄 입력 전체를 가리키는 ID. 나중에 한 번에 되돌릴 때 쓴다. */
-  batchId: string;
-  chunks: { requestId: string; matches: ImportMatchPayload[] }[];
-  total: number;
-}
+import { prepareImport, sendImport, type ImportPlan } from "../importSave";
 
 /**
  * 표 일괄 입력. 시트에 기록해 둔 지난 경기를 붙여 넣어 한꺼번에 넣는다.
@@ -50,7 +41,7 @@ export function Import() {
   const [asNew, setAsNew] = useState<ReadonlySet<number>>(new Set());
   // 저장 계획은 한 번 만들면 다시 만들지 않는다. 중간에 끊겨도 같은 요청 ID로 이어서 보내
   // 이미 들어간 묶음이 두 번 들어가지 않게 한다.
-  const plan = useRef<Plan | null>(null);
+  const plan = useRef<ImportPlan<ImportMatchPayload> | null>(null);
 
   if (!snapshot) {
     return (
@@ -139,35 +130,11 @@ export function Import() {
     setBusy(true);
     setError(null);
     try {
-      if (!plan.current) {
-        // 이름에 해당하는 참가자를 찾고, 없는 이름은 새로 만든다(같은 이름이면 같은 참가자).
-        const idOf = new Map<string, string>();
-        for (let i = 0; i < usedNames.length; i += NAME_CHUNK) {
-          const names = usedNames.slice(i, i + NAME_CHUNK);
-          const ensured = await mutate<{ participants: { id: string }[] }>(`/api/groups/${gid}/participants`, {
-            requestId: newRequestId(),
-            names,
-          });
-          names.forEach((name, k) => idOf.set(nameKey(name), ensured.participants[k]!.id));
-        }
-        const matches = toImportMatches(fresh, (name) => idOf.get(nameKey(name))!, sideMode, timeZone);
-        const chunks: Plan["chunks"] = [];
-        for (let i = 0; i < matches.length; i += CHUNK) {
-          chunks.push({ requestId: newRequestId(), matches: matches.slice(i, i + CHUNK) });
-        }
-        plan.current = { batchId: newRequestId(), chunks, total: matches.length };
-      }
-      let count = 0;
-      for (const chunk of plan.current.chunks) {
-        await mutate(`/api/groups/${gid}/matches/import`, {
-          requestId: chunk.requestId,
-          batchId: plan.current.batchId,
-          source: { kind: "paste" },
-          matches: chunk.matches,
-        });
-        count += chunk.matches.length;
-        setSaved(count);
-      }
+      // 표 일괄 입력은 이름 연결 단계가 없다: 모든 이름을 넘기면 서버가 같은 이름은 기존 참가자로, 없는 이름은 새로 만든다.
+      plan.current ??= await prepareImport(gid, { known: new Map(), create: usedNames }, (idOf) =>
+        toImportMatches(fresh, idOf, sideMode, timeZone),
+      );
+      await sendImport(gid, plan.current, { kind: "paste" }, setSaved);
       setDone(true);
       await app.refreshAfterOwnChange();
     } catch (e) {

@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { columnCount, parseDelimited } from "../../shared/csv";
-import { linkNames, similarWithinTable, type NameLink } from "../../shared/importLink";
-import { nameKey } from "../../shared/names";
+import { linkNames, type NameLink } from "../../shared/importLink";
 import {
   classifyImport,
   columnName,
   crowdedDays,
   detectMapping,
   hash64,
-  nextFreeFingerprint,
   LAYOUT_LABELS,
   LAYOUTS,
   mappingProblems,
+  namesToLink,
   parseSheet,
+  promoteAgain,
   roleLabel,
   rolesOf,
   toSheetPayload,
@@ -27,16 +27,15 @@ import {
 import { looksLikeLegacyUrl } from "../../shared/legacy";
 import { parseSheetUrl, SHEET_URL_MESSAGES, type SheetTab } from "../../shared/sheetUrl";
 import { localDate } from "../../shared/stats";
-import { ApiFailure, call, mutate, newRequestId } from "../api";
+import { ApiFailure, call } from "../api";
 import { handOffLegacyUrl, takePastedText } from "../sheetHandoff";
 import { ImportDateWarnings } from "../importDateWarnings";
 import { ImportAgainPicker } from "../importAgain";
+import { ImportProgress, NameLinks, prepareImport, sendImport, splitNameLinks, type ImportPlan } from "../importSave";
 import { ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { CreateGroupButton } from "../account";
 
-const CHUNK = 50;
-const NAME_CHUNK = 30;
 const PREVIEW_ROWS = 20;
 const LIST_LIMIT = 20;
 const MAPPING_KEY = "naejeon.sheetMapping.v1:";
@@ -57,12 +56,6 @@ interface Loaded {
   tabs?: SheetTab[];
   /** 읽은 탭. */
   tab?: SheetTab;
-}
-
-interface Plan {
-  batchId: string;
-  chunks: { requestId: string; matches: SheetImportPayload[] }[];
-  total: number;
 }
 
 const STEP_NAMES = ["링크", "열 맞추기", "확인", "가져오기"] as const;
@@ -144,7 +137,7 @@ export function SheetImport() {
   const [done, setDone] = useState(false);
   // "이미 들어간 경기"로 분류됐지만 한 번 더 한 경기라고 고른 줄(줄 번호). importAgain.tsx 설명.
   const [asNew, setAsNew] = useState<ReadonlySet<number>>(new Set());
-  const plan = useRef<Plan | null>(null);
+  const plan = useRef<ImportPlan<SheetImportPayload> | null>(null);
 
   // 표 일괄 입력에서 넘어온 붙여 넣기.
   useEffect(() => {
@@ -169,32 +162,17 @@ export function SheetImport() {
     [parsed, existing, loaded],
   );
   // 고른 줄은 이미 쓰인 지문(모임에 있는 것 + 이번에 넣을 것)을 피한 다음 순번 지문으로 바꿔 새 경기로 보낸다.
-  const promoted: SheetMatch[] = useMemo(() => {
-    if (!classification || !existing) return [];
-    const taken = new Set([
-      ...existing.map((e) => e.fingerprint),
-      ...classification.fresh.map((m) => m.fingerprint),
-      ...classification.changed.map((c) => c.match.fingerprint),
-    ]);
-    return classification.already
-      .filter((m) => asNew.has(m.line))
-      .map((m) => {
-        const fingerprint = nextFreeFingerprint(m, taken);
-        taken.add(fingerprint);
-        return { ...m, fingerprint };
-      });
-  }, [classification, existing, asNew]);
-  const links: NameLink[] = useMemo(() => {
-    if (!parsed || !snapshot || !classification) return [];
-    const used = new Set<string>();
-    for (const m of [...classification.fresh, ...classification.changed.map((c) => c.match), ...promoted]) {
-      for (const p of [...m.teamA, ...m.teamB]) used.add(nameKey(p.name));
-    }
-    return linkNames(
-      parsed.names.filter((n) => used.has(nameKey(n))),
-      snapshot.participants,
-    );
-  }, [parsed, snapshot, classification, promoted]);
+  const promoted: SheetMatch[] = useMemo(
+    () => (classification && existing ? promoteAgain(classification, existing, asNew) : []),
+    [classification, existing, asNew],
+  );
+  const links: NameLink[] = useMemo(
+    () =>
+      parsed && snapshot && classification
+        ? linkNames(namesToLink(parsed.names, classification, promoted), snapshot.participants)
+        : [],
+    [parsed, snapshot, classification, promoted],
+  );
 
   if (!snapshot) {
     return (
@@ -317,45 +295,14 @@ export function SheetImport() {
     setBusy(true);
     setError(null);
     try {
-      if (!plan.current) {
-        const idOf = new Map<string, string>();
-        const create: string[] = [];
-        for (const link of links) {
-          const choice = link.kind === "similar" ? choices[link.name] : undefined;
-          if (link.participantId) idOf.set(nameKey(link.name), link.participantId);
-          else if (choice && choice !== "new") idOf.set(nameKey(link.name), choice);
-          else create.push(link.name);
-        }
-        for (let i = 0; i < create.length; i += NAME_CHUNK) {
-          const names = create.slice(i, i + NAME_CHUNK);
-          const ensured = await mutate<{ participants: { id: string }[] }>(`/api/groups/${gid}/participants`, {
-            requestId: newRequestId(),
-            names,
-          });
-          names.forEach((name, k) => idOf.set(nameKey(name), ensured.participants[k]!.id));
-        }
-        const matches = toSheetPayload(toSend, (name) => idOf.get(nameKey(name))!, sideMode, timeZone);
-        const chunks: Plan["chunks"] = [];
-        for (let i = 0; i < matches.length; i += CHUNK) {
-          chunks.push({ requestId: newRequestId(), matches: matches.slice(i, i + CHUNK) });
-        }
-        plan.current = { batchId: newRequestId(), chunks, total: matches.length };
-      }
+      plan.current ??= await prepareImport(gid, splitNameLinks(links, choices), (idOf) =>
+        toSheetPayload(toSend, idOf, sideMode, timeZone),
+      );
       const source =
         loaded?.kind === "sheet"
           ? { kind: "sheet", sourceKey: loaded.sourceKey, ...(loaded.title ? { label: loaded.title } : {}) }
           : { kind: "paste" };
-      let count = 0;
-      for (const chunk of plan.current.chunks) {
-        await mutate(`/api/groups/${gid}/matches/import`, {
-          requestId: chunk.requestId,
-          batchId: plan.current.batchId,
-          source,
-          matches: chunk.matches,
-        });
-        count += chunk.matches.length;
-        setSaved(count);
-      }
+      await sendImport(gid, plan.current, source, setSaved);
       setDone(true);
       await app.refreshAfterOwnChange();
     } catch (e) {
@@ -732,45 +679,16 @@ export function SheetImport() {
       )}
 
       {step === 4 && (
-        <section className="card" aria-label="가져오기">
-          {!done && (
-            <p role="status">
-              {busy
-                ? `저장 중 · ${saved}/${plan.current?.total ?? toSend.length}경기`
-                : `${plan.current?.total ?? toSend.length}경기 중 ${saved}경기까지 저장됐습니다.`}
-            </p>
-          )}
-          <ErrorNote error={error} onCheck={() => void run()} />
-          {!done && !busy && (
-            <>
-              <p className="hint">이어서 넣으면 이미 들어간 묶음은 다시 들어가지 않습니다.</p>
-              <button type="button" className="primary wide" onClick={() => void run()}>
-                이어서 넣기
-              </button>
-            </>
-          )}
-          {done && (
-            <>
-              <p className="saved" role="status">
-                <strong>
-                  {saved}경기 저장됨 ·{" "}
-                  {sideMode === "unknown" ? "진영 미상" : sideMode === "a-blue" ? "팀 A → 블루팀, 팀 B → 레드팀" : "표의 진영 열"}
-                </strong>
-              </p>
-              <p className="hint">
-                잘못 넣었다면 모임 탭의 표 일괄 입력 기록에서 이번에 넣은 경기를 한 번에 전적 제외할 수 있습니다.
-              </p>
-              <div className="button-row">
-                <button type="button" className="primary" onClick={() => go("/records")}>
-                  기록 보기
-                </button>
-                <button type="button" className="secondary" onClick={() => go("/group")}>
-                  모임으로
-                </button>
-              </div>
-            </>
-          )}
-        </section>
+        <ImportProgress
+          busy={busy}
+          done={done}
+          saved={saved}
+          total={plan.current?.total ?? toSend.length}
+          error={error}
+          onRun={() => void run()}
+          sideText={sideMode === "unknown" ? "진영 미상" : sideMode === "a-blue" ? "팀 A → 블루팀, 팀 B → 레드팀" : "표의 진영 열"}
+          undoHint="잘못 넣었다면 모임 탭의 표 일괄 입력 기록에서 이번에 넣은 경기를 한 번에 전적 제외할 수 있습니다."
+        />
       )}
     </div>
   );
@@ -1086,76 +1004,3 @@ function AcrossPreview(props: { matches: SheetMatch[] }) {
 }
 
 const POSITION_SHORT: Record<string, string> = { top: "탑", jungle: "정글", mid: "미드", adc: "원딜", support: "서폿" };
-
-export function NameLinks(props: {
-  links: NameLink[];
-  names: string[];
-  choices: Record<string, string>;
-  onChoose: (name: string, value: string) => void;
-}) {
-  const exact = props.links.filter((l) => l.kind === "exact");
-  const merged = props.links.filter((l) => l.kind === "merged");
-  const similar = props.links.filter((l) => l.kind === "similar");
-  const fresh = props.links.filter((l) => l.kind === "new");
-  const within = similarWithinTable(props.names);
-  if (props.links.length === 0) return null;
-  return (
-    <div className="sheet-names">
-      <h3>참가자 연결</h3>
-      <p className="hint">
-        {exact.length + merged.length > 0 ? `이름이 같은 기존 참가자 ${exact.length + merged.length}명은 자동으로 이어요. ` : ""}
-        새로 만들 참가자 {fresh.length}명.
-      </p>
-      {merged.length > 0 && (
-        <details>
-          <summary>합쳐진 참가자 {merged.length}명은 남은 사람으로 이어요</summary>
-          <ul>
-            {merged.map((l) => (
-              <li key={l.name}>
-                {l.name} → 합친 뒤 남은 참가자
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      {similar.length > 0 && (
-        <div className="note warn">
-          <p>
-            <strong>비슷한 이름 {similar.length}개</strong> — 띄어쓰기·대소문자·전각 문자만 다른 기존 참가자가 있어요. 같은
-            사람인지 골라 주세요.
-          </p>
-          <ul className="sheet-links">
-            {similar.map((l) => (
-              <li key={l.name}>
-                <label>
-                  <span>표의 '{l.name}'</span>
-                  <select value={props.choices[l.name] ?? ""} onChange={(e) => props.onChoose(l.name, e.target.value)}>
-                    <option value="">골라 주세요</option>
-                    {l.candidates.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        기존 '{c.name}'와 같은 사람
-                      </option>
-                    ))}
-                    <option value="new">다른 사람(새로 만들기)</option>
-                  </select>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {fresh.length > 0 && (
-        <details>
-          <summary>새로 만들 참가자 {fresh.length}명</summary>
-          <p>{fresh.map((l) => l.name + (l.archivedSameName ? "(같은 이름의 보관된 참가자 있음)" : "")).join(", ")}</p>
-        </details>
-      )}
-      {within.length > 0 && (
-        <p className="hint">
-          표 안에 같은 사람일 수 있는 이름이 있어요: {within.map((g) => g.join(" / ")).join(", ")}. 다른 사람이 맞으면
-          그대로 두고, 같은 사람이면 시트에서 이름을 맞추거나 가져온 뒤 참가자 합치기를 쓰세요.
-        </p>
-      )}
-    </div>
-  );
-}
