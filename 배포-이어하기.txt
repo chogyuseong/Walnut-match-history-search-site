@@ -18,6 +18,12 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-16: 운영 b35f42b7 = main 9d9fc98(코드 정리 + 검토 뒤 조사 수정)]
+
+- 정리분을 47127750으로 올린 뒤 전체 E2E(153 통과, 3 건너뜀 design-shots)와 독립 코드 검토를 했다. 회귀는 없었고,
+  코멘트 조사가 "Faker은"처럼 붙던 것(영어 낱말 끝 r)만 고쳐 b35f42b7로 다시 올림(사용자가 직접 배포).
+  /api/health 200·remote-HKG, 첫 화면 200이 새 index-DCSTv9L6.js, names 조각에 새 규칙 들어감 확인.
+
 [2026-11-16: 운영 47127750 = main 9c46b5d(중복·안 쓰는 코드 정리)]
 
 - 사용자가 직접 배포. /api/health 200·cf-placement: remote-HKG, 첫 화면 200이 새 index-BFzRT7c9.js를 가리키고
