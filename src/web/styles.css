@@ -7512,6 +7512,78 @@ input[type="search"].filter-search {
   }
 }
 
+/* 오늘 화면 "지금 할 일" 카드(Today.tsx). 위: 상태 제목(대표 수치 32px) + 주 버튼. 아래: 결과 미입력 경기 줄.
+   768px 미만은 제목 아래 폭 전체 버튼, 이상은 제목 왼쪽·버튼 오른쪽 한 줄. 카드 안에 카드를 두지 않으려고(2절)
+   미입력 줄은 상자 없이 1px 구분선으로만 나눈다. */
+.now-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.now-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.now-status h2 {
+  margin: 0;
+}
+/* 제목 줄 안의 숫자 하나만 대표 수치 크기로 키운다. 줄 높이는 큰 숫자 기준(4절 1.25). */
+.now-figure {
+  font-size: var(--text-hero);
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+.now-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.now-actions > .link {
+  align-self: flex-start;
+}
+@media (min-width: 768px) {
+  .now-head {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+  }
+  .now-actions {
+    flex: none;
+    align-items: flex-end;
+  }
+  /* 넓은 화면에서 폭 전체 버튼이면 1100px 골드 막대가 된다. .empty-state 버튼과 같은 최소 폭. */
+  .now-actions > .wide {
+    width: auto;
+    min-width: 240px;
+  }
+  .now-actions > .link {
+    align-self: flex-end;
+  }
+}
+.now-awaiting {
+  border-top: 1px solid var(--ih-line);
+  padding-top: var(--space-3);
+}
+.now-awaiting h3 {
+  margin-top: 0;
+}
+.now-awaiting .list {
+  gap: 0;
+}
+.now-awaiting .list-row {
+  padding: var(--space-2) 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+.now-awaiting .list-row + .list-row {
+  border-top: 1px solid var(--ih-line);
+}
+
 /* ---------- 표 ----------
    목록형 표(.dt-list = SortHead 머리 줄 + .list-card 줄): 머리 줄과 줄이 같은 grid 칸 배치를 쓴다(화면별 .mmr-grid·.rank-grid).
    머리 줄은 한 단계 밝은 면, 지금 정렬 열은 포인트 색 밑줄, 숫자 칸은 오른쪽 정렬. 줄 사이는 구분선만. */

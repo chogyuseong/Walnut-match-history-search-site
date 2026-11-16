@@ -6,7 +6,7 @@ import { formatDate, formatTime, nameMap, rateHueText, rateText, standingsOf } f
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
-import { KpiStrip, ScreenHead, StandingNote } from "../screenKit";
+import { ScreenHead, StandingNote } from "../screenKit";
 import { CopyButton, Dialog, ErrorNote } from "../ui";
 import { Dashboard } from "./Dashboard";
 import { go, useAppValue } from "../useApp";
@@ -102,8 +102,6 @@ export function Today() {
         />
       )}
 
-      {snapshot && <KpiStrip snapshot={snapshot} />}
-
       {app.loadError && app.loadError.status !== 401 && (
         <p className="note warn" role="alert">
           최신 상태를 불러오지 못했어요. 아래는 마지막으로 받은 내용입니다.{" "}
@@ -113,72 +111,114 @@ export function Today() {
         </p>
       )}
 
-      {!introOnly && (
-        <section className={nothingYet ? "empty-state" : "card"} aria-label="지금 할 일">
-          {current ? (
-            <>
-              <p>
-                <strong>{current.matchNo}경기 진행 중</strong> ·{" "}
-                {formatTime(current.startedAt, snapshot?.group.timezone)} 시작
-              </p>
-              <button type="button" className="primary wide" onClick={() => go("/match")}>
-                현재 경기 보기
-              </button>
-            </>
-          ) : app.draft ? (
-            <>
-              <p>
-                <strong>작성하던 편성이 있어요</strong> · 이 기기에만 있어요
-              </p>
-              <button type="button" className="primary wide" onClick={() => go("/prep")}>
-                이어서 편성
-              </button>
-              <button
-                type="button"
-                className="link"
-                onClick={() => {
-                  const kept = app.draft;
-                  app.setDraft(null);
-                  // 확인 창 대신 실행 뒤 되돌리기를 준다.
-                  setUndo(() => () => app.setDraft(kept));
-                }}
-              >
-                버리기
-              </button>
-            </>
-          ) : hasAnyMatch ? (
-            <>
-              <p>
-                <strong>
-                  {confirmedToday.length === 0 ? "오늘은 아직 경기가 없어요" : `오늘 ${confirmedToday.length}경기 확정`}
-                </strong>
-              </p>
-              <button type="button" className="primary wide" onClick={() => go("/pick")}>
-                참가자 고르기
-              </button>
-              {/* "결과는 나중에"로 넘긴 오늘 경기가 있으면 그 경기에서 이어 짜는 길(같은 팀·오늘 명단의 쉬는 사람)을 남긴다.
-                  이 줄이 없으면 결과를 미룬 뒤에는 처음부터 고르기만 남았다.
-                  prepareNext는 운영자 화면 묶음(Match.tsx)에 있어 누를 때 불러온다(첫 화면 묶음을 키우지 않게). */}
-              {nextFrom && (
-                <button
-                  type="button"
-                  className="secondary wide"
-                  onClick={() => void import("./Match").then((m) => m.prepareNext(app, nextFrom))}
-                >
-                  {nextFrom.matchNo}경기에서 이어 다음 경기 준비
-                </button>
+      {!introOnly &&
+        (nothingYet ? (
+          <section className="empty-state" aria-label="지금 할 일">
+            <p>아직 경기가 없어요. 경기 결과를 저장하면 오늘의 결과, 전적 검색, 최근 경기와 랭킹이 여기에 쌓여요.</p>
+            <button type="button" className="primary wide" onClick={() => go("/pick")}>
+              이름 넣고 팀 짜기
+            </button>
+          </section>
+        ) : (
+          // 상태 우선순위: 진행 중 → 작성하던 편성 → 결과 미입력 → 오늘 확정. 제목(h2)이 그 상태의 대표 수치 줄이고
+          // 주 버튼은 하나다. 결과 미입력 경기는 상태와 상관없이 카드 아래쪽 줄에 모은다(전적 검색 아래에 두었을 때
+          // 미룬 경기를 첫 화면에서 놓쳤다). 결과 입력을 주 버튼으로 올리지 않는 것은 "결과는 나중에"가 일부러 미루는 길이라서다.
+          <section className="card now-card" aria-label="지금 할 일">
+            <div className="now-head">
+              {current ? (
+                <div className="now-status">
+                  <h2>
+                    <span className="now-figure">{current.matchNo}</span>경기 진행 중
+                  </h2>
+                  <p className="hint">{formatTime(current.startedAt, snapshot?.group.timezone)} 시작</p>
+                </div>
+              ) : app.draft ? (
+                <div className="now-status">
+                  <h2>작성하던 편성이 있어요</h2>
+                  <p className="hint">이 기기에만 있어요</p>
+                </div>
+              ) : awaiting.length > 0 ? (
+                <div className="now-status">
+                  <h2>
+                    결과 미입력 <span className="now-figure">{awaiting.length}</span>경기
+                  </h2>
+                  <p className="hint">결과를 넣기 전까지는 통계와 배치 판수에 들어가지 않습니다.</p>
+                </div>
+              ) : (
+                <div className="now-status">
+                  {confirmedToday.length === 0 ? (
+                    <h2>오늘은 아직 경기가 없어요</h2>
+                  ) : (
+                    <h2>
+                      오늘 <span className="now-figure">{confirmedToday.length}</span>경기 확정
+                    </h2>
+                  )}
+                </div>
               )}
-            </>
-          ) : (
-            <>
-              <p>아직 경기가 없어요. 경기 결과를 저장하면 오늘의 결과, 전적 검색, 최근 경기와 랭킹이 여기에 쌓여요.</p>
-              <button type="button" className="primary wide" onClick={() => go("/pick")}>
-                이름 넣고 팀 짜기
-              </button>
-            </>
-          )}
-        </section>
-      )}
+              <div className="now-actions">
+                {current ? (
+                  <button type="button" className="primary wide" onClick={() => go("/match")}>
+                    현재 경기 보기
+                  </button>
+                ) : app.draft ? (
+                  <>
+                    <button type="button" className="primary wide" onClick={() => go("/prep")}>
+                      이어서 편성
+                    </button>
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() => {
+                        const kept = app.draft;
+                        app.setDraft(null);
+                        // 확인 창 대신 실행 뒤 되돌리기를 준다.
+                        setUndo(() => () => app.setDraft(kept));
+                      }}
+                    >
+                      버리기
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="primary wide" onClick={() => go("/pick")}>
+                      참가자 고르기
+                    </button>
+                    {/* "결과는 나중에"로 넘긴 오늘 경기가 있으면 그 경기에서 이어 짜는 길(같은 팀·오늘 명단의 쉬는 사람)을 남긴다.
+                        이 줄이 없으면 결과를 미룬 뒤에는 처음부터 고르기만 남았다.
+                        prepareNext는 운영자 화면 묶음(Match.tsx)에 있어 누를 때 불러온다(첫 화면 묶음을 키우지 않게). */}
+                    {nextFrom && (
+                      <button
+                        type="button"
+                        className="secondary wide"
+                        onClick={() => void import("./Match").then((m) => m.prepareNext(app, nextFrom))}
+                      >
+                        {nextFrom.matchNo}경기에서 이어 다음 경기 준비
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            {awaiting.length > 0 && (
+              <div className="now-awaiting">
+                {/* 결과 미입력이 대표 수치인 상태에서는 제목이 이미 그 말이라 다시 쓰지 않는다. */}
+                {(current || app.draft) && <h3>결과 미입력 {awaiting.length}경기</h3>}
+                <ul className="list">
+                  {awaiting.map((m) => (
+                    <li key={m.id} className="list-row static">
+                      <span>
+                        {m.matchNo}경기 · {formatTime(m.startedAt, snapshot?.group.timezone)}
+                      </span>
+                      <button type="button" className="secondary" onClick={() => setResultFor(m)}>
+                        결과 입력
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        ))}
 
       {undo && (
         <p className="note" role="status">
@@ -196,6 +236,48 @@ export function Today() {
         </p>
       )}
 
+      {today.length > 0 && (
+        <section aria-label="오늘의 결과">
+          <div className="section-head">
+            <h2>오늘의 결과 · {confirmedToday.length}경기 확정</h2>
+            {confirmedToday.length > 0 && (
+              <div className="button-row">
+                <button type="button" className="secondary" onClick={() => setSummaryOpen(true)}>
+                  오늘 요약 공유
+                </button>
+                <button type="button" className="secondary" onClick={() => setImageOpen(true)}>
+                  결과 이미지
+                </button>
+              </div>
+            )}
+          </div>
+          <ul className="list match-cards">
+            {[...today].reverse().map((m) => (
+              <MatchCard
+                key={m.id}
+                match={m}
+                nameOf={nameOf}
+                timeZone={snapshot?.group.timezone ?? "Asia/Seoul"}
+                onOpen={() => go(`/m/${m.id}`)}
+                seriesBadge={seriesBadge(m.id)}
+                upset={expectation.get(m.id)?.upset}
+                onPerson={(id) => go(`/p/${id}`)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {snapshot?.session && !current && (
+        <p>
+          <button type="button" className="link" disabled={busy} onClick={() => void closeSession()}>
+            오늘 내전 마치기
+          </button>
+        </p>
+      )}
+      <ErrorNote error={error} />
+
+      {/* 운영 중에는 덜 쓰는 기능이라 오늘의 결과 아래에 둔다. */}
       {!introOnly && allTime.size > 0 && (
         <section aria-label="전적 검색">
           <h2>전적 검색</h2>
@@ -235,56 +317,6 @@ export function Today() {
         </section>
       )}
 
-      {awaiting.length > 0 && (
-        <section aria-label="결과 미입력 경기">
-          <h2>결과 미입력 {awaiting.length}경기</h2>
-          <ul className="list">
-            {awaiting.map((m) => (
-              <li key={m.id} className="list-row static">
-                <span>
-                  {m.matchNo}경기 · {formatTime(m.startedAt, snapshot?.group.timezone)}
-                </span>
-                <button type="button" className="secondary" onClick={() => setResultFor(m)}>
-                  결과 입력
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="hint">결과를 넣기 전까지는 통계와 배치 판수에 들어가지 않습니다.</p>
-        </section>
-      )}
-
-      {today.length > 0 && (
-        <section aria-label="오늘의 결과">
-          <div className="section-head">
-            <h2>오늘의 결과 · {confirmedToday.length}경기 확정</h2>
-            {confirmedToday.length > 0 && (
-              <div className="button-row">
-                <button type="button" className="secondary" onClick={() => setSummaryOpen(true)}>
-                  오늘 요약 공유
-                </button>
-                <button type="button" className="secondary" onClick={() => setImageOpen(true)}>
-                  결과 이미지
-                </button>
-              </div>
-            )}
-          </div>
-          <ul className="list match-cards">
-            {[...today].reverse().map((m) => (
-              <MatchCard
-                key={m.id}
-                match={m}
-                nameOf={nameOf}
-                timeZone={snapshot?.group.timezone ?? "Asia/Seoul"}
-                onOpen={() => go(`/m/${m.id}`)}
-                seriesBadge={seriesBadge(m.id)}
-                upset={expectation.get(m.id)?.upset}
-                onPerson={(id) => go(`/p/${id}`)}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
       {summaryOpen && snapshot && confirmedToday.length > 0 && (
         <SessionSummaryDialog
           snapshot={snapshot}
@@ -301,15 +333,6 @@ export function Today() {
           onClose={() => setImageOpen(false)}
         />
       )}
-
-      {snapshot?.session && !current && (
-        <p>
-          <button type="button" className="link" disabled={busy} onClick={() => void closeSession()}>
-            오늘 내전 마치기
-          </button>
-        </p>
-      )}
-      <ErrorNote error={error} />
 
       {snapshot && hasRecord && (
         <Dashboard

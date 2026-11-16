@@ -250,6 +250,76 @@ test("디자인 비교 사진: 모임 관리 화면(설정·가져오기·합치
   writeFileSync(join(SHOTS_DIR!, "layout-manage.json"), JSON.stringify(layout, null, 2));
 });
 
+// 오늘 화면의 "지금 할 일" 카드는 상태마다 모양이 다르다(확정만·결과 미입력·진행 중·작성하던 편성).
+// 시계를 고정하지 않는다: 서버가 붙이는 경기 시각이 실제 날짜라, 고정 시각(11-11)으로 두면 "오늘 경기"가 비어 버린다.
+test("디자인 비교 사진: 오늘 화면 상태별(확정만·결과 미입력·진행 중·작성하던 편성)", async ({ page }) => {
+  test.setTimeout(900000);
+  mkdirSync(SHOTS_DIR!, { recursive: true });
+  await page.route("**/ddragon.leagueoflegends.com/**", (route) => route.fulfill({ contentType: "image/png", body: BLANK_PNG }));
+  const post = async (path: string, data: unknown) => {
+    const response = await page.request.post(path, { data });
+    expect(response.ok(), `${path} → ${response.status()}`).toBe(true);
+    return response.json();
+  };
+  await post("/api/auth/fake-login", { subject: `e2e-shots-today-${Date.now().toString(36)}` });
+  const group = await post("/api/groups", { requestId: crypto.randomUUID(), name: "디자인 사진 모임" });
+  const { participants } = await post(`/api/groups/${group.id}/participants`, {
+    requestId: crypto.randomUUID(),
+    names: NAMES,
+  });
+  const startMatch = async (round: number) => {
+    const snapshot = await (await page.request.get(`/api/groups/${group.id}/snapshot`)).json();
+    const { match } = await post(`/api/groups/${group.id}/matches/start`, {
+      requestId: crypto.randomUUID(),
+      baseLiveVersion: snapshot.group.liveVersion,
+      roster: participants.slice(round, round + 10).map((p: { id: string }, i: number) => ({
+        participantId: p.id,
+        team: i < 5 ? "A" : "B",
+        position: POSITIONS[i % 5],
+      })),
+      teamASide: "blue",
+    });
+    return match as { id: string; version: number };
+  };
+  const openToday = async (name: string) => {
+    await page.goto("/#/");
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1, name: "디자인 사진 모임" })).toBeVisible();
+    await capture(page, name);
+  };
+
+  for (const [round, winnerTeam] of (["A", "B"] as const).entries()) {
+    const match = await startMatch(round);
+    await post(`/api/groups/${group.id}/matches/${match.id}/result`, {
+      requestId: crypto.randomUUID(),
+      baseMatchVersion: match.version,
+      winnerTeam,
+      winnerSide: "blue",
+    });
+  }
+  await openToday("50-today-confirmed");
+
+  // 결과 미입력 경기에 묶인 사람은 새 경기에 넣을 수 없어(12명뿐이라 겹친다) 진행 중을 먼저 찍고 그 경기를 미룬다.
+  const live = await startMatch(2);
+  await openToday("51-today-live");
+
+  await post(`/api/groups/${group.id}/matches/${live.id}/end-later`, {
+    requestId: crypto.randomUUID(),
+    baseMatchVersion: live.version,
+  });
+  await openToday("52-today-awaiting");
+
+  // 작성하던 편성: 고르기 → 준비까지 간 뒤 오늘로 돌아온다(결과 미입력 경기도 남아 있는 상태).
+  await page.goto("/#/pick");
+  await page.reload();
+  const all = page.getByRole("region", { name: "전체 참가자" });
+  for (const name of NAMES.slice(0, 10)) await all.getByRole("button", { name: new RegExp(name) }).click();
+  await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
+  await expect(page.getByRole("heading", { name: "다음 경기 준비" })).toBeVisible();
+  await openToday("53-today-draft");
+  writeFileSync(join(SHOTS_DIR!, "layout-today.json"), JSON.stringify(layout, null, 2));
+});
+
 test("디자인 비교 사진: 바깥에서 여는 화면(조회 링크·참가자 편성·참가 신청·개인정보·사이트 관리)", async ({ page, browser }) => {
   test.setTimeout(900000);
   mkdirSync(SHOTS_DIR!, { recursive: true });
