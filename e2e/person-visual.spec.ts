@@ -123,7 +123,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   // 랭킹: 승률 20%인 선수01(누적 50경기)이 100%인 선수11(누적 10경기)보다 위다.
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   await expect(ranking.getByText("누적 50경기 이상인 사람을 먼저 보여줘요.")).toBeVisible();
   const rows = ranking.getByRole("listitem");
   await expect(rows).toHaveCount(12);
@@ -289,7 +289,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  await expect(page.getByRole("region", { name: "소환사 랭킹" }).getByRole("listitem")).toHaveCount(12);
+  await expect(page.getByRole("region", { name: "플레이어 랭킹" }).getByRole("listitem")).toHaveCount(12);
   await noHorizontalOverflow(page);
   await page.goto("/#/search");
   await page.getByRole("searchbox").fill("선수");
@@ -317,9 +317,9 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
       await page.goto("/#/records");
       await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
       await page.getByRole("button", { name: "전체", exact: true }).click();
-      await page.getByRole("region", { name: "소환사 랭킹" }).scrollIntoViewIfNeeded();
+      await page.getByRole("region", { name: "플레이어 랭킹" }).scrollIntoViewIfNeeded();
       await page
-        .getByRole("region", { name: "소환사 랭킹" })
+        .getByRole("region", { name: "플레이어 랭킹" })
         .screenshot({ path: join(dir, `ranking-${theme}-390.png`) });
     }
   }

@@ -213,7 +213,7 @@ export function TitleEmblem(props: { grade: TitleGrade }) {
 /**
  * 칭호 표식: 엠블럼 + 이름, 등급 색. 칭호가 나오는 모든 화면이 이것 하나를 쓴다.
  * grade가 없으면(알 수 없는 이름 등) 예전처럼 색 없는 테두리 표식이다.
- * compact: 목록 줄(홈 상위 5명·소환사 랭킹·MMR 순위표·그래프 개인별·검색 결과)에서 쓰는 꼴로, 테두리 없이
+ * compact: 목록 줄(홈 상위 5명·플레이어 랭킹·MMR 순위표·그래프 개인별·검색 결과)에서 쓰는 꼴로, 테두리 없이
  * 등급 색 글자 + 작은 엠블럼만 둔다. 테두리 배지는 개인 통계·두 사람 비교 요약·랭킹 시상대처럼 한 사람을 크게 보일 때.
  */
 export function TitleBadge(props: { name: string; grade: TitleGrade | null; compact?: boolean }) {
@@ -228,7 +228,7 @@ export function TitleBadge(props: { name: string; grade: TitleGrade | null; comp
 }
 
 /**
- * MMR 티어 이름표(rating.ts RATING_TIERS, LoL 시즌 2 Elo 구간). 배치 중이면 그리지 않는다.
+ * MMR 티어 이름표(rating.ts RATING_TIERS, S~D). 배치 중이면 그리지 않는다.
  * 칭호(TitleBadge)는 테두리형 알약이라 이것은 채움형 네모로 두어 나란히 서도 구분되게 한다.
  */
 export function RatingTierBadge(props: { rating: number; placed: boolean }) {
@@ -786,7 +786,7 @@ export function SortArrow(props: { active: boolean; dir: SortDir }) {
 }
 
 /**
- * 목록형 표의 머리 줄. 줄이 listitem(목록)이어야 하는 순위표(랭킹·소환사 랭킹)에 쓴다: 묶음 소제목·행 펼침이 줄 사이에
+ * 목록형 표의 머리 줄. 줄이 listitem(목록)이어야 하는 순위표(랭킹·플레이어 랭킹)에 쓴다: 묶음 소제목·행 펼침이 줄 사이에
  * 끼고, 기존 화면·테스트가 "줄 = listitem"에 기대기 때문이다. 표 의미(aria-sort)가 필요한 새 화면은 DataTable을 쓴다.
  * 칸 배치는 머리 줄과 줄이 같은 grid-template-columns를 쓰도록 화면 CSS가 정한다(cls가 칸 이름).
  * 정렬 열은 버튼이고 지금 정렬은 aria-pressed로 알린다. 버튼 이름은 열 이름 그대로다(화살표는 읽지 않는다).

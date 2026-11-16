@@ -120,7 +120,7 @@ async function shots(page: Page, s: Setup, dir: string) {
       await page.goto("/#/records");
       await setTheme(page, theme);
       await page.getByRole("button", { name: "전체", exact: true }).click();
-      const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+      const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
       await expect(ranking.getByRole("listitem")).toHaveCount(12);
       await ranking.scrollIntoViewIfNeeded();
       await ranking.screenshot({ path: join(dir, `records-${theme}-${width}.png`) });
@@ -219,7 +219,7 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   // 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   await expect(ranking.getByRole("listitem")).toHaveCount(12);
   const hues = await ranking
     .locator(".rate")

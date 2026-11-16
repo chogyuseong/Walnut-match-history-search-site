@@ -4,7 +4,7 @@ import { personRecords, type Placement } from "./stats";
 import type { MatchView } from "./types";
 
 /**
- * MMR 랭킹 화면(src/web/screens/Ranking.tsx)의 계산. 순위와 묶음은 기록 화면 "소환사 랭킹"의 MMR 순과 같은
+ * MMR 랭킹 화면(src/web/screens/Ranking.tsx)의 계산. 순위와 묶음은 기록 화면 "플레이어 랭킹"의 MMR 순과 같은
  * 규칙(insights.rankAndSearch)을 그대로 쓰고, 여기서는 그 위에 얹는 요약 타일과 묶음 인원만 뽑는다.
  * MMR 자체가 모임 전체 누적이라 범위(오늘·시즌·연도)를 두지 않는다. 배치와 MMR 모두 유효 확정 경기만 센다.
  */

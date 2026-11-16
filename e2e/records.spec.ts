@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-// 구현 6번(이름 검색, 소환사 랭킹, 개인 통계, 시즌)을 실제 브라우저에서 확인한다.
+// 구현 6번(이름 검색, 플레이어 랭킹, 개인 통계, 시즌)을 실제 브라우저에서 확인한다.
 // 경기는 API로 빠르게 만들고 화면은 읽는 쪽만 본다.
 
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
@@ -88,7 +88,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /전체 경기 · 11경기 확정/ })).toBeVisible();
 
   // 순위: 배치 완료자가 먼저다. 승률 100%인 선수11(1경기)은 배치 완료자들 뒤에 온다. (35)
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   const rows = ranking.getByRole("listitem");
   await expect(rows).toHaveCount(12);
   const texts = await rows.allInnerTexts();
@@ -198,7 +198,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   expect(await overflow()).toBeLessThanOrEqual(0);
   // 랭킹 구역의 첫 버튼은 정렬 고르기이므로 첫 순위 줄의 버튼을 누른다.
   await page
-    .getByRole("region", { name: "소환사 랭킹" })
+    .getByRole("region", { name: "플레이어 랭킹" })
     .getByRole("listitem")
     .first()
     .getByRole("button")
@@ -373,9 +373,9 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
   const mixed = [s.people[10]!, ...first10.slice(1, 5), s.people[11]!, ...first10.slice(6)];
   await play(page.request, s, mixed, "A", "blue");
 
-  // 기록 화면의 소환사 랭킹에서도 들어갈 수 있다.
+  // 기록 화면의 플레이어 랭킹에서도 들어갈 수 있다.
   await page.goto("/#/records");
-  await page.getByRole("region", { name: "소환사 랭킹" }).getByRole("button", { name: "MMR 랭킹 전체 보기 →" }).click();
+  await page.getByRole("region", { name: "플레이어 랭킹" }).getByRole("button", { name: "MMR 랭킹 전체 보기 →" }).click();
   await expect(page).toHaveURL(/#\/ranking$/);
   await page.goto("/#/");
   const menu = page.getByRole("navigation", { name: "주 메뉴" });

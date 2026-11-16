@@ -200,7 +200,7 @@ test('단축키 "/": 입력 칸 밖에서 누르면 검색 화면으로 가서 �
   await expect(page.getByRole("heading", { level: 1, name: "기록" })).toBeVisible();
 
   // 입력 칸에서 친 "/"는 글자일 뿐이다.
-  const rankSearch = page.getByRole("region", { name: "소환사 랭킹" }).getByLabel("이름 검색");
+  const rankSearch = page.getByRole("region", { name: "플레이어 랭킹" }).getByLabel("이름 검색");
   await rankSearch.click();
   await page.keyboard.press("/");
   await expect(rankSearch).toHaveValue("/");
@@ -236,7 +236,7 @@ test("CSV 내려받기: 기록·랭킹·개인 참여 경기", async ({ page }) 
   expect(lines[1]).toMatch(/^2,\d{4}-\d{2}-\d{2} \d{2}:\d{2},결과 확정,김선우,홍진호,강서준,/);
   expect(lines[1]).toMatch(/,레드팀,,결승 역전승$/);
 
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   const rank = await downloadCsv(page, () => ranking.getByRole("button", { name: "CSV 내려받기" }).click());
   expect(rank.fileName).toMatch(new RegExp(`^내전랭킹-${GROUP_NAME}-\\d{8}\\.csv$`));
   // 마지막 "MMR" 열은 결과 기반 MMR(2026-11-08, rating.spec.ts)에서 더했다.

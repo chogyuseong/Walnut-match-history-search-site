@@ -149,7 +149,7 @@ test("경기 카드: 이름은 개인 통계로, 카드는 경기 상세로", as
 
   // 개인 화면의 카드: 그 사람의 승패가 글자로 붙고 색은 승·패를 따른다.
   await page.goto("/#/records");
-  await page.getByRole("region", { name: "소환사 랭킹" }).getByRole("button", { name: /선수01/ }).click();
+  await page.getByRole("region", { name: "플레이어 랭킹" }).getByRole("button", { name: /선수01/ }).click();
   const mine = page.getByRole("region", { name: "참여 경기" }).getByRole("listitem");
   await expect(mine).toHaveCount(10);
   await expect(mine.first()).toHaveClass(/tone-loss/);
@@ -168,7 +168,7 @@ test("랭킹: 정렬 기준·라인별·최근 승패와 연승·연패", async 
   await seed(page);
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   const rows = ranking.getByRole("listitem");
   await expect(rows).toHaveCount(12);
   const names = async () =>
@@ -210,7 +210,7 @@ test("랭킹: 정렬 기준·라인별·최근 승패와 연승·연패", async 
   // 라인별: 탑으로 뛴 사람만(선수01·06 각 10경기, 선수11·12 각 1경기). 배치는 누적 기준이라 11·12는 뒤.
   await ranking.getByRole("button", { name: "승률", exact: true }).click();
   await ranking.getByLabel("라인별 랭킹").selectOption({ label: "탑" });
-  await expect(ranking.getByRole("heading", { name: "소환사 랭킹 (전체 · 탑)" })).toBeVisible();
+  await expect(ranking.getByRole("heading", { name: "플레이어 랭킹 (전체 · 탑)" })).toBeVisible();
   await expect(rows).toHaveCount(4);
   expect(await names()).toEqual(["선수01", "선수06", "선수11", "선수12"]);
   await expect(rows.filter({ hasText: "선수01" })).toContainText("70% · 7승 3패 (10경기)");

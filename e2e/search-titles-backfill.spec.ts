@@ -144,7 +144,7 @@ test("검색 메뉴 → 개인 통계, 칭호가 검색·랭킹·개인·그래�
   // 랭킹과 그래프에서도 같은 칭호다.
   await menu.getByRole("button", { name: "기록" }).click();
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" }).getByRole("listitem");
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" }).getByRole("listitem");
   await expect(ranking.filter({ hasText: "선수02" })).toContainText("전장의 지배자");
   await expect(ranking.filter({ hasText: "선수11" })).toContainText("배치 진행 중 1/10");
   await menu.getByRole("button", { name: "분석" }).click();
@@ -212,12 +212,12 @@ test("연도 필터: 경기가 있는 해만 고를 수 있고 모임 시간대�
   await expect(years.getByRole("option")).toHaveText(["연도", "2026년", "2025년"]);
   await years.selectOption({ label: "2025년" });
   await expect(page.getByRole("heading", { name: /2025년 경기 · 2경기 확정/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /소환사 랭킹 \(2025년\)/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /플레이어 랭킹 \(2025년\)/ })).toBeVisible();
   await years.selectOption({ label: "2026년" });
   await expect(page.getByRole("heading", { name: /2026년 경기 · 1경기 확정/ })).toBeVisible();
 
   // 개인 통계: 2025년 선수01은 2승, 2026년은 1패. 배치는 누적 3/10 그대로다.
-  await page.getByRole("region", { name: "소환사 랭킹" }).getByRole("button", { name: /선수01/ }).click();
+  await page.getByRole("region", { name: "플레이어 랭킹" }).getByRole("button", { name: /선수01/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "선수01" })).toBeVisible();
   await page.getByLabel("연도 선택").selectOption({ label: "2025년" });
   const summary = page.getByRole("region", { name: "요약" });

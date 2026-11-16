@@ -194,7 +194,7 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
 
   // 기록 화면의 랭킹 이름 검색도 같다.
   await page.goto("/#/records");
-  const search = page.getByRole("region", { name: "소환사 랭킹" }).getByLabel("이름 검색");
+  const search = page.getByRole("region", { name: "플레이어 랭킹" }).getByLabel("이름 검색");
   await search.fill("선수0");
   // 좁은 화면에서는 경기 목록이 랭킹 아래에 있다. 검색 칸을 화면 가운데에 두고, 새 경기가 저장돼 아래 목록에 카드가
   // 늘어도 보고 있던 자리(입력 칸의 화면 위치)는 그대로여야 한다.

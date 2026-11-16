@@ -56,7 +56,7 @@ test.describe("처음 온 방문자 (390px)", () => {
     // 기록과 랭킹
     await page.getByRole("navigation", { name: "예시 모임 메뉴" }).getByRole("button", { name: "기록" }).click();
     await expect(page.getByRole("heading", { name: "기록", level: 1 })).toBeVisible();
-    const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+    const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
     await expect(ranking.getByRole("listitem").first()).toBeVisible();
     expect(await ranking.getByRole("listitem").count()).toBeGreaterThanOrEqual(5);
     await expect(page.getByRole("region", { name: "경기 목록" })).toBeVisible();

@@ -124,7 +124,7 @@ test.describe("390×844 터치", () => {
     await setup(page);
     await page.goto("/#/records");
     await page.getByRole("button", { name: "전체", exact: true }).click();
-    const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+    const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
     const search = ranking.getByLabel("이름 검색");
     await search.fill("선수");
     // 결과 머리와 첫 줄 정도만 하단 탭 위에 걸치게 내려 둔다(예전 기준에서는 움직이지 않던 자리).
@@ -156,7 +156,7 @@ test.describe("390×844 터치", () => {
     await setup(page);
     await page.goto("/#/records");
     await page.getByRole("button", { name: "전체", exact: true }).click();
-    const search = page.getByRole("region", { name: "소환사 랭킹" }).getByLabel("이름 검색");
+    const search = page.getByRole("region", { name: "플레이어 랭킹" }).getByLabel("이름 검색");
     await search.fill("선수0");
     await search.press("Enter");
     await scrollSettled(page);
@@ -170,11 +170,11 @@ test.describe("390×844 터치", () => {
     ).toBe(true);
   });
 
-  test("기록 소환사 랭킹: 글자만 치면 그대로, Enter면 결과 첫 줄로·없으면 안내로", async ({ page }) => {
+  test("기록 플레이어 랭킹: 글자만 치면 그대로, Enter면 결과 첫 줄로·없으면 안내로", async ({ page }) => {
     await setup(page);
     await page.goto("/#/records");
     await page.getByRole("button", { name: "전체", exact: true }).click();
-    const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+    const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
     const search = ranking.getByLabel("이름 검색");
     await expect(search).toHaveAttribute("enterkeyhint", "search");
 
@@ -213,7 +213,7 @@ test.describe("390×844 터치", () => {
     await setup(page);
     await page.goto("/#/records");
     await page.getByRole("button", { name: "전체", exact: true }).click();
-    const search = page.getByRole("region", { name: "소환사 랭킹" }).getByLabel("이름 검색");
+    const search = page.getByRole("region", { name: "플레이어 랭킹" }).getByLabel("이름 검색");
     await focusNearBottom(page, search);
     await search.fill("선수0");
     const before = await scrollY(page);
@@ -228,7 +228,7 @@ test.describe("390×844 터치", () => {
     await search.evaluate((el) => el.dispatchEvent(new CompositionEvent("compositionend", { data: "0", bubbles: true })));
     await scrollSettled(page);
     await expectBlurred(page, search);
-    await expectRevealed(page.getByRole("region", { name: "소환사 랭킹" }).getByRole("listitem").first(), "조합 뒤 첫 줄");
+    await expectRevealed(page.getByRole("region", { name: "플레이어 랭킹" }).getByRole("listitem").first(), "조합 뒤 첫 줄");
   });
 
   test("MMR 랭킹·전적 검색도 Enter로 결과 첫머리", async ({ page }) => {
@@ -258,7 +258,7 @@ test.describe("390×844 터치", () => {
     await setup(page);
     await page.goto("/#/records");
     await page.getByRole("button", { name: "전체", exact: true }).click();
-    const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+    const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
     const search = ranking.getByLabel("이름 검색");
     await focusNearBottom(page, search);
     await search.fill("선수0");
@@ -276,7 +276,7 @@ test.describe("1440×900", () => {
     await setup(page);
     await page.goto("/#/records");
     await page.getByRole("button", { name: "전체", exact: true }).click();
-    const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+    const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
     const search = ranking.getByLabel("이름 검색");
     // 검색 칸을 화면 위쪽(200px)에 둔다. 처음 자리 그대로 두면 상단 바 아래 메뉴 줄(디자인 3단계) 몫만큼 결과가
     // 화면 아래 절반에서 시작해, "이미 보이는" 경우가 아니게 된다(ui.tsx RESULT_SEEN_SHARE).

@@ -96,8 +96,8 @@ test("배치 경기 수를 바꾸면 개인 통계의 배치 문구가 그 수�
   await expect(summary).toContainText("배치 완료 · 누적 2경기 (누적 기준)");
 });
 
-// 두 판 모두 팀 A 승(기본 시작 1200): 전체 기록 일괄 계산(rating.ts)으로 이긴 팀 ≈ 1290.5(실버), 진 팀 ≈ 1109.5.
-// 시작 점수를 1500으로 바꾸면 모두 +300: 1590(골드)·1410(실버).
+// 두 판 모두 팀 A 승(기본 시작 1200): 전체 기록 일괄 계산(rating.ts)으로 이긴 팀 ≈ 1290.5(C), 진 팀 ≈ 1109.5.
+// 시작 점수를 1500으로 바꾸면 모두 +300: 1590(B)·1410(C).
 test("MMR 시작 점수를 바꾸면 랭킹 숫자와 티어가 다시 계산된다", async ({ page }) => {
   const request = page.request;
   await post(request, "/api/auth/fake-login", {
@@ -124,7 +124,7 @@ test("MMR 시작 점수를 바꾸면 랭킹 숫자와 티어가 다시 계산된
   const rows = page.getByRole("region", { name: "MMR 순위표" }).getByRole("listitem");
   await page.goto("/#/ranking");
   await expect(rows.first()).toContainText("1290");
-  await expect(rows.first()).toContainText("실버");
+  await expect(rows.first().locator(".mmr-tier")).toHaveText("MMR 티어 C");
 
   await page.goto("/#/group");
   const section = page.getByRole("region", { name: "MMR 설정" });
@@ -136,8 +136,8 @@ test("MMR 시작 점수를 바꾸면 랭킹 숫자와 티어가 다시 계산된
   await page.goto("/#/ranking");
   await expect(page.getByText("시작 1500", { exact: false }).first()).toBeVisible();
   await expect(rows.first()).toContainText("1590");
-  await expect(rows.first()).toContainText("골드");
+  await expect(rows.first().locator(".mmr-tier")).toHaveText("MMR 티어 B");
   await expect(rows.last()).toContainText("1410");
   // 티어 분포는 요약 카드에서 순위표 아래 한 줄로 내렸다(디자인 4단계).
-  await expect(page.locator(".mmr-tier-counts")).toHaveText("티어 분포 10명 · 골드 5 · 실버 5");
+  await expect(page.locator(".mmr-tier-counts")).toHaveText("티어 분포 10명 · B 5 · C 5");
 });

@@ -287,13 +287,13 @@ function MatchFilterPeople(props: {
   );
 }
 
-/** 소환사 랭킹 머리 줄의 정렬 열 이름. 정렬 이름(RANKING_SORT_LABEL, 도움말에 쓴다)과 달리 열 머리라 "MMR"만 쓴다. */
+/** 플레이어 랭킹 머리 줄의 정렬 열 이름. 정렬 이름(RANKING_SORT_LABEL, 도움말에 쓴다)과 달리 열 머리라 "MMR"만 쓴다. */
 const RANK_COLUMN_LABEL: Record<RankingSort, string> = { rate: "승률", wins: "승수", games: "경기 수", rating: "MMR" };
 
 /**
  * 화면 6 — 기록. 운영자와 조회자가 같은 화면을 본다.
  * 틀(2026-11-10 구조 정리): 화면 머리(운영자는 오른쪽에 "지난 경기 입력") → 필터 줄 하나(범위·사람·이긴 진영) → 누적 띠 →
- * PC 2단(왼쪽 좁은 단 경기 카드 목록, 오른쪽 넓은 단 소환사 랭킹 표). 소환사 랭킹은 열 머리를 눌러 정렬한다.
+ * PC 2단(왼쪽 좁은 단 경기 카드 목록, 오른쪽 넓은 단 플레이어 랭킹 표). 플레이어 랭킹은 열 머리를 눌러 정렬한다.
  */
 export function Records(props: {
   snapshot: Snapshot;
@@ -413,7 +413,7 @@ export function Records(props: {
       {neverPlayed ? (
         <div className="empty-state full">
           <p>
-            아직 저장한 경기가 없어요. 경기 결과를 저장하면 경기 목록과 소환사 랭킹이 여기에 쌓여요.
+            아직 저장한 경기가 없어요. 경기 결과를 저장하면 경기 목록과 플레이어 랭킹이 여기에 쌓여요.
           </p>
         </div>
       ) : (
@@ -506,9 +506,9 @@ export function Records(props: {
         )}
       </section>
 
-      <section aria-label="소환사 랭킹">
+      <section aria-label="플레이어 랭킹">
         <h2>
-          소환사 랭킹 ({scopeLabel}
+          플레이어 랭킹 ({scopeLabel}
           {line ? ` · ${POSITION_LABEL[line]}` : ""})
         </h2>
         <div className="rank-controls">

@@ -107,7 +107,7 @@ test("운영자가 경기 상세에서 지우면 기록·랭킹에서 사라지�
   await expect(page.getByRole("status").filter({ hasText: `${second.matchNo}경기를 지웠어요` })).toBeVisible();
   const list = page.getByRole("region", { name: "경기 목록" });
   await expect(list.getByRole("heading", { level: 2 })).toContainText("1경기 확정");
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   await expect(ranking).toContainText("삭제01");
   await expect(ranking).not.toContainText("삭제11");
   expect((await getSnapshot(page.request, s.groupId)).matches).toHaveLength(1);

@@ -95,7 +95,7 @@ test("랭킹 MMR 순 · 개인 통계 MMR · 두 사람 비교 MMR 차 · 랭킹
 
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  const ranking = page.getByRole("region", { name: "소환사 랭킹" });
+  const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   const rows = ranking.getByRole("listitem");
   await expect(rows).toHaveCount(10);
   // 기본 정렬은 그대로 승률이고, 안내 문구는 MMR 순일 때만 보인다.

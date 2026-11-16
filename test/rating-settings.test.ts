@@ -12,7 +12,7 @@ import {
 import type { MatchView, Snapshot, Team } from "../src/shared/types";
 import { api, requestId, setupGroup, snapshot, type TestGroup } from "./helpers";
 
-// MMR 시작값 설정(Settings.ratingStart)과 시즌 2 티어 이름표(rating.ts RATING_TIERS).
+// MMR 시작값 설정(Settings.ratingStart)과 S~D 티어 이름표(rating.ts RATING_TIERS).
 // K 둘(ratingKPlacement·ratingK)은 Elo 시절 설정이라 계산에 쓰지 않지만, 저장된 값·백업이 거절되지 않게 서버는 받는다.
 
 function match(no: number, winner: Team): MatchView {
@@ -57,21 +57,21 @@ describe("MMR 설정(계산)", () => {
   });
 });
 
-describe("MMR 티어 이름표(LoL 시즌 2 Elo 구간)", () => {
+describe("MMR 티어 이름표(S~D, 경계 1250·1520·1900·2200)", () => {
   const name = (rating: number) => ratingTierOf(rating, true)?.name;
 
   it("경계: 1249/1250 · 1519/1520 · 1899/1900 · 2199/2200, 보이는 정수로 비교", () => {
     expect(RATING_TIERS.map((t) => t.min)).toEqual([2200, 1900, 1520, 1250, -Infinity]);
-    expect([name(0), name(1249), name(1250), name(1519), name(1520)]).toEqual(["브론즈", "브론즈", "실버", "실버", "골드"]);
+    expect([name(0), name(1249), name(1250), name(1519), name(1520)]).toEqual(["D", "D", "C", "C", "B"]);
     expect([name(1899), name(1900), name(2199), name(2200), name(3000)]).toEqual([
-      "골드",
-      "플래티넘",
-      "플래티넘",
-      "다이아몬드",
-      "다이아몬드",
+      "B",
+      "A",
+      "A",
+      "S",
+      "S",
     ]);
-    expect(name(1249.5)).toBe("실버");
-    expect(name(1249.4)).toBe("브론즈");
+    expect(name(1249.5)).toBe("C");
+    expect(name(1249.4)).toBe("D");
   });
 
   it("배치 중이면 티어가 없다", () => {
@@ -81,9 +81,9 @@ describe("MMR 티어 이름표(LoL 시즌 2 Elo 구간)", () => {
   it("시작값을 바꿔도 구간 숫자는 그대로다(처음 놓이는 티어만 달라진다)", () => {
     const one = [match(1, "A")];
     const at = (start: number) => ratingTierOf(computeRatings(one, { start }).get("id0")!.rating, true)!.name;
-    expect(at(1100)).toBe("브론즈"); // 약 1159
-    expect(at(1500)).toBe("골드"); // 약 1559
-    expect(at(2200)).toBe("다이아몬드");
+    expect(at(1100)).toBe("D"); // 약 1159
+    expect(at(1500)).toBe("B"); // 약 1559
+    expect(at(2200)).toBe("S");
   });
 
   it("티어별 인원은 배치 완료자만, 높은 티어부터 센다", () => {
@@ -93,8 +93,8 @@ describe("MMR 티어 이름표(LoL 시즌 2 Elo 구간)", () => {
     const { ranked } = mmrRanking(matches, table, placement, (id) => id, "");
     const counts = ratingTierCounts(ranked, table, placement);
     expect(counts.map(({ tier, count }) => [tier.short, count])).toEqual([
-      ["골드", 5],
-      ["실버", 5],
+      ["B", 5],
+      ["C", 5],
     ]);
     expect(ratingTierCounts(ranked, table, standings(matches.slice(0, 9), DEFAULT_TITLE_BANDS))).toEqual([]);
   });

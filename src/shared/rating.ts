@@ -415,7 +415,7 @@ export function ratingBandOf(rating: number, start: number = RATING_START): stri
   return `${start - 100} 미만`;
 }
 
-export type RatingTierKey = "diamond" | "platinum" | "gold" | "silver" | "bronze";
+export type RatingTierKey = "s" | "a" | "b" | "c" | "d";
 
 export interface RatingTier {
   key: RatingTierKey;
@@ -427,19 +427,21 @@ export interface RatingTier {
 }
 
 /**
- * MMR 구간 이름표. 출처: LoL 시즌 2 Elo 구간(시즌 2 종료 기준). 높은 구간부터 본다.
- * 시작값 설정과 무관하게 숫자를 고정한다(사용자 요청: 시즌 2와 "동일하게"). 시작값을 바꾸면 처음 놓이는 티어가 달라진다.
+ * MMR 구간 이름표. 높은 구간부터 본다. 시작값 설정과 무관하게 경계 숫자를 고정한다(시작값을 바꾸면 처음 놓이는 구간이 달라진다).
+ * 이름은 게임 랭크 이름(다이아몬드~브론즈)을 쓰지 않고 S~D 글자로 둔다(2026-11-16, 라이엇 상표·"MMR 계산기" 정책 때문,
+ * docs/라이엇-정책-웹사이트-조사-2026-11-16.md). 준비 화면의 1~5티어(숫자)와 헷갈리지 않게 글자를 쓴다.
+ * 경계 숫자를 바꾸면 모든 사람의 구간이 달라지니 사용자에게 먼저 묻는다.
  */
 export const RATING_TIERS: readonly RatingTier[] = [
-  { key: "diamond", name: "다이아몬드", short: "다이아", min: 2200 },
-  { key: "platinum", name: "플래티넘", short: "플래", min: 1900 },
-  { key: "gold", name: "골드", short: "골드", min: 1520 },
-  { key: "silver", name: "실버", short: "실버", min: 1250 },
-  { key: "bronze", name: "브론즈", short: "브론즈", min: -Infinity },
+  { key: "s", name: "S", short: "S", min: 2200 },
+  { key: "a", name: "A", short: "A", min: 1900 },
+  { key: "b", name: "B", short: "B", min: 1520 },
+  { key: "c", name: "C", short: "C", min: 1250 },
+  { key: "d", name: "D", short: "D", min: -Infinity },
 ];
 
 /** 티어 이름표 도움말 한 줄. 화면마다 같은 문장을 쓴다. */
-export const RATING_TIER_HELP = "MMR 구간 이름은 리그 오브 레전드 시즌 2 Elo 구간을 그대로 따랐어요(1250·1520·1900·2200).";
+export const RATING_TIER_HELP = "MMR 구간은 1250·1520·1900·2200점을 경계로 낮은 쪽부터 D·C·B·A·S로 나눠요.";
 
 /** MMR의 티어. 배치 중이면 null(점수가 아직 크게 흔들려 이름을 붙이지 않는다). 보이는 정수로 비교한다. */
 export function ratingTierOf(rating: number, placed: boolean): RatingTier | null {

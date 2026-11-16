@@ -350,11 +350,14 @@ function LegalFooter(props: { privacyHref?: string }) {
             {SITE_NAME} was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
             Riot Games. Riot Games does not endorse or sponsor this project.
           </p>
+          {/* 첫 두 문장은 라이엇 지식재산 이용 정책 한국어판(riotgames.com/ko/legal) 6절의 고지 문안 그대로다.
+              "[이름]은" 자리의 조사는 SITE_NAME(내전로그)이 받침 없이 끝나서 "는"이다. 이름을 바꾸면 조사도 본다. */}
           <p>
-            이 사이트는 라이엇 게임즈의 공식 서비스가 아니며, 내전 모임의 경기 기록과 통계를 위해
-            만들었습니다. 라이엇 게임즈의 로고·상표는 쓰지 않습니다. 챔피언 초상화는 라이엇 게임즈의
-            자산이며 위 정책에 따라 라이엇이 공개한 자료(Data Dragon)에서 불러옵니다. 라인 아이콘은 직접
-            그린 도형입니다.
+            {SITE_NAME}는 라이엇 게임즈의 &ldquo;지식재산 이용 정책&rdquo;에 따라 라이엇 게임즈 소유의 자산을
+            이용하여 제작되었습니다. 라이엇 게임즈는 이 프로젝트를 지지하거나 후원하지 않습니다. 이 사이트는
+            라이엇 게임즈의 공식 서비스가 아니며, 내전 모임의 경기 기록과 통계를 위해 만들었습니다. 라이엇
+            게임즈의 로고·상표는 쓰지 않습니다. 챔피언 초상화는 라이엇이 공개한 자료(Data Dragon)에서
+            불러오고, 라인 아이콘은 직접 그린 도형입니다.
           </p>
         </>
       ) : (
