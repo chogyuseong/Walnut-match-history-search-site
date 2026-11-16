@@ -3,6 +3,7 @@ import type { ParticipantView, Settings } from "../../shared/types";
 import { ApiFailure, call, mutate, newRequestId, patchParticipant } from "../api";
 import { resolveMerged } from "../../shared/merge";
 import { nameKey } from "../../shared/names";
+import { todayIn } from "../../shared/stats";
 import { formatDate, formatRange, formatTime, nameMap, viewLink } from "../format";
 import { rotationContext, supportCounts } from "../../shared/rotation";
 import { SupportCountEditor } from "../supportCountEditor";
@@ -784,7 +785,7 @@ export function Group() {
                 const url = URL.createObjectURL(blob);
                 const anchor = document.createElement("a");
                 anchor.href = url;
-                anchor.download = `naejeon-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                anchor.download = `naejeon-backup-${todayIn(snapshot.group.timezone)}.json`;
                 anchor.click();
                 URL.revokeObjectURL(url);
               }, "백업 파일을 내려받았어요.", "backup")

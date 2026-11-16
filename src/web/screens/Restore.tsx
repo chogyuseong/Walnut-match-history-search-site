@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
+import { todayIn } from "../../shared/stats";
 import { formatDate, formatTime } from "../format";
 import { ErrorNote } from "../ui";
 import { GROUP_KEY, useAppValue } from "../useApp";
@@ -29,10 +30,6 @@ export function downloadJson(data: unknown, fileName: string): void {
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -113,7 +110,7 @@ export function RestoreSection() {
         if (!maintenance && !backedUp.current) {
           setStep("지금 상태를 백업 파일로 내려받는 중");
           const current = await call<Record<string, unknown>>("GET", `/api/groups/${gid}/export`);
-          downloadJson(current, `naejeon-before-restore-${today()}.json`);
+          downloadJson(current, `naejeon-before-restore-${todayIn(snapshot.group.timezone)}.json`);
           backedUp.current = true;
         }
         setStep("복원하는 중");

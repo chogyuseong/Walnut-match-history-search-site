@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { todayIn } from "../../shared/stats";
 import { ApiFailure, call } from "../api";
 import { ErrorNote } from "../ui";
 import { DRAFT_KEY, forgetGroupStorage, go, GROUP_KEY, useAppValue } from "../useApp";
@@ -7,10 +8,6 @@ import { downloadJson } from "./Restore";
 /** 서버의 확인 문구(src/server/deletion.ts). */
 const GROUP_CONFIRM = "삭제";
 const ACCOUNT_CONFIRM = "탈퇴";
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /** 삭제가 끝나면 첫 화면을 새로 연다(계정·모임 목록이 바뀌었으므로). */
 function reopenHome(): void {
@@ -64,7 +61,7 @@ export function DangerZone() {
       if (!backedUp.current && !snapshot.group.maintenance) {
         setStep("백업 파일을 내려받는 중");
         const backup = await call<Record<string, unknown>>("GET", `/api/groups/${gid}/export`);
-        downloadJson(backup, `naejeon-before-delete-${today()}.json`);
+        downloadJson(backup, `naejeon-before-delete-${todayIn(snapshot.group.timezone)}.json`);
         backedUp.current = true;
       }
       // 2) 삭제. 응답을 못 받았으면 같은 요청을 다시 보내도 된다(이미 지워졌으면 "찾을 수 없음").
