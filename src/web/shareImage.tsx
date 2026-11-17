@@ -11,7 +11,7 @@ import { Dialog } from "./ui";
 /**
  * 결과 이미지(PNG). 서버 없이 이 기기에서 canvas로 그린다.
  * 넣는 것: 모임 이름, 날짜, 경기 번호, 팀 명단·포지션, 승리 팀, 진영, 개인 승패.
- * 넣지 않는 것: 실력 그룹·가중치·조회 링크(토큰)·라이엇 로고와 게임 이미지.
+ * 넣지 않는 것: 실력 그룹·가중치·모임 링크(토큰)·라이엇 로고와 게임 이미지.
  * 색은 지금 고른 테마의 토큰 값을 읽어 쓴다(새 색을 만들지 않는다).
  */
 
@@ -276,7 +276,7 @@ export function drawMatchImage(snapshot: Snapshot, match: MatchView): Promise<Bl
 /**
  * 편성 이미지(준비 화면, 2026-11-07): 시작 전 편성의 블루팀·레드팀 5명(포지션별 이름), 모임 이름, 날짜.
  * 경기 이미지의 팀 상자(drawTeamBox)를 그대로 쓴다. 승패가 없는 경기 모양으로 넘기므로 승리·패배 표시는 없다.
- * 넣지 않는 것: 티어·서포터 횟수·기피 라인·대기자·조회 링크(비공개 정보).
+ * 넣지 않는 것: 티어·서포터 횟수·기피 라인·대기자·모임 링크(비공개 정보).
  */
 export function drawDraftImage(draft: Draft, groupName: string, timeZone: string): Promise<Blob> {
   return paintWithFonts((p) => {
@@ -488,7 +488,7 @@ function drawRecordRow(
 /**
  * 오늘 요약 이미지(2026-11-07): 경기 수·참가 수, 개인 승패(승 많은 순), 서포터를 간 사람, 연승 중인 사람.
  * 집계는 src/shared/sessionSummary.ts, 그리기는 오늘의 결과 이미지의 개인 승패 칸·여러 줄 글 나누기를 그대로 쓴다.
- * 넣지 않는 것: 티어·가중치·기피 라인·서포터 횟수 보정값·조회 링크.
+ * 넣지 않는 것: 티어·가중치·기피 라인·서포터 횟수 보정값·모임 링크.
  */
 export function drawSessionSummaryImage(
   snapshot: Snapshot,
@@ -578,7 +578,7 @@ export function drawSessionSummaryImage(
 }
 
 /**
- * 시즌 요약 이미지: 요약 숫자와 시상 목록(근거 숫자 포함). 티어·기피 라인·조회 링크는 넣지 않는다.
+ * 시즌 요약 이미지: 요약 숫자와 시상 목록(근거 숫자 포함). 티어·기피 라인·모임 링크는 넣지 않는다.
  * 수상자 글이 길면 줄을 바꿔 모두 싣는다.
  */
 export function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary): Promise<Blob> {
@@ -784,7 +784,7 @@ export function ShareImageDialog(props: {
         <>
           <img className="share-preview" src={state.url} alt={`${props.title} 미리보기`} />
           <p className="hint">
-            티어·조회 링크는 이미지에 넣지 않았어요. 버튼이 안 되면 이미지를 길게 눌러(컴퓨터는
+            티어·모임 링크는 이미지에 넣지 않았어요. 버튼이 안 되면 이미지를 길게 눌러(컴퓨터는
             오른쪽 클릭) 저장해 주세요.
           </p>
           <div className="button-row">

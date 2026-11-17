@@ -76,7 +76,6 @@ export function Match() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [cancelAsk, setCancelAsk] = useState<null | { needsDecision: boolean }>(null);
-  const [sendOpen, setSendOpen] = useState(false);
   // 교체할 사람(진행 중 명단에서 누른 사람)의 참가자 ID.
   const [replacing, setReplacing] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
@@ -204,11 +203,8 @@ export function Match() {
       </StickyAction>
 
       <div className="button-row">
-        <button type="button" className="secondary" onClick={() => setSendOpen(true)}>
-          참가자에게 편성 보내기
-        </button>
         <button type="button" className="secondary" onClick={() => setSharing(true)}>
-          명단 공유
+          참가자에게 편성 보내기
         </button>
       </div>
       <div className="button-row">
@@ -234,38 +230,30 @@ export function Match() {
 
       {sheet}
 
-      {sharing && snapshot.group.viewToken && (
-        <Dialog title="명단 공유" onClose={() => setSharing(false)}>
-          <p className="hint">
-            링크는 항상 최신 상태를 보여 줘요. 텍스트는 복사한 시점의 내용이에요.
-          </p>
-          <div className="button-row">
-            <CopyButton label="링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
-            <CopyButton
-              label="텍스트 복사"
-              text={() => matchRosterText(snapshot, match, viewLink(snapshot.group.viewToken!))}
-            />
-          </div>
-        </Dialog>
-      )}
-
-      {sendOpen && (
-        <Dialog title="참가자에게 편성 보내기" onClose={() => setSendOpen(false)}>
+      {/* 예전에는 "명단 공유"(모임 링크·글)와 "참가자에게 편성 보내기"(편성 링크) 창이 따로였다. 링크를 모임 링크
+          하나로 모은 뒤(2026-11-17) 같은 링크를 두 창에서 주는 꼴이라 한 창으로 합쳤다. */}
+      {sharing && (
+        <Dialog title="참가자에게 편성 보내기" onClose={() => setSharing(false)}>
           {snapshot.group.viewToken ? (
             <>
               <p>
                 링크를 단톡방에 붙여 넣으면 참가자가 로그인 없이 휴대폰으로 블루·레드 10명과 포지션, 시작 시각을 봐요.
                 티어·서포터 횟수는 보이지 않아요.
               </p>
-              <p className="hint">링크는 항상 지금 진행 중인 경기를 보여 줘요(사람을 바꾸면 그대로 반영돼요).</p>
-              <p className="hint">한 번 보내 두면 다음 경기도 같은 링크예요.</p>
+              <p className="hint">
+                모임 링크 하나예요. 경기 중에는 지금 편성을, 내전이 끝나면 기록을 보여 줘요. 글은 복사한 시점의 명단이에요.
+              </p>
               <div className="button-row">
-                <CopyButton label="편성 링크 복사" text={() => viewLink(snapshot.group.viewToken!, "live")} />
+                <CopyButton label="링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
+                <CopyButton
+                  label="텍스트 복사"
+                  text={() => matchRosterText(snapshot, match, viewLink(snapshot.group.viewToken!))}
+                />
               </div>
             </>
           ) : (
             <p className="note" role="status">
-              모임 탭에서 조회 링크를 먼저 만들어요. 그 링크로 참가자 편성 화면이 열려요.
+              모임 탭에서 모임 링크를 먼저 만들어요. 그 링크로 참가자 편성 화면이 열려요.
             </p>
           )}
         </Dialog>

@@ -35,7 +35,7 @@ export const REQUEST_STATUS_LABEL: Record<MemberRequestStatus, string> = {
 
 /**
  * 참가 중인 모임(#/mine/모임ID/...). 참가자로 연결한 계정(멤버)이 보는 화면.
- * 조회 링크와 같은 읽기 전용 화면(viewerPage)을 토큰 없이 연다. 서버 응답도 조회 링크와 같은 직렬화 함수를 쓰고,
+ * 모임 링크와 같은 읽기 전용 화면(viewerPage)을 토큰 없이 연다. 서버 응답도 모임 링크와 같은 직렬화 함수를 쓰고,
  * 내 것(me: 내 참가자 ID·내 기피 라인·내 요청)만 더해 온다.
  * 첫 화면 "내 정보": 내 전적 바로 가기, 내 기피 라인, 요청 남기기·내 요청 상태, 연결 끊기.
  */
@@ -98,7 +98,7 @@ export function Member(props: { gid: string; rest: string[] }) {
   );
 }
 
-/** 현재 경기(조회 링크의 첫 화면과 같은 내용). 내 이름은 연결한 참가자로 정해져 있다. */
+/** 현재 경기(모임 링크의 첫 화면과 같은 내용). 내 이름은 연결한 참가자로 정해져 있다. */
 function CurrentMatch(props: { snapshot: Snapshot; meId: string; base: string }) {
   const { snapshot, meId, base } = props;
   const nameOf = nameMap(snapshot);

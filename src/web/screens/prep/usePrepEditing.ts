@@ -200,9 +200,9 @@ export function usePrepEditing(app: AppValue, draft: Draft, ctx: RotationContext
     setDrawNote(null);
   }
 
-  /** 추천 후보를 적용한다. 포지션은 새로 뽑는다. */
-  function applyCandidate(candidate: TeamCandidate) {
-    const next = applyTeams(draft, candidate.teamA, avoidMap);
+  /** 추천 창 후보나 맨 위 "다음 추천"(MMR 순서)의 나누기를 적용한다. 포지션은 새로 뽑고, 되돌리기 이력에 남는다. */
+  function applySplit(teamA: readonly string[]) {
+    const next = applyTeams(draft, teamA, avoidMap);
     update(next);
     setCandidates(null);
     setDrawNote(null);
@@ -299,7 +299,7 @@ export function usePrepEditing(app: AppValue, draft: Draft, ctx: RotationContext
     keepPositions,
     toggleSelectedLock,
     stepHistory,
-    applyCandidate,
+    applySplit,
     replaceSelected,
     dropConstraint,
   };

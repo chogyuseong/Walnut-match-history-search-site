@@ -8,7 +8,7 @@ export function isFirstVisit(): boolean {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      // 기억한 모임(naejeon.group), 작성 중인 편성·고른 목록, 조회 링크의 "내 이름"(naejeon.me.토큰) 등.
+      // 기억한 모임(naejeon.group), 작성 중인 편성·고른 목록, 모임 링크의 "내 이름"(naejeon.me.토큰) 등.
       if (key && key.startsWith("naejeon.") && key !== "naejeon.theme") return false;
     }
     return true;
@@ -83,7 +83,7 @@ function IntroShotImages({ shot }: { shot: IntroShot }) {
 }
 
 /**
- * 첫 화면의 소개(로그인하지 않았고 이 기기에 기억한 모임·조회 링크·편성이 없을 때만, src/web/screens/Today.tsx).
+ * 첫 화면의 소개(로그인하지 않았고 이 기기에 기억한 모임·모임 링크·편성이 없을 때만, src/web/screens/Today.tsx).
  * 이때 오늘 화면의 머리·빈 안내는 숨고 이 소개가 화면 전체다. 구조는 확정 시안(docs/design-mockup/home-gold.html):
  * 소개 제목(화면 제목 h1) + 설명 한 문단 → 채운 주 버튼 하나 · 보조 버튼 · 텍스트 링크 → 안내 한 줄 → 기능 목록.
  * 휴대폰(390×844)에서 스크롤 없이, 하단 메뉴에 가리지 않고 "로그인 없이 팀 짜기"가 보여야 한다(e2e/intro-demo.spec.ts).

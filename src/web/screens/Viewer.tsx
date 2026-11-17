@@ -6,7 +6,7 @@ import { ApiFailure, getWithEtag } from "../api";
 import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
 import { ChampionTier } from "../lazyScreens";
 import { FormDots, KpiStrip, MatchTeams, ScreenHead } from "../screenKit";
-import { Dialog, LineIcon, type LineIconName } from "../ui";
+import { Dialog, LineIcon, Redirect, type LineIconName } from "../ui";
 import { go } from "../useApp";
 import { Compare } from "./Compare";
 import { Dashboard } from "./Dashboard";
@@ -19,7 +19,7 @@ import { Search } from "./Search";
 import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./SeasonSummary";
 
 /**
- * 조회 링크·멤버 화면의 스냅숏 읽기. 처음 열 때와 탭으로 돌아올 때마다 다시 읽는다.
+ * 모임 링크·멤버 화면의 스냅숏 읽기. 처음 열 때와 탭으로 돌아올 때마다 다시 읽는다.
  * - ETag가 지난번과 같으면 이전 객체를 그대로 둔다. 새 객체를 넣으면 MMR(522경기면 수십 ms) 같은 memo 계산이
  *   내용이 같아도 전부 다시 돈다(운영자 화면 useApp.ts loadSnapshot과 같은 방식).
  * - 순번으로 늦게 온 응답을 버린다(탭을 빠르게 오가면 예전 요청이 나중에 도착할 수 있다).
@@ -119,7 +119,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
   const nameOf = nameMap(snapshot);
   // 고른 "내 이름"이 그 뒤 다른 이름에 합쳐졌으면 남은 이름으로 본다(기기 저장값은 그대로 둔다).
   const meId = myId ? resolveMerged(snapshot.participants, myId) : null;
-  // 조회 링크의 모든 화면 위에 같은 메뉴와 점검 안내를 둔다.
+  // 모임 링크의 모든 화면 위에 같은 메뉴와 점검 안내를 둔다.
   const shell = (current: ViewerTab, body: React.ReactNode) => (
     <>
       <ViewerNav base={base} group={snapshot.group.name} current={current} />
@@ -144,6 +144,11 @@ export function Viewer(props: { token: string; rest: string[] }) {
     rest[0] === "m" && rest[1]
       ? (snapshot.matches.find((m) => String(m.matchNo) === rest[1]) ?? null)
       : null;
+  // 예전 조회 링크(/now)나 메뉴의 "현재 경기"로 와도 경기 중이면 편성 화면(자동 갱신·내 자리)으로 넘긴다.
+  // 모임 링크 하나로 모은 뒤(format.ts viewLink) 경기 중 화면은 편성 화면 하나다. 특정 경기 주소(/m/번호)는 넘기지 않는다.
+  if (!requested && (rest.length === 0 || rest[0] === "now") && current?.state === "in_progress") {
+    return <Redirect to={`#/v/${token}/live`} />;
+  }
   const match = requested ?? current;
   const mySeat = match?.roster.find((r) => r.participantId === meId) ?? null;
   // 이름 고르기 목록: 경기 중이면 그 경기 명단, 경기가 없으면 결과가 남은 사람 전부(보관·합쳐진 사람 제외).
@@ -330,8 +335,8 @@ export const VIEWER_TAB_ICON: Record<ViewerTab | "me", LineIconName> = {
 };
 
 /**
- * 조회 링크와 예시 모임(#/demo, src/web/screens/Demo.tsx)이 같이 쓰는 읽기 전용 화면들.
- * 주소의 나머지(rest)에 맞는 화면이 없으면 null(조회 링크의 "현재 경기"처럼 각자 그린다).
+ * 모임 링크와 예시 모임(#/demo, src/web/screens/Demo.tsx)이 같이 쓰는 읽기 전용 화면들.
+ * 주소의 나머지(rest)에 맞는 화면이 없으면 null(모임 링크의 "현재 경기"처럼 각자 그린다).
  */
 export function viewerPage(
   snapshot: Snapshot,
@@ -489,7 +494,7 @@ export function viewerPage(
   return null;
 }
 
-/** 점검 중(백업 복원·모임 삭제 진행 중) 안내. 조회 링크의 모든 화면 맨 위에 둔다. */
+/** 점검 중(백업 복원·모임 삭제 진행 중) 안내. 모임 링크의 모든 화면 맨 위에 둔다. */
 export function MaintenanceNote() {
   return (
     <p className="note warn viewer-note" role="status">

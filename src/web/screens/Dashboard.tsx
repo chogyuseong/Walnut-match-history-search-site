@@ -19,7 +19,7 @@ import { seriesScoreOfMatch, useSeriesBadges } from "../seriesPanel";
 import { DataTable, type TableColumn } from "../dataTable";
 import { FormDots, StandingNote, useMediaQuery } from "../screenKit";
 
-/** 결과를 저장한 경기가 없을 때(조회 링크·예시의 요약 탭). 무엇이 쌓이는지만 짧게 알려준다.
+/** 결과를 저장한 경기가 없을 때(모임 링크·예시의 요약 탭). 무엇이 쌓이는지만 짧게 알려준다.
  *  운영자 오늘 화면은 이 패널 대신 "지금 할 일" 안내 하나만 둔다(Today.tsx). */
 function DashboardEmpty() {
   return (
@@ -41,7 +41,7 @@ const TOP_PEOPLE = 5;
 
 /**
  * 홈 아래쪽 요약: 최근 경기 5개, 랭킹 상위 5명(전체 누적), 요즘 흐름(연승 중·최근 10경기 승률).
- * 운영자 홈과 조회 링크의 요약 화면이 같이 쓴다. 확정 경기가 없으면 안내 한 줄만 낸다.
+ * 운영자 홈과 모임 링크의 요약 화면이 같이 쓴다. 확정 경기가 없으면 안내 한 줄만 낸다.
  * 요약 탭(headline)에서는 가장 최근 확정 경기를 전광판(MatchScoreboard)으로 크게 올리고 나머지를 "이전 경기"로 둔다.
  * 운영자 홈은 위에 오늘의 결과가 따로 있어 전광판을 두지 않는다.
  * PC(1200px 이상)는 2단: 왼쪽 넓은 단(.dash-main)에 전광판과 이전 경기 표(한 경기 한 줄), 오른쪽 좁은 단(.dash-grid)에

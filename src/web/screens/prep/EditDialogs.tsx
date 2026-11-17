@@ -93,7 +93,7 @@ export function RecommendDialog(props: { draft: Draft; candidates: TeamCandidate
             <button
               type="button"
               className={index === 0 ? "primary" : "secondary"}
-              onClick={() => edit.applyCandidate(candidate)}
+              onClick={() => edit.applySplit(candidate.teamA)}
             >
               이 편성으로 바꾸기
             </button>

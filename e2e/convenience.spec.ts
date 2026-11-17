@@ -104,7 +104,7 @@ test("1) 참가자에게 편성 보내기: 링크를 복사하고, 로그인 없
   await noHorizontalOverflow(page, "편성 보내기 창");
   // 클립보드가 막힌 브라우저에서는 직접 복사할 글 상자가 뜬다. 어느 쪽이든 /live 주소다.
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await dialog.getByRole("button", { name: "편성 링크 복사" }).click();
+  await dialog.getByRole("button", { name: "링크 복사" }).click();
   const manual = dialog.locator("textarea");
   const copied = dialog.getByRole("button", { name: "복사했어요" });
   await expect(manual.or(copied)).toBeVisible();

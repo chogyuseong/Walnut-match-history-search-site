@@ -102,7 +102,7 @@ test("결과 입력의 메모가 카드·상세·조회 링크에 글 그대로 
   const sheet = await chooseBlueWin(page, 1);
   const memo = sheet.getByLabel("메모 (선택)");
   await expect(memo).toBeVisible();
-  await expect(sheet.getByText("조회 링크에서도 보여요", { exact: false })).toBeVisible();
+  await expect(sheet.getByText("모임 링크에서도 보여요", { exact: false })).toBeVisible();
   await memo.fill("바론 스틸로 역전\n<b>굿</b>");
   await expect(sheet.getByText("18/200자")).toBeVisible();
   await sheet.getByRole("button", { name: "저장" }).click();

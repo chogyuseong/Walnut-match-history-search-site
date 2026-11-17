@@ -321,8 +321,14 @@ export function draftRosterText(draft: Draft): string {
   return lines.join("\n");
 }
 
-export function viewLink(token: string, suffix = "now"): string {
-  return `${location.origin}/#/v/${token}/${suffix}`;
+/**
+ * 참가자에게 보내는 모임 링크. 운영자가 나눠 주는 링크는 이것 하나다(2026-11-17, 예전엔 조회·편성 링크 둘).
+ * /live로 여는 까닭: 경기 날 휴대폰에서 가장 먼저 필요한 화면이 편성이고, 편성 화면 묶음이 작아 빨리 열린다.
+ * 내전이 열려 있지 않으면 편성 화면이 조회 첫 화면(/now)으로 넘긴다(ViewerLive.tsx). 예전 /now 링크는 경기 중이면
+ * 편성 화면으로 넘어온다(Viewer.tsx). 두 넘김 조건이 겹치지 않아야 오가며 돌지 않는다.
+ */
+export function viewLink(token: string): string {
+  return `${location.origin}/#/v/${token}/live`;
 }
 
 /**

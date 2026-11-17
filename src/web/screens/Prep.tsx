@@ -3,9 +3,9 @@ import { historyOf, isCompleteDraft, type DraftPerson } from "../../shared/draft
 import { draftForecast } from "../../shared/forecast";
 import type { NightDraft } from "../../shared/nightPool";
 import { draftDelta, type DeltaLine } from "../../shared/prepDelta";
-import { draftBalance, draftSplitRanks } from "../../shared/prepTools";
-import { computeRatings, ratingOptionsOf } from "../../shared/rating";
-import { diversityFor } from "../../shared/recommend";
+import { draftBalance, draftSplitRanks, mmrSplits, splitIndexOf } from "../../shared/prepTools";
+import { computeRatings, ratingOptionsOf, shownRating } from "../../shared/rating";
+import { diversityFor, type SplitRank } from "../../shared/recommend";
 import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/rotation";
 import { DEFAULT_SETTINGS } from "../../shared/types";
 import { UNCALIBRATED } from "../../shared/upset";
@@ -139,6 +139,15 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
         ? diversityFor({ matches: app.snapshot.matches, settings: app.snapshot.group.settings }, draft.people)
         : undefined,
     [app.snapshot, draft.people],
+  );
+  // MMR이 고른 순서의 나누기(Pick.tsx 팀 짜기가 첫째를 적용한다). 맨 위 줄의 "다음 추천"이 이 순서로 넘긴다.
+  // 같은 팀·다른 팀 조건을 지키는 나누기만 센다. 기록이 없어 모두 같으면 빈 목록이라 줄이 없다.
+  const splits = useMemo(
+    () =>
+      ratings
+        ? mmrSplits(draft.people, ratings, ratingOptions.start, draft.seed, draft.constraints ?? [], diversity)
+        : [],
+    [ratings, ratingOptions.start, draft.people, draft.seed, draft.constraints, diversity],
   );
   let delta: DeltaLine[] = [];
   try {
@@ -304,6 +313,16 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
           쉬는 사람이 약 500px 밀려 팀 ↔ 쉬는 사람 바꾸기에 스크롤이 필요했다. 두 단에서는 섞기 바로 아래다. */}
       <div className="prep-layout">
         <div className="prep-boards">
+          {forecast && splitRanks?.mmr && splits.length > 1 && (
+            <BalanceLine
+              rank={splitRanks.mmr}
+              averages={[forecast.teams.A.average, forecast.teams.B.average]}
+              onNext={() => {
+                const at = splitIndexOf(splits, draft.slots);
+                edit.applySplit(splits[(at + 1) % splits.length]!);
+              }}
+            />
+          )}
           <TeamBoards draft={draft} ctx={ctx} edit={edit} />
           <SelectionBar draft={draft} edit={edit} canReplace={others.length > 0} />
           {!twoColumns && shuffle}
@@ -392,6 +411,28 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
 
       {start.ask && <StartAskDialog draft={draft} ask={start.ask} start={start} busy={busy} error={error} />}
     </div>
+  );
+}
+
+/**
+ * 두 팀 상자 바로 위의 편성 결과 한 줄: "팀 평균 MMR 1612 : 1608 · 126가지 나누기 중 MMR 차 1위 · 다음 추천".
+ * 예상 승률 판(오른쪽·아래)까지 내려가지 않고 지금 편성이 얼마나 고른지 먼저 보게 한다.
+ * %를 쓰지 않는 것은 예상 승률이 지난 경기 검증에서 동전보다 낫지 않았기 때문이다(ForecastSection 순위 줄과 같은 말).
+ * "다음 추천"은 MMR 순서에서 지금 다음 나누기로 넘기고, 끝이면 1위로 돌아간다. 손으로 바꾼 편성이면 1위부터.
+ */
+function BalanceLine(props: { rank: SplitRank; averages: [number, number]; onNext: () => void }) {
+  const { rank, averages } = props;
+  const ties = rank.ties > 1 ? `(공동 ${rank.ties}개)` : "";
+  return (
+    <p className="note balance-line" role="status">
+      <span className="balance-figures">
+        팀 평균 MMR {shownRating(averages[0])} : {shownRating(averages[1])} · {rank.total}가지 나누기 중 MMR 차{" "}
+        {rank.rank}위{ties}
+      </span>{" "}
+      <button type="button" className="link" onClick={props.onNext}>
+        다음 추천
+      </button>
+    </p>
   );
 }
 

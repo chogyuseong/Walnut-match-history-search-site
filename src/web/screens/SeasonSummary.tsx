@@ -85,9 +85,9 @@ const AWARD_MARKS: Record<Exclude<AwardKey, "lineBest">, ReactNode> = {
 };
 
 /**
- * 시즌 종료 요약과 시상(src/shared/seasonAwards.ts). 운영자·조회 링크가 같은 화면을 본다.
+ * 시즌 종료 요약과 시상(src/shared/seasonAwards.ts). 운영자·모임 링크가 같은 화면을 본다.
  * 모두 스냅숏에서 계산하므로 불러온 뒤 높이가 바뀌지 않는다.
- * 티어·기피 라인은 쓰지 않는다(조회 링크에서도 보는 화면).
+ * 티어·기피 라인은 쓰지 않는다(모임 링크에서도 보는 화면).
  */
 export function SeasonSummaryScreen(props: {
   snapshot: Snapshot;

@@ -267,13 +267,13 @@ test("끊기면 'N시 N분 내용', 실패 5번이면 자동 확인을 멈추고
   await context.close();
 });
 
-test("경기 없음: 기존 문구, 열린 내전이 없으면 '다음 경기' 안내도 없다", async ({ page, browser }) => {
+test("열린 내전이 없으면 모임 링크(/live)는 조회 첫 화면으로 넘어간다", async ({ page, browser }) => {
   const s = await setup(page, "편성 경기 없음");
   const { context, guest } = await guestPage(browser, 320);
   await guest.goto(`/#/v/${s.token}/live`);
-  await expect(guest.getByText("지금 진행 중인 경기가 없어요.")).toBeVisible();
+  await expect(guest).toHaveURL(new RegExp(`#/v/${s.token}/now$`));
+  await expect(guest.getByText("아직 시작한 경기가 없어요.")).toBeVisible();
   await expect(guest.getByText("다음 경기는 운영자가 시작하면 여기에 떠요.")).toHaveCount(0);
-  await expect(guest.getByRole("region", { name: "내 자리" })).toHaveCount(0);
   await noHorizontalOverflow(guest, "경기 없음");
   await context.close();
 });

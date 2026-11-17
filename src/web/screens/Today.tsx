@@ -27,7 +27,7 @@ export function Today() {
   const [undo, setUndo] = useState<(() => void) | null>(null);
   const [imageOpen, setImageOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  // 처음 온 방문자(로그인 안 함, 기기에 기억한 모임·조회 링크·편성 없음)에게만 소개를 맨 위에 붙인다.
+  // 처음 온 방문자(로그인 안 함, 기기에 기억한 모임·모임 링크·편성 없음)에게만 소개를 맨 위에 붙인다.
   // 이 화면이 열릴 때 한 번만 정한다(소개가 중간에 사라지거나 생겨 화면이 밀리지 않게).
   const [firstVisit] = useState(() => !app.draft && isFirstVisit());
   // 소개가 보이면 그것이 화면 전체다. 기록이 없는 사람에게 "아직 경기가 없어요"·빈 검색·빈 요약 같은 빈 안내를
@@ -45,7 +45,12 @@ export function Today() {
   const today = useMemo(() => (snapshot ? todayMatches(snapshot) : []), [snapshot]);
   const todayIds = useMemo(() => new Set(today.map((m) => m.id)), [today]);
   const confirmedToday = today.filter((m) => m.state === "confirmed");
-  const nextFrom = awaiting.find((m) => todayIds.has(m.id)) ?? null;
+  // 오늘 마지막으로 끝낸 경기(결과 확정·결과 미입력). 있으면 주 버튼이 "다음 경기 준비"다.
+  // 밤 중간에 다음 판을 짤 때는 처음부터 고르기보다 같은 10명(+오늘 명단의 쉬는 사람)에서 잇는 일이 훨씬 많다.
+  const nextFrom =
+    today
+      .filter((m) => m.source === "live" && (m.state === "confirmed" || m.state === "awaiting_result"))
+      .toSorted((a, b) => b.matchNo - a.matchNo)[0] ?? null;
   const hasAnyMatch = (snapshot?.matches.length ?? 0) > 0;
   // 결과를 저장한 경기(통계에 드는 경기)가 하나라도 있는지. 없으면 전적 검색·요약 대신 "지금 할 일" 안내 하나만 둔다
   // (CLAUDE.md 8절: 빈 통계 패널 여러 개를 보여 주지 않는다). 그래프·기록 화면의 빈 안내와 같은 모양(.empty-state)이다.
@@ -60,6 +65,8 @@ export function Today() {
     [...allTime.values()].map((r) => ({ ...r, name: nameOf(r.participantId) })),
     query,
   );
+
+  const prepareFrom = (from: MatchView) => void import("./Match").then((m) => m.prepareNext(app, from));
 
   async function closeSession() {
     if (!snapshot) return;
@@ -122,7 +129,8 @@ export function Today() {
         ) : (
           // 상태 우선순위: 진행 중 → 작성하던 편성 → 결과 미입력 → 오늘 확정. 제목(h2)이 그 상태의 대표 수치 줄이고
           // 주 버튼은 하나다. 결과 미입력 경기는 상태와 상관없이 카드 아래쪽 줄에 모은다(전적 검색 아래에 두었을 때
-          // 미룬 경기를 첫 화면에서 놓쳤다). 결과 입력을 주 버튼으로 올리지 않는 것은 "결과는 나중에"가 일부러 미루는 길이라서다.
+          // 미룬 경기를 첫 화면에서 놓쳤다). 주 버튼은 진행 중이면 그 경기 결과 입력, 아니면 다음 경기 준비다.
+          // 미룬 경기의 결과 입력을 주 버튼으로 올리지 않는 것은 "결과는 나중에"가 일부러 미루는 길이라서다.
           <section className="card now-card" aria-label="지금 할 일">
             <div className="now-head">
               {current ? (
@@ -157,9 +165,16 @@ export function Today() {
               )}
               <div className="now-actions">
                 {current ? (
-                  <button type="button" className="primary wide" onClick={() => go("/match")}>
-                    현재 경기 보기
-                  </button>
+                  // 진행 중일 때 운영자가 이 화면을 여는 까닭은 대개 결과를 넣으려는 것이라 결과 창을 바로 연다.
+                  // 교체·미진행 취소 같은 경기 중 조작은 "현재 경기 보기"에 그대로 있다.
+                  <>
+                    <button type="button" className="primary wide" onClick={() => setResultFor(current)}>
+                      {current.matchNo}경기 결과 입력
+                    </button>
+                    <button type="button" className="secondary wide" onClick={() => go("/match")}>
+                      현재 경기 보기
+                    </button>
+                  </>
                 ) : app.draft ? (
                   <>
                     <button type="button" className="primary wide" onClick={() => go("/prep")}>
@@ -180,21 +195,20 @@ export function Today() {
                   </>
                 ) : (
                   <>
-                    <button type="button" className="primary wide" onClick={() => go("/pick")}>
-                      참가자 고르기
-                    </button>
-                    {/* "결과는 나중에"로 넘긴 오늘 경기가 있으면 그 경기에서 이어 짜는 길(같은 팀·오늘 명단의 쉬는 사람)을 남긴다.
-                        이 줄이 없으면 결과를 미룬 뒤에는 처음부터 고르기만 남았다.
+                    {/* 오늘 끝낸 경기가 있으면 그 경기에서 잇는 것이 주 버튼, 처음부터 고르기는 보조다.
                         prepareNext는 운영자 화면 묶음(Match.tsx)에 있어 누를 때 불러온다(첫 화면 묶음을 키우지 않게). */}
                     {nextFrom && (
-                      <button
-                        type="button"
-                        className="secondary wide"
-                        onClick={() => void import("./Match").then((m) => m.prepareNext(app, nextFrom))}
-                      >
+                      <button type="button" className="primary wide" onClick={() => prepareFrom(nextFrom)}>
                         {nextFrom.matchNo}경기에서 이어 다음 경기 준비
                       </button>
                     )}
+                    <button
+                      type="button"
+                      className={nextFrom ? "secondary wide" : "primary wide"}
+                      onClick={() => go("/pick")}
+                    >
+                      참가자 고르기
+                    </button>
                   </>
                 )}
               </div>
@@ -370,8 +384,14 @@ export function Today() {
           nameOf={nameOf}
           onClose={() => setResultFor(null)}
           // 닫기는 창 머리에 이미 있어 여기에 두지 않는다(같은 이름 버튼 둘).
+          // 진행 중이던 경기를 막 끝냈으면 현재 경기 화면의 결과 창처럼 다음 판으로 바로 잇는다.
           afterSave={(saved) => (
             <div className="button-row">
+              {resultFor.state === "in_progress" && (
+                <button type="button" className="primary" onClick={() => prepareFrom(saved)}>
+                  다음 경기 준비
+                </button>
+              )}
               <button type="button" className="link" onClick={() => go(`/m/${saved.id}`)}>
                 수정
               </button>

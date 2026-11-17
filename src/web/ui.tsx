@@ -453,3 +453,11 @@ export function LineIcon(props: { name: LineIconName; small?: boolean }) {
     </svg>
   );
 }
+
+/** 주소를 바꿔 다른 화면으로 넘긴다. replace라서 뒤로 가기가 넘기기 전 주소로 돌아와 다시 넘기는 일이 없다. */
+export function Redirect(props: { to: string }) {
+  useEffect(() => {
+    location.replace(props.to);
+  }, [props.to]);
+  return null;
+}

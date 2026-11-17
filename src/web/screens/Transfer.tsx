@@ -67,7 +67,7 @@ export function Transfer(props: { token: string }) {
       {renewFailed ? (
         <>
           <p className="note error" role="alert">
-            운영자는 맡았지만 조회 링크·참가 신청 링크는 새로 만들지 못했어요. 모임 탭에서 다시 만들어 주세요.
+            운영자는 맡았지만 모임 링크·참가 신청 링크는 새로 만들지 못했어요. 모임 탭에서 다시 만들어 주세요.
           </p>
           <ErrorNote error={renewFailed} />
           <button type="button" className="primary wide" onClick={openGroupTab}>
@@ -91,7 +91,7 @@ export function Transfer(props: { token: string }) {
             </p>
             <p className="hint">
               수락하면 경기 시작·결과 저장·정정·설정을 이 계정으로 하게 되고, 이전 운영자는 수정할
-              수 없게 돼요. 기록은 그대로이고, 조회 링크는 아래에서 고를 때만 바뀌어요.
+              수 없게 돼요. 기록은 그대로이고, 모임 링크는 아래에서 고를 때만 바뀌어요.
             </p>
             <p className="hint">
               링크 만료: {formatDate(info.expiresAt)} {formatTime(info.expiresAt)}

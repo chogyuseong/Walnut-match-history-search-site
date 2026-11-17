@@ -3,7 +3,19 @@ import { pairRecord } from "./headToHead";
 import { lastLiveMatch } from "./lastPick";
 import { normalizePriority, priorityCounts, type PriorityCount, type PriorityMap } from "./priority";
 import type { RatingTable } from "./rating";
-import { priorityWeightOf, splitRank, weightSumDiff, type RecommendPerson, type SplitRank } from "./recommend";
+import { rngFromSeed } from "./random";
+import {
+  chooseFour,
+  priorityWeightOf,
+  repeatPairsOf,
+  satisfies,
+  splitRank,
+  weightSumDiff,
+  type DiversityInput,
+  type RecommendPerson,
+  type SplitRank,
+  type TeamConstraint,
+} from "./recommend";
 import { sameComposition } from "./series";
 import { isCounted, ratePercent } from "./stats";
 import { POSITIONS, type GroupWeights, type MatchView, type Position, type RosterEntry } from "./types";
@@ -115,6 +127,60 @@ export function draftSplitRanks(
   const pick = (team: readonly string[]) => team.map((k) => byKey.get(k)!);
   const tierRank = splitRank(keys, teamA, (a, b) => weightSumDiff(pick(a), pick(b), weightOf), constraints);
   return { mmr, tier: tierRank };
+}
+
+/**
+ * MMR 평균 차가 작은 순으로 늘어놓은 5:5 나누기(각 나누기의 팀 A 키). 팀 짜기 첫 편성(Pick.tsx)과
+ * 준비 화면 "다음 추천"(Prep.tsx)이 같은 순서를 써야 1위 다음이 2위가 된다.
+ * - 차는 draftSplitRanks와 같게 정수로 반올림해 견준다. 그래야 여기서 1등인 나누기가 순위 줄에서도 1위다.
+ * - 차가 같으면 최근 경기와 덜 겹치는 조합(diversity, 추천 창과 같은 계산), 그다음 시드로 섞은 순서.
+ * - 모든 나누기의 차가 같으면(모두 기록이 없어 시작값) 빈 목록이다. 고를 근거가 없으니 무작위 편성을 그대로 둔다.
+ * 연결 안 된 사람(participantId 없음)은 시작값(start)으로 계산한다.
+ */
+export function mmrSplits(
+  people: readonly Pick<DraftPerson, "key" | "participantId">[],
+  ratings: RatingTable,
+  start: number,
+  seed: number,
+  constraints: readonly TeamConstraint[] = [],
+  diversity?: DiversityInput,
+): string[][] {
+  if (people.length !== 10) return [];
+  const mmrOf = new Map(
+    people.map((p) => [p.key, (p.participantId ? ratings.get(p.participantId)?.rating : undefined) ?? start]),
+  );
+  const keys = people.map((p) => p.key);
+  const average = (team: readonly string[]) => team.reduce((s, k) => s + mmrOf.get(k)!, 0) / team.length;
+  const rng = rngFromSeed(seed);
+  const first = keys[0]!;
+  const rest = keys.slice(1);
+  const scored = [...chooseFour(rest.length)].flatMap((picks) => {
+    const teamA = [first, ...picks.map((i) => rest[i]!)];
+    const inA = new Set(teamA);
+    if (!constraints.every((c) => satisfies(inA, c))) return [];
+    const teamB = keys.filter((k) => !inA.has(k));
+    return [
+      {
+        teamA,
+        gap: Math.round(Math.abs(average(teamA) - average(teamB))),
+        repeat: diversity ? repeatPairsOf(teamA, teamB, diversity) : 0,
+        order: rng(),
+      },
+    ];
+  });
+  if (scored.length === 0 || scored.every((s) => s.gap === scored[0]!.gap)) return [];
+  scored.sort((x, y) => x.gap - y.gap || x.repeat - y.repeat || x.order - y.order);
+  return scored.map((s) => s.teamA);
+}
+
+/** 지금 편성이 splits의 몇 번째 나누기인지(팀 A·B를 바꾼 것도 같은 나누기). 없으면 -1. */
+export function splitIndexOf(splits: readonly string[][], slots: Draft["slots"]): number {
+  const blue = new Set(slots.filter((s) => s.team === "A").map((s) => s.key));
+  const sameSplit = (teamA: readonly string[]) => {
+    const hits = teamA.filter((k) => blue.has(k)).length;
+    return hits === teamA.length || hits === 0;
+  };
+  return splits.findIndex(sameSplit);
 }
 
 /**

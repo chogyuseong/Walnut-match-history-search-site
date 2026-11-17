@@ -96,9 +96,9 @@ test("초대 링크로 공동 운영자가 되어 경기 결과를 저장하고,
   await expect(section.getByText("아직 공동 운영자가 없어요.")).toBeVisible();
   // 내보낸 사람도 조회·신청 링크는 알고 있으니 다시 만들라고 안내하고, 조회 링크 칸으로 데려간다.
   const hint = section.getByRole("status", { name: "링크 다시 만들기 안내" });
-  await expect(hint).toContainText("조회 링크와 참가 신청 링크는 그대로 열 수 있어요");
-  await hint.getByRole("button", { name: "조회 링크 다시 만들기" }).click();
-  await expect(owner.getByRole("region", { name: "조회 링크", exact: true }).getByRole("button", { name: "링크 다시 만들기" })).toBeInViewport();
+  await expect(hint).toContainText("모임 링크와 참가 신청 링크는 그대로 열 수 있어요");
+  await hint.getByRole("button", { name: "모임 링크 다시 만들기" }).click();
+  await expect(owner.getByRole("region", { name: "모임 링크", exact: true }).getByRole("button", { name: "링크 다시 만들기" })).toBeInViewport();
   await hint.getByRole("button", { name: "닫기" }).click();
   await expect(hint).toHaveCount(0);
 
@@ -144,7 +144,7 @@ test("내보낼 때 '링크도 새로 만들기'를 고르면 옛 조회 링크�
   const section = owner.getByRole("region", { name: "공동 운영자" });
   await section.getByRole("button", { name: "내보내기" }).click();
   const dialog = owner.getByRole("dialog", { name: "공동 운영자 내보내기" });
-  await dialog.getByRole("checkbox", { name: /조회 링크와 참가 신청 링크도 새로 만들기/ }).check();
+  await dialog.getByRole("checkbox", { name: /모임 링크와 참가 신청 링크도 새로 만들기/ }).check();
   await dialog.getByRole("button", { name: "내보내기" }).click();
   await expect(owner.getByText("두 링크를 새로 만들었어요")).toBeVisible();
   // 고른 경우에는 "다시 만들라"는 안내를 띄우지 않는다.

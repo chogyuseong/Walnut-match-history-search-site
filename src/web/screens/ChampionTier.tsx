@@ -34,7 +34,7 @@ import { scrollBehavior, useSearchJump } from "../ui";
 import { go } from "../useApp";
 
 /**
- * 챔피언 티어(#/champions, 조회 링크·예시 모임은 …/champions). 계산은 src/shared/championTier.ts.
+ * 챔피언 티어(#/champions, 모임 링크·예시 모임은 …/champions). 계산은 src/shared/championTier.ts.
  * 전적 사이트의 챔피언 티어 화면 구조(왼쪽 초성별 챔피언 격자 + 오른쪽 정렬 표)를 따르되, 이 모임은 운영자가 손으로 넣은
  * 기록만 있으므로 머리에 입력률("챔피언 기록 34 / 111경기")을 늘 보여 주고 운영자에게는 빠진 경기로 가는 길을 둔다.
  * 틀: 화면 머리 → 필터 줄(범위·라인·검색) → 요약 카드 → [왼쪽 격자 | 오른쪽 표 + 기록 부족 표].
@@ -55,7 +55,7 @@ export function ChampionTier(props: {
   openPerson: (id: string) => void;
   /**
    * 운영자 화면이면 챔피언이 빠진 최근 경기로 가는 버튼(경기 상세에서 "챔피언 기록")과, 확정 경기가 없을 때 팀 짜기 버튼을 둔다.
-   * 조회 링크·예시 모임은 입력률 숫자만 보여 준다.
+   * 모임 링크·예시 모임은 입력률 숫자만 보여 준다.
    */
   operator?: boolean;
 }) {

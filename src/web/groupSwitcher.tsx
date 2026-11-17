@@ -126,7 +126,7 @@ export function GroupSwitcher() {
 
 /**
  * 참가 중인 모임(참가자로 연결한 모임, migrations/0019). 운영하는 모임과 따로 보여 준다.
- * 고르면 조회 링크와 같은 읽기 전용 화면(#/mine/모임ID)이 토큰 없이 열린다. 없으면 그리지 않는다.
+ * 고르면 모임 링크와 같은 읽기 전용 화면(#/mine/모임ID)이 토큰 없이 열린다. 없으면 그리지 않는다.
  */
 export function MembershipList() {
   const app = useAppValue();

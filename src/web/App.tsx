@@ -126,7 +126,7 @@ export function App() {
               <Viewer key={route[1]} token={route[1]!} rest={route.slice(2)} />
             )}
           </Suspense>
-          {/* 조회 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
+          {/* 모임 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
           <div className="bleed-body">
             <LegalFooter privacyHref={`#/v/${route[1]}/privacy`} />
           </div>
@@ -142,7 +142,7 @@ export function App() {
           <main> 앞에 둔다: 넓은 화면에서 상단 바 바로 아래 한 줄이고, Tab 순서도 상단 바 → 주 메뉴 → 본문이다.
           좁은 화면에서는 CSS가 아래에 고정한다(순서는 같다). */}
       {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
-      {/* 참가 중인 모임은 조회 메뉴 줄이 main 안에 있어, 예시·조회 링크처럼 main의 폭 제한을 풀고(bleed) 줄을 창 폭 전체로
+      {/* 참가 중인 모임은 조회 메뉴 줄이 main 안에 있어, 예시·모임 링크처럼 main의 폭 제한을 풀고(bleed) 줄을 창 폭 전체로
           긋는다. 본문은 Member의 .bleed-body, 푸터는 아래 .bleed-body가 본문 폭으로 묶는다. */}
       <main className={route[0] === "mine" ? "bleed" : undefined} tabIndex={-1}>
         {!app.ready || app.switching ? (
@@ -230,7 +230,7 @@ const PAGE_TITLE: Record<string, string> = {
   admin: "사이트 운영 현황",
 };
 
-/** 조회 링크·예시 모임 안의 하위 화면(rest[0]) → 화면 이름. 없거나 모르는 값은 각 화면의 첫 화면 이름을 쓴다. */
+/** 모임 링크·예시 모임 안의 하위 화면(rest[0]) → 화면 이름. 없거나 모르는 값은 각 화면의 첫 화면 이름을 쓴다. */
 const SUB_PAGE_TITLE: Record<string, string> = {
   records: "기록",
   m: "경기 상세",
@@ -293,7 +293,7 @@ function NotFound() {
 /**
  * 상단 바: 사이트 이름, 테마 고르기, 로그인 상태(운영 화면만). 주 메뉴는 이 바 아래 한 줄(넓은 화면) 또는 화면 아래(좁은 화면).
  * 사이트 이름은 중립색 글자다(CLAUDE.md 5절: 로고를 강조색으로 칠하지 않는다).
- * 조회 링크로 들어온 사람에게는 운영 화면으로 가는 로고 링크와 로그인 버튼을 주지 않는다.
+ * 모임 링크로 들어온 사람에게는 운영 화면으로 가는 로고 링크와 로그인 버튼을 주지 않는다.
  */
 function TopBar(props: { homeLink?: boolean; actions?: ReactNode; feedbackNarrowOnly?: boolean }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
@@ -320,7 +320,7 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode; feedbackNarrow
         )}
         <div className="topbar-actions">
           {/* 피드백(시험 운영 기간). 운영 화면은 넓은 화면에 "피드백" 탭이 있어 좁은 화면에서만 보인다(feedbackNarrowOnly).
-              조회 링크·참가 신청·예시 모임에는 운영 탭이 없어 늘 보인다. */}
+              모임 링크·참가 신청·예시 모임에는 운영 탭이 없어 늘 보인다. */}
           <a className={props.feedbackNarrowOnly ? "topbar-feedback nav-narrow-only" : "topbar-feedback"} href="#/feedback">
             피드백
           </a>

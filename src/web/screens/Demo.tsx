@@ -6,7 +6,7 @@ import { VIEWER_TAB_ICON, viewerPage, type ViewerTab } from "./Viewer";
 
 /**
  * 예시 모임(#/demo, #/demo/records, #/demo/ranking, #/demo/champions, #/demo/p/…, #/demo/season/…). 서버·DB 없이 기기에서 만든 합성 데이터
- * (src/shared/demo.ts)를 조회 링크 화면과 같은 컴포넌트(viewerPage)로 읽기 전용으로 보여 준다.
+ * (src/shared/demo.ts)를 모임 링크 화면과 같은 컴포넌트(viewerPage)로 읽기 전용으로 보여 준다.
  * 합성 데이터 코드는 이 화면을 열 때만 불러온다(첫 화면 용량에 들어가지 않게).
  */
 export function Demo(props: { rest: string[] }) {

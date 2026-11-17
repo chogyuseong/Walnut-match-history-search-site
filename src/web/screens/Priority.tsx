@@ -20,7 +20,7 @@ import { Dialog, ErrorNote, scrollBehavior } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 
 /**
- * 티어 배정(#/priority)과 기피 라인(#/priority/avoid). 로그인한 운영자·공동 운영자만(App.tsx LOGIN_ONLY). 조회 링크에는 없다.
+ * 티어 배정(#/priority)과 기피 라인(#/priority/avoid). 로그인한 운영자·공동 운영자만(App.tsx LOGIN_ONLY). 모임 링크에는 없다.
  * 티어: 1·2·3·4·5티어·미지정 여섯 칸에 활성 참가자를 보여 주고, 사람마다 버튼으로 칸을 바꾼다.
  *   저장은 모임 탭과 같은 참가자 수정 API(PATCH …/participants/:id, skillGroup)다. 공개 설정(groupsPublic)은 모임 탭에 있다.
  *   연달아 눌러도 기다리지 않는다. 다시 읽기는 마지막 저장이 끝나고 잠깐 더 누르지 않을 때 한 번(useQueuedSaves).

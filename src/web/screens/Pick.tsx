@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { avoidMapFor } from "../../shared/avoid";
 import { applyTeams, createDraft, withoutHistory, type DraftPerson } from "../../shared/draft";
-import { BENCH_MAX, splitBench, TEAM_SIZE_TOTAL, withBench } from "../../shared/prepTools";
+import { BENCH_MAX, mmrSplits, splitBench, TEAM_SIZE_TOTAL, withBench } from "../../shared/prepTools";
+import { computeRatings, ratingOptionsOf } from "../../shared/rating";
 import { nameKey, parseNameList } from "../../shared/names";
 import { matchesName } from "../../shared/search";
 import { participation } from "../../shared/insights";
@@ -230,12 +231,18 @@ export function Pick() {
       key: p.key,
       skillGroup: (p.participantId ? groupOf.get(p.participantId) : null) ?? null,
     }));
-    if (app.snapshot && recPeople.some((p) => p.skillGroup !== null)) {
-      // 준비 화면의 추천과 같게 조합 다양성(모임 설정, 기본 켜짐)을 반영한다.
-      const diversity = diversityFor(
-        { matches: app.snapshot.matches, settings: app.snapshot.group.settings },
-        players,
-      );
+    // 준비 화면의 추천과 같게 조합 다양성(모임 설정, 기본 켜짐)을 반영한다.
+    const diversity = app.snapshot
+      ? diversityFor({ matches: app.snapshot.matches, settings: app.snapshot.group.settings }, players)
+      : undefined;
+    if (app.snapshot && recPeople.every((p) => p.skillGroup === null)) {
+      // 티어를 정하지 않은 모임은 지난 경기 MMR로 가장 고른 나누기를 먼저 보여 준다(준비 화면 맨 위 줄이 순위를 알린다).
+      // 기록이 없어 모든 나누기가 같으면 mmrSplits가 빈 목록이라 무작위 편성 그대로다.
+      const options = ratingOptionsOf(app.snapshot.group.settings);
+      const ratings = computeRatings(app.snapshot.matches, options);
+      const [best] = mmrSplits(players, ratings, options.start, seed, [], diversity);
+      if (best) draft = withoutHistory(applyTeams(draft, best, avoid));
+    } else if (app.snapshot) {
       const [best] = recommendTeams(
         recPeople,
         app.snapshot.group.settings.groupWeights,

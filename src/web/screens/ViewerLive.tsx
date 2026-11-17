@@ -20,7 +20,7 @@ import {
   teamRoster,
 } from "../format";
 import { PosLabel, ScreenHead } from "../screenKit";
-import { LineIcon } from "../ui";
+import { LineIcon, Redirect } from "../ui";
 
 /**
  * 참가자에게 보내는 편성 화면(#/v/토큰/live, 2026-11-07). 로그인 없이 조회 토큰으로 연다.
@@ -85,6 +85,12 @@ export function ViewerLive(props: { token: string }) {
   }
 
   const data = liveDataOf(snapshot);
+  // 모임 링크(format.ts viewLink)는 이 화면으로 연다. 내전이 열려 있지 않은 날(진행 중 경기도 없음)에는 편성 화면이
+  // 빈 안내뿐이라 조회 첫 화면(요약·마지막 경기·내 전적)으로 넘긴다. 내전 중 경기 사이에는 넘기지 않는다:
+  // 다음 경기가 시작되면 이 화면이 저절로 바뀌어야 해서다.
+  if (data.phase === "idle") {
+    return <Redirect to={`#/v/${token}/now`} />;
+  }
   const tz = data.timeZone;
   const match = data.shown;
   const live = match?.state === "in_progress" ? match : null;
@@ -99,7 +105,8 @@ export function ViewerLive(props: { token: string }) {
       <nav className="viewer-nav" aria-label="조회 메뉴">
         <strong>{data.groupName}</strong>
         <span>
-          <a className="link" href={`#/v/${token}/now`}>
+          {/* /now가 아니라 /records: 경기 중에 /now를 열면 다시 이 화면으로 넘어온다(Viewer.tsx). */}
+          <a className="link" href={`#/v/${token}/records`}>
             <LineIcon name="records" />
             기록 보기
           </a>{" "}
@@ -141,7 +148,7 @@ export function ViewerLive(props: { token: string }) {
         )}
 
         {match && (
-          <MySeat data={data} match={match} meId={meId} onChange={() => choose(null)} />
+          <MySeat token={token} data={data} match={match} meId={meId} onChange={() => choose(null)} />
         )}
 
         {match &&
@@ -179,7 +186,7 @@ export function ViewerLive(props: { token: string }) {
  * 맨 위 "내 자리". 이름을 안 골랐으면 고르는 방법만, 골랐으면 팀·라인·같은 팀·맞라인.
  * 진행 중 경기가 없으면 최근 경기의 내 결과와 그 내전 성적(확정 경기만)을 쓴다.
  */
-function MySeat(props: { data: LiveData; match: MatchView; meId: string | null; onChange: () => void }) {
+function MySeat(props: { token: string; data: LiveData; match: MatchView; meId: string | null; onChange: () => void }) {
   const { data, match, meId } = props;
   const change = (
     <button type="button" className="link" onClick={props.onChange}>
@@ -233,7 +240,13 @@ function MySeat(props: { data: LiveData; match: MatchView; meId: string | null; 
         </p>
       )}
       {!live && <DayRecord data={data} meId={meId} />}
-      <p>{change}</p>
+      {/* 모임 링크 하나로 모은 뒤 경기 날 참가자는 대부분 이 화면에 머문다. 조회 첫 화면의 "내 전적 보기"와 같은 길을 둔다. */}
+      <p>
+        <a className="link" href={`#/v/${props.token}/p/${meId}`}>
+          내 전적 보기 →
+        </a>{" "}
+        {change}
+      </p>
     </section>
   );
 }
@@ -465,3 +478,4 @@ function useLiveSnapshot(token: string) {
   const checkNow = useCallback(() => checkRef.current(true), []);
   return { snapshot, status, note, checkNow };
 }
+

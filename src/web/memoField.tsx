@@ -13,7 +13,7 @@ export function memoTooLong(raw: string): boolean {
 
 /**
  * 경기 메모 입력 칸(결과 입력 창·경기 상세가 함께 쓴다). 최대 200자, 줄바꿈 허용, 비우면 삭제.
- * 메모는 공개 정보라 조회 링크에서도 보인다는 안내를 칸 옆에 둔다.
+ * 메모는 공개 정보라 모임 링크에서도 보인다는 안내를 칸 옆에 둔다.
  */
 export function MemoField(props: { value: string; onChange: (value: string) => void; label?: string }) {
   const id = useId();
@@ -32,7 +32,7 @@ export function MemoField(props: { value: string; onChange: (value: string) => v
         onChange={(e) => props.onChange(e.target.value)}
       />
       <p id={`${id}-hint`} className="hint">
-        조회 링크에서도 보여요. 비우면 메모가 지워져요.{" "}
+        모임 링크에서도 보여요. 비우면 메모가 지워져요.{" "}
         <span className={over ? "memo-count over" : "memo-count"}>
           {count}/{MEMO_MAX}자
         </span>

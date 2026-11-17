@@ -1229,7 +1229,7 @@ export function MatchDetail(props: {
           </p>
           <MatchTeams match={match} nameOf={nameOf} />
           <p className="note">
-            목록·랭킹·통계와 조회 링크에서 사라져요. 경기 번호는 비워 두고, 기록 화면의 변경 내역에서 되살릴 수 있어요.
+            목록·랭킹·통계와 모임 링크에서 사라져요. 경기 번호는 비워 두고, 기록 화면의 변경 내역에서 되살릴 수 있어요.
           </p>
           <ErrorNote error={error} />
           <div className="button-row">
@@ -1353,7 +1353,7 @@ export function MatchDetail(props: {
 
       {editing === "champions" && (
         <Dialog title="챔피언 기록" onClose={closeEdit}>
-          <p className="note">승패와 통계는 그대로예요. 조회 링크에서도 보여요.</p>
+          <p className="note">승패와 통계는 그대로예요. 모임 링크에서도 보여요.</p>
           <ChampionFields
             match={match}
             nameOf={nameOf}

@@ -27,7 +27,7 @@ function accountLabel(row: CoOperatorRow): string {
   return `${PROVIDER_LABEL[row.provider] ?? "다른 계정"} · ${formatDate(row.accountCreatedAt)} 가입`;
 }
 
-/** 모임 탭의 조회 링크 칸(Group.tsx). 접혀 있는 "자주 쓰는 것" 묶음을 펼친 뒤 그 칸으로 내려간다. */
+/** 모임 탭의 모임 링크 칸(Group.tsx). 접혀 있는 "자주 쓰는 것" 묶음을 펼친 뒤 그 칸으로 내려간다. */
 function showViewLinkSection() {
   const block = document.getElementById("group-block-often") as HTMLDetailsElement | null;
   if (block && !block.open) block.open = true;
@@ -35,7 +35,7 @@ function showViewLinkSection() {
 }
 
 /**
- * 조회 링크와 참가 신청 링크를 새로 만든다(이전 주소는 더 이상 열리지 않는다). 공동 운영자를 내보낼 때·운영자를 넘겨받을 때
+ * 모임 링크와 참가 신청 링크를 새로 만든다(이전 주소는 더 이상 열리지 않는다). 공동 운영자를 내보낼 때·운영자를 넘겨받을 때
  * 고를 수 있다(2026-11-15 사용자 결정: 자동으로 바꾸지 않고 확인 창에서 고른다. 자동이면 참가자들이 가진 링크까지 끊긴다).
  * 참가 신청 링크는 원래 있을 때만 바꾼다. 만들기 경로(join/link)는 링크를 열린 상태로 만들므로, 닫혀 있던 링크는 다시 닫는다.
  */
@@ -52,7 +52,7 @@ export function RenewLinksChoice(props: { checked: boolean; onChange: (next: boo
   return (
     <label className="toggle">
       <input type="checkbox" checked={props.checked} onChange={(e) => props.onChange(e.target.checked)} />
-      조회 링크와 참가 신청 링크도 새로 만들기({props.who}도 지금 주소는 계속 열 수 있어요. 새로 만들면 참가자에게 새 주소를
+      모임 링크와 참가 신청 링크도 새로 만들기({props.who}도 지금 주소는 계속 열 수 있어요. 새로 만들면 참가자에게 새 주소를
       다시 보내야 해요)
     </label>
   );
@@ -127,16 +127,16 @@ export function CoOperatorsSection(props: { gid: string }) {
         </ul>
       )}
       {removedHint && (
-        // 내보낸 사람도 조회 링크·참가 신청 링크 주소는 그대로 알고 있다(링크에는 계정 확인이 없다).
+        // 내보낸 사람도 모임 링크·참가 신청 링크 주소는 그대로 알고 있다(링크에는 계정 확인이 없다).
         // 자동으로 바꾸면 참가자들이 가진 링크까지 끊기므로, 바꿀지는 운영자가 정하게 길만 알려 준다(2026-11-10 보안 감사).
         <div role="status" aria-label="링크 다시 만들기 안내" className="card">
           <p>
-            내보낸 사람도 조회 링크와 참가 신청 링크는 그대로 열 수 있어요. 막으려면 두 링크를 다시 만들어 참가자에게 새로
+            내보낸 사람도 모임 링크와 참가 신청 링크는 그대로 열 수 있어요. 막으려면 두 링크를 다시 만들어 참가자에게 새로
             보내 주세요.
           </p>
           <div className="button-row">
             <button type="button" className="secondary" onClick={showViewLinkSection}>
-              조회 링크 다시 만들기
+              모임 링크 다시 만들기
             </button>
             <button type="button" className="secondary" onClick={() => go("/pick")}>
               참가 신청 링크 다시 만들기

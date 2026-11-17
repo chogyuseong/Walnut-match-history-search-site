@@ -191,15 +191,14 @@ export function Group() {
         ))}
       </nav>
       <GroupBlock id="often" title="자주 쓰는 것" defaultOpen>
-        <section aria-label="조회 링크" id="group-view-link">
-          <h2>조회 링크</h2>
+        <section aria-label="모임 링크" id="group-view-link">
+          <h2>모임 링크</h2>
           <p className="hint">
-            이 링크를 받은 사람은 로그인 없이 명단과 기록을 볼 수 있어요. 수정은 할 수 없어요.
+            단톡방에 한 번 올려 두면 돼요. 경기 중에는 지금 편성과 내 자리를, 그 밖에는 기록과 내 전적을 보여 줘요. 로그인
+            없이 보고, 수정은 할 수 없어요.
           </p>
           <div className="button-row">
-            <CopyButton label="조회 링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
-            {/* 편성 화면(/live)은 다음 경기가 시작되면 같은 링크에서 바뀐다. 경기 전에 미리 단톡방에 올려 둘 수 있게 여기에도 둔다. */}
-            <CopyButton label="참가자 편성 링크 복사" text={() => viewLink(snapshot.group.viewToken!, "live")} />
+            <CopyButton label="모임 링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
             <button
               type="button"
               className="link"
@@ -776,7 +775,7 @@ export function Group() {
         <section aria-label="백업">
           <h2>백업</h2>
           <p className="hint">
-            경기·참가자·설정·변경 이력이 들어가요. 계정과 조회 링크는 들어가지 않아요.
+            경기·참가자·설정·변경 이력이 들어가요. 계정과 모임 링크는 들어가지 않아요.
           </p>
           <button
             type="button"
@@ -805,7 +804,7 @@ export function Group() {
             <h2>운영자 넘기기</h2>
             <p className="hint">
               모임 운영을 다른 사람에게 넘겨요. 받는 사람이 링크를 열어 수락하면 그 사람이 운영자가
-              되고, 이 계정은 더 이상 이 모임을 수정할 수 없어요. 기록과 조회 링크는 그대로예요.
+              되고, 이 계정은 더 이상 이 모임을 수정할 수 없어요. 기록과 모임 링크는 그대로예요.
             </p>
             <button type="button" className="secondary" onClick={() => setTransferOpen(true)}>
               인수 링크 만들기
@@ -867,7 +866,7 @@ export function Group() {
             </p>
           ) : (
             <>
-              <p>공개로 바꾸면 조회 링크를 가진 모든 사람에게 이렇게 보여요.</p>
+              <p>공개로 바꾸면 모임 링크를 가진 모든 사람에게 이렇게 보여요.</p>
               <ul className="list">
                 {snapshot.participants
                   .filter((p) => p.status === "active")

@@ -24,8 +24,10 @@ import {
   draftSplitRanks,
   laneMatchups,
   matchupText,
+  mmrSplits,
   sameTeamsAsLast,
   splitBench,
+  splitIndexOf,
   splitRanksText,
   swapWithBench,
   withBench,
@@ -164,6 +166,25 @@ describe("균형 순위(같은 10명 나누기 중 몇 위)", () => {
     expect(together.mmr!.total).toBe(56);
     const apart = draftSplitRanks({ ...d, constraints: [{ kind: "different", a: "p:id0", b: "p:id9" }] }, ratings, 1200, null);
     expect(apart.mmr!.total).toBe(70);
+  });
+
+  it("MMR 추천 순서: 첫째는 순위 줄에서 1위, '다음 추천'은 그다음 나누기, 조건을 지킨다", () => {
+    const d = fixedDraft();
+    const splits = mmrSplits(d.people, ratings, 1200, 3);
+    expect(splits).toHaveLength(126);
+    const first = applyTeams(d, splits[0]!);
+    expect(draftSplitRanks(first, ratings, 1200, null).mmr!.rank).toBe(1);
+    expect(splitIndexOf(splits, first.slots)).toBe(0);
+    // 팀 A·B를 바꿔 앉혀도 같은 나누기다.
+    const flipped = first.slots.map((s) => ({ ...s, team: s.team === "A" ? ("B" as const) : ("A" as const) }));
+    expect(splitIndexOf(splits, flipped)).toBe(0);
+    const apart = mmrSplits(d.people, ratings, 1200, 3, [{ kind: "different", a: "p:id0", b: "p:id9" }]);
+    expect(apart).toHaveLength(70);
+    expect(apart.every((teamA) => teamA.includes("p:id0") && !teamA.includes("p:id9"))).toBe(true);
+  });
+
+  it("모두 기록이 없어 차가 같으면 추천 순서가 없다(무작위 편성 그대로)", () => {
+    expect(mmrSplits(fixedDraft().people, new Map(), 1200, 3)).toEqual([]);
   });
 
   it("티어를 넘기지 않거나 아무도 정하지 않았으면 티어 순위는 없다. 10명이 다 앉지 않았으면 둘 다 없다", () => {

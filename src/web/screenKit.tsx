@@ -698,7 +698,7 @@ export function BackLink(props: { label: string; fallback: () => void }) {
 
 /**
  * 화면 머리: 왼쪽에 제목과 한 줄 설명, 오른쪽에 동작. 운영자 화면의 "지금 할 입력"(지난 경기 입력 등)은 actions 자리에 둔다.
- * 조회 링크·예시 모임에는 입력 동작이 없으니 actions를 비우면 되고, 틀(제목·설명 줄)은 같다.
+ * 모임 링크·예시 모임에는 입력 동작이 없으니 actions를 비우면 되고, 틀(제목·설명 줄)은 같다.
  * badge는 h1 밖에 둔다: 제목 이름(heading name)에 "보관"·"진행 중" 같은 글자가 섞이지 않게.
  */
 export function ScreenHead(props: {

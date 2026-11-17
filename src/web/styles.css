@@ -5814,6 +5814,11 @@ main:focus {
   gap: var(--space-4);
   min-width: 0;
 }
+/* 두 팀 상자 위 편성 결과 한 줄(Prep.tsx BalanceLine). 숫자 폭을 맞춰 "다음 추천"을 누를 때 줄이 흔들리지 않게 한다. */
+.balance-line {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
 @media (min-width: 1200px) {
   .screen.prep-screen {
     max-width: none;

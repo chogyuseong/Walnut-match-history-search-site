@@ -197,9 +197,9 @@ export function Graphs(props: {
   player?: string;
   /** 플레이어 고르기·해제(""). 주지 않으면 화면 안에서만 기억한다. */
   choosePlayer?: (id: string) => void;
-  /** 확정 경기가 하나도 없을 때 안내 아래에 둘 행동 하나(운영자: 팀 짜기). 조회 링크는 비운다. */
+  /** 확정 경기가 하나도 없을 때 안내 아래에 둘 행동 하나(운영자: 팀 짜기). 모임 링크는 비운다. */
   emptyAction?: ReactNode;
-  /** 분석 코멘트 "근거 경기"의 경기 줄을 누르면 그 경기 상세로 간다(운영자 #/m/ID, 조회 링크 …/d/ID). */
+  /** 분석 코멘트 "근거 경기"의 경기 줄을 누르면 그 경기 상세로 간다(운영자 #/m/ID, 모임 링크 …/d/ID). */
   openMatch: (id: string) => void;
 }) {
   const { snapshot } = props;

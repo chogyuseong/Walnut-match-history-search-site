@@ -143,7 +143,7 @@ export function AccountControl() {
             </div>
           )}
           {(app.me?.memberships?.length ?? 0) > 0 && (
-            // 참가자로 연결한 모임(migrations/0019). 고르면 조회 링크와 같은 읽기 전용 화면이 열린다.
+            // 참가자로 연결한 모임(migrations/0019). 고르면 모임 링크와 같은 읽기 전용 화면이 열린다.
             <div className="account-groups" role="group" aria-label="참가 중인 모임">
               {app.me!.memberships!.map((m) => (
                 <button

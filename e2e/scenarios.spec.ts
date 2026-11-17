@@ -355,8 +355,8 @@ test("29: 클립보드가 거절되면 선택 가능한 글 상자, 진영 미�
   const s = await setup(page, { rotation: false });
   await start(page.request, s, s.people.slice(0, 10));
   await page.goto("/#/match");
-  await page.getByRole("button", { name: "명단 공유" }).click();
-  const dialog = page.getByRole("dialog", { name: "명단 공유" });
+  await page.getByRole("button", { name: "참가자에게 편성 보내기" }).click();
+  const dialog = page.getByRole("dialog", { name: "참가자에게 편성 보내기" });
 
   await dialog.getByRole("button", { name: "텍스트 복사" }).click();
   const box = dialog.getByRole("textbox");
@@ -377,7 +377,7 @@ test("29: 클립보드가 거절되면 선택 가능한 글 상자, 진영 미�
   // 링크 복사도 같은 대체 경로.
   await dialog.getByRole("button", { name: "링크 복사" }).click();
   await expect(dialog.getByRole("textbox")).toHaveCount(2);
-  expect(await dialog.getByRole("textbox").first().inputValue()).toMatch(/#\/v\/.+\/now$/);
+  expect(await dialog.getByRole("textbox").first().inputValue()).toMatch(/#\/v\/.+\/live$/);
   await noHorizontalOverflow(page);
 });
 
