@@ -169,7 +169,7 @@ export function Ranking(props: {
       // 배치 진행 중은 변동을 보여 주지 않으므로 그 묶음 안에서는 순위 순서를 지킨다.
       return placement.get(row.participantId)?.done ? (table.get(row.participantId)?.delta10 ?? 0) : 0;
     };
-    return [...ranking.shown].sort(
+    return ranking.shown.toSorted(
       (a, b) =>
         rankingGroup(placement, a.participantId) - rankingGroup(placement, b.participantId) ||
         value(b) - value(a) ||

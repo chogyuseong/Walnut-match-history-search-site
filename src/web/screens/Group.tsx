@@ -335,8 +335,9 @@ export function Group() {
           <h2>
             참가자 요청{" "}
             {openRequests.length > 0 && (
-              <span className="badge" aria-label={`처리할 요청 ${openRequests.length}개`}>
-                {openRequests.length}
+              <span className="badge">
+                <span aria-hidden="true">{openRequests.length}</span>
+                <span className="sr-only">처리할 요청 {openRequests.length}개</span>
               </span>
             )}
           </h2>

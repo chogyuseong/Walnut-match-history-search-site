@@ -216,9 +216,6 @@ export function Privacy(props: { back: () => void; backLabel: string }) {
             있습니다(이름·토큰·세션 값은 남기지 않습니다).
           </li>
           <li>카카오·Google: 로그인할 때 해당 회사의 로그인 화면을 거칩니다.</li>
-          <li>
-            jsDelivr: 화면 글꼴(Pretendard)을 받아 오는 과정에서 브라우저가 jsDelivr에 접속합니다.
-          </li>
           {CHAMPION_PORTRAITS && (
             <li>
               라이엇 게임즈: 챔피언 초상화를 라이엇의 이미지 서버(ddragon.leagueoflegends.com)에서 받아 오는 과정에서

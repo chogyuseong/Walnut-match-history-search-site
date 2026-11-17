@@ -120,7 +120,7 @@ export function useSearchShortcut(route: readonly string[]): void {
       if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
       if (event.defaultPrevented) return;
       if (typingInto(event.target) || typingInto(document.activeElement)) return;
-      if (document.querySelector('[role="dialog"], dialog[open]')) return;
+      if (document.querySelector("dialog[open]")) return;
       const target = searchPathFor(routeRef.current);
       if (!target) return;
       // "/"가 브라우저의 빠른 찾기를 열거나 초점을 받은 입력 칸에 찍히지 않게 한다.

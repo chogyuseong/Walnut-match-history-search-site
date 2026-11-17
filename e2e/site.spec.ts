@@ -355,17 +355,26 @@ test("홈 요약과 결과 이미지(PNG)", async ({ page }, testInfo) => {
   expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
   expect(png.readUInt32BE(16)).toBe(1080); // 너비
   expect(png.length).toBeGreaterThan(20_000);
-  // 창 안에서만 Tab이 돈다(앞뒤 모두). 창 이름은 제목(h2)에서 온다.
+  // Tab은 창 뒤 화면으로 새지 않는다(앞뒤 모두). 창 이름은 제목(h2)에서 온다.
+  // 기본 모달(<dialog> showModal)은 창 끝에서 Tab을 누르면 초점을 브라우저 UI(주소창 등)로 내보낸다. 이때 페이지에서는
+  // activeElement가 body로 보인다. 뒤 화면은 inert라 초점을 받지 못하므로, 창 안 또는 body(브라우저 UI)만 허용한다.
   await expect(dialog.getByRole("heading", { level: 2, name: "오늘의 결과 이미지" })).toBeVisible();
+  const focusNotBehind = () =>
+    dialog.evaluate((el) => el.contains(document.activeElement) || document.activeElement === document.body);
   const focusInside = () => dialog.evaluate((el) => el.contains(document.activeElement));
+  let cameBackInside = false;
   for (let i = 0; i < 8; i++) {
     await page.keyboard.press("Tab");
-    expect(await focusInside()).toBe(true);
+    expect(await focusNotBehind()).toBe(true);
+    cameBackInside ||= await focusInside();
   }
   for (let i = 0; i < 8; i++) {
     await page.keyboard.press("Shift+Tab");
-    expect(await focusInside()).toBe(true);
+    expect(await focusNotBehind()).toBe(true);
+    cameBackInside ||= await focusInside();
   }
+  // 브라우저 UI로 나갔다가도 다시 창 안으로 돌아온다.
+  expect(cameBackInside).toBe(true);
   await dialog.getByRole("button", { name: "닫기" }).click();
   // 닫으면 창을 연 버튼으로 초점이 돌아온다.
   await expect(page.getByRole("button", { name: "결과 이미지" })).toBeFocused();

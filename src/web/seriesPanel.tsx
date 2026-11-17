@@ -252,7 +252,7 @@ export function MatchSeriesSection(props: {
             <>
               <h3>기존 시리즈에 넣기</h3>
               <ul className="list series-pick">
-                {[...others].reverse().map((s) => {
+                {others.toReversed().map((s) => {
                   const ref = seriesReference(s, snapshot.matches);
                   const fits = ref !== null && compositionKey(ref.roster) === key;
                   const score = seriesScore(s, snapshot.matches);

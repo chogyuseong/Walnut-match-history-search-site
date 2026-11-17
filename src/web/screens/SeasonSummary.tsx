@@ -29,7 +29,7 @@ const BUSIEST_MAX = 3;
  * 시즌이 없으면 경기가 있는 가장 최근 연도. 둘 다 없으면 null.
  */
 export function defaultSeasonScope(snapshot: Snapshot): Scope | null {
-  const latest = [...snapshot.seasons].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0];
+  const latest = snapshot.seasons.toSorted((a, b) => b.startsOn.localeCompare(a.startsOn))[0];
   if (latest) return { kind: "season", seasonId: latest.id };
   const years = matchYears(snapshot);
   return years.length > 0 ? { kind: "year", year: Math.max(...years) } : null;
@@ -121,7 +121,7 @@ export function SeasonSummaryScreen(props: {
         }}
       >
         {!valid && <option value="">고르기</option>}
-        {[...snapshot.seasons].reverse().map((s) => (
+        {snapshot.seasons.toReversed().map((s) => (
           <option key={s.id} value={s.id}>
             {s.name}
           </option>

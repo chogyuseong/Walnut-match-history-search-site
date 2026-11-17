@@ -93,8 +93,8 @@ export function Pick() {
   // 자주 나온 순: 누적 경기 수 → 최근에 나온 순 → 이름. 이름 순: 가나다.
   const ordered = useMemo(() => {
     const byName = (a: DraftPerson, b: DraftPerson) => a.name.localeCompare(b.name, "ko");
-    if (order === "name") return [...known].sort(byName);
-    return [...known].sort((a, b) => {
+    if (order === "name") return known.toSorted(byName);
+    return known.toSorted((a, b) => {
       const sa = seen.get(a.participantId!);
       const sb = seen.get(b.participantId!);
       const games = (sb?.games ?? 0) - (sa?.games ?? 0);

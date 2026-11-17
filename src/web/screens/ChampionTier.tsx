@@ -386,7 +386,7 @@ function ChampionBoard(props: {
   reveal: (key: string) => void;
 }) {
   const groups = new Map<string, string[]>();
-  for (const key of [...props.keys].sort((a, b) => championName(a).localeCompare(championName(b), "ko"))) {
+  for (const key of props.keys.toSorted((a, b) => championName(a).localeCompare(championName(b), "ko"))) {
     const initial = championInitial(championName(key)) ?? "#";
     groups.set(initial, [...(groups.get(initial) ?? []), key]);
   }
@@ -451,7 +451,7 @@ function ChampionDetail(props: {
   const { row } = props;
   const laneTotal = row.lanes.reduce((sum, l) => sum + l.games, 0) + row.noLane;
   return (
-    <div className="ct-detail" onClick={(e) => e.stopPropagation()}>
+    <div className="ct-detail">
       <section>
         <h4>사람별</h4>
         <ul className="ct-detail-list">

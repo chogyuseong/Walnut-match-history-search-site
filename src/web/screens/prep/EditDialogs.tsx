@@ -34,7 +34,7 @@ function candidateChips(candidate: TeamCandidate): Chip[] {
 /** 한 팀 명단: 티어 오름차순(1티어 먼저, 미지정 맨 뒤) → 이름순. 이름 옆에 "n티어" 알약(높을수록 밝은 색, 미지정은 점선). */
 function TeamColumn(props: { team: Team; keys: readonly string[]; nameOf: (key: string) => string; tierOf: (key: string) => Priority }) {
   const { team, keys, nameOf, tierOf } = props;
-  const sorted = [...keys].sort((a, b) => (tierOf(a) ?? 99) - (tierOf(b) ?? 99) || nameOf(a).localeCompare(nameOf(b), "ko"));
+  const sorted = keys.toSorted((a, b) => (tierOf(a) ?? 99) - (tierOf(b) ?? 99) || nameOf(a).localeCompare(nameOf(b), "ko"));
   return (
     <div className={`cand-team cand-team-${team === "A" ? "blue" : "red"}`}>
       <h4>

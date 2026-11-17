@@ -889,7 +889,7 @@ function RatingChanges(props: { snapshot: Snapshot; match: MatchView; nameOf: (i
     const position = positionOf.get(id);
     return position ? POSITIONS.indexOf(position) : POSITIONS.length;
   };
-  const sorted = [...changes].sort((a, b) => order(a.participantId) - order(b.participantId));
+  const sorted = changes.toSorted((a, b) => order(a.participantId) - order(b.participantId));
   const teams: Team[] = match.teamASide === "red" ? ["B", "A"] : ["A", "B"];
   return (
     <details className="rating-changes">

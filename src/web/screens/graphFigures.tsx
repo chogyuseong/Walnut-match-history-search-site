@@ -468,10 +468,12 @@ export function ActivityCalendarView(props: { calendar: ActivityCalendar; who: s
 export function CalendarLegend() {
   const steps = ["0", "1~2", "3~5", "6~9", "10+"];
   return (
-    <p className="cal-legend" aria-label="칸 색: 그날 경기 수 0, 1~2, 3~5, 6~9, 10 이상">
+    // 칸마다 숨은 글로 경기 수를 읽힌다. <p>에 단 aria-label은 화면 읽기 프로그램이 무시한다(일반 요소라 이름을 갖지 않음).
+    <p className="cal-legend">
       <span>적음</span>
       {steps.map((s, i) => (
         <span key={s} className="cal-legend-step" title={`${s}경기`}>
+          <span className="sr-only">{s}경기</span>
           <svg width={CELL} height={CELL} aria-hidden="true">
             <rect className={`cal-cell cal-l${i}`} width={CELL} height={CELL} rx={CELL_RADIUS} />
           </svg>

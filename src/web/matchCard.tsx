@@ -19,7 +19,10 @@ import {
 } from "./format";
 import { PosLabel } from "./screenKit";
 
-/** 이변 배지 풍선. 기준은 모든 모임이 같은 점수다(upset.ts UPSET_MMR_GAP). */
+/**
+ * 이변 배지의 뜻. 마우스를 올리면 풍선(title)으로, 화면 읽기 프로그램에는 배지 안 숨은 글로 전한다
+ * (title만으로는 터치·화면 읽기 프로그램에 닿지 않는다). 기준은 모든 모임이 같은 점수다(upset.ts UPSET_MMR_GAP).
+ */
 const UPSET_BADGE_TITLE = `팀 평균 MMR이 ${UPSET_MMR_GAP}점 이상 낮은 팀이 이겼어요`;
 
 /**
@@ -83,7 +86,7 @@ export function MatchCard(props: {
         <p className="mc-extra">
           {props.upset && (
             <span className="series-badge" title={UPSET_BADGE_TITLE}>
-              이변
+              이변<span className="sr-only">: {UPSET_BADGE_TITLE}</span>
             </span>
           )}
           {props.seriesBadge && <span className="series-badge">{props.seriesBadge}</span>}
@@ -261,7 +264,7 @@ export function MatchScoreboard(props: {
         <p className="mc-extra sb-extra">
           {props.upset && (
             <span className="series-badge" title={UPSET_BADGE_TITLE}>
-              이변
+              이변<span className="sr-only">: {UPSET_BADGE_TITLE}</span>
             </span>
           )}
           {match.memo && (

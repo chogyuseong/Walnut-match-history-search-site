@@ -183,7 +183,7 @@ test("멤버가 정정 요청 → 운영자가 처리 → 멤버에게 상태가
   // 운영자: 모임 탭 "참가자 요청"에 배지와 요청, 경기로 가는 링크, 처리함 + 답.
   await owner.goto("/#/group");
   const section = owner.getByRole("region", { name: "참가자 요청" });
-  await expect(section.getByLabel("처리할 요청 1개")).toBeVisible();
+  await expect(section.getByText("처리할 요청 1개")).toBeAttached();
   const item = section.getByRole("list", { name: "처리할 요청" }).getByRole("listitem");
   await expect(item).toContainText("멤버03");
   await expect(item).toContainText("레드팀이 이겼어요");

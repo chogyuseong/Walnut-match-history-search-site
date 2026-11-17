@@ -252,7 +252,7 @@ export function Today() {
             )}
           </div>
           <ul className="list match-cards">
-            {[...today].reverse().map((m) => (
+            {today.toReversed().map((m) => (
               <MatchCard
                 key={m.id}
                 match={m}

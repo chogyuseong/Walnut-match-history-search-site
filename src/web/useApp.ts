@@ -341,12 +341,6 @@ export function useApp(enabled: boolean): AppValue {
     };
   }, [enabled, refresh]);
 
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(timer);
-  }, [notice]);
-
   const login = useCallback(
     async (subject: string) => {
       await call("POST", "/api/auth/fake-login", { subject });

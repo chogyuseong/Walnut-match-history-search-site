@@ -59,17 +59,43 @@ function palette(): Palette {
   };
 }
 
-/** 화면과 같은 글꼴이 준비된 뒤에 그린다. 글꼴을 못 받으면 기기 글꼴(한글 포함)로 그린다. */
-async function fontsReady(font: string): Promise<void> {
-  if (!document.fonts) return;
-  try {
-    await Promise.all(
-      ["400", "500", "600"].map((w) => document.fonts.load(`${w} 32px ${font}`, "가나다 0123 ABC")),
-    );
-    await document.fonts.ready;
-  } catch {
-    // 글꼴을 못 불러와도 기기 글꼴로 그린다.
+/**
+ * 이미지에 쓰는 굵기(setFont에 넘기는 값). 지금 글꼴은 가변 글꼴이라 한 번만 받아도 모든 굵기가 되지만,
+ * 글꼴을 굵기별 파일로 바꾸거나 기기에 깔린 정적 Pretendard가 쓰여도 맞도록 굵기마다 부른다(같은 파일은 한 번만 받는다).
+ */
+const IMAGE_WEIGHTS = ["400", "500", "600"];
+
+/**
+ * 첫 번째 그리기(글자 모으기) 중이면 캔버스에 쓰거나 잰 글자를 여기에 모은다. 아니면 null.
+ * 화면 글꼴은 글자 범위별 조각(public/fonts/)이라, 화면에 아직 안 나온 글자(다른 사람 이름 등)는 조각을 받지 않은 상태다.
+ * 캔버스는 받지 않은 조각의 글자를 기다려 주지 않고 기기 글꼴로 찍으므로, 그릴 글자를 먼저 알아내 그 조각을 받는다.
+ */
+let collectedText: string[] | null = null;
+
+/**
+ * 그리기를 두 번 한다. 처음엔 쓰는 글자만 모으고(그림은 버림), 그 글자의 글꼴 조각을 받은 뒤 다시 그린다.
+ * paint는 같은 입력에 같은 그림을 그리는 동기 함수여야 한다(두 번 부르므로 밖의 상태를 바꾸지 않는다).
+ * 글꼴을 못 받으면 기기 글꼴(한글 포함)로 그린다.
+ */
+async function paintWithFonts(paint: (p: Palette) => HTMLCanvasElement): Promise<Blob> {
+  const p = palette();
+  if (document.fonts) {
+    const text: string[] = [];
+    collectedText = text;
+    try {
+      paint(p);
+    } finally {
+      collectedText = null;
+    }
+    // 글자를 한 번씩만 넘긴다(긴 시상 문구도 글자 종류는 수백 개를 넘지 않는다).
+    const chars = [...new Set(text.join(""))].join("");
+    try {
+      await Promise.all(IMAGE_WEIGHTS.map((w) => document.fonts.load(`${w} 32px ${p.font}`, chars)));
+    } catch {
+      // 글꼴을 못 불러와도 기기 글꼴로 그린다.
+    }
   }
+  return toBlob(paint(p));
 }
 
 /** 너비를 넘으면 말줄임표로 자른다. */
@@ -101,6 +127,21 @@ function newCanvas(height: number): { canvas: HTMLCanvasElement; ctx: CanvasRend
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("이 기기에서는 이미지를 만들 수 없어요.");
   ctx.textBaseline = "middle";
+  const collecting = collectedText;
+  if (collecting) {
+    // 잴 때도 모은다. 말줄임(fit)·줄바꿈은 글꼴 받기 전 기기 글꼴로 재므로 실제와 자르는 곳이 다를 수 있는데,
+    // 자르기 전 전체 글을 먼저 재므로 잘려 나갈 글자까지 모인다.
+    const fill = ctx.fillText.bind(ctx);
+    const measure = ctx.measureText.bind(ctx);
+    ctx.fillText = (...args: Parameters<CanvasRenderingContext2D["fillText"]>) => {
+      collecting.push(args[0]);
+      fill(...args);
+    };
+    ctx.measureText = (text: string) => {
+      collecting.push(text);
+      return measure(text);
+    };
+  }
   return { canvas, ctx };
 }
 
@@ -182,40 +223,40 @@ function drawTeamBox(
 }
 
 /** 경기 한 건 이미지: 양 팀 명단과 승리 팀. */
-export async function drawMatchImage(snapshot: Snapshot, match: MatchView): Promise<Blob> {
-  const p = palette();
-  await fontsReady(p.font);
-  const nameOf = nameMap(snapshot);
-  const tz = snapshot.group.timezone;
-  const rowH = 58;
-  const boxH = 72 + rowH * 5 + 16;
-  const height = PAD + 150 + boxH + 48 + 110;
-  const { canvas, ctx } = newCanvas(height);
-  ctx.fillStyle = p.bg;
-  ctx.fillRect(0, 0, WIDTH, height);
+export function drawMatchImage(snapshot: Snapshot, match: MatchView): Promise<Blob> {
+  return paintWithFonts((p) => {
+    const nameOf = nameMap(snapshot);
+    const tz = snapshot.group.timezone;
+    const rowH = 58;
+    const boxH = 72 + rowH * 5 + 16;
+    const height = PAD + 150 + boxH + 48 + 110;
+    const { canvas, ctx } = newCanvas(height);
+    ctx.fillStyle = p.bg;
+    ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 600, 56);
-  ctx.fillStyle = p.text;
-  ctx.fillText(`${match.matchNo}경기`, PAD, PAD + 34);
-  setFont(ctx, p, 600, 30);
-  ctx.fillStyle = p.muted;
-  const winner = match.winnerTeam;
-  const summary = winner ? winnerText(winner, match.teamASide, "승리") : "결과 미확정";
-  ctx.fillText(summary, PAD, PAD + 98);
+    setFont(ctx, p, 600, 56);
+    ctx.fillStyle = p.text;
+    ctx.fillText(`${match.matchNo}경기`, PAD, PAD + 34);
+    setFont(ctx, p, 600, 30);
+    ctx.fillStyle = p.muted;
+    const winner = match.winnerTeam;
+    const summary = winner ? winnerText(winner, match.teamASide, "승리") : "결과 미확정";
+    ctx.fillText(summary, PAD, PAD + 98);
 
-  const boxW = (WIDTH - PAD * 2 - 24) / 2;
-  const top = PAD + 150;
-  TEAMS.forEach((team, i) => {
-    drawTeamBox(ctx, p, match, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+    const boxW = (WIDTH - PAD * 2 - 24) / 2;
+    const top = PAD + 150;
+    TEAMS.forEach((team, i) => {
+      drawTeamBox(ctx, p, match, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+    });
+    drawFooter(
+      ctx,
+      p,
+      height,
+      snapshot.group.name,
+      `${formatDate(match.playedAt, tz)} ${formatTime(match.playedAt, tz)}`,
+    );
+    return canvas;
   });
-  drawFooter(
-    ctx,
-    p,
-    height,
-    snapshot.group.name,
-    `${formatDate(match.playedAt, tz)} ${formatTime(match.playedAt, tz)}`,
-  );
-  return toBlob(canvas);
 }
 
 /**
@@ -223,49 +264,49 @@ export async function drawMatchImage(snapshot: Snapshot, match: MatchView): Prom
  * 경기 이미지의 팀 상자(drawTeamBox)를 그대로 쓴다. 승패가 없는 경기 모양으로 넘기므로 승리·패배 표시는 없다.
  * 넣지 않는 것: 티어·서포터 횟수·기피 라인·대기자·조회 링크(비공개 정보).
  */
-export async function drawDraftImage(draft: Draft, groupName: string, timeZone: string): Promise<Blob> {
-  const p = palette();
-  await fontsReady(p.font);
-  const names = new Map(draft.people.map((person) => [person.key, person.name]));
-  const nameOf = (key: string) => names.get(key) ?? "";
-  const now = new Date().toISOString();
-  // 화면의 팀 상자 그리기를 다시 쓰기 위한 계산용 경기 모양. 참가자 ID 자리에 초안 키를 넣는다.
-  const shape: MatchView = {
-    id: "draft",
-    matchNo: 0,
-    sessionId: null,
-    state: "in_progress",
-    source: "live",
-    startedAt: null,
-    endedAt: null,
-    playedAt: now,
-    confirmedAt: null,
-    winnerTeam: null,
-    teamASide: draft.teamASide ?? "blue",
-    version: 0,
-    roster: draft.slots.map((s) => ({ participantId: s.key, team: s.team, position: s.position })),
-  };
-  const rowH = 58;
-  const boxH = 72 + rowH * 5 + 16;
-  const height = PAD + 150 + boxH + 48 + 110;
-  const { canvas, ctx } = newCanvas(height);
-  ctx.fillStyle = p.bg;
-  ctx.fillRect(0, 0, WIDTH, height);
+export function drawDraftImage(draft: Draft, groupName: string, timeZone: string): Promise<Blob> {
+  return paintWithFonts((p) => {
+    const names = new Map(draft.people.map((person) => [person.key, person.name]));
+    const nameOf = (key: string) => names.get(key) ?? "";
+    const now = new Date().toISOString();
+    // 화면의 팀 상자 그리기를 다시 쓰기 위한 계산용 경기 모양. 참가자 ID 자리에 초안 키를 넣는다.
+    const shape: MatchView = {
+      id: "draft",
+      matchNo: 0,
+      sessionId: null,
+      state: "in_progress",
+      source: "live",
+      startedAt: null,
+      endedAt: null,
+      playedAt: now,
+      confirmedAt: null,
+      winnerTeam: null,
+      teamASide: draft.teamASide ?? "blue",
+      version: 0,
+      roster: draft.slots.map((s) => ({ participantId: s.key, team: s.team, position: s.position })),
+    };
+    const rowH = 58;
+    const boxH = 72 + rowH * 5 + 16;
+    const height = PAD + 150 + boxH + 48 + 110;
+    const { canvas, ctx } = newCanvas(height);
+    ctx.fillStyle = p.bg;
+    ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 600, 56);
-  ctx.fillStyle = p.text;
-  ctx.fillText("오늘의 편성", PAD, PAD + 34);
-  setFont(ctx, p, 600, 30);
-  ctx.fillStyle = p.muted;
-  ctx.fillText(`아직 시작 전 · ${formatTime(now, timeZone)} 기준`, PAD, PAD + 98);
+    setFont(ctx, p, 600, 56);
+    ctx.fillStyle = p.text;
+    ctx.fillText("오늘의 편성", PAD, PAD + 34);
+    setFont(ctx, p, 600, 30);
+    ctx.fillStyle = p.muted;
+    ctx.fillText(`아직 시작 전 · ${formatTime(now, timeZone)} 기준`, PAD, PAD + 98);
 
-  const boxW = (WIDTH - PAD * 2 - 24) / 2;
-  const top = PAD + 150;
-  TEAMS.forEach((team, i) => {
-    drawTeamBox(ctx, p, shape, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+    const boxW = (WIDTH - PAD * 2 - 24) / 2;
+    const top = PAD + 150;
+    TEAMS.forEach((team, i) => {
+      drawTeamBox(ctx, p, shape, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+    });
+    drawFooter(ctx, p, height, groupName, formatDate(now, timeZone));
+    return canvas;
   });
-  drawFooter(ctx, p, height, groupName, formatDate(now, timeZone));
-  return toBlob(canvas);
 }
 
 /** 이름 목록을 너비에 맞춰 여러 줄로 나눈다(이름 중간에서는 끊지 않는다. 한 이름이 너무 길면 자른다). */
@@ -304,117 +345,117 @@ function fitSized(
 }
 
 /** 오늘의 결과 이미지: 확정 경기 목록(경기별 승리 팀 명단)과 개인 승패. 긴 이름은 줄을 바꿔 다섯 명을 모두 싣는다. */
-export async function drawDayImage(snapshot: Snapshot, matches: readonly MatchView[]): Promise<Blob> {
-  const p = palette();
-  await fontsReady(p.font);
-  const nameOf = nameMap(snapshot);
-  const tz = snapshot.group.timezone;
-  const confirmed = matches.filter(isCounted).sort((a, b) => a.matchNo - b.matchNo);
-  const people = dayRecords(confirmed, nameOf);
-  const innerW = WIDTH - PAD * 2;
-  const namesW = innerW - 100 - 24;
-  const lineH = 30;
+export function drawDayImage(snapshot: Snapshot, matches: readonly MatchView[]): Promise<Blob> {
+  return paintWithFonts((p) => {
+    const nameOf = nameMap(snapshot);
+    const tz = snapshot.group.timezone;
+    const confirmed = matches.filter(isCounted).sort((a, b) => a.matchNo - b.matchNo);
+    const people = dayRecords(confirmed, nameOf);
+    const innerW = WIDTH - PAD * 2;
+    const namesW = innerW - 100 - 24;
+    const lineH = 30;
 
-  // 먼저 줄 수를 재서 높이를 정한다.
-  const measure = newCanvas(1).ctx;
-  const layout = confirmed.map((match) => {
-    const winner = match.winnerTeam!;
-    const loser: Team = winner === "A" ? "B" : "A";
-    const names = (team: Team) => teamRoster(match, team).map((r) => nameOf(r.participantId));
-    setFont(measure, p, 600, 24);
-    const win = wrapNames(measure, names(winner), namesW);
-    setFont(measure, p, 500, 24);
-    const lose = wrapNames(measure, names(loser), namesW);
-    return { match, winner, win, lose, h: 60 + (win.length + lose.length) * lineH + 14 };
-  });
-  const personRowH = 56;
-  const personCols = 2;
-  const personRows = Math.ceil(people.length / personCols);
-  const height =
-    PAD + 150 + 56 + layout.reduce((sum, l) => sum + l.h + 12, 0) + 40 + 56 + personRows * personRowH + 48 + 110;
-  const { canvas, ctx } = newCanvas(height);
-  ctx.fillStyle = p.bg;
-  ctx.fillRect(0, 0, WIDTH, height);
+    // 먼저 줄 수를 재서 높이를 정한다.
+    const measure = newCanvas(1).ctx;
+    const layout = confirmed.map((match) => {
+      const winner = match.winnerTeam!;
+      const loser: Team = winner === "A" ? "B" : "A";
+      const names = (team: Team) => teamRoster(match, team).map((r) => nameOf(r.participantId));
+      setFont(measure, p, 600, 24);
+      const win = wrapNames(measure, names(winner), namesW);
+      setFont(measure, p, 500, 24);
+      const lose = wrapNames(measure, names(loser), namesW);
+      return { match, winner, win, lose, h: 60 + (win.length + lose.length) * lineH + 14 };
+    });
+    const personRowH = 56;
+    const personCols = 2;
+    const personRows = Math.ceil(people.length / personCols);
+    const height =
+      PAD + 150 + 56 + layout.reduce((sum, l) => sum + l.h + 12, 0) + 40 + 56 + personRows * personRowH + 48 + 110;
+    const { canvas, ctx } = newCanvas(height);
+    ctx.fillStyle = p.bg;
+    ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 600, 56);
-  ctx.fillStyle = p.text;
-  ctx.fillText("오늘의 결과", PAD, PAD + 34);
-  setFont(ctx, p, 600, 30);
-  ctx.fillStyle = p.muted;
-  ctx.fillText(`확정 ${confirmed.length}경기 · 참가 ${people.length}명`, PAD, PAD + 98);
-
-  let y = PAD + 150;
-  setFont(ctx, p, 600, 32);
-  ctx.fillStyle = p.text;
-  ctx.fillText("경기별 결과", PAD, y + 20);
-  y += 56;
-  for (const { match, winner, win, lose, h } of layout) {
-    const side = sideOfTeam(winner, match.teamASide);
-    roundRect(ctx, PAD, y, innerW, h, 16);
-    ctx.fillStyle = p.surface;
-    ctx.fill();
-    if (side === "blue" || side === "red") {
-      ctx.fillStyle = side === "blue" ? p.winBg : p.lossBg;
-      ctx.fill();
-    }
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = p.line;
-    ctx.stroke();
-    // 왼쪽 막대: 이긴 팀의 진영(미상이면 중립)
-    ctx.fillStyle = side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
-    ctx.fillRect(PAD, y + 8, 8, h - 16);
-
+    setFont(ctx, p, 600, 56);
+    ctx.fillStyle = p.text;
+    ctx.fillText("오늘의 결과", PAD, PAD + 34);
     setFont(ctx, p, 600, 30);
-    ctx.fillStyle = p.text;
-    ctx.fillText(`${match.matchNo}경기`, PAD + 28, y + 34);
-    setFont(ctx, p, 600, 24);
     ctx.fillStyle = p.muted;
-    ctx.fillText(winnerText(winner, match.teamASide), PAD + 160, y + 34);
-    ctx.textAlign = "right";
-    ctx.fillText(formatTime(match.playedAt, tz), PAD + innerW - 24, y + 34);
-    ctx.textAlign = "left";
+    ctx.fillText(`확정 ${confirmed.length}경기 · 참가 ${people.length}명`, PAD, PAD + 98);
 
-    let lineY = y + 76;
-    setFont(ctx, p, 600, 24);
+    let y = PAD + 150;
+    setFont(ctx, p, 600, 32);
     ctx.fillStyle = p.text;
-    ctx.fillText("승", PAD + 28, lineY);
-    setFont(ctx, p, 600, 24);
-    for (const text of win) {
-      ctx.fillText(text, PAD + 72, lineY);
-      lineY += lineH;
-    }
-    setFont(ctx, p, 600, 24);
-    ctx.fillStyle = p.muted;
-    ctx.fillText("패", PAD + 28, lineY);
-    setFont(ctx, p, 500, 24);
-    for (const text of lose) {
-      ctx.fillText(text, PAD + 72, lineY);
-      lineY += lineH;
-    }
-    y += h + 12;
-  }
+    ctx.fillText("경기별 결과", PAD, y + 20);
+    y += 56;
+    for (const { match, winner, win, lose, h } of layout) {
+      const side = sideOfTeam(winner, match.teamASide);
+      roundRect(ctx, PAD, y, innerW, h, 16);
+      ctx.fillStyle = p.surface;
+      ctx.fill();
+      if (side === "blue" || side === "red") {
+        ctx.fillStyle = side === "blue" ? p.winBg : p.lossBg;
+        ctx.fill();
+      }
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = p.line;
+      ctx.stroke();
+      // 왼쪽 막대: 이긴 팀의 진영(미상이면 중립)
+      ctx.fillStyle = side === "blue" ? p.winAccent : side === "red" ? p.lossAccent : p.line;
+      ctx.fillRect(PAD, y + 8, 8, h - 16);
 
-  y += 40;
-  setFont(ctx, p, 600, 32);
-  ctx.fillStyle = p.text;
-  ctx.fillText("개인 승패", PAD, y);
-  y += 40;
-  const colW = (innerW - 24) / personCols;
-  people.forEach((row, i) => {
-    const col = i % personCols;
-    const r = Math.floor(i / personCols);
-    const x = PAD + col * (colW + 24);
-    const rowY = y + r * personRowH + personRowH / 2;
-    if (r % 2 === 0) {
-      ctx.fillStyle = p.elevated;
-      ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
+      setFont(ctx, p, 600, 30);
+      ctx.fillStyle = p.text;
+      ctx.fillText(`${match.matchNo}경기`, PAD + 28, y + 34);
+      setFont(ctx, p, 600, 24);
+      ctx.fillStyle = p.muted;
+      ctx.fillText(winnerText(winner, match.teamASide), PAD + 160, y + 34);
+      ctx.textAlign = "right";
+      ctx.fillText(formatTime(match.playedAt, tz), PAD + innerW - 24, y + 34);
+      ctx.textAlign = "left";
+
+      let lineY = y + 76;
+      setFont(ctx, p, 600, 24);
+      ctx.fillStyle = p.text;
+      ctx.fillText("승", PAD + 28, lineY);
+      setFont(ctx, p, 600, 24);
+      for (const text of win) {
+        ctx.fillText(text, PAD + 72, lineY);
+        lineY += lineH;
+      }
+      setFont(ctx, p, 600, 24);
+      ctx.fillStyle = p.muted;
+      ctx.fillText("패", PAD + 28, lineY);
+      setFont(ctx, p, 500, 24);
+      for (const text of lose) {
+        ctx.fillText(text, PAD + 72, lineY);
+        lineY += lineH;
+      }
+      y += h + 12;
     }
-    drawRecordRow(ctx, p, x, rowY, colW, row.name, row.wins, row.losses);
+
+    y += 40;
+    setFont(ctx, p, 600, 32);
+    ctx.fillStyle = p.text;
+    ctx.fillText("개인 승패", PAD, y);
+    y += 40;
+    const colW = (innerW - 24) / personCols;
+    people.forEach((row, i) => {
+      const col = i % personCols;
+      const r = Math.floor(i / personCols);
+      const x = PAD + col * (colW + 24);
+      const rowY = y + r * personRowH + personRowH / 2;
+      if (r % 2 === 0) {
+        ctx.fillStyle = p.elevated;
+        ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
+      }
+      drawRecordRow(ctx, p, x, rowY, colW, row.name, row.wins, row.losses);
+    });
+
+    const day = confirmed[0] ?? matches[0];
+    drawFooter(ctx, p, height, snapshot.group.name, day ? formatDate(day.playedAt, tz) : "");
+    return canvas;
   });
-
-  const day = confirmed[0] ?? matches[0];
-  drawFooter(ctx, p, height, snapshot.group.name, day ? formatDate(day.playedAt, tz) : "");
-  return toBlob(canvas);
 }
 
 /**
@@ -448,185 +489,185 @@ function drawRecordRow(
  * 집계는 src/shared/sessionSummary.ts, 그리기는 오늘의 결과 이미지의 개인 승패 칸·여러 줄 글 나누기를 그대로 쓴다.
  * 넣지 않는 것: 티어·가중치·기피 라인·서포터 횟수 보정값·조회 링크.
  */
-export async function drawSessionSummaryImage(
+export function drawSessionSummaryImage(
   snapshot: Snapshot,
   summary: SessionSummary,
   dateLabel: string,
 ): Promise<Blob> {
-  const p = palette();
-  await fontsReady(p.font);
-  const innerW = WIDTH - PAD * 2;
-  const lineH = 36;
-  const personRowH = 56;
-  const personCols = 2;
-  const personRows = Math.ceil(summary.people.length / personCols);
+  return paintWithFonts((p) => {
+    const innerW = WIDTH - PAD * 2;
+    const lineH = 36;
+    const personRowH = 56;
+    const personCols = 2;
+    const personRows = Math.ceil(summary.people.length / personCols);
 
-  const measure = newCanvas(1).ctx;
-  setFont(measure, p, 600, 26);
-  const supportText =
-    summary.supporters.length > 0 ? summary.supporters.map((s) => `${s.name} ${s.count}번`).join(" · ") : "기록 없음";
-  const streakText =
-    summary.streaks.length > 0 ? summary.streaks.map((s) => `${s.name} ${s.wins}연승`).join(" · ") : "없음";
-  const supportLines = wrapText(measure, supportText, innerW - 48);
-  const streakLines = wrapText(measure, streakText, innerW - 48);
-  const boxH = (lines: number) => 56 + lines * lineH;
+    const measure = newCanvas(1).ctx;
+    setFont(measure, p, 600, 26);
+    const supportText =
+      summary.supporters.length > 0 ? summary.supporters.map((s) => `${s.name} ${s.count}번`).join(" · ") : "기록 없음";
+    const streakText =
+      summary.streaks.length > 0 ? summary.streaks.map((s) => `${s.name} ${s.wins}연승`).join(" · ") : "없음";
+    const supportLines = wrapText(measure, supportText, innerW - 48);
+    const streakLines = wrapText(measure, streakText, innerW - 48);
+    const boxH = (lines: number) => 56 + lines * lineH;
 
-  const height =
-    PAD + 150 + 56 + personRows * personRowH + 40 + boxH(supportLines.length) + 12 + boxH(streakLines.length) + 48 + 110;
-  const { canvas, ctx } = newCanvas(height);
-  ctx.fillStyle = p.bg;
-  ctx.fillRect(0, 0, WIDTH, height);
+    const height =
+      PAD + 150 + 56 + personRows * personRowH + 40 + boxH(supportLines.length) + 12 + boxH(streakLines.length) + 48 + 110;
+    const { canvas, ctx } = newCanvas(height);
+    ctx.fillStyle = p.bg;
+    ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 600, 56);
-  ctx.fillStyle = p.text;
-  ctx.fillText("오늘 요약", PAD, PAD + 34);
-  setFont(ctx, p, 600, 30);
-  ctx.fillStyle = p.muted;
-  ctx.fillText(
-    fit(ctx, `${dateLabel} · 확정 ${summary.games}경기 · 참가 ${summary.people.length}명`, innerW),
-    PAD,
-    PAD + 98,
-  );
-
-  let y = PAD + 150;
-  setFont(ctx, p, 600, 32);
-  ctx.fillStyle = p.text;
-  ctx.fillText("개인 승패 (승 많은 순)", PAD, y + 20);
-  y += 56;
-  const colW = (innerW - 24) / personCols;
-  summary.people.forEach((row, i) => {
-    // 승 많은 순서가 위에서 아래로 읽히도록 왼쪽 열을 먼저 채운다.
-    const col = Math.floor(i / personRows);
-    const r = i % personRows;
-    const x = PAD + col * (colW + 24);
-    const rowY = y + r * personRowH + personRowH / 2;
-    if (r % 2 === 0) {
-      ctx.fillStyle = p.elevated;
-      ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
-    }
-    drawRecordRow(ctx, p, x, rowY, colW, row.name, row.wins, row.losses);
-  });
-  y += personRows * personRowH + 40;
-
-  for (const [title, lines] of [
-    ["서포터", supportLines],
-    ["연승 중", streakLines],
-  ] as const) {
-    const h = boxH(lines.length);
-    roundRect(ctx, PAD, y, innerW, h, 16);
-    ctx.fillStyle = p.surface;
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = p.line;
-    ctx.stroke();
-    setFont(ctx, p, 600, 26);
+    setFont(ctx, p, 600, 56);
     ctx.fillStyle = p.text;
-    ctx.fillText(title, PAD + 24, y + 30);
-    setFont(ctx, p, 600, 26);
-    let lineY = y + 30 + lineH;
-    for (const line of lines) {
-      ctx.fillText(line, PAD + 24, lineY);
-      lineY += lineH;
-    }
-    y += h + 12;
-  }
+    ctx.fillText("오늘 요약", PAD, PAD + 34);
+    setFont(ctx, p, 600, 30);
+    ctx.fillStyle = p.muted;
+    ctx.fillText(
+      fit(ctx, `${dateLabel} · 확정 ${summary.games}경기 · 참가 ${summary.people.length}명`, innerW),
+      PAD,
+      PAD + 98,
+    );
 
-  drawFooter(ctx, p, height, snapshot.group.name, dateLabel);
-  return toBlob(canvas);
+    let y = PAD + 150;
+    setFont(ctx, p, 600, 32);
+    ctx.fillStyle = p.text;
+    ctx.fillText("개인 승패 (승 많은 순)", PAD, y + 20);
+    y += 56;
+    const colW = (innerW - 24) / personCols;
+    summary.people.forEach((row, i) => {
+      // 승 많은 순서가 위에서 아래로 읽히도록 왼쪽 열을 먼저 채운다.
+      const col = Math.floor(i / personRows);
+      const r = i % personRows;
+      const x = PAD + col * (colW + 24);
+      const rowY = y + r * personRowH + personRowH / 2;
+      if (r % 2 === 0) {
+        ctx.fillStyle = p.elevated;
+        ctx.fillRect(x, rowY - personRowH / 2 + 4, colW, personRowH - 8);
+      }
+      drawRecordRow(ctx, p, x, rowY, colW, row.name, row.wins, row.losses);
+    });
+    y += personRows * personRowH + 40;
+
+    for (const [title, lines] of [
+      ["서포터", supportLines],
+      ["연승 중", streakLines],
+    ] as const) {
+      const h = boxH(lines.length);
+      roundRect(ctx, PAD, y, innerW, h, 16);
+      ctx.fillStyle = p.surface;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = p.line;
+      ctx.stroke();
+      setFont(ctx, p, 600, 26);
+      ctx.fillStyle = p.text;
+      ctx.fillText(title, PAD + 24, y + 30);
+      setFont(ctx, p, 600, 26);
+      let lineY = y + 30 + lineH;
+      for (const line of lines) {
+        ctx.fillText(line, PAD + 24, lineY);
+        lineY += lineH;
+      }
+      y += h + 12;
+    }
+
+    drawFooter(ctx, p, height, snapshot.group.name, dateLabel);
+    return canvas;
+  });
 }
 
 /**
  * 시즌 요약 이미지: 요약 숫자와 시상 목록(근거 숫자 포함). 티어·기피 라인·조회 링크는 넣지 않는다.
  * 수상자 글이 길면 줄을 바꿔 모두 싣는다.
  */
-export async function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary): Promise<Blob> {
-  const p = palette();
-  await fontsReady(p.font);
-  const nameOf = nameMap(snapshot);
-  const innerW = WIDTH - PAD * 2;
-  const textW = innerW - 48;
-  const lineH = 34;
+export function drawSeasonImage(snapshot: Snapshot, summary: SeasonSummary): Promise<Blob> {
+  return paintWithFonts((p) => {
+    const nameOf = nameMap(snapshot);
+    const innerW = WIDTH - PAD * 2;
+    const textW = innerW - 48;
+    const lineH = 34;
 
-  const measure = newCanvas(1).ctx;
-  setFont(measure, p, 600, 26);
-  const rows = summary.awards.map((award) => {
-    const text = award.winners.length === 0 ? "해당 없음" : awardWinnersText(award, nameOf);
-    return { title: awardTitle(award), lines: wrapText(measure, text, textW), none: award.winners.length === 0 };
-  });
-  const rowsH = rows.reduce((sum, r) => sum + 56 + r.lines.length * lineH + 12, 0);
-  const height = PAD + 150 + 130 + 56 + rowsH + 48 + 110;
-  const { canvas, ctx } = newCanvas(height);
-  ctx.fillStyle = p.bg;
-  ctx.fillRect(0, 0, WIDTH, height);
+    const measure = newCanvas(1).ctx;
+    setFont(measure, p, 600, 26);
+    const rows = summary.awards.map((award) => {
+      const text = award.winners.length === 0 ? "해당 없음" : awardWinnersText(award, nameOf);
+      return { title: awardTitle(award), lines: wrapText(measure, text, textW), none: award.winners.length === 0 };
+    });
+    const rowsH = rows.reduce((sum, r) => sum + 56 + r.lines.length * lineH + 12, 0);
+    const height = PAD + 150 + 130 + 56 + rowsH + 48 + 110;
+    const { canvas, ctx } = newCanvas(height);
+    ctx.fillStyle = p.bg;
+    ctx.fillRect(0, 0, WIDTH, height);
 
-  setFont(ctx, p, 600, 56);
-  ctx.fillStyle = p.text;
-  ctx.fillText(fit(ctx, `${summary.label} 요약`, innerW), PAD, PAD + 34);
-  setFont(ctx, p, 600, 30);
-  ctx.fillStyle = p.muted;
-  ctx.fillText(
-    `${formatRange(summary.startsOn, summary.endsOn, snapshot.group.timezone)}${summary.ongoing ? " · 진행 중" : ""}`,
-    PAD,
-    PAD + 98,
-  );
+    setFont(ctx, p, 600, 56);
+    ctx.fillStyle = p.text;
+    ctx.fillText(fit(ctx, `${summary.label} 요약`, innerW), PAD, PAD + 34);
+    setFont(ctx, p, 600, 30);
+    ctx.fillStyle = p.muted;
+    ctx.fillText(
+      `${formatRange(summary.startsOn, summary.endsOn, snapshot.group.timezone)}${summary.ongoing ? " · 진행 중" : ""}`,
+      PAD,
+      PAD + 98,
+    );
 
-  let y = PAD + 150;
-  roundRect(ctx, PAD, y, innerW, 110, 16);
-  ctx.fillStyle = p.surface;
-  ctx.fill();
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = p.line;
-  ctx.stroke();
-  setFont(ctx, p, 600, 30);
-  ctx.fillStyle = p.text;
-  ctx.fillText(`${summary.games}경기 · 참가 ${summary.participants}명 · 내전 ${summary.days}일`, PAD + 24, y + 36);
-  setFont(ctx, p, 600, 24);
-  ctx.fillStyle = p.muted;
-  const blue = summary.sides.known > 0 ? ratePercent(summary.sides.blueWins, summary.sides.known) : null;
-  const busiest = summary.busiestDays[0];
-  ctx.fillText(
-    fit(
-      ctx,
-      [
-        blue !== null ? `블루 : 레드 승률 ${blue}% : ${100 - blue}%` : "진영 기록 없음",
-        busiest ? `가장 많이 한 날 ${busiest.date} (${busiest.games}경기)` : "",
-      ]
-        .filter(Boolean)
-        .join(" · "),
-      innerW - 48,
-    ),
-    PAD + 24,
-    y + 78,
-  );
-  y += 130;
-
-  setFont(ctx, p, 600, 32);
-  ctx.fillStyle = p.text;
-  ctx.fillText("시상", PAD, y + 20);
-  y += 56;
-  for (const row of rows) {
-    const h = 56 + row.lines.length * lineH;
-    roundRect(ctx, PAD, y, innerW, h, 16);
+    let y = PAD + 150;
+    roundRect(ctx, PAD, y, innerW, 110, 16);
     ctx.fillStyle = p.surface;
     ctx.fill();
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = p.line;
     ctx.stroke();
-    setFont(ctx, p, 600, 26);
+    setFont(ctx, p, 600, 30);
     ctx.fillStyle = p.text;
-    ctx.fillText(row.title, PAD + 24, y + 30);
-    setFont(ctx, p, 600, 26);
-    ctx.fillStyle = row.none ? p.muted : p.text;
-    let lineY = y + 30 + lineH;
-    for (const line of row.lines) {
-      ctx.fillText(line, PAD + 24, lineY);
-      lineY += lineH;
-    }
-    y += h + 12;
-  }
+    ctx.fillText(`${summary.games}경기 · 참가 ${summary.participants}명 · 내전 ${summary.days}일`, PAD + 24, y + 36);
+    setFont(ctx, p, 600, 24);
+    ctx.fillStyle = p.muted;
+    const blue = summary.sides.known > 0 ? ratePercent(summary.sides.blueWins, summary.sides.known) : null;
+    const busiest = summary.busiestDays[0];
+    ctx.fillText(
+      fit(
+        ctx,
+        [
+          blue !== null ? `블루 : 레드 승률 ${blue}% : ${100 - blue}%` : "진영 기록 없음",
+          busiest ? `가장 많이 한 날 ${busiest.date} (${busiest.games}경기)` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        innerW - 48,
+      ),
+      PAD + 24,
+      y + 78,
+    );
+    y += 130;
 
-  drawFooter(ctx, p, height, snapshot.group.name, summary.label);
-  return toBlob(canvas);
+    setFont(ctx, p, 600, 32);
+    ctx.fillStyle = p.text;
+    ctx.fillText("시상", PAD, y + 20);
+    y += 56;
+    for (const row of rows) {
+      const h = 56 + row.lines.length * lineH;
+      roundRect(ctx, PAD, y, innerW, h, 16);
+      ctx.fillStyle = p.surface;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = p.line;
+      ctx.stroke();
+      setFont(ctx, p, 600, 26);
+      ctx.fillStyle = p.text;
+      ctx.fillText(row.title, PAD + 24, y + 30);
+      setFont(ctx, p, 600, 26);
+      ctx.fillStyle = row.none ? p.muted : p.text;
+      let lineY = y + 30 + lineH;
+      for (const line of row.lines) {
+        ctx.fillText(line, PAD + 24, lineY);
+        lineY += lineH;
+      }
+      y += h + 12;
+    }
+
+    drawFooter(ctx, p, height, snapshot.group.name, summary.label);
+    return canvas;
+  });
 }
 
 /** 글을 너비에 맞춰 여러 줄로 나눈다(공백에서 끊고, 한 낱말이 너무 길면 글자에서 끊는다). */

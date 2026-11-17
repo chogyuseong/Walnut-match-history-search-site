@@ -58,8 +58,9 @@ async function send<T>(method: string, path: string, body?: unknown): Promise<{ 
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
     throw new ApiFailure("offline", "인터넷에 연결돼 있지 않아요.");
   }
+  // 시간 제한은 응답 머리를 받을 때까지만 건다(finally에서 푼다). AbortSignal.timeout으로 바꾸지 않는다: 그건 본문(json)을
+  // 읽는 동안에도 시간을 세서, 느린 회선에서 큰 스냅숏을 받다가 끊긴다. 백업 파일 올리기는 크기가 커서 더 기다린다.
   const controller = new AbortController();
-  // 백업 파일 올리기는 크기가 커서 더 기다린다.
   const timer = setTimeout(() => controller.abort(), path.includes("/restore") ? TIMEOUT_MS * 4 : TIMEOUT_MS);
   let response: Response;
   try {

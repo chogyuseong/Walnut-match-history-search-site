@@ -221,7 +221,7 @@ export function Person(props: {
   const orderPairs = (pairs: PairTally[]) =>
     pairOrder === "games"
       ? pairs
-      : [...pairs].sort((a, b) => b.wins / b.games - a.wins / a.games || b.games - a.games);
+      : pairs.toSorted((a, b) => b.wins / b.games - a.wins / a.games || b.games - a.games);
 
   const pairList = (
     pairs: PairTally[],

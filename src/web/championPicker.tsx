@@ -141,7 +141,8 @@ function ChampionCombobox(props: {
       if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       if (open) pick(active);
     } else if (event.key === "Escape" && open) {
-      // 목록만 닫는다. 위로 올려 보내면 결과 입력 창(Dialog)까지 닫힌다.
+      // 목록만 닫는다. 기본 동작을 막지 않으면 브라우저가 이 Esc를 결과 입력 창(<dialog>)의 닫기 요청으로도 쓴다.
+      event.preventDefault();
       event.stopPropagation();
       setQuery(null);
     }

@@ -42,7 +42,7 @@ import { CHAMPION_PORTRAITS } from "./portraits";
 import { stripRouteQuery, useSearchShortcut } from "./searchRoute";
 import { seasonRoutePart, seasonScopeFromRoute } from "./seasonRoute";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
-import { LineIcon, useKeyboardFlag, type LineIconName } from "./ui";
+import { LineIcon, useDialogOpen, useKeyboardFlag, type LineIconName } from "./ui";
 import { AppContext, go, useApp, useAppValue, useRoute, type AppValue } from "./useApp";
 
 /** 화면 코드를 받는 동안 보여 주는 표시. 모임 기록을 받는 동안의 표시와 같다. */
@@ -79,6 +79,7 @@ export function App() {
   useKeyboardFlag();
   usePrefetchOperator(app, operatorMode);
   useDocumentTitle(route, !!app.me?.accountId, !!app.me?.siteAdmin);
+  const notice = useVisibleNotice(app);
 
   if (isJoin) {
     return (
@@ -160,13 +161,31 @@ export function App() {
           <LegalFooter />
         )}
       </main>
-      {app.notice && (
+      {notice && (
         <p className="toast" role="status">
-          {app.notice}
+          {notice}
         </p>
       )}
     </AppContext.Provider>
   );
+}
+
+/** 하단 알림이 보이는 시간(ms). 확인 창이 열려 있는 동안은 세지 않는다. */
+const NOTICE_MS = 4000;
+
+/**
+ * 지금 보일 하단 알림. 확인 창(<dialog>)이 열려 있으면 창 밖이 inert라 화면 읽기 프로그램이 읽지 못하고 눈에도
+ * 창 뒤에 가려지므로, 창이 닫힐 때까지 미뤘다가 보여 준다. NOTICE_MS는 실제로 보인 뒤부터 센다.
+ */
+function useVisibleNotice(app: AppValue): string | null {
+  const dialogOpen = useDialogOpen();
+  const { notice, setNotice } = app;
+  useEffect(() => {
+    if (!notice || dialogOpen) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [notice, dialogOpen, setNotice]);
+  return dialogOpen ? null : notice;
 }
 
 /** 사이트 이름. 상단 바와 푸터, 문서 제목이 함께 쓴다. */

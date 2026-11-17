@@ -42,7 +42,8 @@
   --ih-loss-border: rgba(217, 83, 79, 0.35);
   --ih-loss-text: #ea847f;
 
-  --ih-font-sans: "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, system-ui,
+  /* Pretendard Variable은 같은 출처에서 내보내는 가변 글꼴(public/fonts/, index.html). "Pretendard"는 기기에 깔린 경우를 위해 둔다. */
+  --ih-font-sans: "Pretendard Variable", "Pretendard", "Inter", -apple-system, BlinkMacSystemFont, system-ui,
     "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 
   /* 승리 색으로 채운 작은 칸(최근 승패 점) 위의 글자. 패배 색 칸 위는 --ih-on-loss(예상 승률 막대). */
@@ -1047,30 +1048,37 @@ details > *:not(summary) {
 }
 
 
-/* 확인 창: 하단 탭과 고정 버튼 위를 덮는다. 뒤 화면은 누를 수 없다. 흐림(blur) 없이 단색으로 가린다. */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 0.6);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 10;
-}
-/* 대화상자·팝오버만 그림자를 쓴다(CLAUDE.md 6절). */
+/*
+ * 확인 창(<dialog>, src/web/ui.tsx Dialog). showModal로 띄워 브라우저 최상위 층에 그려지므로 하단 탭·고정 버튼보다
+ * 늘 위에 있고 z-index가 필요 없다. 폰에서는 아래에 붙은 시트, 768px 이상은 가운데(아래 미디어 쿼리).
+ * 대화상자·팝오버만 그림자를 쓴다(CLAUDE.md 6절).
+ */
 .dialog {
+  color: var(--ih-text);
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
   width: 100%;
   max-width: 560px;
   max-height: 92dvh;
+  margin: auto auto 0;
   overflow-y: auto;
+  /* 창 안 스크롤이 끝에 닿아도 뒤 화면으로 넘어가지 않게 한다. */
+  overscroll-behavior: contain;
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+/* display는 열린 창에만 준다. 닫힌 <dialog>에 주면 브라우저 기본의 숨김(display: none)을 덮어 창이 보인다. */
+.dialog[open] {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+/* 뒤 화면 덮개. 흐림(blur) 없이 단색으로 가린다. overflow를 줘야 overscroll-behavior가 먹어 덮개 위 스크롤이 뒤 화면을 밀지 않는다. */
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 .dialog-head {
   display: flex;
@@ -1112,10 +1120,8 @@ details > *:not(summary) {
 
 /* 넓은 화면: 확인 창을 가운데에 띄우고, 화면·카드 안쪽 여백을 모바일 16px에서 24px로 넓힌다. */
 @media (min-width: 768px) {
-  .overlay {
-    align-items: center;
-  }
   .dialog {
+    margin: auto;
     border-radius: var(--radius-panel);
     padding: var(--space-5);
   }
@@ -1721,16 +1727,27 @@ button.row .tag {
    (기본 부품의 모양은 파일 앞쪽에 있고, 여기는 그 위에 겹치는 문맥 규칙이다)
    ========================================================================== */
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* 스크롤바: 얇게, 막대는 구분선 색. 표준 속성을 쓰고, 표준을 모르는 브라우저만 ::-webkit-scrollbar로 맞춘다
+   (Chrome은 표준 속성이 있으면 웹킷 규칙을 무시한다). scrollbar-color는 상속되지만 scrollbar-width는 상속되지 않아
+   안쪽 스크롤 상자(표·목록)마다 걸리도록 모든 요소에 준다. */
+:root {
+  scrollbar-color: var(--ih-line) transparent;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+* {
+  scrollbar-width: thin;
 }
-::-webkit-scrollbar-thumb {
-  background: var(--ih-line);
-  border-radius: 4px;
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ih-line);
+    border-radius: 4px;
+  }
 }
 
 /* 버튼 호버: 테두리만 한 단계 진하게. 클래스 없는 기본 버튼과 secondary는 바탕도 한 단계 밝아진다. 다른 버튼은 각자 규칙을 따른다. */
@@ -5067,7 +5084,7 @@ main:focus {
   overflow-wrap: anywhere;
 }
 .series-pick {
-  max-height: 50vh;
+  max-height: 50svh;
   overflow-y: auto;
 }
 /* 시즌 요약과 시상(src/web/screens/SeasonSummary.tsx).
@@ -5510,7 +5527,7 @@ main:focus {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: calc(100vh - var(--intro-chrome-above) - var(--space-5));
+    min-height: calc(100svh - var(--intro-chrome-above) - var(--space-5));
     /* 아래 여백만큼 글 덩어리가 위로 올라가 눈으로 본 가운데에 놓인다. */
     padding-bottom: var(--space-7);
   }
@@ -5551,7 +5568,7 @@ main:focus {
 /* 예시 데이터를 만드는 동안 자리를 잡아 둔다(아래 푸터가 크게 튀지 않게). */
 .demo-loading,
 .site-admin-loading {
-  min-height: 60vh;
+  min-height: 60svh;
 }
 /* 사이트 현황의 오류 스택. */
 .error-log details {
@@ -5728,7 +5745,7 @@ main:focus {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: min(240px, 40vh);
+  max-height: min(240px, 40svh);
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--ih-panel);
@@ -5788,7 +5805,7 @@ main:focus {
   margin: 0;
   font: inherit;
   font-size: var(--text-label);
-  max-height: 40vh;
+  max-height: 40svh;
   overflow-y: auto;
 }
 /* 전적 검색: 최근 검색어 칩과 지우기 버튼(좁은 화면에서 줄바꿈) */
@@ -8325,7 +8342,7 @@ input[type="search"].filter-search {
   .ct-board-side {
     position: sticky;
     top: calc(var(--topbar-height) + var(--space-4));
-    max-height: calc(100vh - var(--topbar-height) - var(--space-6));
+    max-height: calc(100svh - var(--topbar-height) - var(--space-6));
     overflow-y: auto;
   }
 }

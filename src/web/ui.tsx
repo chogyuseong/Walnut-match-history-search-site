@@ -1,90 +1,97 @@
 // 첫 화면 껍데기(App·상단 바·로그인 상태·모임 바꾸기·오류 화면)가 쓰는 화면 부품만 둔다.
 // 이 파일은 index.html의 진입 묶음에 그대로 실리므로, 통계·칭호·날짜 형식처럼 화면에서만 쓰는 계산을 부르지 않는다.
 // 화면 전용 부품(머리·표·막대·배지 등)은 screenKit.tsx에 있다. 껍데기에 들어가도 되는 파일 목록은 scripts/shell-modules.mjs.
-import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { ApiFailure } from "./api";
 import { SessionExpiredNote } from "./sessionExpiredNote";
 
-/** 대화 상자 안에서 Tab으로 갈 수 있는 요소. 숨겨진 것(크기 없음)은 뺀다. */
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), ' +
-  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/** 지금 열려 있는 확인 창 수. 창 위에 창을 열면 2 이상이 된다. */
+let openDialogCount = 0;
+const dialogCountListeners = new Set<() => void>();
 
-function focusablesIn(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
+function changeOpenDialogCount(step: 1 | -1) {
+  openDialogCount += step;
+  for (const listener of dialogCountListeners) listener();
 }
 
-/** 열려 있는 대화 상자(나중에 연 것이 끝). Tab 가두기는 맨 위의 창만 한다(창 위에 창을 연 경우). */
-const openDialogs: HTMLElement[] = [];
+function subscribeDialogCount(listener: () => void) {
+  dialogCountListeners.add(listener);
+  return () => dialogCountListeners.delete(listener);
+}
 
 /**
- * 한 번에 하나만 띄우는 확인 창. 뒤 화면은 누를 수 없다.
- * 열리면 초점을 창으로 옮기고, Tab·Shift+Tab은 창 안에서만 돈다. 닫히면 열기 전에 초점이 있던 요소로 돌려준다.
- * 창 이름은 제목(h2)을 aria-labelledby로 가리킨다.
+ * 확인 창이 하나라도 열려 있는지. 모달이 열린 동안 창 밖은 inert라 화면 읽기 프로그램이 알림을 읽지 못하므로,
+ * 하단 알림(App.tsx)은 창이 닫힐 때까지 미뤘다가 보여 준다.
+ */
+export function useDialogOpen(): boolean {
+  return useSyncExternalStore(subscribeDialogCount, () => openDialogCount > 0);
+}
+
+/**
+ * 확인 창. 브라우저 기본 모달(<dialog> + showModal)이라 뒤 화면은 누르거나 읽을 수 없고(inert), 초점은 창 안에서만 돈다.
+ * Esc·안드로이드 뒤로가기는 cancel 이벤트로 받아 onClose를 부른다. 창을 실제로 없애는 일은 부르는 쪽(상태)이 한다.
+ * 닫히면 열기 전에 초점이 있던 요소로 돌려준다. 창 이름은 제목(h2)을 aria-labelledby로 가리킨다.
+ * 창 위에 창을 열어도 된다(브라우저가 맨 위 창만 Esc를 받게 한다).
  */
 export function Dialog(props: { title: string; onClose: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const onClose = useRef(props.onClose);
   onClose.current = props.onClose;
+  // 그리기 전에 모달로 띄운다(닫힌 <dialog>는 보이지 않으므로 화면이 한 번 비어 보이지 않게).
   // 창이 열릴 때 한 번만 초점을 옮긴다. 다시 그릴 때마다 옮기면 입력 중인 칸에서 초점이 빠진다.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialog = ref.current;
+    if (!dialog) return;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (dialog) openDialogs.push(dialog);
-    dialog?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose.current();
-      if (event.key !== "Tab" || !dialog || openDialogs[openDialogs.length - 1] !== dialog) return;
-      const items = focusablesIn(dialog);
-      if (items.length === 0) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = items[0]!;
-      const last = items[items.length - 1]!;
-      const active = document.activeElement;
-      const inside = active instanceof Node && dialog.contains(active);
-      if (event.shiftKey) {
-        if (!inside || active === first || active === dialog) {
-          event.preventDefault();
-          last.focus();
-        }
-      } else if (!inside || active === last) {
-        event.preventDefault();
-        first.focus();
-      }
+    if (!dialog.open) dialog.showModal();
+    changeOpenDialogCount(1);
+    // 브라우저는 첫 버튼(닫기)에 초점을 줄 수 있다. 화면 읽기 프로그램이 제목부터 읽도록 창 자체에 준다(전과 같은 동작).
+    dialog.focus();
+    // Esc를 눌러도 브라우저가 바로 닫지 않게 막고, 닫을지는 부르는 쪽에 맡긴다(복구 코드 창은 닫기 전에 한 번 묻는다).
+    const onCancel = (event: Event) => {
+      event.preventDefault();
+      onClose.current();
     };
-    window.addEventListener("keydown", onKey);
+    // 사용자 동작 없이 Esc를 거듭 누르면 브라우저가 preventDefault를 무시하고 닫아 버린다. 그때도 onClose를 부르고,
+    // 부르는 쪽이 창을 남겨 두면 다시 띄운다(React는 창이 있다고 아는데 화면에서만 사라지는 일이 없게).
+    const onForcedClose = () => {
+      onClose.current();
+      requestAnimationFrame(() => {
+        if (dialog.isConnected && !dialog.open) dialog.showModal();
+      });
+    };
+    dialog.addEventListener("cancel", onCancel);
+    dialog.addEventListener("close", onForcedClose);
     return () => {
-      window.removeEventListener("keydown", onKey);
-      const index = dialog ? openDialogs.lastIndexOf(dialog) : -1;
-      if (index >= 0) openDialogs.splice(index, 1);
-      // 닫힌 뒤 초점을 연 요소로 돌려준다. 그 요소가 화면에서 사라졌으면 그대로 둔다.
+      // 리스너를 먼저 떼야 아래 close()가 onClose를 다시 부르지 않는다.
+      dialog.removeEventListener("cancel", onCancel);
+      dialog.removeEventListener("close", onForcedClose);
+      if (dialog.open) dialog.close();
+      changeOpenDialogCount(-1);
       // 화면이 그 자리로 튀지 않게 스크롤은 하지 않는다(창은 화면 위에 떠 있었으므로 보통 연 요소가 보인다).
       if (opener && opener.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
   return (
-    <div className="overlay" role="presentation">
-      <div
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        ref={ref}
-      >
-        <div className="dialog-head">
-          <h2 id={titleId}>{props.title}</h2>
-          <button type="button" className="link" onClick={props.onClose}>
-            닫기
-          </button>
-        </div>
-        {props.children}
+    <dialog className="dialog" aria-labelledby={titleId} tabIndex={-1} ref={ref}>
+      <div className="dialog-head">
+        <h2 id={titleId}>{props.title}</h2>
+        <button type="button" className="link" onClick={props.onClose}>
+          닫기
+        </button>
       </div>
-    </div>
+      {props.children}
+    </dialog>
   );
 }
 
@@ -282,7 +289,7 @@ export function scrollBehavior(): ScrollBehavior {
  */
 function revealResults(results: HTMLElement) {
   const behavior = scrollBehavior();
-  if (results.closest('[role="dialog"]')) {
+  if (results.closest("dialog")) {
     results.scrollIntoView({ block: "nearest", behavior });
     return;
   }

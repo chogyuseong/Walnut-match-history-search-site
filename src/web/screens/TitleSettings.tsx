@@ -19,8 +19,8 @@ interface Row {
 }
 
 function toRows(bands: readonly TitleBand[]): Row[] {
-  return [...bands]
-    .sort((a, b) => b.minRate - a.minRate)
+  return bands
+    .toSorted((a, b) => b.minRate - a.minRate)
     .map((b) => ({ name: b.name, minRate: String(b.minRate) }));
 }
 
