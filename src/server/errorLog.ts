@@ -16,6 +16,7 @@ import {
 import { APP_VERSION } from "../shared/version";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, pathForLog, readJsonBody } from "./http";
+import { spendSiteDaily } from "./ratelimit";
 
 /**
  * 보관 한도: 출처(client·server)마다 최근 이만큼만 남긴다(합쳐 최대 2배).
@@ -87,6 +88,8 @@ export async function recordClientError(env: Env, req: Request): Promise<void> {
   const stack = optionalText(body.stack, "stack", ERROR_STACK_MAX);
   const path = optionalText(body.path, "path", ERROR_PATH_MAX);
   const version = optionalText(body.appVersion, "appVersion", 32);
+  // 사이트 전체 하루 건수(ratelimit.ts day-client-errors-site): 화면 오류 보고로 서버·화면 오류 기록을 밀어내지 못하게.
+  await spendSiteDaily(env, "day-client-errors-site", "오늘 받은 오류 보고가 많아 잠시 받지 않아요.");
   await recordError(env, {
     source: "client",
     kind,

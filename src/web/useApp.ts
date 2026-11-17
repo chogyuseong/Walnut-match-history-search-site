@@ -88,6 +88,13 @@ export interface Me {
   providers?: ("local" | "kakao" | "google")[];
   /** 지금 세션의 로그인 수단. 아이디·식별자는 서버가 돌려주지 않는다. */
   loginMethod?: "local" | "oauth" | "fake" | null;
+  /** 카카오·Google 세션만: 어느 제공자로 로그인했는지(다시 로그인 버튼에 쓴다). */
+  provider?: "kakao" | "google";
+  /**
+   * 카카오·Google 세션만: 되돌리기 어려운 작업(모임 삭제·넘기기·복원·탈퇴)을 이 시각(ISO)까지 할 수 있다.
+   * null이면 로그인 시각을 모르는 예전 세션이라 다시 로그인해야 한다(src/web/recentLogin.tsx).
+   */
+  recentLoginUntil?: string | null;
   /** 사이트 운영자(이 서비스의 주인)일 때만 true. 모임 운영자 권한과 무관하다(src/server/siteAdmin.ts). */
   siteAdmin?: boolean;
   /**

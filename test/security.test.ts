@@ -206,6 +206,8 @@ describe("보안 헤더(2026-11-07)", () => {
       expect(csp).toContain(part);
     }
     expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
+    // 인라인 스타일도 막는다(2026-11-17): CSS 주입으로 화면을 덮지 못하게. React style 속성은 CSSOM이라 걸리지 않는다.
+    expect(csp).not.toMatch(/unsafe-inline/);
     // 챔피언 초상화(Data Dragon)만 그림 출처로 더했다. 정적 화면 헤더(public/_headers)도 같은 값이어야 한다.
     expect(csp).toContain("img-src 'self' data: blob: https://ddragon.leagueoflegends.com;");
     expect(headersFile).toContain(`Content-Security-Policy: ${csp}`);

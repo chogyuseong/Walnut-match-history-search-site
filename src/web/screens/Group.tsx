@@ -8,6 +8,7 @@ import { formatDate, formatRange, formatTime, nameMap, viewLink } from "../forma
 import { rotationContext, supportCounts } from "../../shared/rotation";
 import { SupportCountEditor } from "../supportCountEditor";
 import { Help } from "../screenKit";
+import { isReauthError, RecentLoginNote, useRecentLogin } from "../recentLogin";
 import { CopyButton, Dialog, ErrorNote, scrollBehavior, useSearchJump } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { TitleSettings } from "./TitleSettings";
@@ -52,6 +53,8 @@ export function Group() {
   // 아이디로 가입한 계정은 인수 링크를 만들 때 비밀번호를 한 번 더 확인한다(서버가 확인한다).
   const [transferPassword, setTransferPassword] = useState("");
   const transferNeedsPassword = app.me?.loginMethod === "local";
+  // 카카오·Google 계정은 비밀번호 대신 최근 로그인을 확인한다(src/web/recentLogin.tsx).
+  const transferLogin = useRecentLogin(app.me, error);
   // 묶음 복구에서 이미 기록에 있는 경기와 겹친 경우: 겹치지 않는 경기만 복구할지 고르게 한다.
   const [restoreOverlap, setRestoreOverlap] = useState<{ batchId: string; overlapping: number; restorable: number } | null>(
     null,
@@ -963,12 +966,13 @@ export function Group() {
                   />
                 </label>
               )}
-              <ErrorNote error={error} />
+              <RecentLoginNote me={app.me} blocked={transferLogin.blocked} />
+              <ErrorNote error={isReauthError(error) ? null : error} />
               <div className="button-row">
                 <button
                   type="button"
                   className="danger"
-                  disabled={busy || (transferNeedsPassword && transferPassword === "")}
+                  disabled={busy || (transferNeedsPassword && transferPassword === "") || transferLogin.blocked}
                   onClick={async () => {
                     setBusy(true);
                     setError(null);

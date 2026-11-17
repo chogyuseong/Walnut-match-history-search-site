@@ -98,3 +98,46 @@ describe("피드백 읽기·지우기", () => {
     expect(await env.DB.prepare("SELECT 1 FROM feedback WHERE id = ?1").bind(mine.id).first()).toBeNull();
   });
 });
+
+describe("사이트 전체 하루 건수(2026-11-17)", () => {
+  /** 오늘 이미 센 사이트 전체 건수. 같은 날 다른 테스트가 보낸 것까지 들어 있어 한도를 이 값 기준으로 잡는다. */
+  async function usedToday(bucket: string): Promise<number> {
+    const day = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+    const row = await env.DB.prepare("SELECT count FROM rate_limits WHERE key = ?1 AND window_start = ?2")
+      .bind(`${bucket}:site`, day)
+      .first<{ count: number }>();
+    return row?.count ?? 0;
+  }
+
+  it("피드백: IP를 바꿔도 하루 건수를 넘으면 429이고 이미 있는 글을 밀어내지 않는다", async () => {
+    const limits: Partial<Env> = { RATE_FEEDBACK_SITE_DAY: String((await usedToday("day-feedback-site")) + 2) };
+    expect((await send({ body: "첫 번째 진짜 피드백이에요" }, limits)).status).toBe(200);
+    expect((await send({ body: "두 번째 진짜 피드백이에요" }, limits)).status).toBe(200);
+    const before = await count();
+    const flood = await send({ body: "다른 IP에서 온 도배 글이에요" }, limits);
+    expect(flood.status).toBe(429);
+    expect(((await flood.json()) as { error: { message: string } }).error.message).toContain("오전 9시");
+    expect(await count()).toBe(before);
+  });
+
+  it("피드백: 형식이 틀린 요청은 하루 건수를 쓰지 않는다", async () => {
+    const used = await usedToday("day-feedback-site");
+    expect((await send({ body: "ㅇㅇ" })).status).toBe(400);
+    expect(await usedToday("day-feedback-site")).toBe(used);
+  });
+
+  it("화면 오류 보고: 하루 건수를 넘으면 429이고 기록을 넣지 않는다", async () => {
+    const limits: Partial<Env> = { RATE_CLIENT_ERRORS_SITE_DAY: String((await usedToday("day-client-errors-site")) + 1) };
+    const report = () =>
+      direct(limits, "POST", "/api/client-errors", {
+        body: { kind: "error", message: "테스트 오류" },
+        headers: { "CF-Connecting-IP": unique("ip") },
+      });
+    expect((await report()).status).toBe(200);
+    const rows = async () =>
+      (await env.DB.prepare("SELECT COUNT(*) AS n FROM error_logs WHERE source = 'client'").first<{ n: number }>())!.n;
+    const before = await rows();
+    expect((await report()).status).toBe(429);
+    expect(await rows()).toBe(before);
+  });
+});

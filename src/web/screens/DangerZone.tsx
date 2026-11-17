@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { todayIn } from "../../shared/stats";
 import { ApiFailure, call } from "../api";
+import { isReauthError, RecentLoginNote, useRecentLogin } from "../recentLogin";
 import { ErrorNote } from "../ui";
 import { DRAFT_KEY, forgetGroupStorage, go, GROUP_KEY, useAppValue } from "../useApp";
 import { downloadJson } from "./Restore";
@@ -38,6 +39,8 @@ export function DangerZone() {
   const [accountError, setAccountError] = useState<unknown>(null);
   // 백업을 한 번 내려받았으면 다시 시도할 때 또 받지 않는다.
   const backedUp = useRef(false);
+  // 카카오·Google 계정은 비밀번호 대신 최근 로그인을 확인한다(서버 confirmIdentity). 두 작업이 같은 세션을 보므로 오류는 합쳐 본다.
+  const recent = useRecentLogin(app.me, isReauthError(groupError) ? groupError : accountError);
 
   if (!app.me?.accountId) {
     return (
@@ -109,9 +112,12 @@ export function DangerZone() {
     }
   }
 
-  const groupReady = groupConfirm.trim() === GROUP_CONFIRM && (!isLocal || groupPassword !== "");
+  const groupReady = groupConfirm.trim() === GROUP_CONFIRM && (!isLocal || groupPassword !== "") && !recent.blocked;
   const accountReady =
-    accountConfirm.trim() === ACCOUNT_CONFIRM && groups.length === 0 && (!isLocal || accountPassword !== "");
+    accountConfirm.trim() === ACCOUNT_CONFIRM &&
+    groups.length === 0 &&
+    (!isLocal || accountPassword !== "") &&
+    !recent.blocked;
 
   return (
     <div className="screen danger-zone">
@@ -161,12 +167,13 @@ export function DangerZone() {
               />
             </label>
           )}
+          <RecentLoginNote me={app.me} blocked={recent.blocked} afterLogin="확인 문구는 다시 입력해 주세요." />
           {step && (
             <p className="hint" role="status">
               {step}…
             </p>
           )}
-          <ErrorNote error={groupError} />
+          <ErrorNote error={isReauthError(groupError) ? null : groupError} />
           <div className="button-row">
             <button
               type="button"
@@ -225,7 +232,11 @@ export function DangerZone() {
                 />
               </label>
             )}
-            <ErrorNote error={accountError} />
+            {/* 모임 삭제 칸이 있으면 안내는 거기 한 번만 둔다. */}
+            {!(snapshot && isOwner) && (
+              <RecentLoginNote me={app.me} blocked={recent.blocked} afterLogin="확인 문구는 다시 입력해 주세요." />
+            )}
+            <ErrorNote error={isReauthError(accountError) ? null : accountError} />
             <div className="button-row">
               <button
                 type="button"

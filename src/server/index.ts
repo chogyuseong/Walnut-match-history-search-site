@@ -6,6 +6,7 @@ import {
   fakeLoginEnabled,
   productionConfigProblem,
   readSession,
+  recentLoginUntil,
   requireAccountId,
   requireMember,
   requireOperator,
@@ -214,12 +215,30 @@ async function spendHeavyRead(env: Env, req: Request, accountId: string, gid: st
 }
 
 /**
- * 대표 운영자의 되돌리기 어려운 작업(모임 삭제·넘기기·복원) 앞에서 지금 비밀번호를 한 번 더 확인한다(2026-11-10 보안 감사):
- * 세션 쿠키만 훔친 사람이 모임을 지우거나 가져가지 못하게. 비밀번호가 없는 계정(카카오·Google·개발용)은 건너뛴다.
+ * 되돌리기 어려운 작업(모임 삭제·넘기기·복원·탈퇴) 앞의 본인 확인: 세션 쿠키만 훔친 사람이 모임을 지우거나 가져가지 못하게.
+ * - 자체 계정: 지금 비밀번호를 한 번 더 확인한다(2026-11-10 보안 감사).
+ * - 카카오·Google: 비밀번호가 없으니 최근 RECENT_LOGIN_MS 안에 로그인한 세션이어야 한다(2026-11-17 보안 점검).
+ *   아니면 403 REAUTH_REQUIRED. 화면이 그 제공자로 다시 로그인하게 안내한다(details.provider). 401은 화면이
+ *   "로그인이 풀렸어요"로 받으므로 쓰지 않는다.
+ * - 개발용 가짜 로그인: 건너뛴다(가짜 로그인이 닫힌 곳에서는 그 세션 자체를 받지 않는다, auth.ts loadSession).
  */
-async function confirmOwnerPassword(env: Env, req: Request, password: unknown): Promise<void> {
+async function confirmIdentity(env: Env, req: Request, password: unknown): Promise<void> {
   const session = await readSession(env, req);
-  if (session?.provider === LOCAL_PROVIDER) await confirmCurrentPassword(env, session.id, password);
+  if (!session) throw new ApiError(401, "AUTH_REQUIRED", "로그인이 필요합니다.");
+  if (session.provider === LOCAL_PROVIDER) {
+    await confirmCurrentPassword(env, session.id, password);
+    return;
+  }
+  if (session.provider === "fake") return;
+  const until = recentLoginUntil(session);
+  if (until === null || until < Date.now()) {
+    throw new ApiError(
+      403,
+      "REAUTH_REQUIRED",
+      "안전을 위해 다시 로그인해 주세요. 이 작업은 로그인한 지 10분 안에만 할 수 있어요.",
+      { provider: session.provider },
+    );
+  }
 }
 
 // 운영 환경 안전장치: 로컬(DEPLOY_ENV=local)이 아닌 곳에서 가짜 로그인이 켜져 있거나 필수 값이 없으면
@@ -346,7 +365,7 @@ app.post("/api/auth/fake-login", async (c) => {
 app.get("/api/auth/:provider/start", async (c) => {
   const provider = c.req.param("provider");
   if (!isProvider(provider)) return c.redirect("/#/login-failed/not_configured");
-  const begun = await beginLogin(c.env, provider, c.req.url, c.req.query("return") ?? "#/");
+  const begun = await beginLogin(c.env, provider, c.req.url, c.req.query("return") ?? "#/", c.req.query("reauth") === "1");
   if (!begun) return c.redirect("/#/login-failed/not_configured");
   c.header("Set-Cookie", begun.setCookie);
   return c.redirect(begun.location);
@@ -451,6 +470,16 @@ app.get("/api/me", async (c) => {
     providers,
     // 화면이 비밀번호 바꾸기를 보여줄지 정하는 데 쓴다. 아이디는 돌려주지 않는다.
     loginMethod: session.provider === LOCAL_PROVIDER ? "local" : session.provider === "fake" ? "fake" : "oauth",
+    // 카카오·Google: 어느 제공자로 다시 로그인할지, 되돌리기 어려운 작업을 언제까지 할 수 있는지(confirmIdentity).
+    ...(session.provider === "kakao" || session.provider === "google"
+      ? {
+          provider: session.provider,
+          recentLoginUntil: (() => {
+            const until = recentLoginUntil(session);
+            return until === null ? null : new Date(until).toISOString();
+          })(),
+        }
+      : {}),
     // 사이트 운영자(src/server/siteAdmin.ts)에게만 붙인다. 화면이 현황 메뉴를 보여줄지 정한다.
     ...((await isSiteAdmin(c.env, c.req.raw)) ? { siteAdmin: true } : {}),
   });
@@ -613,7 +642,7 @@ app.post("/api/groups/:gid/restore", async (c) => {
   const accountId = await requireOwner(c.env, c.req.raw, gid);
   return c.json(
     await applyRestore(c.env, gid, c.req.raw, { accountId, ip: clientIp(c.req.raw) }, (password) =>
-      confirmOwnerPassword(c.env, c.req.raw, password),
+      confirmIdentity(c.env, c.req.raw, password),
     ),
   );
 });
@@ -631,7 +660,7 @@ app.post("/api/groups/:gid/delete", async (c) => {
   const gid = c.req.param("gid");
   await requireOwner(c.env, c.req.raw, gid);
   const { password, ...body } = await readJsonBody(c.req.raw);
-  await confirmOwnerPassword(c.env, c.req.raw, password);
+  await confirmIdentity(c.env, c.req.raw, password);
   return c.json(await deleteGroup(c.env, gid, body));
 });
 
@@ -641,10 +670,8 @@ app.post("/api/account/delete", async (c) => {
   if (!session) throw new ApiError(401, "AUTH_REQUIRED", "로그인이 필요합니다.");
   const accountId = session.id;
   const body = await readJsonBody(c.req.raw);
-  // 자체 계정은 비밀번호를 한 번 더 확인한다(세션 쿠키만 훔친 사람이 계정을 지우지 못하게).
-  if (session.provider === LOCAL_PROVIDER) {
-    await confirmCurrentPassword(c.env, accountId, body.password);
-  }
+  // 세션 쿠키만 훔친 사람이 계정을 지우지 못하게 본인을 한 번 더 확인한다(자체 계정은 비밀번호, 카카오·Google은 최근 로그인).
+  await confirmIdentity(c.env, c.req.raw, body.password);
   delete body.password;
   await deleteAccount(c.env, accountId, body);
   c.header("Set-Cookie", clearSessionCookie(c.env));
@@ -764,7 +791,7 @@ app.post("/api/groups/:gid/transfer", async (c) => {
   // 본문: { password }(자체 계정만 필요). 본문 없이 보내던 예전 요청은 비밀번호 없는 계정에서 그대로 된다.
   const body = await readOptionalJsonBody(c.req.raw);
   assertOnlyKeys(body, ["password"]);
-  await confirmOwnerPassword(c.env, c.req.raw, body.password);
+  await confirmIdentity(c.env, c.req.raw, body.password);
   return c.json(await createTransfer(c.env, gid));
 });
 

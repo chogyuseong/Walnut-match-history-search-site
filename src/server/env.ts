@@ -53,6 +53,9 @@ export interface Env {
   RATE_CLIENT_ERROR_PER_IP?: string;
   /** 피드백(POST /api/feedback, 로그인 없음)의 IP별 한도(창당). 기본 3. */
   RATE_FEEDBACK_PER_IP?: string;
+  /** 피드백·화면 오류 보고의 사이트 전체 하루 건수(src/server/ratelimit.ts day-*-site). */
+  RATE_FEEDBACK_SITE_DAY?: string;
+  RATE_CLIENT_ERRORS_SITE_DAY?: string;
   /**
    * 대량 쓰기 하루 예산(UTC 하루에 가져오기·지난 경기 입력·백업 복원으로 넣을 수 있는 경기 수).
    * 기본 계정당 3000, IP당 6000(src/server/ratelimit.ts spendBulkRows).

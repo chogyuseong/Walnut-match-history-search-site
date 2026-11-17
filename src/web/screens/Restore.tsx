@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ApiFailure, call, mutate, newRequestId } from "../api";
 import { todayIn } from "../../shared/stats";
 import { formatDate, formatTime } from "../format";
+import { isReauthError, RecentLoginNote, useRecentLogin } from "../recentLogin";
 import { ErrorNote } from "../ui";
 import { GROUP_KEY, useAppValue } from "../useApp";
 
@@ -98,6 +99,9 @@ export function RestoreSection() {
   }
 
   const needsPassword = app.me?.loginMethod === "local" && preview?.sameGroup === true;
+  // 같은 모임 복원만 본인 확인을 한다(새 모임 가져오기는 지우는 것이 없다). 카카오·Google은 최근 로그인(recentLogin.tsx).
+  const recent = useRecentLogin(app.me, error);
+  const needsRecentLogin = preview?.sameGroup === true && recent.blocked;
 
   async function runRestore() {
     if (!preview) return;
@@ -151,7 +155,10 @@ export function RestoreSection() {
 
   const file = preview?.file;
   const ready =
-    preview?.ok === true && confirm.trim() === preview.confirmText && (!needsPassword || password !== "");
+    preview?.ok === true &&
+    confirm.trim() === preview.confirmText &&
+    (!needsPassword || password !== "") &&
+    !needsRecentLogin;
 
   return (
     <section aria-label="백업에서 복원" className="restore">
@@ -272,7 +279,10 @@ export function RestoreSection() {
               {step}…
             </p>
           )}
-          <ErrorNote error={error} />
+          {preview.sameGroup && (
+            <RecentLoginNote me={app.me} blocked={recent.blocked} afterLogin="백업 파일은 다시 골라 주세요." />
+          )}
+          <ErrorNote error={isReauthError(error) ? null : error} />
           <div className="button-row">
             <button
               type="button"

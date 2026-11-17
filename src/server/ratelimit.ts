@@ -36,7 +36,9 @@ export type Bucket =
   | "day-snapshot-rows-account"
   | "day-snapshot-rows-ip"
   | "day-snapshot-rows-token"
-  | "day-snapshot-rows-site";
+  | "day-snapshot-rows-site"
+  | "day-feedback-site"
+  | "day-client-errors-site";
 
 /**
  * 하루 창(UTC 0시 기준 86400초)으로 세는 버킷의 키 접두어. 요청 수가 아니라 양(경기 수·읽은 행 수·벌점)을 센다.
@@ -98,6 +100,12 @@ export const DEFAULT_LIMITS: Record<Bucket, number> = {
   // 읽기만 해도 합계가 D1 하루 읽기 500만 행을 넘을 수 있었다. 무거운 읽기만 350만 행에서 막고 나머지 약 150만 행은
   // 경기 시작·결과 저장 같은 쓰기 경로와 304 확인에 남긴다. 무거운 읽기가 막혀도 경기 입력은 그날 계속 된다.
   "day-snapshot-rows-site": 3_500_000,
+  // 로그인 없이 받는 글의 사이트 전체 하루 건수(2026-11-17 보안 점검). 보관 표는 건수 한도를 넘으면 오래된 것부터 지우는데,
+  // IP를 여럿 쓰면 IP별 분당 한도만으로는 몇 분 만에 진짜 피드백·오류 기록을 다 밀어낼 수 있었다. 하루 건수를 묶으면
+  // 보관 한도(피드백 500·화면 오류 1000)를 다 밀어내는 데 며칠이 걸려 사이트 운영자가 그 전에 알아챈다.
+  // 대가: 도배가 들어온 날은 그날 남은 진짜 피드백도 받지 못한다(UTC 0시에 다시 열림).
+  "day-feedback-site": 100,
+  "day-client-errors-site": 300,
 };
 export const DEFAULT_WINDOW_SECONDS = 60;
 
@@ -124,6 +132,8 @@ const LIMIT_VARS: Record<Bucket, keyof Env> = {
   "day-snapshot-rows-ip": "RATE_SNAPSHOT_ROWS_PER_IP_DAY",
   "day-snapshot-rows-token": "RATE_SNAPSHOT_ROWS_PER_TOKEN_DAY",
   "day-snapshot-rows-site": "RATE_SNAPSHOT_ROWS_SITE_DAY",
+  "day-feedback-site": "RATE_FEEDBACK_SITE_DAY",
+  "day-client-errors-site": "RATE_CLIENT_ERRORS_SITE_DAY",
 };
 
 /** 시계. 테스트에서 창이 지난 상황을 만들 때 바꿔 끼운다. */
@@ -425,6 +435,14 @@ export async function spendSnapshotRows(
       ? `${SITE_BUDGET_MESSAGE} ${dayResetPhrase(now)} 이후에 다시 열려요. 경기 시작·결과 저장은 그대로 할 수 있어요.`
       : `${SNAPSHOT_BUDGET_MESSAGE} ${dayResetPhrase(now)} 이후에 다시 열 수 있어요.`,
   );
+}
+
+/**
+ * 로그인 없이 받는 글(피드백·화면 오류 보고) 한 건을 사이트 전체 하루 건수에서 쓴다. 넘으면 429이고 쓰지 않는다.
+ * 입력 검증을 끝낸 뒤, 넣기 직전에 부른다(형식이 틀린 요청이 그날 몫을 쓰지 않게).
+ */
+export async function spendSiteDaily(env: Env, bucket: "day-feedback-site" | "day-client-errors-site", message: string): Promise<void> {
+  await spendDaily(env, [[bucket, SITE_SUBJECT]], 1, (now) => `${message} ${dayResetPhrase(now)} 이후에 다시 보내 주세요.`);
 }
 
 /**

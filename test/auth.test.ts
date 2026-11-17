@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
-import { createSessionValue, signValue, toBase64Url } from "../src/server/auth";
+import { createSessionValue, RECENT_LOGIN_MS, signValue, toBase64Url, upsertAccount } from "../src/server/auth";
 import type { Env } from "../src/server/env";
 import { providerHttp } from "../src/server/oauth";
 import app from "../src/server/index";
@@ -432,5 +432,75 @@ describe("가짜 로그인·테스트 훅은 허용 목록으로만 열린다(�
       const meBody = (await (await at(base, local, "GET", "/api/me")).json()) as any;
       expect(meBody.authMode).toBe("fake");
     }
+  });
+});
+
+describe("되돌리기 어려운 작업 전 최근 로그인(카카오·Google, 2026-11-17)", () => {
+  /** 카카오 계정과, authAgoMs 전에 로그인한 것으로 서명한 세션 쿠키. */
+  async function kakaoSession(authAgoMs: number) {
+    const account = await upsertAccount(env as unknown as Env, "kakao", unique("kakao"), new Date().toISOString());
+    const value = await createSessionValue(env as unknown as Env, account, Date.now() + 3600_000, Date.now() - authAgoMs);
+    return { account, cookie: `sid=${value}` };
+  }
+  const STALE = RECENT_LOGIN_MS + 60_000;
+
+  it("로그인한 지 오래된 세션은 모임 삭제·운영자 넘기기를 거절하고 다시 로그인할 제공자를 알려준다", async () => {
+    const { cookie } = await kakaoSession(STALE);
+    const gid = (await api(cookie, "POST", "/api/groups", {})).body.id as string;
+    const del = await api(cookie, "POST", `/api/groups/${gid}/delete`, { confirm: "삭제" });
+    expect(del.status).toBe(403);
+    expect(del.body.error.code).toBe("REAUTH_REQUIRED");
+    expect(del.body.error.details.provider).toBe("kakao");
+    const transfer = await api(cookie, "POST", `/api/groups/${gid}/transfer`);
+    expect(transfer.status).toBe(403);
+    expect(transfer.body.error.code).toBe("REAUTH_REQUIRED");
+    // 아무것도 바뀌지 않았다.
+    expect((await api(cookie, "GET", `/api/groups/${gid}/snapshot`)).status).toBe(200);
+    const pending = await env.DB.prepare("SELECT COUNT(*) AS n FROM operator_transfers WHERE group_id = ?1")
+      .bind(gid)
+      .first<{ n: number }>();
+    expect(pending!.n).toBe(0);
+  });
+
+  it("방금 로그인한 세션은 넘기기·삭제가 된다", async () => {
+    const { cookie } = await kakaoSession(60_000);
+    const gid = (await api(cookie, "POST", "/api/groups", {})).body.id as string;
+    expect((await api(cookie, "POST", `/api/groups/${gid}/transfer`)).status).toBe(200);
+    expect((await api(cookie, "POST", `/api/groups/${gid}/delete`, { confirm: "삭제" })).status).toBe(200);
+  });
+
+  it("로그인 시각이 없는 예전 세션도 다시 로그인하게 한다(탈퇴 포함)", async () => {
+    const account = await upsertAccount(env as unknown as Env, "google", unique("google"), new Date().toISOString());
+    // 2026-11-17 전 형식: t(로그인 시각) 없음.
+    const old = `sid=${await signValue(env as unknown as Env, { a: account.id, p: "google", v: account.epoch, e: Date.now() + 3600_000 })}`;
+    const res = await api(old, "POST", "/api/account/delete", { confirm: "탈퇴" });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("REAUTH_REQUIRED");
+    expect(res.body.error.details.provider).toBe("google");
+    expect((await api(old, "GET", "/api/me")).body.accountId).toBe(account.id);
+  });
+
+  it("/api/me가 카카오·Google 세션에만 제공자와 최근 로그인 기한을 알려준다", async () => {
+    const authAgo = 2 * 60_000;
+    const { cookie } = await kakaoSession(authAgo);
+    const body = (await api(cookie, "GET", "/api/me")).body;
+    expect(body.loginMethod).toBe("oauth");
+    expect(body.provider).toBe("kakao");
+    const until = Date.parse(body.recentLoginUntil as string);
+    expect(Math.abs(until - (Date.now() - authAgo + RECENT_LOGIN_MS))).toBeLessThan(5_000);
+    const fakeMe = (await api(await login(), "GET", "/api/me")).body;
+    expect(fakeMe.provider).toBeUndefined();
+    expect(fakeMe.recentLoginUntil).toBeUndefined();
+  });
+
+  it("reauth=1이면 카카오 인가 주소에 prompt=login을 붙인다(Google은 계정 선택 그대로)", async () => {
+    const path = (provider: string, reauth: boolean) =>
+      `/api/auth/${provider}/start?return=${encodeURIComponent("#/delete")}${reauth ? "&reauth=1" : ""}`;
+    const kakao = new URL((await direct(OAUTH, "GET", path("kakao", true))).headers.get("Location")!);
+    expect(kakao.searchParams.get("prompt")).toBe("login");
+    const kakaoPlain = new URL((await direct(OAUTH, "GET", path("kakao", false))).headers.get("Location")!);
+    expect(kakaoPlain.searchParams.get("prompt")).toBeNull();
+    const google = new URL((await direct(OAUTH, "GET", path("google", true))).headers.get("Location")!);
+    expect(google.searchParams.get("prompt")).toBe("select_account");
   });
 });

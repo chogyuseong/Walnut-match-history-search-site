@@ -18,6 +18,17 @@ export function rememberLoginReturn(hash: string): void {
   }
 }
 
+/** 로그인 시작 주소. reauth면 되돌리기 어려운 작업 전 다시 로그인(서버가 카카오에 prompt=login을 붙인다). */
+export function loginStartUrl(provider: "kakao" | "google", reauth = false): string {
+  return `/api/auth/${provider}/start?return=${encodeURIComponent(LOGIN_RETURN_HASH)}${reauth ? "&reauth=1" : ""}`;
+}
+
+/** 로그인 버튼을 누르는 순간 지금 화면을 기억한다(화면을 그릴 때가 아니라 누를 때의 주소). */
+export function rememberCurrentScreen(): void {
+  const hash = location.hash;
+  rememberLoginReturn(hash.startsWith("#/") && !hash.startsWith("#/login") ? hash : "#/");
+}
+
 /** 기억해 둔 화면으로 주소를 바꾼다(기록을 남기지 않음). "#/login-return"일 때만 동작한다. */
 export function resolveLoginReturn(): void {
   if (typeof location === "undefined" || location.hash !== LOGIN_RETURN_HASH) return;

@@ -2,6 +2,13 @@ import type { Env } from "./env";
 import { ApiError } from "./http";
 
 const DEFAULT_SESSION_HOURS = 720;
+/**
+ * 카카오·Google 계정이 되돌리기 어려운 작업(모임 삭제·운영자 넘기기·백업 복원·탈퇴)을 하려면 이 시간 안에
+ * 이 사이트에 로그인했어야 한다(ms). 자체 계정은 대신 지금 비밀번호를 묻는다(index.ts confirmIdentity).
+ * 세션 쿠키만 훔친 사람은 제공자 로그인을 다시 거칠 수 없으므로 이 작업들을 못 한다(2026-11-17 보안 점검).
+ * 너무 짧으면 다시 로그인하고 확인 문구를 입력하는 사이에 끝나 버린다.
+ */
+export const RECENT_LOGIN_MS = 10 * 60_000;
 
 /**
  * 세션 쿠키 이름. "__Host-" 접두어가 붙은 쿠키는 브라우저가 Secure·Path=/·Domain 없음일 때만 받는다. 그래서 같은
@@ -82,18 +89,32 @@ export interface SessionAccount {
   id: string;
   provider: string;
   epoch: number;
+  /**
+   * 이 세션을 만든 로그인 시각(ms). 세션 쿠키를 읽을 때만 채운다. 2026-11-17 전에 만든 세션에는 없어(null)
+   * 최근 로그인이 필요한 작업에서 다시 로그인하라고 한다.
+   */
+  authAt?: number | null;
 }
 
 /**
- * 세션 값을 만든다. 담는 것: 계정 ID, 로그인 수단, 세션 세대, 만료 시각.
+ * 세션 값을 만든다. 담는 것: 계정 ID, 로그인 수단, 세션 세대, 만료 시각, 로그인 시각.
  * 이름·이메일 같은 개인 정보는 담지 않는다.
+ * 주의: 실제로 로그인했을 때(가입·로그인·복구·제공자 콜백)만 부른다. 로그인 없이 세션을 새로 내주는 경로가 생기면
+ * 로그인 시각(authAt)을 지금으로 두지 말고 이전 세션의 값을 넘긴다(최근 로그인 확인이 무력해진다).
  */
 export async function createSessionValue(
   env: Env,
   account: SessionAccount,
   expiresAt = Date.now() + sessionTtlMs(env),
+  authAt = Date.now(),
 ): Promise<string> {
-  return signValue(env, { a: account.id, p: account.provider, v: account.epoch, e: expiresAt });
+  return signValue(env, { a: account.id, p: account.provider, v: account.epoch, e: expiresAt, t: authAt });
+}
+
+/** 카카오·Google 세션이 최근 로그인 확인을 통과하는 마지막 시각(ms). 그 밖의 로그인 수단이거나 로그인 시각이 없으면 null. */
+export function recentLoginUntil(session: SessionAccount): number | null {
+  if (session.provider !== "kakao" && session.provider !== "google") return null;
+  return typeof session.authAt === "number" ? session.authAt + RECENT_LOGIN_MS : null;
 }
 
 export function sessionCookie(env: Env, value: string): string {
@@ -159,7 +180,7 @@ async function loadSession(env: Env, req: Request): Promise<SessionAccount | nul
   if (row.session_epoch !== epoch) return null;
   // 가짜 로그인이 닫혀 있으면 가짜 계정의 세션도 받지 않는다(로컬 쿠키가 운영에 섞이는 경우 대비).
   if (row.provider === "fake" && !fakeLoginEnabled(env, req)) return null;
-  return { id: payload.a, provider: row.provider, epoch };
+  return { id: payload.a, provider: row.provider, epoch, authAt: typeof payload.t === "number" ? payload.t : null };
 }
 
 /** 요청의 세션 쿠키를 검증한다. 없거나 만료·변조·로그아웃된 세션이면 null. */

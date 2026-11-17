@@ -9,21 +9,9 @@ import {
 import { call } from "../api";
 import { CopyButton, Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
-import { LOGIN_RETURN_HASH, rememberLoginReturn } from "../loginReturn";
-
-/**
- * 로그인 시작 주소. 로그인이 끝나면 지금 보던 화면(해시 주소)으로 돌아온다. 작성 중인 편성은 기기에 남아 있다.
- * 돌아갈 주소(조회 토큰이 들어 있을 수 있음)는 쿼리로 보내지 않고 이 탭의 저장소에 둔다(../loginReturn.ts).
- */
-function startUrl(provider: "kakao" | "google"): string {
-  return `/api/auth/${provider}/start?return=${encodeURIComponent(LOGIN_RETURN_HASH)}`;
-}
-
-/** 로그인 버튼을 누르는 순간 지금 화면을 기억한다(화면을 그릴 때가 아니라 누를 때의 주소). */
-function rememberHere(): void {
-  const hash = location.hash;
-  rememberLoginReturn(hash.startsWith("#/") && !hash.startsWith("#/login") ? hash : "#/");
-}
+// 로그인이 끝나면 지금 보던 화면(해시 주소)으로 돌아온다. 작성 중인 편성은 기기에 남아 있다.
+// 돌아갈 주소(조회 토큰이 들어 있을 수 있음)는 쿼리로 보내지 않고 이 탭의 저장소에 둔다(../loginReturn.ts).
+import { loginStartUrl, rememberCurrentScreen } from "../loginReturn";
 
 /**
  * 카카오 로그인 버튼. 카카오 디자인 가이드: 바탕 #FEE500, 말풍선 심볼 #000000(필수),
@@ -32,7 +20,7 @@ function rememberHere(): void {
  */
 function KakaoButton() {
   return (
-    <a className="login-btn login-kakao" href={startUrl("kakao")} onClick={rememberHere}>
+    <a className="login-btn login-kakao" href={loginStartUrl("kakao")} onClick={rememberCurrentScreen}>
       <svg className="login-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path
           fill="#000000"
@@ -50,7 +38,7 @@ function KakaoButton() {
  */
 function GoogleButton() {
   return (
-    <a className="login-btn login-google" href={startUrl("google")} onClick={rememberHere}>
+    <a className="login-btn login-google" href={loginStartUrl("google")} onClick={rememberCurrentScreen}>
       <svg className="login-symbol" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
         <path
           fill="#EA4335"

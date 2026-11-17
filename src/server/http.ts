@@ -118,14 +118,16 @@ export async function readOptionalJsonBody(req: Request, maxBytes = MAX_BODY_BYT
  * 보안 헤더(2026-11-07). API 응답(index.ts 공통 앞단)과 정적 화면(public/_headers)이 같은 값을 쓴다.
  * 값을 바꾸면 public/_headers도 함께 바꾼다(test/security.test.ts가 API 쪽을 확인한다).
  * - 글꼴(Pretendard)은 같은 출처에서 내보낸다(public/fonts/). 외부 출처는 아래 img-src의 초상화 서버뿐이다.
- * - 화면에 인라인 스크립트는 없다(빌드된 index.html은 모듈 스크립트 파일 하나). 인라인 스타일은 React style 속성 때문에 허용.
+ * - 화면에 인라인 스크립트도 인라인 스타일(<style> 태그·style="…" 글)도 없다. React의 style 속성은 스크립트가 CSSOM으로
+ *   값을 넣는 것이라 style-src에 걸리지 않는다. 그래서 style-src에 'unsafe-inline'을 두지 않는다(2026-11-17 보안 점검:
+ *   CSS 주입으로 화면을 덮거나 값을 빼 가는 길을 막는다). 화면에 <style>이나 setAttribute("style")을 새로 쓰면 막힌다.
  * - img-src의 data:·blob:은 공유 이미지(캔버스)·백업 파일 내려받기(Blob URL)에 쓴다.
  *   ddragon.leagueoflegends.com은 챔피언 초상화(src/web/portraits.ts). 초상화를 꺼도 남겨 둬서 해가 없다.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https://ddragon.leagueoflegends.com",
   "connect-src 'self'",

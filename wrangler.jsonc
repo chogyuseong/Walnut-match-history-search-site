@@ -59,6 +59,8 @@
     "RATE_RECOVER_PER_IP": "5000",
     "RATE_CLIENT_ERROR_PER_IP": "5000",
     "RATE_FEEDBACK_PER_IP": "5000",
+    "RATE_FEEDBACK_SITE_DAY": "1000000",
+    "RATE_CLIENT_ERRORS_SITE_DAY": "1000000",
     // 대량 쓰기 하루 예산(경기 수, UTC 하루). 로컬 합성 데이터·브라우저 테스트가 걸리지 않게 넉넉히.
     "RATE_BULK_ROWS_PER_ACCOUNT": "1000000",
     "RATE_BULK_ROWS_PER_IP": "1000000",
@@ -122,6 +124,12 @@
         // 피드백 보내기(로그인 없음)의 IP별 한도. 코드 기본값(ratelimit.ts)과 같은 3인데, 적어 두지 않으면 맨 위
         // 로컬값(5000)이 안 넘어온다는 배포 경고가 매번 떠서 드러내 둔다.
         "RATE_FEEDBACK_PER_IP": "3",
+
+        // 로그인 없이 받는 피드백·화면 오류 보고의 사이트 전체 하루 건수(src/server/ratelimit.ts, 코드 기본값과 같음).
+
+        "RATE_FEEDBACK_SITE_DAY": "100",
+
+        "RATE_CLIENT_ERRORS_SITE_DAY": "300",
         // 대량 쓰기 하루 예산: 가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수(UTC 하루, src/server/ratelimit.ts).
         // 2026-11-11 기존 522경기 이전이 끝나 3000·6000에서 낮춤. 큰 모임을 새로 옮길 때는 그날만 올려 배포한다.
         "RATE_BULK_ROWS_PER_ACCOUNT": "1000",
@@ -209,6 +217,12 @@
         "PASSWORD_PBKDF2_ITERATIONS": "100000",
         "RATE_CLIENT_ERROR_PER_IP": "10",
         "RATE_FEEDBACK_PER_IP": "3",
+
+        // 로그인 없이 받는 피드백·화면 오류 보고의 사이트 전체 하루 건수(src/server/ratelimit.ts, 코드 기본값과 같음).
+
+        "RATE_FEEDBACK_SITE_DAY": "100",
+
+        "RATE_CLIENT_ERRORS_SITE_DAY": "300",
         // 대량 쓰기 하루 예산: 가져오기·지난 경기 입력·백업 복원으로 넣는 경기 수(UTC 하루, src/server/ratelimit.ts).
         "RATE_BULK_ROWS_PER_ACCOUNT": "3000",
         "RATE_BULK_ROWS_PER_IP": "6000",

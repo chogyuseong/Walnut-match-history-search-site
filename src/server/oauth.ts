@@ -97,12 +97,18 @@ export function clearStateCookie(): string {
   return stateCookie("", 0);
 }
 
-/** 로그인 시작: state를 만들어 서명 쿠키에 두고 제공자의 인가 주소를 돌려준다. */
+/**
+ * 로그인 시작: state를 만들어 서명 쿠키에 두고 제공자의 인가 주소를 돌려준다.
+ * reauth(되돌리기 어려운 작업 전 다시 로그인)이면 카카오는 prompt=login으로 카카오계정 로그인 화면을 다시 거치게 한다
+ * (카카오 문서: "기존 사용자 인증 여부와 상관없이 … 다시 사용자 인증을 수행", 카카오톡 인앱 브라우저에서는 제공하지 않음).
+ * Google은 prompt에 다시 인증을 강제하는 값이 없어(none·consent·select_account뿐) 원래대로 계정 선택만 거친다.
+ */
 export async function beginLogin(
   env: Env,
   provider: Provider,
   requestUrl: string,
   returnPath: string,
+  reauth = false,
 ): Promise<{ location: string; setCookie: string } | null> {
   const cfg = config(env, provider);
   if (!cfg) return null;
@@ -119,6 +125,7 @@ export async function beginLogin(
     response_type: "code",
     state,
     ...cfg.extra,
+    ...(reauth && provider === "kakao" ? { prompt: "login" } : {}),
   });
   return {
     location: `${cfg.authorizeUrl}?${params.toString()}`,

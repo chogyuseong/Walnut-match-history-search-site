@@ -1,8 +1,9 @@
 # 검사 자동화. 배포는 하지 않는다(배포 절차는 docs/배포안내.md, 사람이 직접 한다).
 # - check: 타입 검사 → 코드 검사 → 디자인 규칙 검사 → 단위·통합 테스트 → 화면 빌드 → 번들 크기 검사
 # - e2e:   로컬 D1 + wrangler dev를 띄워 브라우저 흐름 테스트(Chromium만)
-# 액션 버전(2026-11-08 각 저장소 action.yml에서 확인, 모두 runs.using: node24):
-#   checkout v7 · setup-node v7 · cache v6 · upload-artifact v7
+# 액션은 태그 대신 커밋 SHA로 고정한다(2026-11-17 보안 점검): 태그는 옮길 수 있어, 액션 저장소가 뚫리면 같은 태그로 다른 코드가 돈다.
+#   SHA 옆 주석이 그 커밋의 릴리스 태그다(git ls-remote --tags https://github.com/actions/<이름>으로 확인). 올릴 때 둘 다 바꾼다.
+#   checkout v7.0.1 · setup-node v7.1.0 · cache v6.1.0 · upload-artifact v7.0.2
 name: CI
 
 on:
@@ -23,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -42,8 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -53,7 +54,7 @@ jobs:
       - name: Playwright 버전
         id: playwright
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -72,7 +73,7 @@ jobs:
           CI: "true"
       # 실패한 테스트의 추적(trace.zip)·스크린숏(playwright.config.ts use.trace·screenshot)이 test-results/에 남는다.
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-test-results
           path: test-results/

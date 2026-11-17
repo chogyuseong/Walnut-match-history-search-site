@@ -10,6 +10,7 @@ import { browserKind } from "../shared/errorScrub";
 import { FEEDBACK_MAX_CHARS, FEEDBACK_MIN_CHARS } from "../shared/feedback";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, readJsonBody } from "./http";
+import { spendSiteDaily } from "./ratelimit";
 
 /** 보관 건수. 넘으면 오래된 것부터 지운다. 도배가 들어와도 표가 이 크기 이상 커지지 않는다. */
 export const FEEDBACK_MAX_ROWS = 500;
@@ -44,6 +45,8 @@ export async function submitFeedback(env: Env, req: Request): Promise<void> {
     throw new ApiError(400, "FEEDBACK_TOO_LONG", `${FEEDBACK_MAX_CHARS}자까지 보낼 수 있어요.`);
   }
   const version = typeof payload.appVersion === "string" && /^[\w.-]{1,32}$/.test(payload.appVersion) ? payload.appVersion : null;
+  // 사이트 전체 하루 건수(ratelimit.ts day-feedback-site): 여러 IP로 도배해 진짜 피드백을 밀어내지 못하게.
+  await spendSiteDaily(env, "day-feedback-site", "오늘 받은 피드백이 많아 잠시 받지 않아요.");
   const now = feedbackClock.now();
   const cutoff = new Date(now - FEEDBACK_MAX_DAYS * 24 * 3600_000).toISOString();
   await env.DB.batch([
