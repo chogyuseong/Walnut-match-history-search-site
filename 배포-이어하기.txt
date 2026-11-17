@@ -18,11 +18,13 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
-[2026-11-17: 운영 936760c6(그대로) · staging 2a269666 = main 2593df3(내 전적 바로가기·최근 경기·검색 라벨)]
+[2026-11-17: 운영 a1ffbcb1 = staging 2a269666 = main 2593df3(내 전적 바로가기·최근 경기·검색 라벨)]
 
 - 조회 링크에서 내 이름을 고르면 "내 전적 보기 →", 개인 통계 세부 기록 다음에 최근 경기 5줄, 검색 라벨 "이름·날짜·메모 검색".
   마이그레이션 없음. Claude가 push·staging 배포. staging /api/health 200, Viewer·operator 묶음에 새 문구, 390×844 예시 모임
-  검색(새 라벨) → 개인 통계에서 최근 경기 5줄·가로 넘침 0·콘솔 오류 0. 운영은 아직 배포하지 않음.
+  검색(새 라벨) → 개인 통계에서 최근 경기 5줄·가로 넘침 0·콘솔 오류 0.
+  운영은 사용자가 직접 배포(! npm run deploy:production). 운영 /api/health 200, 첫 화면이 새 index-DSoCMFgs.js를 가리키고,
+  390×844 예시 모임 검색 → 개인 통계 최근 경기 5줄·가로 넘침 0·콘솔 오류 0. PASSWORD_PEPPER 경고는 전과 같음.
   검사: typecheck·audit:design 0·단위 1218·build·check:bundle 통과, 관련 E2E 8파일 + 새 my-record.spec.ts 통과.
 
 [2026-11-17: 운영 936760c6 = staging fa0afa5f = main c0a095b(unslop 두 번째 점검)]
