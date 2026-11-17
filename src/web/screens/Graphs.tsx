@@ -2,7 +2,7 @@ import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGro
 import { useMemo, useState, type ReactNode } from "react";
 import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
-import { formatDate, heatClass, nameMap, PEOPLE_BAR_STEPS, rateHueClass, rateHueText, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
+import { formatDate, heatClass, nameMap, PEOPLE_BAR_STEPS, percentText, rateHueClass, rateHueText, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
 import {
   Meter,
   BackLink,
@@ -55,11 +55,6 @@ function standingText(standing: ShownStanding | undefined): ReactNode {
 
 function percent(wins: number, games: number): number {
   return games === 0 ? 0 : (wins / games) * 100;
-}
-
-/** 다른 화면과 같은 정수 승률(예전에는 소수 한 자리였다. 2026-11-08 통일). */
-function percentText(wins: number, games: number): string {
-  return `${ratePercent(wins, games)}%`;
 }
 
 /**

@@ -218,7 +218,7 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
       support={
         ctx.enabled
           ? {
-              label: supportCountLabel(app, ctx),
+              label: supportCountLabel(ctx),
               open: supportOpen,
               needsReset,
               onToggle: () => setSupportOpen(!supportOpen),

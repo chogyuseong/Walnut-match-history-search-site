@@ -12,7 +12,6 @@ import {
 import {
   matchesInScope,
   personDetail,
-  ratePercent,
   scopeLabel as scopeLabelOf,
   SMALL_SAMPLE,
   type PairTally,
@@ -31,7 +30,7 @@ import {
 } from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
-import { formatDate, nameMap, rateHueText, rateText, standingsOf } from "../format";
+import { formatDate, nameMap, percentText, rateHueText, rateText, standingsOf } from "../format";
 import { attendanceReport } from "../../shared/attendance";
 import { personUpsets, UPSET_MMR_GAP } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
@@ -87,11 +86,6 @@ const FIRST_PAGE = 10;
 const PAGE = 20;
 /** 같은 팀·상대 팀 목록에서 처음에 보여주는 사람 수. 나머지는 "더 보기"로 편다. */
 const PAIR_PREVIEW = 6;
-
-/** 부분/전체를 정수 %로(승률과 같은 반올림, ratePercent). */
-function pct(part: number, whole: number): string {
-  return `${ratePercent(part, whole)}%`;
-}
 
 /**
  * 개인 통계. 순서: 요약(한눈에 보기) → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 다른 플레이어와 비교 → 맞라인 상대 → 참여 경기(맨 아래).
@@ -451,12 +445,12 @@ export function Person(props: {
             <p className="hint">
               이변 승 {upsets.upsetWins}회
               {upsets.underdogGames > 0 &&
-                ` · 약팀일 때 승률 ${pct(upsets.underdogWins, upsets.underdogGames)} (${upsets.underdogGames}경기)`}
+                ` · 약팀일 때 승률 ${percentText(upsets.underdogWins, upsets.underdogGames)} (${upsets.underdogGames}경기)`}
             </p>
           )}
           {attendance && (
             <p className="hint">
-              참석 {attendance.days}일 · 출석률 {pct(attendance.days, attendance.eligibleDays)} · 연속{" "}
+              참석 {attendance.days}일 · 출석률 {percentText(attendance.days, attendance.eligibleDays)} · 연속{" "}
               {attendance.currentStreak}일 · 마지막 {formatDate(attendance.lastDate, snapshot.group.timezone)}
             </p>
           )}
@@ -517,7 +511,7 @@ export function Person(props: {
                 <span className="meters">
                   <span className="meter-label">비중</span>
                   <Meter value={share} tone="share" />
-                  <span className="meter-value">{tally ? pct(tally.games, positioned) : ""}</span>
+                  <span className="meter-value">{tally ? percentText(tally.games, positioned) : ""}</span>
                   <span className="meter-label">승률</span>
                   <RateBar wins={tally?.wins ?? 0} games={tally?.games ?? 0} hued />
                   <span className="meter-value">{tally ? <RateText tally={tally} /> : ""}</span>
@@ -650,12 +644,12 @@ export function Person(props: {
                       {/* 어려운 쪽은 50% 미만, 쉬운 쪽은 50% 이상에서만 고르므로(laneRivalSummary) 하나만 있을 수 있다. */}
                       {hardest && (
                         <span className="chip lane-chip hard">
-                          가장 어려운 {nameOf(hardest.opponentId)} {pct(hardest.wins, hardest.games)} ({hardest.games}경기)
+                          가장 어려운 {nameOf(hardest.opponentId)} {percentText(hardest.wins, hardest.games)} ({hardest.games}경기)
                         </span>
                       )}
                       {easiest && (
                         <span className="chip lane-chip easy">
-                          가장 쉬운 {nameOf(easiest.opponentId)} {pct(easiest.wins, easiest.games)} ({easiest.games}경기)
+                          가장 쉬운 {nameOf(easiest.opponentId)} {percentText(easiest.wins, easiest.games)} ({easiest.games}경기)
                         </span>
                       )}
                     </span>

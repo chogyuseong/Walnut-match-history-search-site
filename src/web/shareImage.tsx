@@ -222,40 +222,54 @@ function drawTeamBox(
   return h;
 }
 
+/** 팀 상자 한 줄(사람 한 명)의 높이. */
+const TEAM_ROW_H = 58;
+/** 두 팀 상자 사이 간격. */
+const TEAM_GAP = 24;
+
+/**
+ * 제목·부제목 아래에 두 팀 상자를 나란히 두는 이미지(경기 한 건·오늘의 편성). 두 이미지는 글만 다르고 자리는 같다.
+ * 높이: 위 여백 + 제목 줄 150 + 팀 상자(머리 72 + 다섯 줄 + 아래 16) + 사이 48 + 바닥글 110.
+ */
+function drawTeamsImage(
+  p: Palette,
+  content: { title: string; subtitle: string; match: MatchView; nameOf: (id: string) => string; group: string; date: string },
+): HTMLCanvasElement {
+  const boxH = 72 + TEAM_ROW_H * 5 + 16;
+  const height = PAD + 150 + boxH + 48 + 110;
+  const { canvas, ctx } = newCanvas(height);
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, WIDTH, height);
+
+  setFont(ctx, p, 600, 56);
+  ctx.fillStyle = p.text;
+  ctx.fillText(content.title, PAD, PAD + 34);
+  setFont(ctx, p, 600, 30);
+  ctx.fillStyle = p.muted;
+  ctx.fillText(content.subtitle, PAD, PAD + 98);
+
+  const boxW = (WIDTH - PAD * 2 - TEAM_GAP) / 2;
+  const top = PAD + 150;
+  TEAMS.forEach((team, i) => {
+    drawTeamBox(ctx, p, content.match, team, content.nameOf, PAD + i * (boxW + TEAM_GAP), top, boxW, TEAM_ROW_H);
+  });
+  drawFooter(ctx, p, height, content.group, content.date);
+  return canvas;
+}
+
 /** 경기 한 건 이미지: 양 팀 명단과 승리 팀. */
 export function drawMatchImage(snapshot: Snapshot, match: MatchView): Promise<Blob> {
   return paintWithFonts((p) => {
-    const nameOf = nameMap(snapshot);
     const tz = snapshot.group.timezone;
-    const rowH = 58;
-    const boxH = 72 + rowH * 5 + 16;
-    const height = PAD + 150 + boxH + 48 + 110;
-    const { canvas, ctx } = newCanvas(height);
-    ctx.fillStyle = p.bg;
-    ctx.fillRect(0, 0, WIDTH, height);
-
-    setFont(ctx, p, 600, 56);
-    ctx.fillStyle = p.text;
-    ctx.fillText(`${match.matchNo}경기`, PAD, PAD + 34);
-    setFont(ctx, p, 600, 30);
-    ctx.fillStyle = p.muted;
     const winner = match.winnerTeam;
-    const summary = winner ? winnerText(winner, match.teamASide, "승리") : "결과 미확정";
-    ctx.fillText(summary, PAD, PAD + 98);
-
-    const boxW = (WIDTH - PAD * 2 - 24) / 2;
-    const top = PAD + 150;
-    TEAMS.forEach((team, i) => {
-      drawTeamBox(ctx, p, match, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+    return drawTeamsImage(p, {
+      title: `${match.matchNo}경기`,
+      subtitle: winner ? winnerText(winner, match.teamASide, "승리") : "결과 미확정",
+      match,
+      nameOf: nameMap(snapshot),
+      group: snapshot.group.name,
+      date: `${formatDate(match.playedAt, tz)} ${formatTime(match.playedAt, tz)}`,
     });
-    drawFooter(
-      ctx,
-      p,
-      height,
-      snapshot.group.name,
-      `${formatDate(match.playedAt, tz)} ${formatTime(match.playedAt, tz)}`,
-    );
-    return canvas;
   });
 }
 
@@ -285,27 +299,14 @@ export function drawDraftImage(draft: Draft, groupName: string, timeZone: string
       version: 0,
       roster: draft.slots.map((s) => ({ participantId: s.key, team: s.team, position: s.position })),
     };
-    const rowH = 58;
-    const boxH = 72 + rowH * 5 + 16;
-    const height = PAD + 150 + boxH + 48 + 110;
-    const { canvas, ctx } = newCanvas(height);
-    ctx.fillStyle = p.bg;
-    ctx.fillRect(0, 0, WIDTH, height);
-
-    setFont(ctx, p, 600, 56);
-    ctx.fillStyle = p.text;
-    ctx.fillText("오늘의 편성", PAD, PAD + 34);
-    setFont(ctx, p, 600, 30);
-    ctx.fillStyle = p.muted;
-    ctx.fillText(`아직 시작 전 · ${formatTime(now, timeZone)} 기준`, PAD, PAD + 98);
-
-    const boxW = (WIDTH - PAD * 2 - 24) / 2;
-    const top = PAD + 150;
-    TEAMS.forEach((team, i) => {
-      drawTeamBox(ctx, p, shape, team, nameOf, PAD + i * (boxW + 24), top, boxW, rowH);
+    return drawTeamsImage(p, {
+      title: "오늘의 편성",
+      subtitle: `아직 시작 전 · ${formatTime(now, timeZone)} 기준`,
+      match: shape,
+      nameOf,
+      group: groupName,
+      date: formatDate(now, timeZone),
     });
-    drawFooter(ctx, p, height, groupName, formatDate(now, timeZone));
-    return canvas;
   });
 }
 

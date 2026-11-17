@@ -33,6 +33,17 @@ export function fromBase64Url(text: string): Uint8Array {
   return bytes;
 }
 
+/**
+ * 길이가 같은 두 값을 상수 시간으로 비교한다(길이가 다르면 바로 false: 길이는 비밀이 아니다).
+ * 비밀번호 해시·복구 코드(local.ts)와 로그인 state(oauth.ts)가 쓴다. 글은 TextEncoder로 바이트로 바꿔 넘긴다.
+ */
+export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
+}
+
 async function hmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",

@@ -11,7 +11,7 @@
  * - Google: https://developers.google.com/identity/protocols/oauth2/web-server
  *           https://developers.google.com/identity/openid-connect/openid-connect
  */
-import { fromBase64Url, readCookie, signValue, toBase64Url, verifyValue } from "./auth";
+import { constantTimeEqual, fromBase64Url, readCookie, signValue, toBase64Url, verifyValue } from "./auth";
 import type { Env } from "./env";
 
 export type Provider = "kakao" | "google";
@@ -145,13 +145,6 @@ export class LoginError extends Error {
   }
 }
 
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
 /**
  * 콜백 처리: state 확인 → 인가 코드를 토큰으로 교환 → 고유 ID 하나를 얻는다.
  * 성공하면 제공자의 고유 ID와 돌아갈 화면을 돌려준다.
@@ -172,7 +165,7 @@ export async function completeLogin(
     typeof saved.e !== "number" ||
     saved.e <= Date.now() ||
     !state ||
-    !constantTimeEqual(saved.s, state)
+    !constantTimeEqual(new TextEncoder().encode(saved.s), new TextEncoder().encode(state))
   ) {
     throw new LoginError("state_mismatch", "state 불일치 또는 만료");
   }

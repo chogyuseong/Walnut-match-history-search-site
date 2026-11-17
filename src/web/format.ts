@@ -236,6 +236,11 @@ export function rateText(wins: number, games: number): string {
   return games === 0 ? "기록 없음" : `${ratePercent(wins, games)}%`;
 }
 
+/** 부분/전체를 정수 %로 적은 글("57%"). 승률과 같은 반올림(ratePercent)이고 전체가 0이면 "0%"(그때 "기록 없음"이 필요하면 rateText). */
+export function percentText(part: number, whole: number): string {
+  return `${ratePercent(part, whole)}%`;
+}
+
 /** 색 단계의 클래스 이름: heat-h1~h4(높음), heat-0(기준), heat-l1~l4(낮음). 경기가 적으면 빈 문자열. */
 export function heatClass(wins: number, games: number): string {
   const heat = rateHeat(wins, games);

@@ -38,12 +38,16 @@ export interface PersonRecord {
   losses: number;
 }
 
-/** 주어진 경기들에서 사람별 승·패를 센다. 진영 미상 경기도 승패에는 들어간다. */
-export function personRecords(matches: readonly MatchView[]): Map<string, PersonRecord> {
+/**
+ * 주어진 경기들에서 사람별 승·패를 센다. 진영 미상 경기도 승패에는 들어간다.
+ * position을 주면 그 라인을 맡은 경기만 센다(personRecordsByLine). null이면 라인 구분 없이 전체다.
+ */
+export function personRecords(matches: readonly MatchView[], position: string | null = null): Map<string, PersonRecord> {
   const records = new Map<string, PersonRecord>();
   for (const match of matches) {
     if (!isCounted(match)) continue;
     for (const entry of match.roster) {
+      if (position !== null && entry.position !== position) continue;
       let record = records.get(entry.participantId);
       if (!record) {
         record = { participantId: entry.participantId, games: 0, wins: 0, losses: 0 };
@@ -470,23 +474,7 @@ export function personRecordsByLine(
   matches: readonly MatchView[],
   position: string | null,
 ): Map<string, PersonRecord> {
-  if (position === null) return personRecords(matches);
-  const records = new Map<string, PersonRecord>();
-  for (const match of matches) {
-    if (!isCounted(match)) continue;
-    for (const entry of match.roster) {
-      if (entry.position !== position) continue;
-      let record = records.get(entry.participantId);
-      if (!record) {
-        record = { participantId: entry.participantId, games: 0, wins: 0, losses: 0 };
-        records.set(entry.participantId, record);
-      }
-      record.games += 1;
-      if (entry.team === match.winnerTeam) record.wins += 1;
-      else record.losses += 1;
-    }
-  }
-  return records;
+  return personRecords(matches, position);
 }
 
 export interface SideTotals {

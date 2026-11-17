@@ -10,7 +10,7 @@ import type { AppValue } from "../../useApp";
 import type { PrepStatus } from "./usePrepStart";
 
 /** "섞기 기준" 줄의 서포터 횟수 버튼 글자: 이번 주기에 서포터로 간 사람 수. */
-export function supportCountLabel(app: AppValue, ctx: RotationContext): string {
+export function supportCountLabel(ctx: RotationContext): string {
   const n = [...supportCounts(ctx).values()].filter((count) => count > 0).length;
   return n === 0 ? "서포터 횟수: 아직 없음" : `서포터 횟수: ${n}명 기록`;
 }

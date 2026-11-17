@@ -11,10 +11,10 @@ import {
   type SuggestRow,
 } from "../../shared/priorityReview";
 import { ratingOptionsOf } from "../../shared/rating";
-import { placementGamesOf, ratePercent, SMALL_SAMPLE } from "../../shared/stats";
+import { placementGamesOf, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
 import { patchParticipant, saveSkillGroups } from "../api";
-import { POSITION_LABEL } from "../format";
+import { percentText, POSITION_LABEL } from "../format";
 import { Help, PosLabel } from "../screenKit";
 import { Dialog, ErrorNote, scrollBehavior } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
@@ -365,13 +365,12 @@ function PriorityPanel({ app, snapshot, people, inDraft, back }: PanelProps) {
   );
 }
 
-const percent = (wins: number, games: number) => `${ratePercent(wins, games)}%`;
 
 function rowFacts(row: SuggestRow): string {
   // 제안 기준(MMR)을 맨 앞에, 그 뒤는 다른 화면과 같은 꼴: "MMR 1520 · 승률 · N승 M패 (G경기)"
   return row.games === 0
     ? "경기 없음"
-    : `MMR ${row.mmr} · ${percent(row.wins, row.games)} · ${row.wins}승 ${row.games - row.wins}패 (${row.games}경기)`;
+    : `MMR ${row.mmr} · ${percentText(row.wins, row.games)} · ${row.wins}승 ${row.games - row.wins}패 (${row.games}경기)`;
 }
 
 /** 기록으로 제안받기: 미리보기 → 고른 사람만 저장. 자동으로 덮어쓰지 않는다. */
@@ -533,7 +532,7 @@ function PriorityCheck(props: { snapshot: Snapshot }) {
       ) : (
         <p>
           두 팀 티어 점수 합이 달랐던 {balance.uneven}경기 중 합이 높은 팀이 {balance.higherWon}승 (
-          {percent(balance.higherWon, balance.uneven)})
+          {percentText(balance.higherWon, balance.uneven)})
         </p>
       )}
       <p className="hint">합이 같았던 경기 {balance.even}경기는 빼고 셌어요.</p>

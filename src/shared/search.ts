@@ -50,11 +50,16 @@ export function normalizeForSearch(s: string): string {
   return out.toLowerCase().replace(SEPARATORS, "");
 }
 
+/** 한글 음절 한 글자의 초성(호환 자모). 음절이 아니면 null. 챔피언 초성 묶음(champions.ts)도 쓴다. */
+export function syllableInitial(ch: string): string | null {
+  const code = ch.codePointAt(0);
+  if (code === undefined || !isSyllable(code)) return null;
+  return INITIALS[Math.floor((code - SYLLABLE_FIRST) / PER_INITIAL)]!;
+}
+
 /** 한 글자의 초성. 음절이 아니면 그 글자 그대로. */
 function initialOf(ch: string): string {
-  const code = ch.codePointAt(0)!;
-  if (!isSyllable(code)) return ch;
-  return INITIALS[Math.floor((code - SYLLABLE_FIRST) / PER_INITIAL)]!;
+  return syllableInitial(ch) ?? ch;
 }
 
 /** 질의 글자(한 글자)가 이름 글자(한 글자)에 맞는지. last면 받침 없는 음절의 입력 중 일치를 허용한다. */

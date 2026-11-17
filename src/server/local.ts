@@ -27,7 +27,7 @@ import {
   RECOVERY_ALPHABET,
   usernameProblem,
 } from "../shared/account";
-import { fromBase64Url, revokeSessions, toBase64Url, type SessionAccount } from "./auth";
+import { constantTimeEqual, fromBase64Url, revokeSessions, toBase64Url, type SessionAccount } from "./auth";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, nowIso } from "./http";
 import { sha256Hex } from "./mutation";
@@ -118,14 +118,6 @@ async function pbkdf2(
     HASH_BYTES * 8,
   );
   return new Uint8Array(bits);
-}
-
-/** 길이가 같은 두 값을 상수 시간으로 비교한다(길이가 다르면 바로 false: 길이는 비밀이 아니다). */
-export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
-  return diff === 0;
 }
 
 export async function hashPassword(env: Env, password: string): Promise<string> {

@@ -9,7 +9,7 @@
  *   대조했고 다른 것이 없었다. 새 챔피언의 id가 이름과 달라도(오공 = MonkeyKing) Data Dragon의 id를 키로 쓰면 된다.
  * - 한글 이름은 Data Dragon ko_KR 자료(champion.json의 name)와 같게 둔다. 실행 중에는 그 자료를 받지 않는다.
  */
-import { matchRank, NO_MATCH } from "./search";
+import { matchRank, NO_MATCH, syllableInitial } from "./search";
 
 export interface Champion {
   key: string;
@@ -213,15 +213,6 @@ export function championName(key: string): string {
 /* 검색                                                                 */
 /* ------------------------------------------------------------------ */
 
-const HANGUL_FIRST = 0xac00;
-const HANGUL_LAST = 0xd7a3;
-/** 첫소리 19개(호환 자모). 사용자가 "ㅇㄹ"처럼 자음만 치면 이 글자들이 들어온다. */
-const INITIALS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
-
-function isSyllable(code: number): boolean {
-  return code >= HANGUL_FIRST && code <= HANGUL_LAST;
-}
-
 /** 사람 이름 검색 등급(search.ts) 가운데 글자 중간에서 맞은 것. 나머지(완전·앞부분·초성 앞부분)는 앞부분 일치로 묶는다. */
 const MIDDLE_RANKS: ReadonlySet<number> = new Set([2, 4]);
 
@@ -241,9 +232,8 @@ const PLAIN_OF_TENSE: Record<string, string> = { "ㄲ": "ㄱ", "ㄸ": "ㄷ", "�
 
 /** 이름 첫 글자의 초성 묶음. 한글로 시작하지 않으면 null(지금 목록에는 없다). */
 export function championInitial(name: string): string | null {
-  const code = name.charCodeAt(0);
-  if (!isSyllable(code)) return null;
-  const initial = INITIALS[Math.floor((code - HANGUL_FIRST) / 588)]!;
+  const initial = syllableInitial(name.charAt(0));
+  if (initial === null) return null;
   return PLAIN_OF_TENSE[initial] ?? initial;
 }
 

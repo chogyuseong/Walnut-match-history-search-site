@@ -21,6 +21,25 @@ const SIDE_CHOICES: { value: Side; label: string }[] = [
   { value: "unknown", label: "기억나지 않음" },
 ];
 
+/** 이긴 팀의 실제 진영 라디오 묶음. 큰 버튼 화면의 접힘 영역과 예전 3단계 화면이 같은 것을 쓴다. */
+function SideChoices(props: { side: Side | null; onChange: (side: Side) => void }) {
+  return (
+    <div className="choice-row">
+      {SIDE_CHOICES.map((choice) => (
+        <label key={choice.value} className={props.side === choice.value ? "choice chosen" : "choice"}>
+          <input
+            type="radio"
+            name="side"
+            checked={props.side === choice.value}
+            onChange={() => props.onChange(choice.value)}
+          />
+          <span>{choice.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 /**
  * 화면 5 — 결과 입력 창(docs/P2 P2-7).
  * ① 명단을 보고 승리 팀 선택 → ② 승리 팀의 실제 진영 → ③ 요약 확인 후 저장.
@@ -200,19 +219,7 @@ export function ResultSheet(props: {
             <fieldset>
               <legend>이긴 팀({teamName(winner, match.teamASide)})은 실제로 어느 진영이었나요?</legend>
               <p className="hint">시작할 때 정한 진영으로 미리 골라 뒀어요. 실제와 다르면 바꿔 주세요.</p>
-              <div className="choice-row">
-                {SIDE_CHOICES.map((choice) => (
-                  <label key={choice.value} className={side === choice.value ? "choice chosen" : "choice"}>
-                    <input
-                      type="radio"
-                      name="side"
-                      checked={side === choice.value}
-                      onChange={() => setSide(choice.value)}
-                    />
-                    <span>{choice.label}</span>
-                  </label>
-                ))}
-              </div>
+              <SideChoices side={side} onChange={setSide} />
             </fieldset>
           </details>
         )}
@@ -278,19 +285,7 @@ export function ResultSheet(props: {
           {props.mode === "result" && presetWinnerSide(winner, match.teamASide) !== null && (
             <p className="hint">시작할 때 정한 진영으로 미리 골라 뒀어요. 실제와 다르면 바꿔 주세요.</p>
           )}
-          <div className="choice-row">
-            {SIDE_CHOICES.map((choice) => (
-              <label key={choice.value} className={side === choice.value ? "choice chosen" : "choice"}>
-                <input
-                  type="radio"
-                  name="side"
-                  checked={side === choice.value}
-                  onChange={() => setSide(choice.value)}
-                />
-                <span>{choice.label}</span>
-              </label>
-            ))}
-          </div>
+          <SideChoices side={side} onChange={setSide} />
         </fieldset>
       )}
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { addDays } from "../../shared/graphs";
 import { linkNames, type NameLink } from "../../shared/importLink";
 import {
   convertLegacy,
@@ -46,12 +47,6 @@ interface Read {
 }
 
 type SideMode = "unknown" | "column";
-
-function addDays(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * 기존 사이트(v1, 천안호두.GG) 기록 가져오기. 1 주소 → 2 확인 → 3 가져오기.
