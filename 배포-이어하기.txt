@@ -18,13 +18,15 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
-[2026-11-17: staging 080f04c4 = main b84936f(보안 점검 후속), 운영은 아직 262c54a2]
+[2026-11-17: 운영 c6f84333 = staging 080f04c4 = main b84936f(보안 점검 후속)]
 
 - 카카오·Google 세션은 모임 삭제·넘기기·같은 모임 복원·탈퇴 때 로그인 10분 안이어야 함(403 REAUTH_REQUIRED), CSP style-src에서
   unsafe-inline 제거, 피드백·화면 오류 사이트 하루 건수(RATE_FEEDBACK_SITE_DAY 100·RATE_CLIENT_ERRORS_SITE_DAY 300, wrangler.jsonc에 있음).
   마이그레이션 없음. Claude가 staging 배포. /api/health 200, 정적·API CSP 모두 style-src 'self', 390×844 예시 모임 8개 화면 CSP 위반 0·가로 넘침 없음.
   staging에는 카카오·Google 키가 없어 실제 다시 로그인 흐름은 확인하지 못함(운영에서 카카오 운영자 계정으로 한 번 눌러 볼 것).
-  운영 배포하면 기존 카카오·Google 세션은 위 네 작업에서 한 번 다시 로그인해야 한다(예전 쿠키에 로그인 시각 없음).
+  이어서 사용자 요청으로 운영 배포. 운영 /api/health 200, CSP style-src 'self', 390×844 예시 모임 8개 화면 CSP 위반 0·가로 넘침 없음.
+  운영에도 카카오·Google 키가 없어(로그인 수단은 자체 계정뿐) 최근 로그인 확인은 지금 걸리는 계정이 없다. 키를 넣으면 그때부터 동작한다.
+  키를 넣은 뒤 카카오 운영자 계정으로 모임 삭제 화면의 "카카오로 다시 로그인"을 한 번 눌러 볼 것.
 
 [2026-11-17: 운영 262c54a2 = staging 8f71fc99 = main c5bcfe0(기본 <dialog>·글꼴 직접 호스팅)]
 
