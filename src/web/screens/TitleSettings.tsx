@@ -63,12 +63,12 @@ export function TitleSettings(props: {
     <section aria-label="칭호">
       <h2>칭호</h2>
       <p className="hint">
-        배치를 마친 사람(누적 {placementGamesOf(settings)}경기 이상)에게 누적 승률 구간에 따라 붙습니다. 시즌·연도
-        범위를 바꿔도 바뀌지 않습니다.
-        {settings.titleBands === undefined && " 지금 이름은 임시 기본값입니다."}
+        배치를 마친 사람(누적 {placementGamesOf(settings)}경기 이상)에게 누적 승률 구간에 따라 붙어요. 시즌·연도
+        범위를 바꿔도 바뀌지 않아요.
+        {settings.titleBands === undefined && " 지금 이름은 임시 기본값이에요."}
       </p>
       {bands.length === 0 ? (
-        <p>칭호를 쓰지 않습니다.</p>
+        <p>칭호를 쓰지 않아요.</p>
       ) : (
         <ul className="list">
           {bands.map((band, i) => (
@@ -106,8 +106,8 @@ export function TitleSettings(props: {
       {rows && (
         <Dialog title="칭호 바꾸기" onClose={() => setRows(null)}>
           <p className="hint">
-            줄마다 칭호 이름과 경계(% 이상)를 적습니다. 위에서부터 높은 구간입니다. 경계는 "이상"이라 정확히 65%면 65% 이상 구간입니다. 이름은{" "}
-            {MAX_TITLE_NAME_LENGTH}자까지 쓸 수 있습니다. 색과 엠블럼은 구간 순서에 따라 정해집니다.
+            줄마다 칭호 이름과 경계(% 이상)를 적어요. 위에서부터 높은 구간이에요. 경계는 "이상"이라 정확히 65%면 65% 이상 구간이에요. 이름은{" "}
+            {MAX_TITLE_NAME_LENGTH}자까지 쓸 수 있어요. 색과 엠블럼은 구간 순서에 따라 정해져요.
           </p>
           <ul className="list title-rows">
             {rows.map((row, i) => {
@@ -207,7 +207,7 @@ export function TitleSettings(props: {
                 setMessage(parsed.message);
                 return;
               }
-              void save(parsed.bands, "칭호를 바꿨어요. 모든 화면에 바로 적용됩니다.");
+              void save(parsed.bands, "칭호를 바꿨어요. 모든 화면에 바로 적용돼요.");
             }}
           >
             {props.busy ? "저장 중" : "저장"}

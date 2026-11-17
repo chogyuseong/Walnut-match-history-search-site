@@ -250,12 +250,12 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
 
       {!app.storageOk && (
         <p className="note warn" role="alert">
-          이 기기에 편성을 보관할 수 없어요. 창을 닫으면 사라집니다.
+          이 기기에 편성을 보관할 수 없어요. 창을 닫으면 사라져요.
         </p>
       )}
       {baseChanged && app.snapshot && (
         <p className="note warn" role="status">
-          다른 기기에서 경기 상태가 바뀌었어요. 작성 내용은 그대로 두었습니다.{" "}
+          다른 기기에서 경기 상태가 바뀌었어요. 작성 내용은 그대로 두었어요.{" "}
           <button type="button" className="link" onClick={() => go("/")}>
             현재 상태 보기
           </button>{" "}

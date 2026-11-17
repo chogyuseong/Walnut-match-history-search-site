@@ -172,7 +172,7 @@ test("모임 탭에서 칭호 이름·경계를 바꾸면 모든 화면에 바�
 
   await page.goto("/#/group");
   const section = page.getByRole("region", { name: "칭호" });
-  await expect(section).toContainText("지금 이름은 임시 기본값입니다.");
+  await expect(section).toContainText("지금 이름은 임시 기본값이에요.");
   await expect(section).toContainText("승리 설계자");
   await section.getByRole("button", { name: "칭호 바꾸기" }).click();
   const dialog = page.getByRole("dialog", { name: "칭호 바꾸기" });

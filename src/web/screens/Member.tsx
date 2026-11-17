@@ -141,7 +141,7 @@ function CurrentMatch(props: { snapshot: Snapshot; meId: string; base: string })
         )}
       </section>
       <MatchTeams match={match} nameOf={nameOf} highlightId={meId} />
-      <p className="hint">팀 편성 기준은 운영자가 정합니다.</p>
+      <p className="hint">팀 편성 기준은 운영자가 정해요.</p>
     </div>
   );
 }
@@ -372,7 +372,7 @@ function MemberHome(props: {
       </p>
       {props.loadError && (
         <p className="note warn" role="alert">
-          최신 상태를 불러오지 못했어요. 위는 마지막으로 받은 내용입니다.
+          최신 상태를 불러오지 못했어요. 위는 마지막으로 받은 내용이에요.
         </p>
       )}
 

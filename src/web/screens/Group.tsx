@@ -194,7 +194,7 @@ export function Group() {
         <section aria-label="조회 링크" id="group-view-link">
           <h2>조회 링크</h2>
           <p className="hint">
-            이 링크를 받은 사람은 로그인 없이 명단과 기록을 볼 수 있습니다. 수정은 할 수 없습니다.
+            이 링크를 받은 사람은 로그인 없이 명단과 기록을 볼 수 있어요. 수정은 할 수 없어요.
           </p>
           <div className="button-row">
             <CopyButton label="조회 링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
@@ -427,13 +427,13 @@ export function Group() {
                 void saveSettings(
                   { ...settings, rotationEnabled: e.target.checked },
                   e.target.checked
-                    ? "서포터 횟수를 다시 셉니다. 이전 기록을 이어갑니다."
-                    : "서포터 횟수 세기를 껐어요. 기록은 지우지 않았습니다.",
+                    ? "서포터 횟수를 다시 세어요. 이전 기록을 이어가요."
+                    : "서포터 횟수 세기를 껐어요. 기록은 지우지 않았어요.",
                   "rotation",
                 )
               }
             />{" "}
-            서포터로 간 횟수를 세고, 같은 팀에서 아직 서포터를 안 간 사람을 서포터로 고릅니다
+            서포터로 간 횟수를 세고, 같은 팀에서 아직 서포터를 안 간 사람을 서포터로 골라요
           </label>
           {settings.rotationEnabled && (snapshot.session || snapshot.rotation) && (
             <p>
@@ -486,16 +486,16 @@ export function Group() {
                 )
               }
             />{" "}
-            티어 균형이 같은 후보 중에서 최근 8경기에 같은 팀이었던 사람끼리 덜 묶이는 조합을 먼저 추천합니다
+            티어 균형이 같은 후보 중에서 최근 8경기에 같은 팀이었던 사람끼리 덜 묶이는 조합을 먼저 추천해요
           </label>
-          <p className="hint">균형(티어 합계·인원)과 같은 팀·다른 팀 조건이 항상 먼저입니다.</p>
+          <p className="hint">균형(티어 합계·인원)과 같은 팀·다른 팀 조건이 항상 먼저예요.</p>
           {placeError("team")}
         </section>
         <section aria-label="티어 공개">
           <h2>티어 공개</h2>
           <Help>
-            티어는 팀 추천·팀·라인 모두 섞기에 쓰는 운영 기준이며 공식 등급이 아닙니다. 공개 여부는 추천·섞기 결과를
-            바꾸지 않습니다.
+            티어는 팀 추천·팀·라인 모두 섞기에 쓰는 운영 기준이며 공식 등급이 아니에요. 공개 여부는 추천·섞기 결과를
+            바꾸지 않아요.
           </Help>
           <p>
             지금: <strong>{settings.groupsPublic ? "조회자에게 공개" : "운영자만 봄"}</strong>{" "}
@@ -517,7 +517,7 @@ export function Group() {
         <section aria-label="지난 경기 입력">
           <h2>지난 경기 입력</h2>
           <p className="hint">
-            이미 끝난 경기 하나를 결과까지 넣습니다. 오늘 내전과 서포터 횟수에는 영향이 없습니다.
+            이미 끝난 경기 하나를 결과까지 넣어요. 오늘 내전과 서포터 횟수에는 영향이 없어요.
           </p>
           <button type="button" className="secondary" onClick={() => go("/backfill")}>
             지난 경기 한 건 넣기
@@ -526,8 +526,8 @@ export function Group() {
         <section aria-label="표 일괄 입력">
           <h2>표 일괄 입력</h2>
           <p className="hint">
-            시트에 적어 둔 지난 경기를 붙여 넣어 한꺼번에 넣습니다. 현재 경기와 서포터 횟수에는 영향이
-            없습니다.
+            시트에 적어 둔 지난 경기를 붙여 넣어 한꺼번에 넣어요. 현재 경기와 서포터 횟수에는 영향이
+            없어요.
           </p>
           <div className="button-row">
             <button type="button" className="secondary" onClick={() => go("/import")}>
@@ -596,7 +596,7 @@ export function Group() {
                           },
                           allExcluded
                             ? `${b.count}경기를 복구했어요.`
-                            : `이때 넣은 경기를 모두 전적 제외했어요. 같은 자리에서 복구할 수 있습니다.`,
+                            : `이때 넣은 경기를 모두 전적 제외했어요. 같은 자리에서 복구할 수 있어요.`,
                           "imports",
                         );
                       }}
@@ -647,8 +647,8 @@ export function Group() {
         <section aria-label="시즌">
           <h2>시즌</h2>
           <Help>
-            시즌은 기록을 날짜로 나눠 보는 필터입니다. 배치와 누적 기록은 시즌으로 초기화되지
-            않습니다. 시즌끼리는 날짜가 겹칠 수 없습니다.
+            시즌은 기록을 날짜로 나눠 보는 필터예요. 배치와 누적 기록은 시즌으로 초기화되지
+            않아요. 시즌끼리는 날짜가 겹칠 수 없어요.
           </Help>
           {snapshot.seasons.length > 0 && (
             <ul className="list list-card" aria-label="시즌 목록">
@@ -668,7 +668,7 @@ export function Group() {
                     onClick={() =>
                       void run(
                         () => mutate(`/api/groups/${gid}/seasons/${s.id}`, { requestId: newRequestId() }, "DELETE"),
-                        `'${s.name}' 시즌을 지웠어요. 경기 기록은 그대로입니다.`,
+                        `'${s.name}' 시즌을 지웠어요. 경기 기록은 그대로예요.`,
                         "seasons",
                       )
                     }
@@ -776,7 +776,7 @@ export function Group() {
         <section aria-label="백업">
           <h2>백업</h2>
           <p className="hint">
-            경기·참가자·설정·변경 이력이 들어갑니다. 계정과 조회 링크는 들어가지 않습니다.
+            경기·참가자·설정·변경 이력이 들어가요. 계정과 조회 링크는 들어가지 않아요.
           </p>
           <button
             type="button"
@@ -804,8 +804,8 @@ export function Group() {
           <section aria-label="운영자 넘기기">
             <h2>운영자 넘기기</h2>
             <p className="hint">
-              모임 운영을 다른 사람에게 넘깁니다. 받는 사람이 링크를 열어 수락하면 그 사람이 운영자가
-              되고, 이 계정은 더 이상 이 모임을 수정할 수 없습니다. 기록과 조회 링크는 그대로입니다.
+              모임 운영을 다른 사람에게 넘겨요. 받는 사람이 링크를 열어 수락하면 그 사람이 운영자가
+              되고, 이 계정은 더 이상 이 모임을 수정할 수 없어요. 기록과 조회 링크는 그대로예요.
             </p>
             <button type="button" className="secondary" onClick={() => setTransferOpen(true)}>
               인수 링크 만들기
@@ -818,7 +818,7 @@ export function Group() {
         <LocalAccountSettings />
         <section aria-label="로그아웃">
           <h2>로그아웃</h2>
-          <p className="hint">이 기기에서 로그아웃합니다. 작성 중인 편성은 이 기기에 남습니다.</p>
+          <p className="hint">이 기기에서 로그아웃해요. 작성 중인 편성은 이 기기에 남아요.</p>
           {placeError("account")}
           <button
             type="button"
@@ -842,14 +842,14 @@ export function Group() {
       </GroupBlock>
 
       <GroupBlock id="danger" title="위험한 작업 · 복원 · 삭제" danger forceOpen={snapshot.group.maintenance === true}>
-        <p className="hint">되돌리기 어렵거나 기록 전체를 바꾸는 작업입니다. 실행 전에 확인 문구를 입력해야 합니다.</p>
+        <p className="hint">되돌리기 어렵거나 기록 전체를 바꾸는 작업이에요. 실행 전에 확인 문구를 입력해야 해요.</p>
         {isOwner && <RestoreSection />}
         <section aria-label="모임 삭제 · 탈퇴">
           <h2>{isOwner ? "모임 삭제 · 탈퇴" : "탈퇴"}</h2>
           <p className="hint">
             {isOwner
-              ? "모임의 모든 기록을 지우거나 이 계정을 없앱니다. 되돌릴 수 없어 확인 문구를 입력해야 합니다."
-              : "이 계정을 없앱니다. 모임 삭제와 백업에서 복원은 대표 운영자만 할 수 있어요."}
+              ? "모임의 모든 기록을 지우거나 이 계정을 없애요. 되돌릴 수 없어 확인 문구를 입력해야 해요."
+              : "이 계정을 없애요. 모임 삭제와 백업에서 복원은 대표 운영자만 할 수 있어요."}
           </p>
           <button type="button" className="danger" onClick={() => go("/delete")}>
             {isOwner ? "모임 삭제 · 탈퇴로" : "탈퇴로"}
@@ -862,12 +862,12 @@ export function Group() {
         <Dialog title="티어 공개 설정" onClose={() => setPreviewPublic(false)}>
           {settings.groupsPublic ? (
             <p>
-              비공개로 바꾸면 조회자에게 티어가 보이지 않습니다. 이미 본 사람에게는 소용이
-              없습니다.
+              비공개로 바꾸면 조회자에게 티어가 보이지 않아요. 이미 본 사람에게는 소용이
+              없어요.
             </p>
           ) : (
             <>
-              <p>공개로 바꾸면 조회 링크를 가진 모든 사람에게 이렇게 보입니다.</p>
+              <p>공개로 바꾸면 조회 링크를 가진 모든 사람에게 이렇게 보여요.</p>
               <ul className="list">
                 {snapshot.participants
                   .filter((p) => p.status === "active")
@@ -879,7 +879,7 @@ export function Group() {
                     </li>
                   ))}
               </ul>
-              <p className="hint">한번 공개된 평가는 되돌릴 수 없습니다.</p>
+              <p className="hint">한번 공개된 평가는 되돌릴 수 없어요.</p>
             </>
           )}
           {/* 실패하면 대화 상자를 열어 둔 채 이유를 보여 준다. */}
@@ -910,7 +910,7 @@ export function Group() {
           {/* 새 주기를 열면 지금까지 센 횟수로 되돌아갈 수 없다(되돌리기 API가 없다). 한 번 눌러 바로 바뀌지 않게 묻는다.
               문구는 준비 화면의 같은 확인 창(prep/SupportCountSection.tsx)과 맞춘다. */}
           <p>
-            모든 사람의 서포터 횟수를 0으로 되돌리고, 초기화한 뒤에 시작하는 경기부터 다시 셉니다. 그 전 경기의 기록과
+            모든 사람의 서포터 횟수를 0으로 되돌리고, 초기화한 뒤에 시작하는 경기부터 다시 세어요. 그 전 경기의 기록과
             전적은 그대로예요. 되돌릴 수 없어요.
           </p>
           <ErrorNote error={error} />
@@ -926,7 +926,7 @@ export function Group() {
                       requestId: newRequestId(),
                       baseLiveVersion: snapshot.group.liveVersion,
                     } as { requestId: string }),
-                  "서포터 횟수를 초기화했어요. 전적은 그대로입니다.",
+                  "서포터 횟수를 초기화했어요. 전적은 그대로예요.",
                 ).then((ok) => ok && setResetAsk(false))
               }
             >
@@ -951,8 +951,8 @@ export function Group() {
           {transferLink === null ? (
             <>
               <p>
-                인수 링크는 한 번만 쓸 수 있고 24시간 뒤 만료됩니다. 링크를 받은 사람이 수락하는
-                순간 이 계정은 이 모임을 수정할 수 없게 됩니다.
+                인수 링크는 한 번만 쓸 수 있고 24시간 뒤 만료돼요. 링크를 받은 사람이 수락하는
+                순간 이 계정은 이 모임을 수정할 수 없게 돼요.
               </p>
               {transferNeedsPassword && (
                 <label>
@@ -1002,7 +1002,7 @@ export function Group() {
             <>
               <p>
                 링크를 만들었어요. 넘겨받을 사람에게만 보내세요. 새 링크를 만들면 이 링크는
-                무효가 됩니다.
+                무효가 돼요.
               </p>
               <CopyButton label="인수 링크 복사" text={() => transferLink} />
             </>
@@ -1013,8 +1013,8 @@ export function Group() {
       {confirmToken && (
         <Dialog title="링크 다시 만들기" onClose={() => setConfirmToken(false)}>
           <p>
-            새 링크를 만들면 지금까지 공유한 링크는 더 이상 열리지 않습니다. 참가자에게 새 링크를 다시
-            보내야 합니다.
+            새 링크를 만들면 지금까지 공유한 링크는 더 이상 열리지 않아요. 참가자에게 새 링크를 다시
+            보내야 해요.
           </p>
           {/* 실패하면 대화 상자를 열어 둔 채 이유를 보여 준다. */}
           <ErrorNote error={error} />
@@ -1054,7 +1054,7 @@ export function Group() {
               이름
               <input value={editName} maxLength={20} onChange={(e) => setEditName(e.target.value)} />
             </label>
-            <p className="hint">이름을 바꿔도 과거 경기의 소속과 승패는 그대로입니다.</p>
+            <p className="hint">이름을 바꿔도 과거 경기의 소속과 승패는 그대로예요.</p>
             <ErrorNote error={error} />
             <div className="button-row">
               <button type="submit" className="primary" disabled={busy || editName.trim() === ""}>
@@ -1069,7 +1069,7 @@ export function Group() {
                     editing.id,
                     { status: editing.status === "active" ? "archived" : "active" },
                     editing.status === "active"
-                      ? "보관했어요. 기록은 그대로 남습니다."
+                      ? "보관했어요. 기록은 그대로 남아요."
                       : "다시 활성으로 바꿨어요.",
                   ).then((ok) => ok && setEditing(null))
                 }

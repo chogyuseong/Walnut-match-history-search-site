@@ -154,7 +154,7 @@ export const AppContext = createContext<AppValue | null>(null);
 
 export function useAppValue(): AppValue {
   const value = useContext(AppContext);
-  if (!value) throw new Error("AppContext가 없습니다.");
+  if (!value) throw new Error("AppContext가 없어요.");
   return value;
 }
 

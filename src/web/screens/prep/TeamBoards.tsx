@@ -189,7 +189,7 @@ export function SelectionBar(props: { draft: Draft; edit: PrepEditing; canReplac
   if (!selectedKey) {
     return (
       <p className="hint">
-        두 사람을 차례로 누르면 자리가 바뀝니다. PC에서는 사람을 끌어다 다른 자리나 쉬는 사람에 놓아도 돼요.
+        두 사람을 차례로 누르면 자리가 바뀌어요. PC에서는 사람을 끌어다 다른 자리나 쉬는 사람에 놓아도 돼요.
         {movedKeys(draft).size > 0 && " 점선 테두리는 방금 자리가 바뀐 사람이에요."}
       </p>
     );

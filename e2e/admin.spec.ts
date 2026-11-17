@@ -107,7 +107,7 @@ test("운영자를 넘기면 받은 사람만 수정할 수 있다", async ({ br
   const thirdContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const thirdPage = await thirdContext.newPage();
   await thirdPage.goto(link);
-  await expect(thirdPage.getByText("이 링크는 이미 썼거나 만료됐습니다.")).toBeVisible();
+  await expect(thirdPage.getByText("이 링크는 이미 썼거나 만료됐어요.")).toBeVisible();
 
   await oldContext.close();
   await newContext.close();

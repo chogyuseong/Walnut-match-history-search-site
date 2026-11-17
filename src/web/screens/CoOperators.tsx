@@ -167,8 +167,8 @@ export function CoOperatorsSection(props: { gid: string }) {
           {link === null ? (
             <>
               <p>
-                초대 링크는 한 번만 쓸 수 있고 24시간 뒤 만료됩니다. 링크를 받은 사람이 로그인해 수락하면 공동 운영자가
-                됩니다. 새 링크를 만들면 쓰지 않은 이전 링크는 무효가 됩니다.
+                초대 링크는 한 번만 쓸 수 있고 24시간 뒤 만료돼요. 링크를 받은 사람이 로그인해 수락하면 공동 운영자가
+                돼요. 새 링크를 만들면 쓰지 않은 이전 링크는 무효가 돼요.
               </p>
               <ErrorNote error={error} />
               <div className="button-row">
@@ -208,7 +208,7 @@ export function CoOperatorsSection(props: { gid: string }) {
       {removing && (
         <Dialog title="공동 운영자 내보내기" onClose={() => setRemoving(null)}>
           <p>
-            <strong>{accountLabel(removing)}</strong>을(를) 내보내면 그 계정은 바로 이 모임을 보거나 고칠 수 없게 됩니다.
+            <strong>{accountLabel(removing)}</strong>을(를) 내보내면 그 계정은 바로 이 모임을 보거나 고칠 수 없게 돼요.
             그동안 저장한 기록은 그대로 남아요.
           </p>
           <RenewLinksChoice checked={renewLinks} onChange={setRenewLinks} who="내보낸 사람" />
@@ -363,7 +363,7 @@ export function CoInvite(props: { token: string }) {
         <>
           <section className="card">
             <p>
-              <strong>{info.groupName}</strong> 모임의 공동 운영자가 됩니다.
+              <strong>{info.groupName}</strong> 모임의 공동 운영자가 돼요.
             </p>
             <p className="hint">
               수락하면 이 계정으로 경기 시작·결과 저장·정정·설정을 할 수 있어요. 운영자 넘기기, 모임 삭제, 백업에서 복원,

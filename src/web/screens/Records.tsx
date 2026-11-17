@@ -545,7 +545,7 @@ export function Records(props: {
         {sort === "rating" && (
           <p className="hint rating-rule">
             MMR은 팀원과 상대 팀이 누구였는지까지 감안해 전체 기록으로 계산한 실력 점수예요(시작 {ratingOptions.start}). 확정
-            경기만 세고 범위와 무관하게 누적입니다. 3연승·3연패부터 그 경기를 더 무겁게 셉니다(최대 1.5배). {RATING_TIER_HELP}
+            경기만 세고 범위와 무관하게 누적이에요. 3연승·3연패부터 그 경기를 더 무겁게 세어요(최대 1.5배). {RATING_TIER_HELP}
           </p>
         )}
         {scope.kind !== "all" && query.trim() !== "" && records.length === 0 && (
@@ -670,10 +670,10 @@ export function Records(props: {
         <Help label="순서와 표시 규칙">
           순서: 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료(누적 {placementGames}경기 이상) → 배치 진행 중, 묶음 안에서는 {RANKING_SORT_LABEL[sort]}
           {sort === "rate" ? " → 경기 수 → 이름" : sort === "games" ? " → 승률 → 이름" : " → 승률 → 경기 수 → 이름"}.
-          이름을 검색하면 일치하는 순으로 보여주고 순위 숫자는 바뀌지 않습니다. 승·패 칸은 최근 경기가
-          왼쪽이며, 2경기 이상 이어지면 연승·연패를 적습니다. 결과 미입력·제외 경기는 세지 않습니다.
+          이름을 검색하면 일치하는 순으로 보여주고 순위 숫자는 바뀌지 않아요. 승·패 칸은 최근 경기가
+          왼쪽이며, 2경기 이상 이어지면 연승·연패를 적어요. 결과 미입력·제외 경기는 세지 않아요.
           {line && noPosition > 0
-            ? ` 포지션 기록이 없는 ${noPosition}경기는 라인별 순위에서 빠집니다.`
+            ? ` 포지션 기록이 없는 ${noPosition}경기는 라인별 순위에서 빠져요.`
             : ""}
         </Help>
       </section>
@@ -739,7 +739,7 @@ export function Records(props: {
           </ul>
         )}
         <p className="hint">
-          수치가 달라 보이면 범위(오늘·전체)를 바꿨거나 위 목록처럼 경기 자체가 바뀐 것입니다.
+          수치가 달라 보이면 범위(오늘·전체)를 바꿨거나 위 목록처럼 경기 자체가 바뀐 것이에요.
         </p>
       </details>
       </>
@@ -1191,7 +1191,7 @@ export function MatchDetail(props: {
                 전적 제외
               </button>
               <span className="hint">
-                통계와 배치 판수에서 빠집니다. 서포터 횟수는 그대로이고 언제든 복구할 수 있어요.
+                통계와 배치 판수에서 빠져요. 서포터 횟수는 그대로이고 언제든 복구할 수 있어요.
               </span>
             </div>
           )}
@@ -1208,14 +1208,14 @@ export function MatchDetail(props: {
               경기 삭제
             </button>
             <span className="hint">
-              잘못 넣은 경기를 지웁니다. 목록과 통계에서 사라지고, 변경 내역에서 되살릴 수 있어요.
+              잘못 넣은 경기를 지워요. 목록과 통계에서 사라지고, 변경 내역에서 되살릴 수 있어요.
             </span>
           </div>
         </details>
       )}
       {operator && match.state === "excluded" && (
         <p className="note">
-          전적에서 제외된 경기입니다.{" "}
+          전적에서 제외된 경기예요.{" "}
           <button type="button" className="link" disabled={busy} onClick={() => void send("restore", {})}>
             복구
           </button>
@@ -1290,7 +1290,7 @@ export function MatchDetail(props: {
 
       {editing === "side" && (
         <Dialog title="진영 수정" onClose={closeEdit}>
-          <p className="note">진영만 변경합니다. 개인 승패는 유지되고 진영 통계가 다시 계산됩니다.</p>
+          <p className="note">진영만 변경해요. 개인 승패는 유지되고 진영 통계가 다시 계산돼요.</p>
           <fieldset>
             <legend>
               이긴 팀({teamName(match.winnerTeam!, match.teamASide)})은 실제로 어느 진영이었나요?
@@ -1324,8 +1324,8 @@ export function MatchDetail(props: {
       {editing === "playedAt" && (
         <Dialog title="경기 시각 수정" onClose={closeEdit}>
           <p className="note">
-            경기 시각만 변경합니다. 승패와 명단은 그대로이고, 이 경기가 다른 날이나 다른 시즌의
-            기록으로 옮겨질 수 있습니다.
+            경기 시각만 변경해요. 승패와 명단은 그대로이고, 이 경기가 다른 날이나 다른 시즌의
+            기록으로 옮겨질 수 있어요.
           </p>
           <label>
             경기 시각
@@ -1380,8 +1380,8 @@ export function MatchDetail(props: {
           ) : (
             <>
               <p className="note">
-                같은 팀의 두 사람을 고르면 포지션을 맞바꿉니다. 승패는 그대로이고 라인별 기록이 다시
-                계산됩니다.
+                같은 팀의 두 사람을 고르면 포지션을 맞바꿔요. 승패는 그대로이고 라인별 기록이 다시
+                계산돼요.
               </p>
               {(["A", "B"] as const).map((team) => (
                 <ul key={team} className="list">
@@ -1452,8 +1452,8 @@ export function MatchDetail(props: {
           ) : (
             <>
               <p className="note">
-                {nameOf(outId)}의 기록에서 이 경기가 빠지고, 고른 사람의 기록에 추가됩니다. 두 사람의
-                배치 판수도 함께 바뀝니다. 나머지 9명은 그대로입니다.
+                {nameOf(outId)}의 기록에서 이 경기가 빠지고, 고른 사람의 기록에 추가돼요. 두 사람의
+                배치 판수도 함께 바뀌어요. 나머지 9명은 그대로예요.
               </p>
               {inCandidates.length === 0 ? (
                 <p className="hint">바꿔 넣을 수 있는 참가자가 없어요.</p>
@@ -1492,7 +1492,7 @@ function RotationQuestion(props: { busy: boolean; onAnswer: (fix: boolean) => vo
   return (
     <>
       <p>
-        이 정정으로 이 경기의 서포터가 바뀝니다. 서포터 횟수 기록도 함께 고칠까요?
+        이 정정으로 이 경기의 서포터가 바뀌어요. 서포터 횟수 기록도 함께 고칠까요?
       </p>
       <div className="button-row">
         <button type="button" className="primary" disabled={props.busy} onClick={() => props.onAnswer(true)}>

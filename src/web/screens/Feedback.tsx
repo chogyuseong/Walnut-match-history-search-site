@@ -41,7 +41,7 @@ export function Feedback() {
       <ScreenHead
         back={<BackLink label="← 오늘" fallback={() => go("/")} />}
         title="피드백"
-        desc="시험 운영 중이에요. 쓰다가 불편했던 점이나 바라는 점을 적어 주시면 사이트 운영자가 읽고 고칩니다."
+        desc="시험 운영 중이에요. 쓰다가 불편했던 점이나 바라는 점을 적어 주시면 사이트 운영자가 읽고 고쳐요."
       />
       {sent ? (
         <div className="feedback-sent" role="status">

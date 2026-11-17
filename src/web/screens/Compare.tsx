@@ -186,7 +186,7 @@ export function Compare(props: {
         <p className="hint">
           {people.length < 2
             ? "확정된 경기가 있는 사람이 두 명 이상이어야 비교할 수 있어요."
-            : "비교할 두 사람을 골라 주세요. 승률·라인별 승률·같은 팀일 때·상대일 때 전적을 나란히 보여줍니다."}
+            : "비교할 두 사람을 골라 주세요. 승률·라인별 승률·같은 팀일 때·상대일 때 전적을 나란히 보여 줘요."}
         </p>
       </div>
     );
@@ -324,7 +324,7 @@ export function Compare(props: {
             {nameA} <span className="vs">vs</span> {nameB}
           </>
         }
-        desc={`${scopeLabel} 범위에서 두 사람의 전적을 나란히 봅니다`}
+        desc={`${scopeLabel} 범위에서 두 사람의 전적을 나란히 봐요`}
       />
 
       <div className="cmp-duel">
@@ -411,7 +411,7 @@ export function Compare(props: {
                 />
               </div>
             </div>
-            <p className="hint">경기 수가 적으면 우연일 수 있습니다.</p>
+            <p className="hint">경기 수가 적으면 우연일 수 있어요.</p>
           </>
         )}
       </section>
@@ -492,7 +492,7 @@ export function Compare(props: {
             </tr>
           </tbody>
         </table>
-        <p className="hint">▲는 그 줄에서 앞선 쪽이에요. 칭호·MMR은 범위와 관계없이 누적 기준입니다.</p>
+        <p className="hint">▲는 그 줄에서 앞선 쪽이에요. 칭호·MMR은 범위와 관계없이 누적 기준이에요.</p>
       </section>
 
       <section className="cmp-section" aria-label="라인별 승률 비교">
@@ -526,7 +526,7 @@ export function Compare(props: {
         </table>
         {(da.positionUnknown > 0 || db.positionUnknown > 0) && (
           <p className="hint">
-            포지션 기록이 없는 경기는 뺐습니다({nameA} {da.positionUnknown}경기, {nameB}{" "}
+            포지션 기록이 없는 경기는 뺐어요({nameA} {da.positionUnknown}경기, {nameB}{" "}
             {db.positionUnknown}경기).
           </p>
         )}
@@ -688,7 +688,7 @@ export function Compare(props: {
             나머지 {matches.length - shown}경기 중 {Math.min(PAGE, matches.length - shown)}경기 더 보기
           </button>
         )}
-        <p className="hint">카드 색과 승·패 표시는 {nameA} 기준입니다.</p>
+        <p className="hint">카드 색과 승·패 표시는 {nameA} 기준이에요.</p>
       </section>
     </div>
   );

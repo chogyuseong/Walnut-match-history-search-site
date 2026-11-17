@@ -209,7 +209,7 @@ export function ResultSheet(props: {
                 {teamName("B", teamASide)}이 돼요.
               </p>
             )}
-            {side === "unknown" && <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠집니다.</p>}
+            {side === "unknown" && <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠져요.</p>}
           </section>
         )}
 
@@ -246,7 +246,7 @@ export function ResultSheet(props: {
     <Dialog title={title} onClose={props.onClose}>
       {props.mode === "correct" && (
         <p className="note">
-          승리 팀을 바꾸면 10명의 승패가 서로 바뀝니다. 진영을 다시 확인해 주세요.
+          승리 팀을 바꾸면 10명의 승패가 서로 바뀌어요. 진영을 다시 확인해 주세요.
         </p>
       )}
       <fieldset>
@@ -302,7 +302,7 @@ export function ResultSheet(props: {
             </p>
           )}
           {side === "unknown" && (
-            <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠집니다.</p>
+            <p className="hint">개인 승패는 기록되고 진영 통계에서만 빠져요.</p>
           )}
           {props.mode === "result" && <MemoField value={memo} onChange={setMemo} />}
           {props.mode === "result" && championSection}

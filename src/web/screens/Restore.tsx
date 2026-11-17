@@ -126,7 +126,7 @@ export function RestoreSection() {
           ...(needsPassword ? { password } : {}),
         });
         await app.refreshAfterOwnChange();
-        app.setNotice(`복원했어요. 경기 ${result.matches}개, 참가자 ${result.participants}명입니다.`);
+        app.setNotice(`복원했어요. 경기 ${result.matches}개, 참가자 ${result.participants}명이에요.`);
         reset();
       } else {
         setStep("새 모임으로 가져오는 중");
@@ -165,14 +165,14 @@ export function RestoreSection() {
       <h2>백업에서 복원</h2>
       {maintenance && (
         <p className="note error" role="alert">
-          복원이 중간에 멈춰 이 모임은 점검 중이에요. 다른 저장은 막혀 있습니다. 같은 백업 파일로 복원을
-          다시 실행하면 끝납니다.
+          복원이 중간에 멈춰 이 모임은 점검 중이에요. 다른 저장은 막혀 있어요. 같은 백업 파일로 복원을
+          다시 실행하면 끝나요.
         </p>
       )}
       <p className="hint">
-        '백업 내려받기'로 받은 파일로 이 모임을 그 시점으로 되돌립니다. 백업 이후의 기록은 사라지고,
-        운영자와 조회 링크는 바뀌지 않습니다. 다른 모임의 백업은 이 모임을 바꾸지 않고 새 모임으로
-        가져옵니다.
+        '백업 내려받기'로 받은 파일로 이 모임을 그 시점으로 되돌려요. 백업 이후의 기록은 사라지고,
+        운영자와 조회 링크는 바뀌지 않아요. 다른 모임의 백업은 이 모임을 바꾸지 않고 새 모임으로
+        가져와요.
       </p>
       <label className="file-pick">
         백업 파일 고르기
@@ -194,7 +194,7 @@ export function RestoreSection() {
       {preview && !preview.ok && (
         <div className="note error" role="alert">
           <p>
-            <strong>이 파일로는 복원할 수 없어요.</strong> 아무것도 바꾸지 않았습니다.
+            <strong>이 파일로는 복원할 수 없어요.</strong> 아무것도 바꾸지 않았어요.
           </p>
           <ul className="problem-list">
             {preview.problems.map((problem, i) => (
@@ -209,13 +209,13 @@ export function RestoreSection() {
           <p>
             {preview.sameGroup ? (
               <>
-                이 모임의 백업입니다 · {formatDate(file.createdAt, tz)} {formatTime(file.createdAt, tz)}에
+                이 모임의 백업이에요 · {formatDate(file.createdAt, tz)} {formatTime(file.createdAt, tz)}에
                 만든 파일
               </>
             ) : (
               <>
-                다른 모임(<strong>{file.groupName}</strong>)의 백업입니다. 이 모임은 그대로 두고{" "}
-                <strong>새 모임</strong>으로 가져옵니다.
+                다른 모임(<strong>{file.groupName}</strong>)의 백업이에요. 이 모임은 그대로 두고{" "}
+                <strong>새 모임</strong>으로 가져와요.
               </>
             )}
           </p>
@@ -249,8 +249,8 @@ export function RestoreSection() {
           {preview.sameGroup && (
             <p className="hint">
               {maintenance
-                ? "점검 중이라 지금 상태는 내려받지 않습니다."
-                : "실행하면 먼저 지금 상태를 백업 파일로 내려받은 뒤 복원합니다. 잘못 복원했으면 그 파일로 다시 복원하면 됩니다."}
+                ? "점검 중이라 지금 상태는 내려받지 않아요."
+                : "실행하면 먼저 지금 상태를 백업 파일로 내려받은 뒤 복원해요. 잘못 복원했으면 그 파일로 다시 복원하면 돼요."}
             </p>
           )}
           <label>
@@ -411,7 +411,7 @@ export function NewGroupFromBackup() {
         <div className="restore-preview">
           <p>
             <strong>{summary.groupName}</strong>의 백업 · 경기 {summary.matches}개 · 참가자 {summary.participants}명.
-            새 모임으로 가져옵니다.
+            새 모임으로 가져와요.
           </p>
           <p className="hint">파일 전체는 가져올 때 검사해요. 문제가 있으면 아무것도 만들지 않아요.</p>
           <label>
@@ -421,7 +421,7 @@ export function NewGroupFromBackup() {
           {problems.length > 0 ? (
             <div className="note error" role="alert">
               <p>
-                <strong>이 파일로는 가져올 수 없어요.</strong> 아무것도 만들지 않았습니다.
+                <strong>이 파일로는 가져올 수 없어요.</strong> 아무것도 만들지 않았어요.
               </p>
               <ul className="problem-list">
                 {problems.map((problem, i) => (

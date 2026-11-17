@@ -131,7 +131,7 @@ export function Merge() {
       });
       await app.refreshAfterOwnChange();
       app.setNotice(
-        `'${preview.source.name}'을(를) '${preview.target.name}'에 합쳤어요. 경기 ${result.matchCount}개를 옮겼습니다.`,
+        `'${preview.source.name}'을(를) '${preview.target.name}'에 합쳤어요. 경기 ${result.matchCount}개를 옮겼어요.`,
       );
       choose("", "");
     } catch (e) {
@@ -153,7 +153,7 @@ export function Merge() {
       );
       await app.refreshAfterOwnChange();
       app.setNotice(
-        `합치기를 되돌렸어요. 경기 ${result.matchCount}개를 원래 이름으로 돌렸습니다.` +
+        `합치기를 되돌렸어요. 경기 ${result.matchCount}개를 원래 이름으로 돌렸어요.` +
           undoLinkText(result.link, sourceName, targetName),
       );
       undoRequest.current = null;
@@ -179,8 +179,8 @@ export function Merge() {
         <h1>중복 참가자 합치기</h1>
       </header>
       <p className="hint">
-        같은 사람이 다른 이름으로 두 번 들어갔을 때 하나로 합칩니다. 없앨 이름의 모든 경기 기록과 서포터 횟수
-        기록이 남길 이름으로 옮겨지고, 없앨 이름은 보관됩니다. 잘못 합쳤으면 아래 기록에서 되돌릴 수 있어요.
+        같은 사람이 다른 이름으로 두 번 들어갔을 때 하나로 합쳐요. 없앨 이름의 모든 경기 기록과 서포터 횟수
+        기록이 남길 이름으로 옮겨지고, 없앨 이름은 보관돼요. 잘못 합쳤으면 아래 기록에서 되돌릴 수 있어요.
       </p>
 
       <section aria-label="합칠 두 이름 고르기" className="merge-pick">
@@ -235,7 +235,7 @@ export function Merge() {
       {preview && !preview.ok && (
         <div className="note error" role="alert">
           <p>
-            <strong>이 두 이름은 합칠 수 없어요.</strong> 아무것도 바꾸지 않았습니다.
+            <strong>이 두 이름은 합칠 수 없어요.</strong> 아무것도 바꾸지 않았어요.
           </p>
           <ul className="problem-list">
             {preview.problems.map((problem, i) => (
@@ -271,7 +271,7 @@ export function Merge() {
           {preview.rotation.converted > 0 && (
             <p className="note" role="note">
               서포터 횟수를 초기화한 뒤 두 이름이 각각 서포터를 했어요. 한 사람이 두 번 한 것이므로 나중 기록{" "}
-              {preview.rotation.converted}건을 반복 기록으로 바꿉니다. 합친 사람의 서포터 횟수는 두 이름의 합이에요.
+              {preview.rotation.converted}건을 반복 기록으로 바꿔요. 합친 사람의 서포터 횟수는 두 이름의 합이에요.
             </p>
           )}
           <div className="table-scroll">
@@ -317,8 +317,8 @@ export function Merge() {
             </table>
           </div>
           <p className="hint">
-            결과 확정 경기만 셉니다. 합친 뒤 '{preview.source.name}'은(는) 보관되어 참가자 고르기에 보이지 않고, 이
-            기기의 작성 중 편성에 있던 '{preview.source.name}'은(는) '{preview.target.name}'(으)로 바뀝니다.
+            결과 확정 경기만 세어요. 합친 뒤 '{preview.source.name}'은(는) 보관되어 참가자 고르기에 보이지 않고, 이
+            기기의 작성 중 편성에 있던 '{preview.source.name}'은(는) '{preview.target.name}'(으)로 바뀌어요.
           </p>
           {linked.has(preview.source.id) && (
             <p className="note" role="note">
@@ -380,8 +380,8 @@ export function Merge() {
       {pendingUndo && (
         <Dialog title="합치기 되돌리기" onClose={() => setUndoing(null)}>
           <p>
-            '{nameOf(pendingUndo.sourceId)}'의 경기 기록을 원래 이름으로 돌려놓고 보관을 풉니다. 합친 뒤 '
-            {nameOf(pendingUndo.targetId)}'(으)로 새로 저장한 경기는 그대로 둡니다. 옮겨진 본인 연결도 원래 이름으로 돌려놓아요.
+            '{nameOf(pendingUndo.sourceId)}'의 경기 기록을 원래 이름으로 돌려놓고 보관을 풀어요. 합친 뒤 '
+            {nameOf(pendingUndo.targetId)}'(으)로 새로 저장한 경기는 그대로 둬요. 옮겨진 본인 연결도 원래 이름으로 돌려놓아요.
           </p>
           <ErrorNote
             error={error}

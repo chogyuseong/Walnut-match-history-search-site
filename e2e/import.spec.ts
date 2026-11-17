@@ -96,7 +96,7 @@ test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠�
   await expect(sides.locator(".ps-tiles > div").nth(0)).toContainText("3경기");
   await expect(sides).toContainText("진영을 아는 경기가 없어요.");
   await expect(sides).toContainText("진영 기록 없음");
-  await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
+  await expect(sides).toContainText("진영 미상 3경기는 제외했어요.");
   // 개인별 승률에는 들어간다.
   await expect(page.getByRole("region", { name: "개인별 승률" }).locator(".people-bars > li")).toHaveCount(12);
 });

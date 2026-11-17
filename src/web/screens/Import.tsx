@@ -154,14 +154,14 @@ export function Import() {
       </header>
 
       <p className="hint">
-        시트에 적어 둔 지난 경기를 한꺼번에 넣습니다. 시트에서 범위를 복사해 아래에 붙여 넣으세요.
-        한 줄이 한 경기입니다.
+        시트에 적어 둔 지난 경기를 한꺼번에 넣어요. 시트에서 범위를 복사해 아래에 붙여 넣으세요.
+        한 줄이 한 경기예요.
       </p>
       <details>
         <summary>열 순서 보기</summary>
         <p className="hint">{IMPORT_COLUMNS.join(" → ")}</p>
         <p className="hint">
-          날짜는 2026-10-31, 승리팀은 A 또는 B로 씁니다. 첫 줄이 제목이면 자동으로 건너뜁니다.
+          날짜는 2026-10-31, 승리팀은 A 또는 B로 써요. 첫 줄이 제목이면 자동으로 건너뛰어요.
         </p>
       </details>
 
@@ -250,7 +250,7 @@ export function Import() {
             <details>
               <summary>새로 만들 참가자 {newNames.length}명</summary>
               <p className="hint">
-                같은 사람이 다른 표기로 들어 있으면 서로 다른 참가자가 됩니다. 넣기 전에 표에서
+                같은 사람이 다른 표기로 들어 있으면 서로 다른 참가자가 돼요. 넣기 전에 표에서
                 이름을 맞춰 주세요.
               </p>
               <p>{newNames.join(", ")}</p>
@@ -260,7 +260,7 @@ export function Import() {
             <div className="note error" role="alert">
               <p>
                 <strong>틀린 줄이 {parsed.errors.length}개 있어요.</strong> 모두 고친 뒤에 넣을 수
-                있습니다. 일부만 넣지는 않습니다.
+                있어요. 일부만 넣지는 않아요.
               </p>
               <ul>
                 {parsed.errors.slice(0, 20).map((e) => (
@@ -322,7 +322,7 @@ export function Import() {
                 <strong>진영 미상으로 넣기</strong>
                 <br />
                 <span className="hint">
-                  개인 승패와 배치 판수에는 들어가고 진영 통계에서만 빠집니다. 실제 진영을 확신할 수
+                  개인 승패와 배치 판수에는 들어가고 진영 통계에서만 빠져요. 실제 진영을 확신할 수
                   없을 때 고르세요.
                 </span>
               </span>
@@ -338,22 +338,22 @@ export function Import() {
                 <strong>팀 A는 블루, 팀 B는 레드로 넣기</strong>
                 <br />
                 <span className="hint">
-                  표의 A팀이 항상 블루 진영이었을 때 고르세요. 진영 통계에 들어갑니다.
+                  표의 A팀이 항상 블루 진영이었을 때 고르세요. 진영 통계에 들어가요.
                 </span>
               </span>
             </label>
-            <p className="hint">어느 쪽이든 나중에 경기마다 진영을 고칠 수 있습니다.</p>
+            <p className="hint">어느 쪽이든 나중에 경기마다 진영을 고칠 수 있어요.</p>
           </fieldset>
 
           <p className="hint">
             잘못 넣었다면 모임 탭의 표 일괄 입력 기록에서 이번에 넣은 경기를 한 번에 전적 제외할 수
-            있습니다.
+            있어요.
           </p>
           <ErrorNote error={error} onCheck={() => void run()} />
           {saved > 0 && !busy && (
             <p className="note" role="status">
-              {plan.current?.total}경기 중 {saved}경기까지 저장됐습니다. 이어서 넣으면 이미 들어간
-              경기는 다시 들어가지 않습니다.
+              {plan.current?.total}경기 중 {saved}경기까지 저장됐어요. 이어서 넣으면 이미 들어간
+              경기는 다시 들어가지 않아요.
             </p>
           )}
           <button type="button" className="primary wide" disabled={!ready || busy} onClick={() => void run()}>

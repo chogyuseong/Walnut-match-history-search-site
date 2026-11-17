@@ -122,7 +122,7 @@ export function ChampionTier(props: {
           ) : (
             <p>
               아직 챔피언이 기록된 경기가 없어요. 결과를 입력할 때 "챔피언도 기록하기"를 펼치거나, 경기 상세에서 챔피언을
-              기록하면 채워집니다.
+              기록하면 채워져요.
             </p>
           )}
           {missing ? (
@@ -278,7 +278,7 @@ export function ChampionTier(props: {
 
       <section aria-label="챔피언 요약">
         <h2 className="sr-only">요약</h2>
-        <div className="stat-cards">
+        <div className="stat-cards ct-cards">
           <StatCard
             title="점수 1위"
             lead={top ? <ChampLabel championKey={top.key} /> : undefined}
@@ -343,12 +343,12 @@ export function ChampionTier(props: {
             </>
           )}
           <Help label="티어 매기는 법">
-            챔피언을 기록한 확정 경기만 셉니다. 픽률은 그 챔피언이 나온 경기 수를 챔피언이 하나라도 기록된 경기 수로 나눈
-            값이에요(라인을 고르면 그 라인에 기록된 경기 수로 나눕니다). 티어 점수는 승률에 50% 승률의 가상 경기{" "}
+            챔피언을 기록한 확정 경기만 세어요. 픽률은 그 챔피언이 나온 경기 수를 챔피언이 하나라도 기록된 경기 수로 나눈
+            값이에요(라인을 고르면 그 라인에 기록된 경기 수로 나눠요). 티어 점수는 승률에 50% 승률의 가상 경기{" "}
             {TIER_PRIOR_GAMES}판을 더한 보정 승률에 픽률 × {TIER_PICK_WEIGHT}를 더한 값이에요. 그래서 2판 2승이 20판 13승보다
-            위에 오지 않습니다. 점수 {TIER_CUTS.map((cut) => `${fractionPercent(cut)}%`).join(" · ")} 이상이 1~4티어이고 그
+            위에 오지 않아요. 점수 {TIER_CUTS.map((cut) => `${fractionPercent(cut)}%`).join(" · ")} 이상이 1~4티어이고 그
             아래는 5티어예요. 1티어는 {TIER_TOP_MIN_GAMES}판 이상만 받고, 그보다 적으면 점수가 높아도 2티어예요.{" "}
-            {TIER_MIN_GAMES}판 미만은 티어 없이 "기록 부족"에 둡니다. 밴과 상대 챔피언은 기록하지 않아서
+            {TIER_MIN_GAMES}판 미만은 티어 없이 "기록 부족"에 둬요. 밴과 상대 챔피언은 기록하지 않아서
             보여 주지 않아요.
           </Help>
         </section>
@@ -457,7 +457,7 @@ function ChampionDetail(props: {
         <ul className="ct-detail-list">
           {row.players.slice(0, 8).map((p) => (
             <li key={p.participantId}>
-              <button type="button" className="link" onClick={() => props.openPerson(p.participantId)}>
+              <button type="button" className="link name-link" onClick={() => props.openPerson(p.participantId)}>
                 {props.nameOf(p.participantId)}
               </button>
               <span className="num">

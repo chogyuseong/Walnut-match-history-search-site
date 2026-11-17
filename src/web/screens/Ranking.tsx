@@ -90,34 +90,34 @@ function RatingRuleTip(props: { options: RatingOptions }) {
     <InfoTip label="MMR 계산 기준">
       <span className="tip-line">
         MMR은 같은 팀원과 상대 팀이 누구였는지까지 감안한 실력 점수예요. 모두 {start}점에서 시작하고, 보는 범위와 상관없이
-        모임 전체의 확정 경기로 계산합니다. 결과 미입력·진행 중·취소·전적 제외 경기는 세지 않아요.
+        모임 전체의 확정 경기로 계산해요. 결과 미입력·진행 중·취소·전적 제외 경기는 세지 않아요.
       </span>
       <span className="tip-line">
-        계산: 지금까지의 경기를 한꺼번에 놓고, 모든 경기의 승패를 가장 잘 설명하는 점수를 사람마다 찾습니다. 늘 약한 팀원과
+        계산: 지금까지의 경기를 한꺼번에 놓고, 모든 경기의 승패를 가장 잘 설명하는 점수를 사람마다 찾아요. 늘 약한 팀원과
         묶이면서도 반반을 거둔 사람은 높게, 강한 팀원 덕에 이긴 판은 덜 쳐 줘요. 경기마다 조금씩 더하고 빼는 Elo와 달리
-        경기 순서의 운을 덜 탑니다.
+        경기 순서의 운을 덜 타요.
       </span>
       <span className="tip-line">
-        예상 승률: 팀 MMR은 팀원 MMR의 평균이고, 예상 승률 = 1 ÷ (1 + 10^((상대 팀 − 우리 팀) ÷ 400))입니다. 두 팀 평균이
+        예상 승률: 팀 MMR은 팀원 MMR의 평균이고, 예상 승률 = 1 ÷ (1 + 10^((상대 팀 − 우리 팀) ÷ 400))이에요. 두 팀 평균이
         같으면 50%, 우리 팀이 {gapExamples}예요.
       </span>
       <span className="tip-line">
         판수가 적을 때: 모두 평균 팀과 반반 비긴 가상 경기 {RATING_PRIOR_GAMES}판을 안고 시작해요. 몇 판 운 좋게 이긴 것만으로
-        크게 튀지 않고, 경기가 쌓일수록 제자리를 찾아갑니다.
+        크게 튀지 않고, 경기가 쌓일수록 제자리를 찾아가요.
       </span>
       <span className="tip-line">
         최근 경기 우선: 모임 경기가 {RATING_HALF_LIFE}판 쌓일 때마다 그 전 결과의 무게가 절반이 돼요. 실력이 오르면 역전할 수
-        있고, 오래 쉬면 점수가 {start}점 쪽으로 천천히 돌아옵니다.
+        있고, 오래 쉬면 점수가 {start}점 쪽으로 천천히 돌아와요.
       </span>
       <span className="tip-line">
-        연승·연패 가중: 같은 결과가 이어진 경기는 더 무겁게 셉니다({streakStepsText()}). 승패가 바뀌면 다시 1배예요.
+        연승·연패 가중: 같은 결과가 이어진 경기는 더 무겁게 세어요({streakStepsText()}). 승패가 바뀌면 다시 1배예요.
       </span>
       <span className="tip-line">
         경기 하나의 변화는 그 경기를 넣고 다시 계산한 점수 차예요. 다른 경기 결과로 예전 상대가 다시 평가되면 안 뛴 날에도
         점수가 몇 점 움직일 수 있어요.
       </span>
       <span className="tip-line">
-        티어: {RATING_TIER_HELP} 배치 중에는 티어를 붙이지 않아요. 점수는 소수까지 계산하고 화면에는 반올림해 보여 줍니다.
+        티어: {RATING_TIER_HELP} 배치 중에는 티어를 붙이지 않아요. 점수는 소수까지 계산하고 화면에는 반올림해 보여 줘요.
       </span>
     </InfoTip>
   );
@@ -191,7 +191,7 @@ export function Ranking(props: {
       <div className="screen page-wide mmr-ranking">
         <ScreenHead title="MMR 랭킹" badge={<RatingRuleTip options={ratingOptions} />} desc={desc} actions={championLink} />
         <div className="empty-state">
-          <p>확정 경기가 쌓이면 보여요. 경기 결과를 하나 저장하면 바로 순위가 생깁니다.</p>
+          <p>확정 경기가 쌓이면 보여요. 경기 결과를 하나 저장하면 바로 순위가 생겨요.</p>
           {props.emptyAction}
         </div>
       </div>
@@ -233,7 +233,7 @@ export function Ranking(props: {
                 </>
               }
               lead={
-                <button type="button" className="link stat-card-name" onClick={() => props.openPerson(leader.row.participantId)}>
+                <button type="button" className="link name-link stat-card-name" onClick={() => props.openPerson(leader.row.participantId)}>
                   {leader.row.name}
                 </button>
               }
@@ -322,7 +322,7 @@ export function Ranking(props: {
                         {/* 배치 진행 중은 순위가 높아 보여도 강조하지 않는다(점수가 아직 흔들린다). */}
                         <span className={`c-rank ${rankClass(row.rank, placing)}`}>{row.rank}</span>
                         <span className="c-who mmr-who">
-                          <button type="button" className="link mmr-name" onClick={() => props.openPerson(row.participantId)}>
+                          <button type="button" className="link name-link mmr-name" onClick={() => props.openPerson(row.participantId)}>
                             {row.name}
                           </button>
                           {standing?.title && <TitleBadge name={standing.title} grade={standing.grade} compact />}
@@ -394,11 +394,11 @@ export function Ranking(props: {
         )}
         <Help label="순서와 막대 읽는 법">
           순서는{" "}
-          {RANKING_GROUP_LABEL[0]} → 배치 완료 → 배치 진행 중이고, 묶음 안에서는 MMR → 승률 → 경기 수 → 이름입니다.
-          MMR·최근 변동·경기·승률 머리를 누르면 묶음은 그대로 둔 채 묶음 안에서 그 열의 큰 값부터 다시 세웁니다(순위 숫자는 MMR 순위 그대로).
-          맨 위 요약 카드 셋(1위·최고 상승·최고 MMR)은 {RANKING_GROUP_LABEL[0]}인 사람 중에서만 뽑고, 그런 사람이 아직 없으면 비워 둡니다. 막대는 시작 {ratingOptions.start}을 세로 기준선으로 두고
-          오른쪽은 그보다 오른 만큼, 왼쪽은 내린 만큼이며 양 끝은 순위표의 가장 낮은·높은 MMR입니다. 배치 진행 중({placementGames}경기 미만)은 점수가 크게 흔들려 MMR 대신 배치 판수를 보여 주고
-          요약 카드·강조에서도 뺍니다. 이름을 검색해도 순위 숫자는 그대로예요. ▾를 누르면 그 사람의 MMR 추이가 펼쳐집니다.
+          {RANKING_GROUP_LABEL[0]} → 배치 완료 → 배치 진행 중이고, 묶음 안에서는 MMR → 승률 → 경기 수 → 이름이에요.
+          MMR·최근 변동·경기·승률 머리를 누르면 묶음은 그대로 둔 채 묶음 안에서 그 열의 큰 값부터 다시 세워요(순위 숫자는 MMR 순위 그대로).
+          맨 위 요약 카드 셋(1위·최고 상승·최고 MMR)은 {RANKING_GROUP_LABEL[0]}인 사람 중에서만 뽑고, 그런 사람이 아직 없으면 비워 둬요. 막대는 시작 {ratingOptions.start}을 세로 기준선으로 두고
+          오른쪽은 그보다 오른 만큼, 왼쪽은 내린 만큼이며 양 끝은 순위표의 가장 낮은·높은 MMR이에요. 배치 진행 중({placementGames}경기 미만)은 점수가 크게 흔들려 MMR 대신 배치 판수를 보여 주고
+          요약 카드·강조에서도 빼요. 이름을 검색해도 순위 숫자는 그대로예요. ▾를 누르면 그 사람의 MMR 추이가 펼쳐져요.
         </Help>
       </section>
     </div>

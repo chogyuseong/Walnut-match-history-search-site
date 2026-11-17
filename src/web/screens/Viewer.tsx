@@ -198,7 +198,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
             </section>
 
             <MatchTeams match={match} nameOf={nameOf} highlightId={meId} />
-            <p className="hint">팀 편성 기준은 운영자가 정합니다.</p>
+            <p className="hint">팀 편성 기준은 운영자가 정해요.</p>
           </>
         )}
 
@@ -210,7 +210,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
         </p>
         {error && (
           <p className="note warn" role="alert">
-            최신 상태를 불러오지 못했어요. 위는 마지막으로 받은 내용입니다.
+            최신 상태를 불러오지 못했어요. 위는 마지막으로 받은 내용이에요.
           </p>
         )}
       </div>
@@ -218,7 +218,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
       {choosing && (
         <Dialog title="내 이름 고르기" onClose={() => setChoosing(false)}>
           <p className="hint">
-            이 기기에서 내 자리를 먼저 보여주기 위한 설정입니다. 언제든 바꿀 수 있어요.
+            이 기기에서 내 자리를 먼저 보여주기 위한 설정이에요. 언제든 바꿀 수 있어요.
           </p>
           <ul className="list">
             {(match?.roster ?? []).map((r) => (

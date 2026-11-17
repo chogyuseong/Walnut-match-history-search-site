@@ -175,7 +175,7 @@ test.describe("첫 이용 흐름 (390px)", () => {
       .getByRole("button", { name: "수정" })
       .click();
     const sideDialog = page.getByRole("dialog", { name: "진영 수정" });
-    await expect(sideDialog.getByText("진영만 변경합니다. 개인 승패는 유지")).toBeVisible();
+    await expect(sideDialog.getByText("진영만 변경해요. 개인 승패는 유지")).toBeVisible();
     await sideDialog.getByRole("radio", { name: "블루", exact: true }).check();
     await sideDialog.getByRole("button", { name: "진영 저장" }).click();
     await expect(page.getByText("승리 팀의 진영: 블루")).toBeVisible();

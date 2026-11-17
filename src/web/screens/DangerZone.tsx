@@ -137,14 +137,14 @@ export function DangerZone() {
         <section aria-labelledby="dz-group" className="danger-box">
           <h2 id="dz-group">모임 삭제: {snapshot.group.name}</h2>
           <p>
-            이 모임의 경기·참가자·변경 내역·설정이 서버에서 <strong>모두 지워지고 되돌릴 수 없습니다.</strong> 조회
-            링크는 바로 열리지 않게 됩니다. 운영을 다른 사람에게 맡기려면 지우지 말고 모임 탭의 '운영자 넘기기'를
+            이 모임의 경기·참가자·변경 내역·설정이 서버에서 <strong>모두 지워지고 되돌릴 수 없어요.</strong> 조회
+            링크는 바로 열리지 않게 돼요. 운영을 다른 사람에게 맡기려면 지우지 말고 모임 탭의 '운영자 넘기기'를
             써 주세요.
           </p>
           <p className="hint">
             {snapshot.group.maintenance
-              ? "점검 중이라 지금 상태는 내려받지 않습니다."
-              : "실행하면 먼저 지금 상태를 백업 파일로 내려받습니다. 이 파일로 나중에 새 모임으로 다시 가져올 수 있어요."}
+              ? "점검 중이라 지금 상태는 내려받지 않아요."
+              : "실행하면 먼저 지금 상태를 백업 파일로 내려받아요. 이 파일로 나중에 새 모임으로 다시 가져올 수 있어요."}
           </p>
           <label>
             확인을 위해 '{GROUP_CONFIRM}'를 입력해 주세요
@@ -191,8 +191,8 @@ export function DangerZone() {
         <h2 id="dz-account">탈퇴(계정 삭제)</h2>
         <p>
           이 로그인 계정의 기록(로그인 수단과 고유 번호, 아이디로 가입했다면 아이디와 비밀번호·복구 코드의 해시)을
-          지우고 모든 기기에서 로그아웃합니다. 같은 카카오·Google 계정이나 같은 아이디로 다시 시작하면 새 계정이
-          됩니다.
+          지우고 모든 기기에서 로그아웃해요. 같은 카카오·Google 계정이나 같은 아이디로 다시 시작하면 새 계정이
+          돼요.
         </p>
         {coGroups.length > 0 && groups.length === 0 && (
           <p className="hint">

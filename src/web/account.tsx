@@ -212,7 +212,7 @@ export function LoginRequired(props: { title: string }) {
     <div className="screen">
       <h1>{props.title}</h1>
       <p className="note">이 화면은 로그인이 필요해요. 로그인하면 이 화면이 바로 열려요.</p>
-      <p className="hint">팀 짜기와 명단 복사는 로그인 없이 됩니다.</p>
+      <p className="hint">팀 짜기와 명단 복사는 로그인 없이 돼요.</p>
       <div className="button-row">
         <button
           type="button"

@@ -30,7 +30,7 @@ function DashboardEmpty() {
         <li>랭킹 상위 5명 — 배치를 마친 사람 먼저</li>
         <li>요즘 흐름 — 3연승 이상 이어가는 사람, 최근 10경기 승률</li>
       </ul>
-      <p className="hint">경기 결과를 저장하면 바로 채워집니다.</p>
+      <p className="hint">경기 결과를 저장하면 바로 채워져요.</p>
     </section>
   );
 }
@@ -166,7 +166,7 @@ export function Dashboard(props: {
                       <span className="rank-person">{r.name}</span>
                     </span>
                     <span className="form-line">
-                      <FormDots results={recentResults(forms.get(r.participantId))} letters />
+                      <FormDots results={recentResults(forms.get(r.participantId))} />
                     </span>
                   </span>
                   <span className="stat">
@@ -233,8 +233,8 @@ export function Dashboard(props: {
             </ul>
           )}
           <p className="hint">
-            모임의 최근 {ACTIVE_WINDOW}경기에 나온 사람만 봅니다. 최근 승률은 {RECENT_FORM_GAMES}경기를
-            채운 사람만 넣습니다. 결과 미입력·제외 경기는 세지 않습니다.
+            모임의 최근 {ACTIVE_WINDOW}경기에 나온 사람만 봐요. 최근 승률은 {RECENT_FORM_GAMES}경기를
+            채운 사람만 넣어요. 결과 미입력·제외 경기는 세지 않아요.
           </p>
         </section>
       </div>

@@ -445,7 +445,7 @@ export function SheetImport() {
                   </select>
                 </label>
               )}
-              <p className="hint">시트 내용은 서버에 저장하지 않아요. 확인을 마치고 가져올 때 경기만 저장합니다.</p>
+              <p className="hint">시트 내용은 서버에 저장하지 않아요. 확인을 마치고 가져올 때 경기만 저장해요.</p>
               <p className="hint">
                 기존 사이트(구글 시트 + Apps Script)에서 옮겨 온다면 라인·날짜를 그대로 가져오는 쪽이 더
                 정확해요.{" "}
@@ -460,7 +460,7 @@ export function SheetImport() {
                 붙여 넣을 표
                 <textarea rows={8} value={text} spellCheck={false} onChange={(e) => setText(e.target.value)} />
               </label>
-              <p className="hint">시트에서 머리글까지 범위를 복사해 붙여 넣으세요. 다음 단계에서 열을 맞춥니다.</p>
+              <p className="hint">시트에서 머리글까지 범위를 복사해 붙여 넣으세요. 다음 단계에서 열을 맞춰요.</p>
               <button type="button" className="primary wide" disabled={text.trim() === ""} onClick={readPasted}>
                 표 읽기
               </button>
@@ -628,7 +628,7 @@ export function SheetImport() {
                 <span>
                   <strong>진영 미상으로 넣기</strong>
                   <br />
-                  <span className="hint">개인 승패와 배치 판수에는 들어가고 진영 통계에서만 빠집니다.</span>
+                  <span className="hint">개인 승패와 배치 판수에는 들어가고 진영 통계에서만 빠져요.</span>
                 </span>
               </label>
               <label className={sideMode === "a-blue" ? "choice chosen" : "choice"}>
@@ -647,12 +647,12 @@ export function SheetImport() {
                     <br />
                     <span className="hint">
                       진영 열이 실제 진영이 아니라 자리 기준(위 5명=블루)일 수 있어요. 실제 진영이 확실할 때만 고르세요.
-                      비어 있는 칸은 진영 미상이 됩니다.
+                      비어 있는 칸은 진영 미상이 돼요.
                     </span>
                   </span>
                 </label>
               )}
-              <p className="hint">어느 쪽이든 나중에 경기마다 진영을 고칠 수 있습니다.</p>
+              <p className="hint">어느 쪽이든 나중에 경기마다 진영을 고칠 수 있어요.</p>
             </fieldset>
           )}
 
@@ -687,7 +687,7 @@ export function SheetImport() {
           error={error}
           onRun={() => void run()}
           sideText={sideMode === "unknown" ? "진영 미상" : sideMode === "a-blue" ? "팀 A → 블루팀, 팀 B → 레드팀" : "표의 진영 열"}
-          undoHint="잘못 넣었다면 모임 탭의 표 일괄 입력 기록에서 이번에 넣은 경기를 한 번에 전적 제외할 수 있습니다."
+          undoHint="잘못 넣었다면 모임 탭의 표 일괄 입력 기록에서 이번에 넣은 경기를 한 번에 전적 제외할 수 있어요."
         />
       )}
     </div>
@@ -789,10 +789,10 @@ function MappingStep(props: {
           </label>
         ))}
         {mapping.layout === "pair" && (
-          <p className="hint">팀 열이 없으면 두 줄 중 위 줄을 팀 A로 봅니다.</p>
+          <p className="hint">팀 열이 없으면 두 줄 중 위 줄을 팀 A로 봐요.</p>
         )}
         {mapping.layout === "player" && (
-          <p className="hint">경기 번호 열이 없으면 10줄씩 한 경기로 묶고, 팀 열이 없으면 앞 5명을 팀 A로 봅니다.</p>
+          <p className="hint">경기 번호 열이 없으면 10줄씩 한 경기로 묶고, 팀 열이 없으면 앞 5명을 팀 A로 봐요.</p>
         )}
       </fieldset>
 

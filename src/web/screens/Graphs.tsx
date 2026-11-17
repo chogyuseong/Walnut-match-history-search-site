@@ -320,7 +320,7 @@ export function Graphs(props: {
         <ScreenHead
           back={<BackLink label="← 기록" fallback={props.back} />}
           title="그래프 분석"
-          desc="범위·플레이어를 골라 승률·라인·진영·편성 흐름을 봅니다"
+          desc="범위·플레이어를 골라 승률·라인·진영·편성 흐름을 봐요"
         />
         <div className="empty-state">
           <p>결과를 저장한 경기가 쌓이면 승률·라인·진영·섞기 공정성 분석이 보여요.</p>
@@ -335,7 +335,7 @@ export function Graphs(props: {
       <ScreenHead
         back={<BackLink label="← 기록" fallback={props.back} />}
         title="그래프 분석"
-        desc="범위·플레이어를 골라 승률·라인·진영·편성 흐름을 봅니다"
+        desc="범위·플레이어를 골라 승률·라인·진영·편성 흐름을 봐요"
       />
 
       {/* 도구 띠: 왼쪽 고르기, 오른쪽 요약 글과 도움말(2026-11-08 재구성. 예전에는 필터·요약·도움말이 따로 흩어져 있었다). */}
@@ -476,12 +476,12 @@ export function Graphs(props: {
             {sides.unknown > 0 && (
               <>
                 {" · "}
-                <span className="nowrap">진영 미상 {sides.unknown}경기는 제외했습니다.</span>
+                <span className="nowrap">진영 미상 {sides.unknown}경기는 제외했어요.</span>
               </>
             )}
           </span>
           <InfoTip label="진영 승률">
-            진영 승률은 결과를 저장할 때 확인한 실제 진영 기준이고, 진영 미상 경기는 뺍니다.
+            진영 승률은 결과를 저장할 때 확인한 실제 진영 기준이고, 진영 미상 경기는 빼요.
           </InfoTip>
         </p>
       </section>
@@ -496,9 +496,9 @@ export function Graphs(props: {
         <h2>
           섞기 공정성(모임 전체){" "}
           <InfoTip label="섞기 공정성">
-            섞기 공정성은 경기 직전 두 팀의 평균 MMR 차로 봅니다. 모든 모임이 같은 점수 기준이에요. 열 명 모두 배치 중인
-            경기는 MMR이 의미가 적어 뺍니다. 균형 경기는 차가 {BALANCED_MMR_GAP}점 이내, 많이 치우침은 {LOPSIDED_MMR_GAP}점
-            넘게 벌어진 경기, 이변은 {UPSET_MMR_GAP}점 이상 낮은 팀이 이긴 경기입니다. 예상 우세 팀은 평균 MMR이 높은
+            섞기 공정성은 경기 직전 두 팀의 평균 MMR 차로 봐요. 모든 모임이 같은 점수 기준이에요. 열 명 모두 배치 중인
+            경기는 MMR이 의미가 적어 빼요. 균형 경기는 차가 {BALANCED_MMR_GAP}점 이내, 많이 치우침은 {LOPSIDED_MMR_GAP}점
+            넘게 벌어진 경기, 이변은 {UPSET_MMR_GAP}점 이상 낮은 팀이 이긴 경기예요. 예상 우세 팀은 평균 MMR이 높은
             팀이에요.
           </InfoTip>
         </h2>
@@ -612,8 +612,8 @@ export function Graphs(props: {
             개인별 승률{" "}
             <InfoTip label="개인별 승률 순서">
               개인별 승률 순서는 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료({placementGames}경기 이상) → 배치 진행
-              중이고, 그 안에서 승률순입니다. 보는 범위·라인에서 {SMALL_SAMPLE}경기 미만인 사람은 &lsquo;자료 적음&rsquo;으로
-              맨 아래에 둡니다. 배치와 칭호는 범위와 관계없이 누적 기준입니다.
+              중이고, 그 안에서 승률순이에요. 보는 범위·라인에서 {SMALL_SAMPLE}경기 미만인 사람은 &lsquo;자료 적음&rsquo;으로
+              맨 아래에 둬요. 배치와 칭호는 범위와 관계없이 누적 기준이에요.
             </InfoTip>
           </h2>
           <p className="hint">
@@ -693,13 +693,13 @@ export function Graphs(props: {
           <h2>
             라인별 승률{" "}
             <InfoTip label="라인별 승률">
-              플레이어를 고르면 그 사람의 라인별 승률을 보여줍니다. 전체 플레이어를 합치면 각 경기마다 라인별로 1승·1패가
-              생겨 항상 50%이므로 보여주지 않습니다.
+              플레이어를 고르면 그 사람의 라인별 승률을 보여 줘요. 전체 플레이어를 합치면 각 경기마다 라인별로 1승·1패가
+              생겨 항상 50%이므로 보여주지 않아요.
             </InfoTip>
           </h2>
           {playerLines === null ? (
             // 전체 플레이어를 합친 라인별 승률은 항상 50%라 그리지 않는다(까닭은 제목 옆 i 설명).
-            <p className="hint">위 &lsquo;플레이어&rsquo;에서 한 사람을 고르면 그 사람의 라인별 승률을 보여줍니다.</p>
+            <p className="hint">위 &lsquo;플레이어&rsquo;에서 한 사람을 고르면 그 사람의 라인별 승률을 보여 줘요.</p>
           ) : (
             <>
               <p className="hint">

@@ -177,7 +177,7 @@ export function DateCheck() {
       </header>
       <p className="hint">
         확정 경기 {findings.checked}개를 입력 순서(경기 번호)와 견줘 날짜가 맥락에 안 맞는 곳을 찾았어요. 여기서는 찾기만
-        하고, 적용을 눌러야 바뀝니다.
+        하고, 적용을 눌러야 바뀌어요.
       </p>
       <Help>
         <p>연도 묶음: 입력 순서는 뒤인데 날짜가 반년 넘게 앞으로 돌아간 자리부터, 돌아가기 전 날짜를 다시 넘기기 전까지. 보통 12월 → 1월에서 해를 안 넘긴 경우라 연도 +1을 제안해요. 아직 오지 않은 날짜는 −1을 제안해요.</p>
@@ -257,7 +257,7 @@ export function DateCheck() {
         </div>
         {rangeItems.length > 0 && (
           <>
-            <p className="hint">{rangeItems.length}경기가 바뀝니다.</p>
+            <p className="hint">{rangeItems.length}경기가 바뀌어요.</p>
             {preview(rangeItems, rangeYears)}
             <button
               type="button"
@@ -275,7 +275,7 @@ export function DateCheck() {
         <Dialog title="연도 옮기기 확인" onClose={() => setConfirm(null)}>
           <p>
             {confirm.items.length}경기({confirm.items[0]!.matchNo}경기 ~ {confirm.items[confirm.items.length - 1]!.matchNo}
-            경기)의 연도를 {confirm.years > 0 ? "한 해 뒤로" : "한 해 앞으로"} 옮깁니다. 경기마다 정정 기록이 남고, 같은
+            경기)의 연도를 {confirm.years > 0 ? "한 해 뒤로" : "한 해 앞으로"} 옮겨요. 경기마다 정정 기록이 남고, 같은
             범위에 반대로 적용하면 되돌아가요.
           </p>
           <ErrorNote error={error} />

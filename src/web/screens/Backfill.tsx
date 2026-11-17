@@ -32,10 +32,10 @@ const SIDE_CHOICES: { value: BackfillSide; title: string; hint: string }[] = [
   {
     value: "unknown",
     title: "진영 미상",
-    hint: "기억나지 않을 때. 승패와 배치에는 들어가고 진영 통계에서만 빠집니다.",
+    hint: "기억나지 않을 때. 승패와 배치에는 들어가고 진영 통계에서만 빠져요.",
   },
-  { value: "a-blue", title: "팀 A가 블루", hint: "팀 B는 레드입니다." },
-  { value: "a-red", title: "팀 A가 레드", hint: "팀 B는 블루입니다." },
+  { value: "a-blue", title: "팀 A가 블루", hint: "팀 B는 레드예요." },
+  { value: "a-red", title: "팀 A가 레드", hint: "팀 B는 블루예요." },
 ];
 
 /**
@@ -137,7 +137,7 @@ export function Backfill() {
               {formatTime(saved.playedAt, tz)} · {winnerText(saved.winnerTeam!, saved.teamASide)}
             </strong>
           </p>
-          <p className="hint">통계와 배치 판수에 바로 들어갑니다. 오늘 내전과 서포터 횟수는 그대로입니다.</p>
+          <p className="hint">통계와 배치 판수에 바로 들어가요. 오늘 내전과 서포터 횟수는 그대로예요.</p>
           <div className="button-row">
             <button type="button" className="primary" onClick={() => go(`/m/${saved.id}`)}>
               이 경기 보기
@@ -172,8 +172,8 @@ export function Backfill() {
         <h1>지난 경기 입력</h1>
       </header>
       <p className="hint">
-        이미 끝난 경기 하나를 결과까지 넣습니다. 오늘 내전, 진행 중인 경기, 서포터 횟수에는 영향이
-        없습니다. 여러 경기를 한꺼번에 넣으려면{" "}
+        이미 끝난 경기 하나를 결과까지 넣어요. 오늘 내전, 진행 중인 경기, 서포터 횟수에는 영향이
+        없어요. 여러 경기를 한꺼번에 넣으려면{" "}
         <button type="button" className="link" onClick={() => go("/import")}>
           표 일괄 입력으로 가기
         </button>
@@ -206,7 +206,7 @@ export function Backfill() {
               />
             </label>
           </div>
-          <p className="hint">모임 시간대({tz}) 기준입니다.</p>
+          <p className="hint">모임 시간대({tz}) 기준이에요.</p>
         </fieldset>
 
         <datalist id="backfill-people">
@@ -253,8 +253,8 @@ export function Backfill() {
           </fieldset>
         ))}
         <p className="hint">
-          이름을 누르면 지금 참가자 목록에서 고를 수 있어요. 목록에 없는 이름은 새 참가자로 만듭니다.
-          포지션은 몰라도 됩니다.
+          이름을 누르면 지금 참가자 목록에서 고를 수 있어요. 목록에 없는 이름은 새 참가자로 만들어요.
+          포지션은 몰라도 돼요.
         </p>
         {newNames.length > 0 && (
           <p className="note" role="status">
@@ -301,7 +301,7 @@ export function Backfill() {
               </span>
             </label>
           ))}
-          <p className="hint">나중에 경기 상세에서 진영·승리 팀·포지션·참가자를 고칠 수 있습니다.</p>
+          <p className="hint">나중에 경기 상세에서 진영·승리 팀·포지션·참가자를 고칠 수 있어요.</p>
         </fieldset>
 
         {tried && problems.length > 0 && (

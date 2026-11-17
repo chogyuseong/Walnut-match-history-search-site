@@ -72,7 +72,7 @@ export function LoginButtons() {
       {providers.includes("kakao") && <KakaoButton />}
       {providers.includes("google") && <GoogleButton />}
       <p className="hint">
-        로그인 수단의 고유 번호만 저장하고 이메일·이름·사진은 받지 않습니다.{" "}
+        로그인 수단의 고유 번호만 저장하고 이메일·이름·사진은 받지 않아요.{" "}
         <a href="#/privacy">개인정보 처리방침</a>
       </p>
     </div>
@@ -129,7 +129,7 @@ export function LoginDialog(props: { reason: string; onDone: () => void; onClose
       )}
       {fake && <FakeLogin onDone={props.onDone} />}
       {!fake && !local && !oauth && (
-        <p className="note error">로그인 수단이 아직 설정되지 않았습니다. 서비스 운영자에게 알려 주세요.</p>
+        <p className="note error">로그인 수단이 아직 설정되지 않았어요. 서비스 운영자에게 알려 주세요.</p>
       )}
     </Dialog>
   );
@@ -161,7 +161,7 @@ function FakeLogin(props: { onDone: () => void }) {
     >
       <p className="note">
         <strong>개발용 로그인</strong> · 이 컴퓨터에서 띄운 개발 서버에서만 보여요. 비밀번호 없이 이름이 같으면 같은
-        계정으로 들어갑니다. 위의 아이디 가입과는 다른 계정이에요.
+        계정으로 들어가요. 위의 아이디 가입과는 다른 계정이에요.
       </p>
       <label>
         계정 이름

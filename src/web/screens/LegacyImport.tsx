@@ -266,7 +266,7 @@ export function LegacyImport() {
           <button type="button" className="primary wide" disabled={busy || !urlCheck?.ok} onClick={() => void readLegacy()}>
             {busy ? "기존 기록 읽는 중…" : "기존 기록 읽기"}
           </button>
-          <p className="hint">읽은 내용은 서버에 저장하지 않아요. 확인을 마치고 가져올 때 경기만 저장합니다.</p>
+          <p className="hint">읽은 내용은 서버에 저장하지 않아요. 확인을 마치고 가져올 때 경기만 저장해요.</p>
           <ErrorNote error={error} />
         </section>
       )}
@@ -499,7 +499,7 @@ export function LegacyImport() {
                   <br />
                   <span className="hint">
                     블루는 팀 A, 레드는 팀 B로 넣고 진영은 비워요. 개인 승패와 배치 판수에는 들어가고 진영 통계에서만
-                    빠집니다.
+                    빠져요.
                   </span>
                 </span>
               </label>
@@ -514,7 +514,7 @@ export function LegacyImport() {
                   </span>
                 </span>
               </label>
-              <p className="hint">어느 쪽이든 나중에 경기마다 진영을 고칠 수 있습니다.</p>
+              <p className="hint">어느 쪽이든 나중에 경기마다 진영을 고칠 수 있어요.</p>
             </fieldset>
           )}
 
@@ -549,7 +549,7 @@ export function LegacyImport() {
           error={error}
           onRun={() => void run()}
           sideText={sideMode === "unknown" ? "진영 미상" : "기존 사이트의 블루·레드"}
-          undoHint="잘못 넣었다면 모임 탭의 표 일괄 입력 기록(기존 사이트)에서 이번에 넣은 경기를 한 번에 전적 제외할 수 있습니다."
+          undoHint="잘못 넣었다면 모임 탭의 표 일괄 입력 기록(기존 사이트)에서 이번에 넣은 경기를 한 번에 전적 제외할 수 있어요."
         />
       )}
     </div>

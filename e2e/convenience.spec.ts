@@ -206,7 +206,7 @@ test("3) 지난 내전 참가자 그대로: 같은 날 두 경기의 참가자 �
   await button.click();
   await expect(page.locator(".count")).toHaveText("10/10 +1");
   await expect(page.getByText("지난 내전(2경기)에 나온 11명을 골랐어요.", { exact: false })).toBeVisible();
-  await expect(page.getByText("1명은 보관된 참가자라 뺐습니다.")).toBeVisible();
+  await expect(page.getByText("1명은 보관된 참가자라 뺐어요.")).toBeVisible();
   const chips = page.getByRole("region", { name: "선택된 참가자" }).getByRole("listitem");
   await expect(chips).toHaveCount(11);
   await expect(chips.filter({ hasText: "선수12" })).toHaveCount(0);

@@ -128,7 +128,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   const sides = page.getByRole("region", { name: "진영별" });
   await expect(sides.getByRole("listitem").filter({ hasText: "블루" })).toContainText("(5경기)");
   await expect(sides.getByRole("listitem").filter({ hasText: "레드" })).toContainText("(3경기)");
-  await expect(sides).toContainText("진영 미상 3경기는 제외했습니다.");
+  await expect(sides).toContainText("진영 미상 3경기는 제외했어요.");
 
   // 비교 지표: 선수02는 누적 11경기라 동료·상대·같은 팀·상대 팀 자리에 값 대신 안내가 나온다.
   // (누적 30경기 이상일 때의 목록·"자료 적음" 검사는 person-visual.spec.ts에 있다.)
@@ -279,7 +279,7 @@ test("그래프 분석", async ({ page }) => {
   // 진영(요약 타일 아래 한 줄): 진영을 아는 8경기 중 블루 5승, 레드 3승. 미상 3경기는 제외하고 알려준다.
   await expect(summary).toContainText("블루 63% · 5승 3패 (8경기)");
   await expect(summary).toContainText("레드 38% · 3승 5패 (8경기)");
-  await expect(summary).toContainText("진영 미상 3경기는 제외했습니다.");
+  await expect(summary).toContainText("진영 미상 3경기는 제외했어요.");
   await expect(summary.locator(".ps-tiles > div").nth(2)).toContainText("63% : 37%");
 
   // 라인별 승률: 플레이어를 고르기 전에는 고르기 안내만 둔다(전체 합은 항상 50%, 이유는 제목 옆 i 설명에).

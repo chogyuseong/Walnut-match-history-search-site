@@ -207,13 +207,15 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   expect(await colorOf(page, ".summary-line", "color")).not.toBe(hotText);
   await expect(summary.locator(".title-chip")).toHaveClass(/grade-8/);
   await expect(summary.locator(".title-chip")).toHaveText("불굴의 개척자");
-  // 최근 승패 점(2026-11-10): 승은 승리 색 #4f8ddd로 채우고, 패는 바탕 없이 패배 테두리 + 패배 글자 #ea847f.
+  // 최근 승패(2026-11-17부터 칸 없이 글자): 승은 승리 글자색 #86b4ea, 패는 패배 글자색 #ea847f. 바탕·테두리 없음.
   const dots = page.locator(".ps-form .form-dot");
-  expect(await dots.and(page.locator(".win")).first().evaluate(bg)).toBe("rgb(79, 141, 221)");
+  const winDot = dots.and(page.locator(".win")).first();
+  expect(await winDot.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(134, 180, 234)");
+  expect(await winDot.evaluate(bg)).toBe("rgba(0, 0, 0, 0)");
   const lossDot = dots.and(page.locator(".loss")).first();
   expect(await lossDot.evaluate(bg)).toBe("rgba(0, 0, 0, 0)");
   expect(await lossDot.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(234, 132, 127)");
-  expect(await lossDot.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgba(217, 83, 79, 0.35)");
+  expect(await lossDot.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
 
   // 랭킹: 승률 숫자 글자가 승률 여섯 색(rate-hue, 2026-11-12)으로 나뉘고, 높은 줄과 낮은 줄의 글자 색이 다르다.
   // 칭호 여섯 구간의 등급(1·2·4·5·7·8)이 모두 보이고 서로 다르다.

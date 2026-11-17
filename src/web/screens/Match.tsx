@@ -227,7 +227,7 @@ export function Match() {
           <button type="button" className="danger" onClick={() => setCancelAsk({ needsDecision: false })}>
             미진행 취소
           </button>
-          <span className="hint">경기를 하지 않았을 때만 씁니다. 이 경기는 서포터 횟수에서 빠집니다.</span>
+          <span className="hint">경기를 하지 않았을 때만 써요. 이 경기는 서포터 횟수에서 빠져요.</span>
         </div>
       )}
       <ErrorNote error={error} />
@@ -237,7 +237,7 @@ export function Match() {
       {sharing && snapshot.group.viewToken && (
         <Dialog title="명단 공유" onClose={() => setSharing(false)}>
           <p className="hint">
-            링크는 항상 최신 상태를 보여줍니다. 텍스트는 복사한 시점의 내용입니다.
+            링크는 항상 최신 상태를 보여 줘요. 텍스트는 복사한 시점의 내용이에요.
           </p>
           <div className="button-row">
             <CopyButton label="링크 복사" text={() => viewLink(snapshot.group.viewToken!)} />
@@ -310,8 +310,8 @@ export function Match() {
           ) : (
             <>
               <p>
-                {match.matchNo}경기를 하지 않은 것으로 처리합니다. 전적에 남지 않고 이 경기는 서포터
-                횟수에서 빠집니다.
+                {match.matchNo}경기를 하지 않은 것으로 처리해요. 전적에 남지 않고 이 경기는 서포터
+                횟수에서 빠져요.
               </p>
               <div className="button-row">
                 <button

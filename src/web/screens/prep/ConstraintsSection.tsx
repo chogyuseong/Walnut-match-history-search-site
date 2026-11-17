@@ -27,8 +27,8 @@ export function ConstraintsSection(props: { draft: Draft; edit: PrepEditing }) {
         })}
       </ul>
       <p className="hint">
-        조건은 팀 추천과 팀·라인 모두 섞기에 적용됩니다(팀·라인 모두 섞기는 티어 균형이 먼저예요). 손으로 자리를 바꾸는 것은
-        막지 않습니다.
+        조건은 팀 추천과 팀·라인 모두 섞기에 적용돼요(팀·라인 모두 섞기는 티어 균형이 먼저예요). 손으로 자리를 바꾸는 것은
+        막지 않아요.
       </p>
     </details>
   );

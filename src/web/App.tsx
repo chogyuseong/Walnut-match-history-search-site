@@ -388,7 +388,7 @@ function LegalFooter(props: { privacyHref?: string }) {
       )}
       {/* 2026-11-15 유료 요금제로 바꾼 뒤에는 사이트가 멈추지 않는다. 남은 제한은 사이트 자체의 하루 무거운 읽기 예산
           (RATE_SNAPSHOT_ROWS_SITE_DAY)이고, 걸려도 경기 시작·결과 저장은 막지 않는다(서버 index.ts spendHeavyRead). */}
-      <p>이용량이 많은 날에는 일부 화면이 잠시 느리거나 막힐 수 있어요. 경기 시작·결과 저장은 그대로 됩니다.</p>
+      <p>이용량이 많은 날에는 일부 화면이 잠시 느리거나 막힐 수 있어요. 경기 시작·결과 저장은 그대로 돼요.</p>
       <p className="legal-links">
         <a href={props.privacyHref ?? "#/privacy"}>개인정보 처리방침</a>
       </p>
@@ -522,7 +522,7 @@ function OperatorScreen(props: { route: string[] }) {
       return (
         <div className="screen">
           <h1>그래프 분석</h1>
-          <p>아직 기록이 없어요. 경기를 저장하면 개인별·라인별·진영별 승률을 여기서 봅니다.</p>
+          <p>아직 기록이 없어요. 경기를 저장하면 개인별·라인별·진영별 승률을 여기서 봐요.</p>
           <button type="button" className="primary" onClick={() => go("/pick")}>
             이름 넣고 팀 짜기
           </button>

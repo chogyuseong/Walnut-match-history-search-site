@@ -153,7 +153,7 @@ export function Search(props: {
     <div className="screen page-wide search-screen">
       <ScreenHead
         title="전적 검색"
-        desc="모임의 전체 누적 기록에서 찾습니다. 배치와 칭호는 누적 기준이며, 결과 미입력·제외 경기는 세지 않습니다."
+        desc="모임의 전체 누적 기록에서 찾아요. 배치와 칭호는 누적 기준이며, 결과 미입력·제외 경기는 세지 않아요."
         actions={
           props.openCompare && (
           <button
@@ -243,7 +243,7 @@ export function Search(props: {
         {people.length === 0 ? (
           <p className="hint">아직 참가자가 없어요. 경기를 저장하면 이름으로 전적을 찾을 수 있어요.</p>
         ) : blank ? (
-          <p className="hint">참가자 {people.length}명 중에서 찾습니다.</p>
+          <p className="hint">참가자 {people.length}명 중에서 찾아요.</p>
         ) : found.length === 0 ? (
           // 날짜로 경기를 찾을 때는 이름이 없다는 안내가 군더더기라 뺀다.
           date ? null : (

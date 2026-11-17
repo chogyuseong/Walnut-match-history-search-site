@@ -103,12 +103,12 @@ export function ImportProgress(props: {
   return (
     <section className="card" aria-label="가져오기">
       {!done && (
-        <p role="status">{busy ? `저장 중 · ${saved}/${total}경기` : `${total}경기 중 ${saved}경기까지 저장됐습니다.`}</p>
+        <p role="status">{busy ? `저장 중 · ${saved}/${total}경기` : `${total}경기 중 ${saved}경기까지 저장됐어요.`}</p>
       )}
       <ErrorNote error={props.error} onCheck={props.onRun} />
       {!done && !busy && (
         <>
-          <p className="hint">이어서 넣으면 이미 들어간 묶음은 다시 들어가지 않습니다.</p>
+          <p className="hint">이어서 넣으면 이미 들어간 묶음은 다시 들어가지 않아요.</p>
           <button type="button" className="primary wide" onClick={props.onRun}>
             이어서 넣기
           </button>

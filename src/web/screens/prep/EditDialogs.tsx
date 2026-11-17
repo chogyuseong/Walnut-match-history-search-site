@@ -84,7 +84,7 @@ export function RecommendDialog(props: { draft: Draft; candidates: TeamCandidate
           </ul>
         </>
       ) : (
-        <p className="hint">미리보기입니다. ‘이 편성으로 바꾸기’를 눌러야 편성이 바뀌고, 포지션은 새로 뽑습니다. 이름 옆 숫자는 티어예요.</p>
+        <p className="hint">미리보기예요. ‘이 편성으로 바꾸기’를 눌러야 편성이 바뀌고, 포지션은 새로 뽑아요. 이름 옆 숫자는 티어예요.</p>
       )}
       {candidates.map((candidate, index) => (
         <section key={candidate.teamA.join(",")} className={index === 0 ? "candidate cand-main" : "candidate"}>

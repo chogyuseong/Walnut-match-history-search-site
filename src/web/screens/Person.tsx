@@ -179,7 +179,7 @@ export function Person(props: {
         </header>
         <p className="note" role="status">
           {person.name} 님은 {mergedTarget.name} 님에게 합쳐졌어요. 경기 기록은 모두 {mergedTarget.name}{" "}
-          님 쪽에 있습니다.
+          님 쪽에 있어요.
         </p>
         <button type="button" className="primary" onClick={() => props.openPerson(mergedTarget.id)}>
           {mergedTarget.name} 님 기록 보기
@@ -456,10 +456,10 @@ export function Person(props: {
           )}
           <Help>
             동료·상대는 누적 {COMPARE_MIN_GAMES}경기 이상인 사람 중 {SMALL_SAMPLE}경기 이상 함께하거나 만난
-            사람에서 고릅니다. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 고릅니다. 승률은
-            모두 {person.name} 기준입니다. 이변 승은 경기 직전 팀 평균 MMR(누적)이 상대보다 {UPSET_MMR_GAP}점 이상 낮은 팀으로 이긴
-            경기이고, 약팀일 때 승률은 팀 평균 MMR이 상대보다 낮았던 경기의 승률입니다(모든 모임이 같은 점수 기준). 출석률은 처음 온 날부터 센 모임 날 중 온
-            비율입니다. MMR은 시작 {ratingOptions.start}점에서 팀원·상대까지 감안해 전체 기록으로 계산하고, 3연승·3연패부터 그 경기를 더 무겁게 셉니다(최대 1.5배). {RATING_TIER_HELP}
+            사람에서 골라요. 가장 승률 높은 라인은 {SMALL_SAMPLE}경기 이상 뛴 라인 중에서 골라요. 승률은
+            모두 {person.name} 기준이에요. 이변 승은 경기 직전 팀 평균 MMR(누적)이 상대보다 {UPSET_MMR_GAP}점 이상 낮은 팀으로 이긴
+            경기이고, 약팀일 때 승률은 팀 평균 MMR이 상대보다 낮았던 경기의 승률이에요(모든 모임이 같은 점수 기준). 출석률은 처음 온 날부터 센 모임 날 중 온
+            비율이에요. MMR은 시작 {ratingOptions.start}점에서 팀원·상대까지 감안해 전체 기록으로 계산하고, 3연승·3연패부터 그 경기를 더 무겁게 세어요(최대 1.5배). {RATING_TIER_HELP}
           </Help>
         </section>
       )}
@@ -521,7 +521,7 @@ export function Person(props: {
           })}
         </ul>
         {detail.positionUnknown > 0 && (
-          <p className="hint">포지션 기록이 없는 {detail.positionUnknown}경기는 제외했습니다.</p>
+          <p className="hint">포지션 기록이 없는 {detail.positionUnknown}경기는 제외했어요.</p>
         )}
       </section>
 
@@ -540,7 +540,7 @@ export function Person(props: {
           </li>
         </ul>
         {detail.sideUnknown > 0 && (
-          <p className="hint">진영 미상 {detail.sideUnknown}경기는 제외했습니다.</p>
+          <p className="hint">진영 미상 {detail.sideUnknown}경기는 제외했어요.</p>
         )}
       </section>
 
@@ -564,7 +564,7 @@ export function Person(props: {
       <section aria-label="상대 전적">
         <h2>상대 팀일 때</h2>
         {pairList(cmp.versus, detail.versus, "상대 팀으로 만난 경기가 없어요.", "versus")}
-        <p className="hint">승률은 {person.name} 기준입니다. 경기 수가 적으면 우연일 수 있습니다.</p>
+        <p className="hint">승률은 {person.name} 기준이에요. 경기 수가 적으면 우연일 수 있어요.</p>
       </section>
 
       {/* 영역 이름은 위 "상대 전적"(상대 팀일 때 목록)과 겹치지 않게 따로 둔다. */}
@@ -624,7 +624,7 @@ export function Person(props: {
           </div>
         )}
         <p className="hint">
-          {person.name} 기준입니다. 결과가 확정된 경기만 셉니다(라인 맞대결·두 사람 비교와 같은 기준).
+          {person.name} 기준이에요. 결과가 확정된 경기만 세어요(라인 맞대결·두 사람 비교와 같은 기준).
         </p>
       </section>
 

@@ -109,7 +109,7 @@ test("랭킹 MMR 순 · 개인 통계 MMR · 두 사람 비교 MMR 차 · 랭킹
   await expect(ranking.getByRole("button", { name: "MMR", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(
     ranking.getByText(
-      "MMR은 팀원과 상대 팀이 누구였는지까지 감안해 전체 기록으로 계산한 실력 점수예요(시작 1200). 확정 경기만 세고 범위와 무관하게 누적입니다.",
+      "MMR은 팀원과 상대 팀이 누구였는지까지 감안해 전체 기록으로 계산한 실력 점수예요(시작 1200). 확정 경기만 세고 범위와 무관하게 누적이에요.",
     ),
   ).toBeVisible();
   const texts = await rows.allInnerTexts();

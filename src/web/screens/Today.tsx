@@ -104,7 +104,7 @@ export function Today() {
 
       {app.loadError && app.loadError.status !== 401 && (
         <p className="note warn" role="alert">
-          최신 상태를 불러오지 못했어요. 아래는 마지막으로 받은 내용입니다.{" "}
+          최신 상태를 불러오지 못했어요. 아래는 마지막으로 받은 내용이에요.{" "}
           <button type="button" className="link" onClick={() => void app.refresh()}>
             다시 불러오기
           </button>
@@ -142,7 +142,7 @@ export function Today() {
                   <h2>
                     결과 미입력 <span className="now-figure">{awaiting.length}</span>경기
                   </h2>
-                  <p className="hint">결과를 넣기 전까지는 통계와 배치 판수에 들어가지 않습니다.</p>
+                  <p className="hint">결과를 넣기 전까지는 통계와 배치 판수에 들어가지 않아요.</p>
                 </div>
               ) : (
                 <div className="now-status">
@@ -346,7 +346,7 @@ export function Today() {
 
       {app.ready && !app.me?.accountId && !introOnly && (
         <p className="hint">
-          팀 짜기와 명단 복사는 로그인 없이 됩니다. 경기를 저장하거나 지난 기록을 가져올 때 로그인합니다.
+          팀 짜기와 명단 복사는 로그인 없이 돼요. 경기를 저장하거나 지난 기록을 가져올 때 로그인해요.
           이미 쓰고 있다면 맨 위 [로그인]을 누르거나{" "}
           <button type="button" className="link" onClick={() => setLoginOpen(true)}>
             여기서 로그인
@@ -357,7 +357,7 @@ export function Today() {
 
       {loginOpen && (
         <LoginDialog
-          reason="저장된 모임과 기록을 불러옵니다."
+          reason="저장된 모임과 기록을 불러와요."
           onClose={() => setLoginOpen(false)}
           onDone={() => setLoginOpen(false)}
         />
@@ -412,7 +412,7 @@ function SessionSummaryDialog(props: {
   }
   return (
     <Dialog title="오늘 요약 공유" onClose={props.onClose}>
-      <p className="hint">확정 경기만 셉니다. 티어 같은 비공개 정보는 넣지 않았어요.</p>
+      <p className="hint">확정 경기만 세어요. 티어 같은 비공개 정보는 넣지 않았어요.</p>
       <pre className="summary-text" aria-label="붙여 넣을 글">
         {text}
       </pre>

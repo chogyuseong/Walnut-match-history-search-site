@@ -268,7 +268,7 @@ export function SeasonSummaryScreen(props: {
         )}
         {notGiven.length > 0 && <NotGiven awards={notGiven} />}
         <p className="hint">
-          결과가 확정되고 전적 제외가 아닌 경기만 셉니다. 동률이면 공동 수상이에요.
+          결과가 확정되고 전적 제외가 아닌 경기만 세어요. 동률이면 공동 수상이에요.
           {summary.previous ? "" : " 직전 시즌이 없어 '가장 많이 성장'은 넣지 않았어요."}
         </p>
       </section>

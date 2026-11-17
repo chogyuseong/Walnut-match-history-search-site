@@ -133,7 +133,7 @@ export function Pick() {
     }
     if (skipped.length > 0) {
       notes.push(
-        `${MAX_PICK}명까지만 고를 수 있어 ${skipped.length}명(${skipped.join(", ")})은 넣지 않았습니다.`,
+        `${MAX_PICK}명까지만 고를 수 있어 ${skipped.length}명(${skipped.join(", ")})은 넣지 않았어요.`,
       );
     }
     // 10명을 넘기면 먼저 고른 10명으로 팀을 짜고 나머지는 대기자가 된다는 것을 처음 넘길 때 알린다.
@@ -182,8 +182,8 @@ export function Pick() {
   function submitText(raw: string, skipSuggest = false) {
     const parsed = parseNameList(raw);
     const notes: string[] = [];
-    for (const name of parsed.duplicates) notes.push(`'${name}'가 두 번 있어요. 한 번만 넣었습니다.`);
-    for (const name of parsed.tooLong) notes.push(`'${name}'는 20자를 넘어 넣지 않았습니다.`);
+    for (const name of parsed.duplicates) notes.push(`'${name}'가 두 번 있어요. 한 번만 넣었어요.`);
+    for (const name of parsed.tooLong) notes.push(`'${name}'는 20자를 넘어 넣지 않았어요.`);
     if (parsed.names.length === 0) {
       setMessages(notes.length > 0 ? notes : ["이름을 입력해 주세요."]);
       return;
@@ -307,7 +307,7 @@ export function Pick() {
             setMessages(
               last.missing > 0
                 ? [
-                    `지난 참가자 중 ${last.people.length}명만 불러왔어요. ${last.missing}명은 보관된 참가자라 뺐습니다.`,
+                    `지난 참가자 중 ${last.people.length}명만 불러왔어요. ${last.missing}명은 보관된 참가자라 뺐어요.`,
                   ]
                 : ["지난 참가자를 불러왔어요. 오늘 참가자와 다르면 바꿔 주세요."],
             );
@@ -335,7 +335,7 @@ export function Pick() {
                 `많이 뛴 순서로 앞 10명으로 팀을 짜고 나머지 ${people.length - TEAM_SIZE_TOTAL}명은 대기자로 둬요. 준비 화면에서 바꿀 수 있어요.`,
               );
             }
-            if (sessionPick.missing > 0) notes.push(`${sessionPick.missing}명은 보관된 참가자라 뺐습니다.`);
+            if (sessionPick.missing > 0) notes.push(`${sessionPick.missing}명은 보관된 참가자라 뺐어요.`);
             setMessages(notes);
           }}
         >

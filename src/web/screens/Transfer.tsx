@@ -76,7 +76,7 @@ export function Transfer(props: { token: string }) {
         </>
       ) : invalid ? (
         <p className="note error" role="alert">
-          이 링크는 이미 썼거나 만료됐습니다. 현재 운영자에게 새 링크를 요청해 주세요.
+          이 링크는 이미 썼거나 만료됐어요. 현재 운영자에게 새 링크를 요청해 주세요.
         </p>
       ) : !info ? (
         <>
@@ -87,11 +87,11 @@ export function Transfer(props: { token: string }) {
         <>
           <section className="card">
             <p>
-              <strong>{info.groupName}</strong> 모임의 운영자가 됩니다.
+              <strong>{info.groupName}</strong> 모임의 운영자가 돼요.
             </p>
             <p className="hint">
               수락하면 경기 시작·결과 저장·정정·설정을 이 계정으로 하게 되고, 이전 운영자는 수정할
-              수 없게 됩니다. 기록은 그대로이고, 조회 링크는 아래에서 고를 때만 바뀝니다.
+              수 없게 돼요. 기록은 그대로이고, 조회 링크는 아래에서 고를 때만 바뀌어요.
             </p>
             <p className="hint">
               링크 만료: {formatDate(info.expiresAt)} {formatTime(info.expiresAt)}

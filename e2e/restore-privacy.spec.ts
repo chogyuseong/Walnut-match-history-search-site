@@ -113,7 +113,7 @@ test("백업 내려받기 → 경기 추가 → 복원하면 백업 시점으로
 
   // 4) 받아 둔 백업 파일을 고르면 바뀌는 내용을 요약해 보여준다.
   await restore.getByLabel("백업 파일 고르기").setInputFiles(backupPath);
-  await expect(restore.getByText("이 모임의 백업입니다")).toBeVisible();
+  await expect(restore.getByText("이 모임의 백업이에요")).toBeVisible();
   const diff = restore.getByRole("table", { name: "복원으로 바뀌는 내용" });
   await expect(diff.getByRole("row", { name: /^경기/ })).toContainText("3경기");
   await expect(diff.getByRole("row", { name: /^경기/ })).toContainText("2경기");
@@ -128,7 +128,7 @@ test("백업 내려받기 → 경기 추가 → 복원하면 백업 시점으로
   const [before] = await Promise.all([page.waitForEvent("download"), run.click()]);
   expect(before.suggestedFilename()).toMatch(/^naejeon-before-restore-/);
   expect(JSON.parse(await readFile(await before.path(), "utf8")).matchCount).toBe(3);
-  await expect(page.getByText("복원했어요. 경기 2개, 참가자 12명입니다.")).toBeVisible();
+  await expect(page.getByText("복원했어요. 경기 2개, 참가자 12명이에요.")).toBeVisible();
 
   // 6) 이전 상태(2경기)로 돌아왔고, 화면의 기록 목록도 같다.
   const after = await getSnapshot(page.request, s.groupId);

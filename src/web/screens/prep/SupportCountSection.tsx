@@ -65,7 +65,7 @@ export function SupportCountSection(props: {
       await app.refreshAfterOwnChange();
       setResetOpen(false);
       props.clearDrawNote();
-      app.setNotice("서포터 횟수를 초기화했어요. 전적은 그대로입니다.");
+      app.setNotice("서포터 횟수를 초기화했어요. 전적은 그대로예요.");
     } catch (e) {
       status.setError(e);
       void app.refresh();
@@ -81,8 +81,8 @@ export function SupportCountSection(props: {
         <section id="support-count-panel" className="prep-tools support-panel" aria-label="서포터 횟수" hidden={!props.open}>
           <h2>서포터 횟수</h2>
           <Help>
-            "이 팀으로 시작"으로 실제 시작한 경기만 셉니다. 섞기·서포터만 바꾸기는 횟수를 올리지 않아요. 새 내전을
-            시작하거나 초기화하면 그 뒤에 시작한 경기부터 다시 셉니다. 그 전 경기는 기록만 남고 횟수에는 들어가지 않아요.
+            "이 팀으로 시작"으로 실제 시작한 경기만 세어요. 섞기·서포터만 바꾸기는 횟수를 올리지 않아요. 새 내전을
+            시작하거나 초기화하면 그 뒤에 시작한 경기부터 다시 세어요. 그 전 경기는 기록만 남고 횟수에는 들어가지 않아요.
           </Help>
           {cycleStartedAt ? (
             <p className="hint" data-testid="count-since">
@@ -91,7 +91,7 @@ export function SupportCountSection(props: {
             </p>
           ) : (
             <p className="hint" data-testid="count-since">
-              아직 이번 내전의 첫 경기 전이에요. 첫 경기를 시작하면 그때부터 셉니다.
+              아직 이번 내전의 첫 경기 전이에요. 첫 경기를 시작하면 그때부터 세어요.
             </p>
           )}
           {countRows.length === 0 ? (
@@ -154,7 +154,7 @@ export function SupportCountSection(props: {
       {resetOpen && (
         <Dialog title="서포터 횟수 초기화" onClose={() => setResetOpen(false)}>
           <p>
-            모든 사람의 서포터 횟수를 0으로 되돌리고, 초기화한 뒤에 시작하는 경기부터 다시 셉니다. 그 전 경기의 기록과
+            모든 사람의 서포터 횟수를 0으로 되돌리고, 초기화한 뒤에 시작하는 경기부터 다시 세어요. 그 전 경기의 기록과
             전적은 그대로예요.
           </p>
           {!resetReady && (
