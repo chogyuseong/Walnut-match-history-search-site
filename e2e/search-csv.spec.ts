@@ -115,7 +115,7 @@ const MATCH_HEADER =
 test("초성 검색 → 개인 통계, 주소 반영과 뒤로 가기, 최근 검색어 칩", async ({ page }) => {
   await setup(page);
   await page.goto("/#/search");
-  const box = page.getByRole("searchbox", { name: "플레이어 이름" });
+  const box = page.getByRole("searchbox", { name: "이름·날짜·메모 검색" });
   await expect(box).toBeVisible();
   // 입력 칸에 저절로 초점을 주지 않는다(모바일 키보드).
   await expect(box).not.toBeFocused();
@@ -173,7 +173,7 @@ test("초성 검색 → 개인 통계, 주소 반영과 뒤로 가기, 최근 �
 test("날짜·메모로 경기 찾기", async ({ page }) => {
   await setup(page);
   await page.goto("/#/search");
-  const box = page.getByRole("searchbox", { name: "플레이어 이름" });
+  const box = page.getByRole("searchbox", { name: "이름·날짜·메모 검색" });
 
   await box.fill(todayShort());
   const found = page.getByRole("region", { name: "찾은 경기" });
@@ -210,7 +210,7 @@ test('단축키 "/": 입력 칸 밖에서 누르면 검색 화면으로 가서 �
   await page.locator("h1").click();
   await page.keyboard.press("/");
   await expect(page).toHaveURL(/#\/search$/);
-  const box = page.getByRole("searchbox", { name: "플레이어 이름" });
+  const box = page.getByRole("searchbox", { name: "이름·날짜·메모 검색" });
   await expect(box).toBeFocused();
   await expect(box).toHaveValue("");
 
@@ -258,7 +258,7 @@ test("조회 링크: 주소로 연 검색, 단축키, CSV 내려받기(로그인
   const guest = await guestContext.newPage();
 
   await guest.goto(`/#/v/${s.viewToken}/search?q=${encodeURIComponent("ㅎㅈ")}`);
-  const box = guest.getByRole("searchbox", { name: "플레이어 이름" });
+  const box = guest.getByRole("searchbox", { name: "이름·날짜·메모 검색" });
   await expect(box).toHaveValue("ㅎㅈ");
   const results = guest.getByRole("region", { name: "검색 결과" }).getByRole("listitem");
   await expect(results.first()).toContainText("홍진호");

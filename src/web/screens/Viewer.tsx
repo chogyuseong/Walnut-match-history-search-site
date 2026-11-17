@@ -1,10 +1,11 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { personForms, recentResults } from "../../shared/insights";
 import { resolveMerged } from "../../shared/merge";
 import type { Snapshot } from "../../shared/types";
 import { ApiFailure, getWithEtag } from "../api";
 import { formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
 import { ChampionTier } from "../lazyScreens";
-import { KpiStrip, MatchTeams, ScreenHead } from "../screenKit";
+import { FormDots, KpiStrip, MatchTeams, ScreenHead } from "../screenKit";
 import { Dialog, LineIcon, type LineIconName } from "../ui";
 import { go } from "../useApp";
 import { Compare } from "./Compare";
@@ -145,6 +146,13 @@ export function Viewer(props: { token: string; rest: string[] }) {
       : null;
   const match = requested ?? current;
   const mySeat = match?.roster.find((r) => r.participantId === meId) ?? null;
+  // 이름 고르기 목록: 경기 중이면 그 경기 명단, 경기가 없으면 결과가 남은 사람 전부(보관·합쳐진 사람 제외).
+  const nameChoices = match
+    ? match.roster.map((r) => r.participantId)
+    : snapshot.participants
+        .filter((p) => p.status === "active" && snapshot.matches.some((m) => m.roster.some((r) => r.participantId === p.id)))
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        .map((p) => p.id);
 
   return (
     <>
@@ -156,6 +164,15 @@ export function Viewer(props: { token: string; rest: string[] }) {
           <>
             {/* 조회 홈: 화면 제목이 없던 자리(2026-11-08 화면 점검). 모임 이름을 화면 제목으로 둔다. */}
             <ScreenHead title={snapshot.group.name} desc="아직 시작한 경기가 없어요." />
+            {nameChoices.length > 0 && (
+              <MyRecordShortcut
+                snapshot={snapshot}
+                meId={meId}
+                name={meId ? nameOf(meId) : ""}
+                openMine={() => meId && go(`${base}/p/${meId}`)}
+                choose={() => setChoosing(true)}
+              />
+            )}
             <Dashboard
               snapshot={snapshot}
               openMatch={(id) => go(`${base}/d/${id}`)}
@@ -192,9 +209,16 @@ export function Viewer(props: { token: string; rest: string[] }) {
               ) : (
                 <p>내 이름을 고르면 내 자리를 먼저 보여드려요.</p>
               )}
-              <button type="button" className={myId ? "link" : "primary"} onClick={() => setChoosing(true)}>
-                {myId ? "이름 바꾸기" : "내 이름 고르기"}
-              </button>
+              <div className="button-row">
+                {meId && (
+                  <button type="button" className="link" onClick={() => go(`${base}/p/${meId}`)}>
+                    내 전적 보기 →
+                  </button>
+                )}
+                <button type="button" className={myId ? "link" : "primary"} onClick={() => setChoosing(true)}>
+                  {myId ? "이름 바꾸기" : "내 이름 고르기"}
+                </button>
+              </div>
             </section>
 
             <MatchTeams match={match} nameOf={nameOf} highlightId={meId} />
@@ -221,22 +245,22 @@ export function Viewer(props: { token: string; rest: string[] }) {
             이 기기에서 내 자리를 먼저 보여주기 위한 설정이에요. 언제든 바꿀 수 있어요.
           </p>
           <ul className="list">
-            {(match?.roster ?? []).map((r) => (
-              <li key={r.participantId}>
+            {nameChoices.map((id) => (
+              <li key={id}>
                 <button
                   type="button"
                   className="list-row"
                   onClick={() => {
-                    setMyId(r.participantId);
+                    setMyId(id);
                     try {
-                      localStorage.setItem(meKey, r.participantId);
+                      localStorage.setItem(meKey, id);
                     } catch {
                       // 보관하지 못하면 이번 방문에만 적용된다.
                     }
                     setChoosing(false);
                   }}
                 >
-                  {nameOf(r.participantId)}
+                  {nameOf(id)}
                 </button>
               </li>
             ))}
@@ -245,6 +269,50 @@ export function Viewer(props: { token: string; rest: string[] }) {
       )}
       </div>
     </>
+  );
+}
+
+/**
+ * 경기가 없는 조회 첫 화면 맨 위의 "내 전적" 줄. 고른 이름이 있으면 최근 승패와 개인 통계 링크를,
+ * 없으면 이름 고르기를 보여준다. 매번 검색하지 않고 내 기록으로 가게 하려고 둔다(2026-11-17).
+ * 이름 고르기는 이 기기의 표시일 뿐이라(Viewer의 naejeon.me.토큰) 요청에 싣지 않는다.
+ * 채운 주 버튼은 두지 않는다. 첫 화면의 주 행동은 아래 요약 쪽이다.
+ */
+function MyRecordShortcut(props: {
+  snapshot: Snapshot;
+  meId: string | null;
+  name: string;
+  openMine: () => void;
+  choose: () => void;
+}) {
+  const { snapshot, meId } = props;
+  const forms = useMemo(() => personForms(snapshot.matches), [snapshot]);
+  if (!meId) {
+    return (
+      <section className="card" aria-label="내 전적">
+        <p>내 이름을 고르면 다음부터 검색하지 않고 내 전적을 바로 열 수 있어요.</p>
+        <div className="button-row">
+          <button type="button" className="secondary" onClick={props.choose}>
+            내 이름 고르기
+          </button>
+        </div>
+      </section>
+    );
+  }
+  return (
+    <section className="card" aria-label="내 전적">
+      <p>
+        <strong>{props.name}</strong> 님 <FormDots results={recentResults(forms.get(meId))} />
+      </p>
+      <div className="button-row">
+        <button type="button" className="link" onClick={props.openMine}>
+          내 전적 보기 →
+        </button>
+        <button type="button" className="link" onClick={props.choose}>
+          이름 바꾸기
+        </button>
+      </div>
+    </section>
   );
 }
 

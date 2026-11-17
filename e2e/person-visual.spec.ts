@@ -177,7 +177,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
   await expect(tile("가장 승률 높은 라인")).toContainText("33% · 20승 40패 (60경기)");
   await expect(summary).not.toContainText("주 라인");
 
-  const recent = page.getByRole("region", { name: "최근" });
+  const recent = page.getByRole("region", { name: "최근", exact: true });
   // 연속 기록은 "최근" 목록의 연속 줄에 있다(요약에서 내렸다).
   await expect(recent.getByRole("listitem").filter({ hasText: "연속" })).toContainText("10연승 중");
   await expect(recent.locator(".wl-bar")).toHaveCount(2);
@@ -246,7 +246,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
     await noHorizontalOverflow(page);
   }
   // 1440px에서는 2단이다: 최근과 라인별이 나란히 놓인다.
-  const recentBox = await page.getByRole("region", { name: "최근" }).boundingBox();
+  const recentBox = await page.getByRole("region", { name: "최근", exact: true }).boundingBox();
   const linesBox = await page.getByRole("region", { name: "라인별" }).boundingBox();
   expect(Math.abs(recentBox!.y - linesBox!.y)).toBeLessThan(2);
   expect(linesBox!.x).toBeGreaterThan(recentBox!.x + recentBox!.width - 1);

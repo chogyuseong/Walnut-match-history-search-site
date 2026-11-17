@@ -183,7 +183,7 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   expect(await sides.locator(".meter-fill.tone-blue").evaluate(bg)).toBe("rgb(79, 141, 221)");
   expect(await sides.locator(".meter-fill.tone-red").evaluate(bg)).toBe("rgb(217, 83, 79)");
   // 승·패 막대도 그대로: 승은 승리 색 #4f8ddd 채움, 패는 패배 색 #d9534f 테두리만(속 빈 막대, 빗금 무늬 대신).
-  const recent = page.getByRole("region", { name: "최근" });
+  const recent = page.getByRole("region", { name: "최근", exact: true });
   expect(await recent.locator(".wl-win").first().evaluate(bg)).toBe("rgb(79, 141, 221)");
   const lossBar = recent.locator(".wl-loss").first();
   expect(await lossBar.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe("rgb(217, 83, 79)");

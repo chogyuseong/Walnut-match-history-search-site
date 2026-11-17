@@ -30,7 +30,7 @@ import {
 } from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
 import { POSITIONS, type Snapshot } from "../../shared/types";
-import { formatDate, nameMap, percentText, rateHueText, rateText, standingsOf } from "../format";
+import { formatDate, nameMap, POSITION_LABEL, percentText, rateHueText, rateText, standingsOf } from "../format";
 import { attendanceReport } from "../../shared/attendance";
 import { personUpsets, UPSET_MMR_GAP } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
@@ -84,6 +84,10 @@ function RateLine(props: { tally: Tally }) {
 /** 참여 경기 카드를 처음에 보여주는 수와 "더 보기"로 더 여는 수. */
 const FIRST_PAGE = 10;
 const PAGE = 20;
+/** "최근" 구역에 한 줄씩 미리 보이는 경기 수. 방금 한 경기가 어떻게 들어갔는지 맨 아래까지 내리지 않고 보게 한다. */
+const RECENT_PREVIEW = 5;
+/** "최근 경기" 아래 링크가 내려가는 참여 경기 구역의 id. */
+const MATCHES_ANCHOR = "person-matches";
 /** 같은 팀·상대 팀 목록에서 처음에 보여주는 사람 수. 나머지는 "더 보기"로 편다. */
 const PAIR_PREVIEW = 6;
 
@@ -464,6 +468,42 @@ export function Person(props: {
         </section>
       )}
 
+      {/* 참여 경기 목록은 맨 아래에 그대로 두고(카드가 커서 위에 두면 다른 구역이 묻힌다) 여기에는 한 줄씩만 둔다.
+          두 단을 가로지르게 둔다. "최근" 칸에 넣으면 왼쪽 단이 길어져 진영별이 라인별 옆에서 밀려난다. */}
+      {detail.matches.length > 0 && (
+        <section className="full" aria-label="최근 경기">
+          <h2>최근 경기</h2>
+          <ul className="list list-card">
+            {detail.matches.slice(0, RECENT_PREVIEW).map((m) => {
+              const seat = m.roster.find((r) => r.participantId === participantId);
+              const won = seat !== undefined && seat.team === m.winnerTeam;
+              return (
+                <li key={m.id}>
+                  <button type="button" className="list-row" onClick={() => props.openMatch(m.id)}>
+                    <span>
+                      {formatDate(m.playedAt, snapshot.group.timezone)} · {m.matchNo}경기
+                    </span>
+                    <span className="stat">
+                      <span className={won ? "form-dot win" : "form-dot loss"}>{won ? "승" : "패"}</span>
+                      {seat?.position ? ` · ${POSITION_LABEL[seat.position]}` : ""}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {detail.matches.length > RECENT_PREVIEW && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => document.getElementById(MATCHES_ANCHOR)?.scrollIntoView({ block: "start" })}
+            >
+              참여 경기 전체 보기 ↓
+            </button>
+          )}
+        </section>
+      )}
+
       <section aria-label="최근">
         <h2>최근</h2>
         <ul className="list list-card">
@@ -689,7 +729,7 @@ export function Person(props: {
         )}
       </section>
 
-      <section className="full" aria-label="참여 경기">
+      <section className="full" aria-label="참여 경기" id={MATCHES_ANCHOR}>
         <h2>
           참여 경기 ({scopeLabel}) · {detail.matches.length}경기
         </h2>

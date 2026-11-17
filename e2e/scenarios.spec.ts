@@ -459,7 +459,7 @@ test("30·합치기: 많이 뛴 사람을 합쳐도 변경 내역은 한 줄로 
   );
   // 검색·참가자 고르기에는 나오지 않는다.
   await page.goto("/#/search");
-  await page.getByLabel("플레이어 이름").fill("부캐");
+  await page.getByLabel("이름·날짜·메모 검색").fill("부캐");
   await expect(page.getByText("일치하는 이름이 없어요.")).toBeVisible();
   await page.goto("/#/pick");
   await expect(page.getByRole("region", { name: "전체 참가자" })).not.toContainText("부캐");
@@ -516,7 +516,7 @@ test("화면 이동: 검색에서 연 개인 통계의 '← 뒤로'는 검색으
   const s = await setup(page, { rotation: false });
   await finish(page.request, s, await start(page.request, s, s.people.slice(0, 10)), "A", "blue");
   await page.goto("/#/search");
-  await page.getByRole("searchbox", { name: "플레이어 이름" }).fill("선수03");
+  await page.getByRole("searchbox", { name: "이름·날짜·메모 검색" }).fill("선수03");
   await page.getByRole("region", { name: "검색 결과" }).getByRole("button").click();
   await expect(page.getByRole("heading", { level: 1, name: "선수03" })).toBeVisible();
   await page.getByRole("button", { name: "← 뒤로" }).click();

@@ -115,8 +115,8 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   await expect(page.getByRole("region", { name: "요약" })).toContainText(
     "배치 완료 · 누적 11경기 (누적 기준)",
   );
-  await expect(page.getByRole("region", { name: "최근" })).toContainText("최근 10경기");
-  await expect(page.getByRole("region", { name: "최근" })).toContainText("최근 11경기");
+  await expect(page.getByRole("region", { name: "최근", exact: true })).toContainText("최근 10경기");
+  await expect(page.getByRole("region", { name: "최근", exact: true })).toContainText("최근 11경기");
 
   // 라인별: 선수02는 정글만 했다. 다른 라인은 0%가 아니라 "기록 없음"이다. (33)
   const lines = page.getByRole("region", { name: "라인별" });
@@ -144,11 +144,11 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   await expect(tiles.locator("div").filter({ hasText: "어려운 상대" })).toContainText(locked);
   await expect(page.getByRole("group", { name: "시너지·상대 전적 순서" })).toHaveCount(0);
 
-  // 화면 순서: 요약 → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 다른 플레이어와 비교(2026-11-07, 2026-11-08 이름 바꿈) → 참여 경기(맨 아래).
+  // 화면 순서: 요약 → 최근 경기(한 줄씩 5개) → 최근 → 라인별 → 진영별 → 시너지 → 상대 전적 → 다른 플레이어와 비교(2026-11-07, 2026-11-08 이름 바꿈) → 참여 경기(맨 아래).
   const order = await page
     .getByRole("region")
     .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
-  expect(order).toEqual(["요약", "세부 기록", "최근", "라인별", "진영별", "시너지", "상대 전적", "다른 플레이어와 비교", "맞라인 상대", "참여 경기"]);
+  expect(order).toEqual(["요약", "세부 기록", "최근 경기", "최근", "라인별", "진영별", "시너지", "상대 전적", "다른 플레이어와 비교", "맞라인 상대", "참여 경기"]);
   // 참여 경기는 최근 10경기만 먼저 그리고 "더 보기"로 나머지를 연다.
   const played = page.getByRole("region", { name: "참여 경기" });
   await expect(played.getByRole("listitem")).toHaveCount(10);
@@ -436,7 +436,7 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
 test("검색 → 개인 통계 → 그래프 분석 보기: 그 사람을 고른 채로 분석이 열린다(예시 모임, 휴대폰 폭)", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/demo/search");
-  const box = page.getByRole("searchbox", { name: "플레이어 이름" });
+  const box = page.getByRole("searchbox", { name: "이름·날짜·메모 검색" });
   await box.fill("밤송이");
   await box.press("Enter");
   await expect(page.getByRole("heading", { name: "밤송이", level: 1 })).toBeVisible();

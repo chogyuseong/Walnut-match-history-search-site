@@ -187,7 +187,7 @@ test("모임 탭에서 칭호 이름·경계를 바꾸면 모든 화면에 바�
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "검색" }).click();
   // 모임 탭에도 참가자 찾기 칸이 있으므로 검색 화면이 열린 뒤 그 화면의 칸에 넣는다.
   await expect(page.getByRole("heading", { level: 1, name: "전적 검색" })).toBeVisible();
-  await page.getByRole("searchbox", { name: "플레이어 이름" }).fill("선수01");
+  await page.getByRole("searchbox", { name: "이름·날짜·메모 검색" }).fill("선수01");
   await expect(page.getByRole("region", { name: "검색 결과" })).toContainText("우리 모임 에이스");
 
   // 틀린 값(같은 경계 두 개)은 저장하지 않고 이유를 알려준다.

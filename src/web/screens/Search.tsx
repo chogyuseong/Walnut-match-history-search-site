@@ -188,13 +188,14 @@ export function Search(props: {
         }}
       >
         <label>
-          플레이어 이름
+          {/* 경기도 찾는 검색이면 라벨에 그대로 적는다. "플레이어 이름"이면 날짜 검색이 되는 줄 모르고 지나친다. */}
+          {props.openMatch ? "이름·날짜·메모 검색" : "플레이어 이름"}
           <input
             ref={inputRef}
             type="search"
             enterKeyHint="search"
             autoComplete="off"
-            placeholder="이름 일부만 넣어도 찾아요"
+            placeholder={props.openMatch ? "예: 호두, ㅎㄷ, 11/17" : "이름 일부만 넣어도 찾아요"}
             onKeyDown={(event) => {
               // 제출이 개인 통계(또는 두 사람 비교)로 바로 넘어가는 경우에는 옮기지 않는다.
               // 옛 화면이 스크롤을 시작한 채 화면이 바뀌면 새 화면이 중간부터 열린다.

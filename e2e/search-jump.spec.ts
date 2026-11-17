@@ -144,7 +144,7 @@ test.describe("390×844 터치", () => {
   test("한 명만 맞으면 그 사람 화면이 맨 위에서 열린다", async ({ page }) => {
     await setup(page);
     await page.goto("/#/search");
-    const nameSearch = page.getByLabel("플레이어 이름");
+    const nameSearch = page.getByLabel("이름·날짜·메모 검색");
     await nameSearch.fill("선수01");
     await nameSearch.press("Enter");
     await expect(page.getByRole("heading", { level: 1, name: /선수01/ })).toBeVisible();
@@ -244,7 +244,7 @@ test.describe("390×844 터치", () => {
     await expectRevealed(page.getByRole("region", { name: "MMR 순위표" }).locator(".mmr-item").first(), "MMR 랭킹 첫 줄");
 
     await page.goto("/#/search");
-    const nameSearch = page.getByLabel("플레이어 이름");
+    const nameSearch = page.getByLabel("이름·날짜·메모 검색");
     await focusNearBottom(page, nameSearch);
     await nameSearch.fill("선수0");
     await nameSearch.press("Enter");
