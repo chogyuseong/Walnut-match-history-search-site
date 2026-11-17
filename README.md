@@ -202,6 +202,7 @@ Riot API 없이도 쌓인 승패·MMR·세션만으로 더 보여 주려고 넣�
 - **2026-11-16 unslop 점검**(heydamir/unslop 점검 목록으로 실제 화면을 훑음): 첫 방문 소개(1200px 이상)는 글을 첫 화면 세로 가운데에 두고 팀 짜기 사진을 블루·레드 보드까지만 다시 찍음(`npm run shots:intro`). 예시 모임은 안내와 "내 모임 만들기"를 메뉴 줄에 합쳐 위쪽 띠 3줄 → 2줄. 요약 랭킹 상위 5명은 최근 승패를 칸 없이 "승승패" 글자(승 파랑·패 빨강, `FormDots letters`)로, 칭호는 보조 글자 색으로
 - **2026-11-17 브라우저 기본 기능 점검**(modern-web-guidance로 `src/web`을 훑음, 걷어낼 JS 라이브러리는 없음): 확인 창(`Dialog`)을 `<dialog>` + `showModal()`로 바꿔 창 뒤 화면이 실제로 inert가 되고 안드로이드 뒤로가기로 닫히며, `::backdrop`의 `overscroll-behavior: contain`으로 창 뒤 페이지가 같이 스크롤되지 않음. 창이 열린 동안 하단 알림은 닫힌 뒤로 미룸(`useDialogOpen`). 글꼴은 jsDelivr 대신 같은 출처의 Pretendard Variable 글자 범위별 조각(`public/fonts/pretendard-1.3.9/`, OFL `LICENSE.txt` 동봉)이라 첫 화면 글꼴이 약 2.3MB → 약 360KB, CSP·처리방침에서 jsDelivr를 뺌(시행일 2026-11-17). 공유 이미지는 쓸 글자를 먼저 모아 그 조각을 받은 뒤 그림. 이변 배지·달력 범례·요청 배지에 화면 읽기 프로그램용 글, 목록 높이 `svh`, 표준 스크롤바 속성. 요청 시간 제한은 본문 읽는 중에 끊기지 않도록 `AbortSignal.timeout`으로 바꾸지 않았고, 계정 메뉴의 popover 전환은 Firefox 앵커 위치 지정 미지원으로 미룸
 - **2026-11-17 겹치는 코드 정리**: 아무 데서도 안 쓰는 export·CSS 클래스는 없었고, 같은 일을 두 곳에서 하던 코드를 합침. 라인별 승패 집계는 `personRecords`(라인 인자), 날짜 더하기는 `shared/graphs.ts addDays`, 한글 초성은 `search.ts syllableInitial`, 상수 시간 비교는 `auth.ts constantTimeEqual`, 화면의 "N%" 글은 `format.ts percentText`, 결과 입력 창 진영 라디오는 `SideChoices`, 경기·편성 공유 이미지는 `drawTeamsImage` 하나로. 두 가져오기 화면의 큰 중복과 수락 화면 셋은 위험·문구 차이로 남김
+- **2026-11-17 unslop 두 번째 점검**: 최근 승패(`FormDots`)를 모든 화면에서 색칸 대신 "승승패" 글자로 바꿔 MMR 표의 그 칸이 15.5rem → 9rem. 표·목록 안 사람 이름은 `.link.name-link`(본문색 + 옅은 밑줄, 호버·초점 때만 골드)라 줄마다 골드가 번지지 않음. 챔피언 요약 카드 1.3:1:1.3, 랭킹은 1위 카드 1.5배. 화면 문구 226줄을 하십시오체 → 해요체로(서버 오류 문구·처리방침·라이엇 고지는 그대로)
 
 ---
 
@@ -280,5 +281,5 @@ Riot API 없이도 쌓인 승패·MMR·세션만으로 더 보여 주려고 넣�
 | `docs/디자인-적용-계획-2026-11-11.md`, `docs/디자인-적용-상세지시-2026-11-11.md` | 새 디자인 규칙(맨 위 `CLAUDE.md`)을 0~6단계로 넣는 계획과 단계별 작업 지시. 6단계까지 끝남(6단계는 브랜치 `design-stage-6`, main 합치기·배포 전) |
 | `docs/라이엇-정책-앱출시-조사-2026-11-11.md` | 앱(PWA·스토어)으로 낼 때의 라이엇 자산 정책 원문 대조, 포털에 보낼 질문 초안 |
 | `배포-이어하기.txt` | 운영 상태, 배포 순서, 남은 일과 나중에 할 후보(다음 작업을 이어받을 때 먼저 읽는 메모) |
-| `.claude/CLAUDE.md`, `model-setup-prompt.md` | 작업 규칙(모델·effort 사용 기준, 지휘·구현·검토 역할 분담)과 그 설정 요청문 |
+| `.claude/CLAUDE.md`, `model-setup-prompt.md` | 작업 규칙(모델 분담: 메인 Opus가 구현 대부분, 실행·반복 수정은 Sonnet, Fable은 요청할 때만, effort 상한 high)과 그 설정 요청문 |
 | `작업현황-2026-11-06.txt`, `-07.txt` | 날짜별 작업 메모 |

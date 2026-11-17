@@ -1,4 +1,4 @@
-배포 이어하기 (2026-11-16 기준)
+배포 이어하기 (2026-11-17 기준)
 
 다른 컴퓨터에서 이어서 할 때 이 파일부터 보면 된다. 자세한 명령과 이유는 docs/배포안내.md에 있다.
 Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된다.
@@ -504,6 +504,9 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
    확인: /status 에서 설정 출처에 프로젝트 설정이 보이고 모델이 opus, effort가 medium이면 된다.
    컴퓨터에 ANTHROPIC_MODEL, CLAUDE_CODE_EFFORT_LEVEL 환경 변수가 있으면 그쪽이 우선하니 없는지 본다.
    메인은 늘 Opus다. Fable은 사용자가 요청할 때만 fable-designer 서브에이전트로 쓴다(규칙은 .claude/CLAUDE.md).
+   effort 상한은 high다(xhigh·max는 쓰지 않음). 큰 설계도 플랜 모드 + /effort high.
+   단축키 cc(opus·medium)·ccf(fable, .claude/fable-handoff.md가 있으면 먼저 읽음)·ccp(opusplan)와 Fable 전환 규칙은
+   개인 설정(~/.claude/CLAUDE.md, PowerShell $PROFILE, ~/.bashrc)에 있어 클론으로 따라오지 않는다. 새 PC에서는 다시 넣는다.
 
 
 [주소]
