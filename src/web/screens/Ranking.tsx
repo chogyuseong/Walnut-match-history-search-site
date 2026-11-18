@@ -35,6 +35,7 @@ import {
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rankClass, rateHueClass, rateHueText, rateText, standingsOf } from "../format";
 import {
+  ALL_TIME_SCOPE,
   FilterBar,
   FormDots,
   Glue,
@@ -43,6 +44,7 @@ import {
   Meter,
   RatingTierBadge,
   RatingTrendLine,
+  ScopeBasis,
   ScreenHead,
   SortHead,
   StatCard,
@@ -90,7 +92,7 @@ function RatingRuleTip(props: { options: RatingOptions }) {
     <InfoTip label="MMR 계산 기준">
       <span className="tip-line">
         MMR은 같은 팀원과 상대 팀이 누구였는지까지 감안한 실력 점수예요. 모두 {start}점에서 시작하고, 보는 범위와 상관없이
-        모임 전체의 확정 경기로 계산해요. 결과 미입력·진행 중·취소·전적 제외 경기는 세지 않아요.
+        모임 전체의 확정 경기로 계산해요. 진행 중·결과 미입력·전적 제외 경기와 취소한 경기는 세지 않아요.
       </span>
       <span className="tip-line">
         계산: 지금까지의 경기를 한꺼번에 놓고, 모든 경기의 승패를 가장 잘 설명하는 점수를 사람마다 찾아요. 늘 약한 팀원과
@@ -179,7 +181,8 @@ export function Ranking(props: {
   // 검색 결과는 일치도 순이라 묶음이 섞이므로 검색하지 않을 때만 묶음 머리글을 둔다.
   const groupHeads = query.trim() === "";
   // 시작값·연승 가중 같은 계산 규칙은 제목 옆 "MMR 계산 기준"(RatingRuleTip)에 있어 설명 줄에는 보는 기준만 쓴다.
-  const desc = `누적 기준 · 확정 경기만 · ${RANKING_GROUP_LABEL[0]} 먼저`;
+  // 무엇으로 셌는지(전체 누적·확정 경기 수·세지 않은 경기)는 머리 아래 기준 줄(ScopeBasis)이 다른 통계 화면과 같은 말로 쓴다.
+  const desc = `모임 전체 MMR 순위 · ${RANKING_GROUP_LABEL[0]} 먼저`;
   const championLink = props.openChampions && (
     <button type="button" className="link" onClick={props.openChampions}>
       챔피언 티어 →
@@ -190,6 +193,7 @@ export function Ranking(props: {
     return (
       <div className="screen page-wide mmr-ranking">
         <ScreenHead title="MMR 랭킹" badge={<RatingRuleTip options={ratingOptions} />} desc={desc} actions={championLink} />
+      <ScopeBasis snapshot={snapshot} scope={ALL_TIME_SCOPE} />
         <div className="empty-state">
           <p>확정 경기가 쌓이면 보여요. 경기 결과를 하나 저장하면 바로 순위가 생겨요.</p>
           {props.emptyAction}
@@ -204,6 +208,7 @@ export function Ranking(props: {
   return (
     <div className="screen page-wide mmr-ranking">
       <ScreenHead title="MMR 랭킹" badge={<RatingRuleTip options={ratingOptions} />} desc={desc} actions={championLink} />
+      <ScopeBasis snapshot={snapshot} scope={ALL_TIME_SCOPE} />
 
       <FilterBar label="순위표 찾기" meta={`${ranking.ranked.length}명`}>
         <input

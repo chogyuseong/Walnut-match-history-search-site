@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { useRouteScope } from "../routeQuery";
 import { laneDuelSplit } from "../../shared/headToHead";
 import {
   COMPARE_MIN_GAMES,
@@ -36,7 +35,7 @@ import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
 import { nameMap, rateHueClass, rateHueText, rateText as tallyRateText, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import { BackLink, FormDots, PosLabel, ScopePicker, ScreenHead, StandingNote } from "../screenKit";
+import { BackLink, FormDots, PosLabel, ScopeBasis, ScopePicker, ScreenHead, StandingNote, useRouteScope } from "../screenKit";
 
 function rateText(t: Tally): string {
   return tallyRateText(t.wins, t.games);
@@ -325,7 +324,7 @@ export function Compare(props: {
             {nameA} <span className="vs">vs</span> {nameB}
           </>
         }
-        desc={`${scopeLabel} 범위에서 두 사람의 전적을 나란히 봐요`}
+        desc="두 사람의 전적을 나란히 봐요"
       />
 
       <div className="cmp-duel">
@@ -360,6 +359,8 @@ export function Compare(props: {
           }}
         />
       </div>
+      {/* 두 사람의 경기 수가 달라 한 숫자로 쓰지 않는다. 각자 경기 수는 위 카드에 있다. */}
+      <ScopeBasis snapshot={snapshot} scope={scope} noCount />
       {fewer.length > 0 && (
         <p className="hint" role="note">
           표본이 적어요: {fewer.map(nameOf).join(", ")} 님이 누적 {COMPARE_MIN_GAMES}경기 미만이라 비교 결과가

@@ -47,6 +47,8 @@ export const RESTORE_CONFIRM_TEXT = "복원";
  * 운영자·조회 토큰·인수 링크·복원 작업 표는 들어가지 않는다(복원이 바꾸지 않는 것).
  */
 export const GROUP_DATA_TABLES = [
+  // 넘긴 편성(migrations/0029). 기기 사이에 잠깐 건네는 자료라 백업에 넣지 않고, 복원하면 비워진다.
+  "draft_handoffs",
   // 참가 신청(migrations/0014). 그날그날 쓰는 임시 자료라 백업에 넣지 않고, 복원하면 비워진다.
   "join_requests",
   "support_adjustments",

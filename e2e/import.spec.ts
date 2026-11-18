@@ -74,7 +74,7 @@ test("틀린 줄이 있으면 넣지 않고, 고친 뒤 진영을 골라야 넣�
   // 기록과 그래프에 바로 반영된다. 팀 A가 60승이므로 블루 50%.
   await page.getByRole("button", { name: "기록 보기" }).click();
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /전체 경기 · 120경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정 120경기");
   await page.getByRole("button", { name: "그래프 분석" }).click();
   const sides = page.getByRole("region", { name: "분석 요약" });
   await expect(sides).toContainText("블루 50% · 60승 60패 (120경기)");

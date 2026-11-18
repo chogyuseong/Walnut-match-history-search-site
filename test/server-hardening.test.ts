@@ -145,10 +145,11 @@ describe("조회 링크 ETag(304)", () => {
 
   it("화면 자료 버전(data_version)은 트리거가 올린다: 참가자·경기·신청 표", async () => {
     // 마이그레이션 0021의 트리거가 모두 만들어졌다(BEGIN … END 안의 ;로 문장이 잘리지 않았다).
+    // 48 = 그 뒤 마이그레이션까지의 수, + 3 = 0029 넘긴 편성(draft_handoffs) 넣기·고치기·지우기.
     const triggers = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_dv_%'",
     ).first<{ n: number }>();
-    expect(triggers!.n).toBe(48);
+    expect(triggers!.n).toBe(48 + 3);
     const g = await setupGroup(10);
     const v0 = await dataVersion(g.gid);
     await api(g.cookie, "PATCH", `/api/groups/${g.gid}/participants/${g.people[0]!.id}`, { skillGroup: 3 });

@@ -83,12 +83,18 @@ import {
   KpiStrip,
   MatchTeams,
   RatingTierBadge,
+  readRouteParams,
+  replaceRouteParams,
+  ScopeBasis,
+  scopeFromParam,
+  scopeParam,
   ScopePicker,
+  scopeSuffix,
   ScreenHead,
   SortHead,
   StandingNote,
 } from "../screenKit";
-import { readRouteParams, replaceRouteParams, scopeFromParam, scopeParam, useScrollMemory } from "../routeQuery";
+import { useScrollMemory } from "../scrollMemory";
 import { CopyButton, Dialog, ErrorNote, useSearchJump } from "../ui";
 import type { AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
@@ -404,6 +410,7 @@ const RANK_COLUMN_LABEL: Record<RankingSort, string> = { rate: "승률", wins: "
 export function Records(props: {
   snapshot: Snapshot;
   openMatch: (id: string) => void;
+  /** id 뒤에 주소 꼬리("?scope=…")를 붙여 넘길 수 있다. 부르는 쪽은 그대로 경로에 붙인다(App.tsx·Viewer.tsx). */
   openPerson: (id: string) => void;
   openGraphs: () => void;
   openRanking: () => void;
@@ -454,14 +461,13 @@ export function Records(props: {
 
   const season = scope.kind === "season" ? snapshot.seasons.find((s) => s.id === scope.seasonId) : null;
   const scopeLabel = scopeLabelOf(snapshot, scope);
+  // 경기 카드·순위표의 이름을 누르면 개인 통계를 지금 범위로 연다. 변경 내역의 이름은 범위와 무관해 그대로 연다.
+  const openPersonInScope = (id: string) => props.openPerson(`${id}${scopeSuffix(scope)}`);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
   const ordered = useMemo(() => newestFirst(scoped), [scoped]);
   const filtered = useMemo(() => filterMatches(ordered, filter), [ordered, filter]);
   const filtering = isFilterActive(filter);
   const listed = filtered.slice(0, shown);
-  const confirmed = scoped.filter((m) => m.state === "confirmed").length;
-  const awaiting = scoped.filter((m) => m.state === "awaiting_result").length;
-  const excluded = scoped.filter((m) => m.state === "excluded").length;
   const anchor = filter.people[0] ?? null;
   const anchorTally = useMemo(
     () => (anchor ? anchorRecord(filtered, anchor) : null),
@@ -554,14 +560,14 @@ export function Records(props: {
           <MatchFilterSelects scoped={scoped} filter={filter} onChange={setFilter} nameOf={nameOf} />
         )}
       </FilterBar>
+      <ScopeBasis snapshot={snapshot} scope={scope} />
 
       <KpiStrip snapshot={snapshot} />
 
       <section className="rec-matches" aria-label="경기 목록">
         <h2>
-          {scope.kind === "today" ? "오늘의 결과" : `${scopeLabel} 경기`} · {confirmed}경기 확정
-          {awaiting > 0 ? ` · 결과 미입력 ${awaiting}` : ""}
-          {excluded > 0 ? ` · 전적 제외 ${excluded}` : ""}
+          {/* 확정·미입력·제외 경기 수는 위 기준 줄(ScopeBasis)에 있다. 여기 다시 쓰면 같은 숫자가 두 번 보인다. */}
+          {scope.kind === "today" ? "오늘의 결과" : `${scopeLabel} 경기`}
         </h2>
         <MatchFilterPeople filter={filter} onChange={setFilter} nameOf={nameOf} />
         {filtering && (
@@ -596,7 +602,7 @@ export function Records(props: {
                 focusId={filter.people.length === 1 ? anchor : null}
                 highlightIds={filter.people}
                 onOpen={() => props.openMatch(m.id)}
-                onPerson={props.openPerson}
+                onPerson={openPersonInScope}
                 seriesBadge={seriesBadge(m.id)}
                 upset={expectation.get(m.id)?.upset}
                 action={
@@ -730,7 +736,7 @@ export function Records(props: {
                         <button
                           type="button"
                           className="list-row rank-row rank-grid"
-                          onClick={() => props.openPerson(r.participantId)}
+                          onClick={() => openPersonInScope(r.participantId)}
                         >
                           <span className={`c-rank ${rankClass(r.rank)}`}>{r.rank}</span>
                           <span className="c-who">
@@ -797,7 +803,7 @@ export function Records(props: {
           순서: 누적 {RANKING_VETERAN_GAMES}경기 이상 → 배치 완료(누적 {placementGames}경기 이상) → 배치 진행 중, 묶음 안에서는 {RANKING_SORT_LABEL[sort]}
           {sort === "rate" ? " → 경기 수 → 이름" : sort === "games" ? " → 승률 → 이름" : " → 승률 → 경기 수 → 이름"}.
           이름을 검색하면 일치하는 순으로 보여주고 순위 숫자는 바뀌지 않아요. 승·패 칸은 최근 경기가
-          왼쪽이며, 2경기 이상 이어지면 연승·연패를 적어요. 결과 미입력·제외 경기는 세지 않아요.
+          왼쪽이며, 2경기 이상 이어지면 연승·연패를 적어요. 결과 미입력·전적 제외 경기는 세지 않아요.
           {line && noPosition > 0
             ? ` 포지션 기록이 없는 ${noPosition}경기는 라인별 순위에서 빠져요.`
             : ""}

@@ -1,6 +1,6 @@
 import { cumulativeTrend, RANKING_GROUP_LABEL, RANKING_VETERAN_GAMES, rankingGroup, resultsOf, sortRankingBy, streakOf, streakText } from "../../shared/insights";
 import { useMemo, useState, type ReactNode } from "react";
-import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Scope, type Tally, type PersonRecord } from "../../shared/stats";
+import { fractionPercent, isCounted, localDate, matchesInScope, matchYears, personRecordsByLine, placementGamesOf, scopeLabel as scopeLabelOf, playerLineMatrix, ratePercent, sideTotals, SMALL_SAMPLE, type Tally, type PersonRecord } from "../../shared/stats";
 import { POSITIONS, type Position, type Snapshot } from "../../shared/types";
 import { formatDate, heatClass, nameMap, PEOPLE_BAR_STEPS, percentText, rateHueClass, rateHueText, rateTier, POSITION_LABEL, standingsOf, type ShownStanding } from "../format";
 import {
@@ -11,7 +11,10 @@ import {
   PosLabel,
   RateRing,
   RatingTierBadge,
+  ScopeBasis,
   scopeFromValue,
+  scopeSuffix,
+  useRouteScope,
   scopeValue,
   ScreenHead,
   TitleBadge,
@@ -191,6 +194,7 @@ const BAR_GROUP_LABEL: Record<BarGroup, string> = {
  */
 export function Graphs(props: {
   snapshot: Snapshot;
+  /** id 뒤에 주소 꼬리("?scope=…")를 붙여 넘길 수 있다. 부르는 쪽은 그대로 경로에 붙인다(App.tsx·Viewer.tsx). */
   openPerson: (id: string) => void;
   back: () => void;
   /** 주소에 담긴 고른 플레이어(#/graphs/ID). choosePlayer와 함께 주면 고르기가 주소를 따른다. */
@@ -205,7 +209,6 @@ export function Graphs(props: {
   const { snapshot } = props;
   const timeZone = snapshot.group.timezone;
   const placementGames = placementGamesOf(snapshot.group.settings);
-  const [scope, setScope] = useState<Scope>({ kind: "all" });
   const [line, setLine] = useState<Position | "">("");
   const [localPlayer, setLocalPlayer] = useState("");
   const [view, setView] = useState<View>("people");
@@ -216,6 +219,10 @@ export function Graphs(props: {
   // 고른 플레이어: 주소(#/graphs/ID)에 두어 개인 통계로 갔다 돌아와도 남는다. 없는 사람 ID면 고르지 않은 것으로 본다.
   const wanted = props.choosePlayer ? (props.player ?? "") : localPlayer;
   const playerId = snapshot.participants.some((p) => p.id === wanted) ? wanted : "";
+  // 범위는 주소(?scope=)에 남긴다. 플레이어를 바꾸면(#/graphs/ID) 새 주소에도 다시 적고(playerId를 화면 열쇠로 넘김),
+  // 이름을 눌러 개인 통계로 갈 때 같은 기간으로 연다(openPersonInScope).
+  const [scope, setScope] = useRouteScope(snapshot, playerId);
+  const openPersonInScope = (id: string) => props.openPerson(`${id}${scopeSuffix(scope)}`);
   const choosePlayer = (id: string) => (props.choosePlayer ? props.choosePlayer(id) : setLocalPlayer(id));
 
   const scopeLabel = scopeLabelOf(snapshot, scope);
@@ -393,13 +400,13 @@ export function Graphs(props: {
         <div className="graph-meta">
           <p className="hint">
             {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. 경기·참가자 수는 바로 아래 요약 칸에 크게 있으니
-                되풀이하지 않고, 플레이어를 골라 요약 칸이 사라질 때만 이 줄에 적는다. */}
-            {scopeLabel}
-            {playerId !== "" && ` · 확정 ${counted}경기 · 참가자 ${matrixRows.length}명`}
-            {` · 자료 적음(${SMALL_SAMPLE}경기 미만) ${fewCount}명`}
+                되풀이하지 않고, 플레이어를 골라 요약 칸이 사라질 때만 이 줄에 적는다. 범위·확정 경기 수는 아래 기준 줄에 있다. */}
+            {playerId !== "" && `참가자 ${matrixRows.length}명 · `}
+            {`자료 적음(${SMALL_SAMPLE}경기 미만) ${fewCount}명`}
           </p>
         </div>
       </div>
+      <ScopeBasis snapshot={snapshot} scope={scope} />
 
       {/* ─ 위쪽 묶음: 고른 플레이어가 있으면 그 사람 묶음, 없으면 모임 전체 요약 타일 ─ */}
       {playerId !== "" ? (
@@ -415,7 +422,7 @@ export function Graphs(props: {
           standing={placement.get(playerId)}
           cumulative={placement}
           nameOf={nameOf}
-          openPerson={() => props.openPerson(playerId)}
+          openPerson={() => openPersonInScope(playerId)}
           openMatch={props.openMatch}
           clear={() => choosePlayer("")}
         />
@@ -639,7 +646,7 @@ export function Graphs(props: {
                         games={r.games}
                         hued
                         picked={r.participantId === playerId}
-                        onOpen={() => props.openPerson(r.participantId)}
+                        onOpen={() => openPersonInScope(r.participantId)}
                       />
                     </li>
                   ))}
@@ -666,7 +673,7 @@ export function Graphs(props: {
                 matrix={matrix}
                 nameOf={nameOf}
                 playerId={playerId}
-                openPerson={props.openPerson}
+                openPerson={openPersonInScope}
               />
               {matrixRows.some((r) => !hasColoredCell(r.participantId)) && (
                 <details className="matrix-few">
@@ -679,7 +686,7 @@ export function Graphs(props: {
                     matrix={matrix}
                     nameOf={nameOf}
                     playerId={playerId}
-                    openPerson={props.openPerson}
+                    openPerson={openPersonInScope}
                   />
                 </details>
               )}

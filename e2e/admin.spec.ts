@@ -49,7 +49,8 @@ test("일괄 입력으로 넣은 경기를 한 번에 전적 제외하고 복구
 
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "기록" }).click();
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /전체 경기 · 0경기 확정 · 전적 제외 3/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정 0경기");
+  await expect(page.locator(".scope-basis")).toContainText("전적 제외 3경기는 세지 않아요");
   await expect(page.getByText("이 범위에는 확정된 경기가 없어요.")).toBeVisible();
 
   // 같은 자리에서 복구하면 기록이 돌아온다.
@@ -58,7 +59,7 @@ test("일괄 입력으로 넣은 경기를 한 번에 전적 제외하고 복구
   await expect(section.getByRole("button", { name: "모두 전적 제외" })).toBeVisible();
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "기록" }).click();
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /전체 경기 · 3경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정 3경기");
 });
 
 test("운영자를 넘기면 받은 사람만 수정할 수 있다", async ({ browser }) => {

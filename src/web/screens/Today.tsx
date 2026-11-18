@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { sessionSummary, sessionSummaryText } from "../../shared/sessionSummary";
 import { isCounted, personRecords, searchByName, todayMatches, placementGamesOf } from "../../shared/stats";
 import { mutate, newRequestId } from "../api";
@@ -13,9 +13,17 @@ import { go, useAppValue } from "../useApp";
 import { Intro, isFirstVisit } from "./Intro";
 import { LoginDialog } from "./Login";
 import { ResultSheet } from "./ResultSheet";
+import { loadOperatorScreens, preload } from "../lazyScreens";
 import type { MatchView, Snapshot } from "../../shared/types";
 
 /** 화면 1 — 오늘(홈). 상태 카드는 한 번에 하나의 주요 버튼만 낸다. */
+/**
+ * 편성 넘기기 안내(prep/HandoffNote.tsx). 운영 묶음(screens/operator.ts)에서 꺼낸다: 그 묶음은 오늘 화면을 그린 뒤 미리 받아 두므로
+ * 넘긴 편성이 있을 때 곧바로 그려지고, 오늘 화면 조각과 준비 화면이 함께 쓰는 새 조각이 생기지 않는다.
+ */
+// preload: 배포 뒤 옛 조각을 못 받으면 한 번 새로 고치는 처리(chunkReload.ts)를 거친다.
+const HandoffNote = lazy(() => preload(loadOperatorScreens).then((m) => ({ default: m.HandoffNote })));
+
 export function Today() {
   const app = useAppValue();
   const [resultFor, setResultFor] = useState<MatchView | null>(null);
@@ -116,6 +124,13 @@ export function Today() {
             다시 불러오기
           </button>
         </p>
+      )}
+
+      {/* 다른 기기에서 넘긴 편성 이어받기(또는 이 기기가 넘겨 둔 것). 넘긴 것이 없으면 아무것도 그리지 않는다. */}
+      {!introOnly && snapshot?.draftHandoff && (
+        <Suspense fallback={null}>
+          <HandoffNote app={app} where="today" />
+        </Suspense>
       )}
 
       {!introOnly &&

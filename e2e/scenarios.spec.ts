@@ -205,7 +205,7 @@ test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그
   const again = page.waitForResponse((r) => r.url().includes("/snapshot") && r.ok());
   await fireVisible(page);
   await again;
-  await expect(page.getByRole("heading", { name: /4경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("확정 4경기");
   const kept = await page.evaluate(() => ({
     label: (document.activeElement as HTMLInputElement | null)?.getAttribute("aria-label"),
     value: (document.activeElement as HTMLInputElement | null)?.value,
@@ -509,7 +509,7 @@ test("불러오기 실패: '기록이 없어요'가 아니라 실패 안내와 [
   await page.unroute("**/api/me");
   await page.getByRole("button", { name: "다시 시도" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "기록" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /1경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("확정 1경기");
 });
 
 test("화면 이동: 검색에서 연 개인 통계의 '← 뒤로'는 검색으로, 바로 연 주소는 '← 기록'", async ({ page }) => {

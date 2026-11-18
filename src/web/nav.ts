@@ -31,7 +31,7 @@ export function screenKey(hash: string): string {
 }
 
 /**
- * 마지막 주소 바뀜이 뒤로 가기였는지. 화면이 그려질 때 기억해 둔 스크롤 위치로 돌아갈지 정한다(routeQuery.ts useScrollMemory).
+ * 마지막 주소 바뀜이 뒤로 가기였는지. 화면이 그려질 때 기억해 둔 스크롤 위치로 돌아갈지 정한다(scrollMemory.ts useScrollMemory).
  * 이 파일의 hashchange 처리는 모듈을 읽을 때 걸려 화면(useRoute)의 처리보다 먼저 돈다. 그래서 새 화면이 그려질 때는
  * 이미 이번 이동이 뒤로 가기였는지 정해져 있다. 이 순서가 바뀌면(이 처리를 효과 안으로 옮기는 등) 복원이 엇나간다.
  */
@@ -41,7 +41,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("hashchange", (event) => {
     const hash = location.hash;
     if (stack.length >= 2 && stack[stack.length - 2] === hash) {
-      // 뒤로 가기: 브라우저가 맞추는 위치를 그대로 둔다(기억해 둔 위치가 있는 화면은 routeQuery.ts useScrollMemory가 다시 맞춘다).
+      // 뒤로 가기: 브라우저가 맞추는 위치를 그대로 둔다(기억해 둔 위치가 있는 화면은 scrollMemory.ts useScrollMemory가 다시 맞춘다).
       stack.pop();
       cameBack = true;
       return;
@@ -66,7 +66,7 @@ export function noteReplacedHash(hash: string): void {
   if (stack.length > 0) stack[stack.length - 1] = hash;
 }
 
-/** 마지막 주소 바뀜이 뒤로 가기였는지. 기록 화면의 스크롤 복원(routeQuery.ts useScrollMemory)이 쓴다. */
+/** 마지막 주소 바뀜이 뒤로 가기였는지. 기록 화면의 스크롤 복원(scrollMemory.ts useScrollMemory)이 쓴다. */
 export function arrivedByBack(): boolean {
   return cameBack;
 }

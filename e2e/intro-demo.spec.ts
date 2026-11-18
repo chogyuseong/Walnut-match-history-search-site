@@ -65,7 +65,8 @@ test.describe("처음 온 방문자 (390px)", () => {
     // 개인 통계: 랭킹 1위를 누른다.
     const firstName = (await ranking.getByRole("listitem").first().innerText()).trim().split(/\s+/)[1]!;
     await ranking.getByRole("listitem").first().getByRole("button").first().click();
-    await expect(page).toHaveURL(/#\/demo\/p\/demo-p\d\d$/);
+    // 기록 화면의 범위(예시 모임은 오늘 경기가 있어 "오늘")를 개인 통계로 넘긴다(2026-11-18).
+    await expect(page).toHaveURL(/#\/demo\/p\/demo-p\d\d\?scope=today$/);
     await expect(page.getByRole("heading", { name: firstName, level: 1 })).toBeVisible();
     await noHorizontalOverflow(page, "예시 개인 통계");
 

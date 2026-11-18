@@ -85,7 +85,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
 
   await page.goto("/#/records");
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /전체 경기 · 11경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정 11경기");
 
   // 순위: 배치 완료자가 먼저다. 승률 100%인 선수11(1경기)은 배치 완료자들 뒤에 온다. (35)
   const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
@@ -185,7 +185,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   // 시즌 필터: 이번 시즌에는 11경기, 지난 시즌에는 기록이 없다. 배치 표시는 시즌과 무관하다. (34)
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "기록" }).click();
   await page.getByLabel("시즌 선택").selectOption({ label: "이번 시즌" });
-  await expect(page.getByRole("heading", { name: /이번 시즌 경기 · 11경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("이번 시즌 · 확정 11경기");
   await page.getByLabel("시즌 선택").selectOption({ label: "지난 시즌" });
   await expect(page.getByText("이 범위에는 기록이 없어요.")).toBeVisible();
   await expect(page.getByText("이 범위에는 확정된 경기가 없어요.")).toBeVisible();
@@ -237,7 +237,9 @@ test("그래프 분석", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "그래프 분석", level: 1 })).toBeVisible();
   // 요약 칸 셋: 확정 경기·참가자·블루:레드. 자료 적음(5경기 미만: 선수11·12)은 위 한 줄로 내렸다(디자인 4단계).
   // 위 한 줄은 요약 칸과 겹치는 경기·참가자 수를 되풀이하지 않는다.
-  await expect(page.getByText("전체 · 자료 적음(5경기 미만) 2명", { exact: true })).toBeVisible();
+  // 범위는 기준 줄로 옮겼다(2026-11-18).
+  await expect(page.getByText("자료 적음(5경기 미만) 2명", { exact: true })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정 11경기");
   const summary = page.getByRole("region", { name: "분석 요약" });
   await expect(summary.locator(".ps-tiles > div")).toHaveCount(3);
   await expect(summary.locator(".ps-tiles > div").nth(0)).toContainText("11경기");
@@ -383,7 +385,7 @@ test("랭킹 탭: MMR 랭킹 → 추이 펼치기 → 이름으로 개인 통계
   await expect(page).toHaveURL(/#\/ranking$/);
   await expect(page.getByRole("heading", { level: 1, name: "MMR 랭킹" })).toBeVisible();
   await expect(menu.getByRole("button", { name: "랭킹" })).toHaveAttribute("aria-current", "page");
-  await expect(page.getByText("누적 기준 · 확정 경기만")).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정");
 
   const table = page.getByRole("region", { name: "MMR 순위표" });
   await expect(table.getByRole("listitem")).toHaveCount(12);

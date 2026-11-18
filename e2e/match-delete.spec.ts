@@ -106,8 +106,7 @@ test("운영자가 경기 상세에서 지우면 기록·랭킹에서 사라지�
   // 기록 화면은 보기 조건을 주소에 적는다(#/records?scope=today 등, Records.tsx "보기 조건 ↔ 주소").
   await expect(page).toHaveURL(/#\/records(\?|$)/);
   await expect(page.getByRole("status").filter({ hasText: `${second.matchNo}경기를 지웠어요` })).toBeVisible();
-  const list = page.getByRole("region", { name: "경기 목록" });
-  await expect(list.getByRole("heading", { level: 2 })).toContainText("1경기 확정");
+  await expect(page.locator(".scope-basis")).toContainText("확정 1경기");
   const ranking = page.getByRole("region", { name: "플레이어 랭킹" });
   await expect(ranking).toContainText("삭제01");
   await expect(ranking).not.toContainText("삭제11");
@@ -123,7 +122,7 @@ test("운영자가 경기 상세에서 지우면 기록·랭킹에서 사라지�
   await undo.click();
 
   await expect(page.getByRole("status").filter({ hasText: `${second.matchNo}경기를 되살렸어요` })).toBeVisible();
-  await expect(list.getByRole("heading", { level: 2 })).toContainText("2경기 확정");
+  await expect(page.locator(".scope-basis")).toContainText("확정 2경기");
   await expect(ranking).toContainText("삭제11");
   await expect(page.locator("li").filter({ hasText: `${second.matchNo}경기 · 삭제 되살림` })).toBeVisible();
   // 되살린 뒤에는 되살리기 단추가 없다.

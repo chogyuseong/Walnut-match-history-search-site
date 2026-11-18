@@ -211,10 +211,10 @@ test("연도 필터: 경기가 있는 해만 고를 수 있고 모임 시간대�
   const years = page.getByLabel("연도 선택");
   await expect(years.getByRole("option")).toHaveText(["연도", "2026년", "2025년"]);
   await years.selectOption({ label: "2025년" });
-  await expect(page.getByRole("heading", { name: /2025년 경기 · 2경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("2025년 · 확정 2경기");
   await expect(page.getByRole("heading", { name: /플레이어 랭킹 \(2025년\)/ })).toBeVisible();
   await years.selectOption({ label: "2026년" });
-  await expect(page.getByRole("heading", { name: /2026년 경기 · 1경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("2026년 · 확정 1경기");
 
   // 개인 통계: 2025년 선수01은 2승, 2026년은 1패. 배치는 누적 3/10 그대로다.
   await page.getByRole("region", { name: "플레이어 랭킹" }).getByRole("button", { name: /선수01/ }).click();
@@ -227,7 +227,7 @@ test("연도 필터: 경기가 있는 해만 고를 수 있고 모임 시간대�
   // 그래프: 범위 목록에 연도가 있다.
   await page.goto("/#/graphs");
   await page.getByLabel("범위", { exact: true }).selectOption({ label: "2025년" });
-  await expect(page.getByText(/^2025년 · 자료 적음/)).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("2025년 · 확정 2경기");
   await expect(page.getByRole("region", { name: "분석 요약" }).locator(".ps-tiles > div").nth(0)).toContainText("2경기");
 
   // 320px에서 범위 고르기가 넘치지 않는다.

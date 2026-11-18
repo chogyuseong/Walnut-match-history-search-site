@@ -15,6 +15,7 @@ import {
   type Team,
 } from "../shared/types";
 import { operatorRole } from "./auth";
+import { clearHandoffOnStart } from "./draftHandoff";
 import type { Env } from "./env";
 import {
   ApiError,
@@ -304,6 +305,7 @@ export async function startMatch(env: Env, groupId: string, body: Body): Promise
         ).bind(groupId),
         ...insertRoster(env, groupId, matchId, roster),
         insertRevision(env, groupId, matchId, "start", {}, now),
+        clearHandoffOnStart(env, groupId),
       );
       if (series !== null) {
         statements.push(...(await seriesContinuePlan(env, groupId, series, matchId, roster, now)));

@@ -10,6 +10,9 @@ export { OperatorRecords } from "./OperatorRecords";
 export { Person } from "./Person";
 export { Pick } from "./Pick";
 export { Prep } from "./Prep";
+// 오늘 화면(Today.tsx, 따로 받는 조각)도 이 묶음에서 꺼내 쓴다. 오늘 화면이 직접 import하면 준비 화면과 함께 쓰는 새 조각이 생겨
+// 첫 화면의 조각 목록이 길어진다(check:bundle 예산 17KB).
+export { HandoffNote } from "./prep/HandoffNote";
 export { PriorityScreen } from "./Priority";
 export { MatchDetail } from "./Records";
 export { Search } from "./Search";

@@ -21,6 +21,7 @@ import { DraftImageDialog } from "./prep/DraftImage";
 import { DeltaNote } from "./prep/DeltaNote";
 import { DrawSummary } from "./prep/DrawSummary";
 import { ForecastSection } from "./prep/ForecastSection";
+import { HandoffNote } from "./prep/HandoffNote";
 import { LateDialog, RecommendDialog, ReplaceDialog } from "./prep/EditDialogs";
 import { SeriesSection } from "./prep/SeriesSection";
 import { QUICK_BAR_NARROW_MAX, QuickShuffleButtons, ShuffleSection, ShuffleSettings, SideSection } from "./prep/ShuffleSection";
@@ -254,8 +255,9 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
           ← 오늘
         </button>
         <h1>다음 경기 준비</h1>
-        <span className="badge">이 기기에만 있어요</span>
       </header>
+      {/* "이 기기에만 있어요" + 다른 기기로 넘기기, 또는 넘긴·넘겨받을 편성 안내. */}
+      <HandoffNote app={app} where="prep" />
 
       {!app.storageOk && (
         <p className="note warn" role="alert">

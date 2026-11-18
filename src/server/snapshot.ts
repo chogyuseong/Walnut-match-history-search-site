@@ -464,6 +464,10 @@ export function snapshotStatements(
           )
           .bind(groupId, nowIso()),
         ...memberRequestStatements(env, groupId),
+        // 넘긴 편성(migrations/0029)의 요약. 본문은 이어받을 때 따로 읽는다(draftHandoff.ts).
+        db
+          .prepare("SELECT handoff_id, base_live_version, people, created_at FROM draft_handoffs WHERE group_id = ?1")
+          .bind(groupId),
       ]
     : [];
   return [...common, ...operatorOnly];
@@ -600,6 +604,17 @@ export function parseSnapshot(role: "operator" | "viewer", results: D1Result[]):
       expiresAt: c.expires_at,
     }));
     snapshot.memberRequests = parseMemberRequests(next(), next());
+    const handoff = rowsOf<{ handoff_id: string; base_live_version: number | null; people: number; created_at: string }>(
+      next(),
+    )[0];
+    snapshot.draftHandoff = handoff
+      ? {
+          id: handoff.handoff_id,
+          createdAt: handoff.created_at,
+          people: handoff.people,
+          baseLiveVersion: handoff.base_live_version,
+        }
+      : null;
   }
   return snapshot;
 }

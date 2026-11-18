@@ -160,7 +160,8 @@ test.describe("첫 이용 흐름 (390px)", () => {
 
     // 기록 확인: 확정 1경기, 결과 미입력 1경기, 개인 승패.
     await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "기록" }).click();
-    await expect(page.getByRole("heading", { name: /오늘의 결과 · 1경기 확정 · 결과 미입력 1/ })).toBeVisible();
+    await expect(page.locator(".scope-basis")).toContainText("오늘 · 확정 1경기");
+    await expect(page.locator(".scope-basis")).toContainText("결과 미입력 1경기는 세지 않아요");
     await expect(page.getByText("1승 0패").first()).toBeVisible();
     await expect(page.getByText("배치 진행 중 1/10").first()).toBeVisible();
 

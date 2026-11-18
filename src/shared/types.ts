@@ -279,10 +279,25 @@ export interface Snapshot {
   /** 참가자 요청(열린 것 전부 + 최근 처리한 것). 운영자 응답에만 있다. */
   memberRequests?: MemberRequestView[];
   /**
+   * 다른 기기로 넘긴 편성의 요약(migrations/0029). 운영자 응답에만 있고, 없으면 null(예전 서버 응답에는 필드가 없다).
+   * 본문은 싣지 않는다. 이어받을 때 GET /api/groups/:gid/draft-handoff로 받는다(src/web/draftHandoff.ts).
+   */
+  draftHandoff?: DraftHandoffView | null;
+  /**
    * 멤버(연결한 참가자) 응답에만 있다. 나머지는 조회 링크 응답과 같다(같은 직렬화 함수).
    * 내 것만 담는다: 내 참가자 ID, 내 기피 라인, 내 요청.
    */
   me?: MemberSelfView;
+}
+
+export interface DraftHandoffView {
+  /** 넘긴 기기가 만든 ID. 넘긴 기기는 이 값으로 자기가 넘긴 것을 알아본다(누가 넘겼는지 계정은 싣지 않는다). */
+  id: string;
+  createdAt: string;
+  /** 편성 10명 + 대기자. */
+  people: number;
+  /** 넘긴 편성을 짤 때 본 진행 상태 버전. 지금 liveVersion과 다르면 그 사이 경기 상태가 바뀐 것이다. */
+  baseLiveVersion: number | null;
 }
 
 /** 참가자 ↔ 계정 연결 한 건(운영자용). */

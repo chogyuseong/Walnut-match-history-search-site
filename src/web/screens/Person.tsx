@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { scopeSuffix, useRouteScope } from "../routeQuery";
 import {
   bestLine,
   COMPARE_MIN_GAMES,
@@ -46,8 +45,11 @@ import {
   RateRing,
   RatingTierBadge,
   RatingTrendLine,
+  ScopeBasis,
   ScopePicker,
+  scopeSuffix,
   ScreenHead,
+  useRouteScope,
   TitleBadge,
   TrendLine,
   WinLossBar,
@@ -103,8 +105,8 @@ export function Person(props: {
   openPerson: (id: string) => void;
   /**
    * 이 사람과 다른 사람을 비교하는 화면으로 간다. other가 있으면 그 사람과 바로 비교한다.
-   * query: 비교 주소 뒤에 그대로 붙일 꼬리("?scope=today" 등, routeQuery.ts scopeSuffix). 지금 고른 기간을 비교로 넘긴다.
-   * 부르는 쪽(App.tsx·Viewer.tsx)이 기간을 해석하지 않고 글자만 붙이게 한 것은, 첫 화면 묶음인 App.tsx가 routeQuery.ts까지
+   * query: 비교 주소 뒤에 그대로 붙일 꼬리("?scope=today" 등, screenKit.tsx scopeSuffix). 지금 고른 기간을 비교로 넘긴다.
+   * 부르는 쪽(App.tsx·Viewer.tsx)이 기간을 해석하지 않고 글자만 붙이게 한 것은, 첫 화면 묶음인 App.tsx가 screenKit.tsx까지
    * 받지 않게 하기 위해서다(check:bundle 첫 화면 예산 17KB).
    */
   openCompare?: (id: string, other?: string, query?: string) => void;
@@ -126,6 +128,11 @@ export function Person(props: {
   const person = snapshot.participants.find((p) => p.id === participantId);
 
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
+  // 기준 줄의 "참여 확정 N경기 · 결과 미입력 n경기는 세지 않아요"는 이 사람이 명단에 있는 경기로 센다.
+  const joined = useMemo(
+    () => scoped.filter((m) => m.roster.some((r) => r.participantId === participantId)),
+    [scoped, participantId],
+  );
   const detail = useMemo(
     () => personDetail(scoped, participantId, nameOf),
     [scoped, participantId, nameOf],
@@ -346,7 +353,7 @@ export function Person(props: {
         back={<BackLink label="← 기록" fallback={props.back} />}
         title={person.name}
         badge={person.status === "archived" && <span className="badge">보관</span>}
-        desc={`${scopeLabel} 기록 · 배치·MMR·칭호는 누적 기준`}
+        desc={`${scopeLabel} 기록`}
         actions={
           <>
             {props.openGraphs && (
@@ -373,6 +380,7 @@ export function Person(props: {
           }}
         />
       </FilterBar>
+      <ScopeBasis snapshot={snapshot} scope={scope} matches={joined} countPrefix="참여 " />
 
       <section className="card person-summary full" aria-label="요약">
         {/* 범위는 이 첫 제목과 화면 설명에만 쓴다. 아래 제목마다 "(2026 시즌)"을 붙이면 같은 말이 여덟 번 되풀이된다. */}

@@ -7418,6 +7418,29 @@ label:has(> select) {
   font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
 }
+/* 기준 줄(screenKit ScopeBasis): 범위 고르기 바로 아래, 모든 통계 화면에서 같은 꼴. "기준" 머리 + 두 줄 본문.
+   첫 줄(범위·확정 경기 수)만 주요 글자색으로 두고 둘째 줄 규칙은 보조 글자색이다. 숫자가 나란히 바뀌니 tabular-nums. */
+.scope-basis {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.scope-basis-head {
+  flex: none;
+  font-weight: 500;
+}
+.scope-basis-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.scope-basis-main {
+  color: var(--ih-text);
+}
 input[type="search"].filter-search {
   flex: 1 1 12rem;
   width: auto;
@@ -8778,4 +8801,20 @@ input[type="search"].filter-search {
 }
 .feedback-list .list-row > div {
   min-width: 0;
+}
+
+/* 편성 넘기기(screens/prep/HandoffNote.tsx). 안내 글과 버튼 줄을 한 덩어리로 두고, 좁으면 버튼 줄이 아래로 내려간다.
+   준비 화면의 넘긴 것이 없을 때 줄(.handoff-line)은 예전 "이 기기에만 있어요" 배지 자리라 카드 없이 한 줄이다. */
+.handoff-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+.handoff-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
 }

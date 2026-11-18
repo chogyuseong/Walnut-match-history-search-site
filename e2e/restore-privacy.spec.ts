@@ -136,7 +136,7 @@ test("백업 내려받기 → 경기 추가 → 복원하면 백업 시점으로
   expect(after.group.maintenance).toBe(false);
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "기록" }).click();
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /전체 경기 · 2경기 확정/ })).toBeVisible();
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정 2경기");
 
   // 7) 복원 뒤에도 같은 탭에서 바로 저장할 수 있다(새 세대를 받아 둠).
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "모임" }).click();

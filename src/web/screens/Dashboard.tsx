@@ -234,7 +234,7 @@ export function Dashboard(props: {
           )}
           <p className="hint">
             모임의 최근 {ACTIVE_WINDOW}경기에 나온 사람만 봐요. 최근 승률은 {RECENT_FORM_GAMES}경기를
-            채운 사람만 넣어요. 결과 미입력·제외 경기는 세지 않아요.
+            채운 사람만 넣어요. 결과 미입력·전적 제외 경기는 세지 않아요.
           </p>
         </section>
       </div>

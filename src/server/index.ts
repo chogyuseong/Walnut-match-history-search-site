@@ -1,4 +1,5 @@
 import { saveSupportCounts } from "./supportCounts";
+import { clearDraftHandoff, pruneDraftHandoffs, putDraftHandoff, readDraftHandoff } from "./draftHandoff";
 import { Hono } from "hono";
 import {
   clearSessionCookie,
@@ -710,6 +711,28 @@ app.get("/api/groups/:gid/export", async (c) => {
   return c.json(await exportBackup(c.env, gid));
 });
 
+/* ---------------------------- 편성 넘기기 ---------------------------- */
+// 다른 기기·공동 운영자에게 편성 초안을 건넨다(src/server/draftHandoff.ts). 운영자만. 쓰기 둘은 공통 앞단이 운영자·세대를 확인한다.
+
+app.put("/api/groups/:gid/draft-handoff", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await putDraftHandoff(c.env, gid, c.req.raw));
+});
+
+app.get("/api/groups/:gid/draft-handoff", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  return c.json(await readDraftHandoff(c.env, gid));
+});
+
+app.delete("/api/groups/:gid/draft-handoff", async (c) => {
+  const gid = c.req.param("gid");
+  await requireOperator(c.env, c.req.raw, gid);
+  await clearDraftHandoff(c.env, gid, c.req.query("id"));
+  return c.json({ ok: true });
+});
+
 /* ---------------------------- 경기 ---------------------------- */
 
 app.post("/api/groups/:gid/matches/start", async (c) => {
@@ -1094,7 +1117,8 @@ app.all("/api/*", () => {
 });
 
 /**
- * Worker 진입점. fetch는 Hono 앱, scheduled는 자동 백업(src/server/backupCron.ts, wrangler.jsonc의 triggers.crons).
+ * Worker 진입점. fetch는 Hono 앱, scheduled는 자동 백업(src/server/backupCron.ts, wrangler.jsonc의 triggers.crons)과
+ * 오래된 넘긴 편성 정리(src/server/draftHandoff.ts).
  * 테스트(test/direct.ts 등)는 이 객체의 fetch를 그대로 부른다.
  */
 const worker = {
@@ -1104,6 +1128,12 @@ const worker = {
       runBackups(env, controller.scheduledTime).then(
         (result) => console.log(JSON.stringify({ at: nowIso(), cron: controller.cron, backups: result })),
         (error: unknown) => console.error(JSON.stringify({ at: nowIso(), cron: controller.cron, error: String(error) })),
+      ),
+    );
+    // 이어받지 않은 넘긴 편성 정리(draftHandoff.ts). 행이 없으면 쓰기 0행이라 실행마다 불러도 된다.
+    ctx.waitUntil(
+      pruneDraftHandoffs(env, controller.scheduledTime).catch((error: unknown) =>
+        console.error(JSON.stringify({ at: nowIso(), cron: controller.cron, handoffPrune: String(error) })),
       ),
     );
   },
