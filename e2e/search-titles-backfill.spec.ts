@@ -132,7 +132,7 @@ test("검색 메뉴 → 개인 통계, 칭호가 검색·랭킹·개인·그래�
 
   // 결과를 누르면 개인 통계로 간다. 칭호는 요약에도 같게 나온다.
   await box.fill("선수02");
-  await results.first().getByRole("button").click();
+  await results.first().getByRole("button").first().click();
   await expect(page).toHaveURL(/#\/p\//);
   await expect(page.getByRole("heading", { level: 1, name: "선수02" })).toBeVisible();
   const summary = page.getByRole("region", { name: "요약" });
@@ -159,7 +159,7 @@ test("검색 메뉴 → 개인 통계, 칭호가 검색·랭킹·개인·그래�
   await page.getByRole("searchbox").fill("선수02");
   const viewerRow = page.getByRole("region", { name: "검색 결과" }).getByRole("listitem");
   await expect(viewerRow).toContainText("전장의 지배자");
-  await viewerRow.getByRole("button").click();
+  await viewerRow.getByRole("button").first().click();
   await expect(page).toHaveURL(new RegExp(`#/v/${snapshot.group.viewToken}/p/`));
   await expect(page.getByRole("region", { name: "요약" })).toContainText("전장의 지배자");
 });

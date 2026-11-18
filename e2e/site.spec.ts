@@ -313,9 +313,9 @@ test("두 사람 비교: 개인 통계·검색에서 들어가고 조회 링크�
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "검색" }).click();
   await page.getByRole("button", { name: "두 사람 비교" }).click();
   await page.getByRole("searchbox").fill("선수01");
-  await page.getByRole("region", { name: "검색 결과" }).getByRole("button").click();
+  await page.getByRole("region", { name: "검색 결과" }).getByRole("button").first().click();
   await page.getByRole("searchbox").fill("선수06");
-  await page.getByRole("region", { name: "검색 결과" }).getByRole("button").click();
+  await page.getByRole("region", { name: "검색 결과" }).getByRole("button").first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("선수01 vs 선수06");
   await expect(page.getByRole("region", { name: "상대일 때" })).toContainText("선수01 7승 : 3승 선수06");
 

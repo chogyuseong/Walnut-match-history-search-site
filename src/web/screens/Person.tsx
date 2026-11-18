@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { scopeSuffix, useRouteScope } from "../routeQuery";
 import {
   bestLine,
   COMPARE_MIN_GAMES,
@@ -15,7 +16,6 @@ import {
   scopeLabel as scopeLabelOf,
   SMALL_SAMPLE,
   type PairTally,
-  type Scope,
   type Tally,
 } from "../../shared/stats";
 import { LANE_RIVAL_MIN, laneRivals, laneRivalSummary, pairRecord } from "../../shared/headToHead";
@@ -101,13 +101,19 @@ export function Person(props: {
   back: () => void;
   openMatch: (id: string) => void;
   openPerson: (id: string) => void;
-  /** 이 사람과 다른 사람을 비교하는 화면으로 간다. other가 있으면 그 사람과 바로 비교한다. */
-  openCompare?: (id: string, other?: string) => void;
+  /**
+   * 이 사람과 다른 사람을 비교하는 화면으로 간다. other가 있으면 그 사람과 바로 비교한다.
+   * query: 비교 주소 뒤에 그대로 붙일 꼬리("?scope=today" 등, routeQuery.ts scopeSuffix). 지금 고른 기간을 비교로 넘긴다.
+   * 부르는 쪽(App.tsx·Viewer.tsx)이 기간을 해석하지 않고 글자만 붙이게 한 것은, 첫 화면 묶음인 App.tsx가 routeQuery.ts까지
+   * 받지 않게 하기 위해서다(check:bundle 첫 화면 예산 17KB).
+   */
+  openCompare?: (id: string, other?: string, query?: string) => void;
   /** 그래프 분석을 이 사람을 고른 채로 연다(#/graphs/ID). 검색에서 한 명만 맞으면 이 화면으로 오므로 검색 → 분석이 한 번에 이어진다. */
   openGraphs?: (id: string) => void;
 }) {
   const { snapshot, participantId } = props;
-  const [scope, setScope] = useState<Scope>({ kind: "all" });
+  // 기간은 주소(?scope=)에 남겨 뒤로 왔을 때·링크로 열 때 그대로 열고, 비교 화면으로 갈 때 넘긴다.
+  const [scope, setScope] = useRouteScope(snapshot, participantId);
   const [pairOrder, setPairOrder] = useState<"games" | "rate">("games");
   const [shown, setShown] = useState(FIRST_PAGE);
   const [pairsOpen, setPairsOpen] = useState<{ synergy: boolean; versus: boolean }>({
@@ -349,7 +355,7 @@ export function Person(props: {
               </button>
             )}
             {props.openCompare && (
-              <button type="button" className="secondary" onClick={() => props.openCompare!(participantId)}>
+              <button type="button" className="secondary" onClick={() => props.openCompare!(participantId, undefined, scopeSuffix(scope))}>
                 다른 사람과 비교
               </button>
             )}
@@ -653,7 +659,7 @@ export function Person(props: {
               <button
                 type="button"
                 className="secondary compare-cta"
-                onClick={() => props.openCompare!(participantId, rival)}
+                onClick={() => props.openCompare!(participantId, rival, scopeSuffix(scope))}
               >
                 <strong>
                   {person.name} vs {nameOf(rival)} 비교 보기
@@ -709,7 +715,7 @@ export function Person(props: {
                       className="list-row has-bar"
                       onClick={() =>
                         props.openCompare
-                          ? props.openCompare(participantId, r.opponentId)
+                          ? props.openCompare(participantId, r.opponentId, scopeSuffix(scope))
                           : props.openPerson(r.opponentId)
                       }
                     >

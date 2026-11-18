@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   presetWinnerSide,
   teamASideFromWinner,
@@ -12,6 +12,7 @@ import { mutate, newRequestId } from "../api";
 import { MemoField, memoTooLong } from "../memoField";
 import { formatTime, TEAM_MARK, teamBoxClass, teamName, teamRoster, winnerText } from "../format";
 import { ChampionFields } from "../lazyScreens";
+import { clearResultDraft, loadResultDraft, saveResultDraft, type ResultDraft } from "../resultDraft";
 import { Dialog, ErrorNote } from "../ui";
 import { useAppValue } from "../useApp";
 
@@ -73,6 +74,49 @@ export function ResultSheet(props: {
   const [championsOpen, setChampionsOpen] = useState(false);
   const [champions, setChampions] = useState<Record<string, string>>({});
   const championCount = Object.keys(champions).length;
+  // 이 기기에 남은 작성 중 내용(결과 입력만, resultDraft.ts). 이어 쓸지 버릴지 고르기 전까지는 덮어쓰지 않는다.
+  // 열자마자 저절로 채우지 않고 묻는 것은, 다른 운영자가 그 사이 같은 경기를 다르게 본 경우 옛 입력을 모르고 저장하지 않게 하려는 것이다.
+  // hasInput: 창을 연 뒤 실제로 무언가 고르거나 쓴 경우만 남긴다(빈 창을 열고 닫기만 하면 아무것도 남기지 않는다).
+  const [leftover, setLeftover] = useState<ResultDraft | null>(() =>
+    props.mode === "result" && app.groupId ? loadResultDraft(app.groupId, match.id) : null,
+  );
+  const hasInput = winner !== null || memo !== (match.memo ?? "") || championCount > 0;
+  useEffect(() => {
+    if (props.mode !== "result" || !app.groupId || !hasInput) return;
+    // 남은 내용을 고르지 않고 새로 입력하기 시작하면 새 입력을 남긴다(창에 보이는 쪽이 사용자가 원하는 내용이다).
+    setLeftover(null);
+    saveResultDraft(app.groupId, match.id, {
+      matchVersion: match.version,
+      winner,
+      side,
+      memo,
+      champions,
+      savedAt: Date.now(),
+    });
+  }, [props.mode, app.groupId, match.id, match.version, hasInput, winner, side, memo, champions]);
+
+  /**
+   * 남은 내용으로 창을 채운다. 진영은 남은 값 그대로 쓴다(시작 때 진영이 바뀌었으면 요약의 "진영이 반대예요" 안내가 뜬다).
+   * 챔피언 칸이 비어 있지 않으면 접힌 영역을 펼쳐 둔다. 펼치지 않으면 저장 때 챔피언을 보내는데 화면에는 안 보인다.
+   */
+  function resume(draft: ResultDraft) {
+    // 그 사이 명단이 바뀌었을 수 있으니 지금 명단에 있는 사람의 챔피언만 되살린다.
+    const inRoster = new Set(match.roster.map((r) => r.participantId));
+    const kept = Object.fromEntries(Object.entries(draft.champions).filter(([id]) => inRoster.has(id)));
+    setWinner(draft.winner);
+    setSide(draft.side);
+    setMemo(draft.memo);
+    setChampions(kept);
+    setChampionsOpen(Object.keys(kept).length > 0);
+    setLeftover(null);
+  }
+
+  /** 남은 내용을 이 기기에서 지우고 빈 창으로 시작한다. */
+  function discard() {
+    if (app.groupId) clearResultDraft(app.groupId, match.id);
+    setLeftover(null);
+  }
+
   // 요청 ID는 창을 열 때 한 번 만들고, 내용이 바뀌면 새로 만든다. 재시도에는 같은 값을 쓴다.
   const request = useRef<{ id: string; key: string } | null>(null);
 
@@ -109,6 +153,7 @@ export function ResultSheet(props: {
             };
       const result = await mutate<{ match: MatchView }>(path, body);
       setSaved(result.match);
+      if (props.mode === "result") clearResultDraft(app.groupId, match.id);
       await app.refreshAfterOwnChange();
       props.onSaved?.(result.match);
     } catch (e) {
@@ -118,11 +163,36 @@ export function ResultSheet(props: {
     }
   }
 
+  // 이어 쓰기 안내. 두 화면(큰 버튼 화면·3단계 화면) 맨 위에 같은 것을 둔다.
+  // 경기 버전이 다르면(그 사이 명단 교체·진영 정정 등) 되살리기는 허락하되 다시 확인하라고 적는다.
+  // 결과가 이미 확정된 경기는 이 창(결과 입력)이 열리지 않으므로 확정 결과를 옛 입력으로 덮을 일은 없다(서버도 baseMatchVersion으로 막는다).
+  const leftoverNote = leftover && (
+    <div className="note draft-note" role="status">
+      <p>
+        {formatTime(new Date(leftover.savedAt).toISOString())}에 작성하던 내용이 이 기기에 남아 있어요.
+        {leftover.matchVersion !== match.version &&
+          " 그 사이 이 경기가 다른 곳에서 바뀌었어요. 이어 쓴 뒤 명단과 진영을 다시 확인해 주세요."}
+      </p>
+      <div className="draft-note-actions">
+        <button type="button" className="secondary" onClick={() => resume(leftover)}>
+          작성하던 내용 이어 쓰기
+        </button>
+        <button type="button" className="link" onClick={discard}>
+          버리고 새로 입력
+        </button>
+      </div>
+    </div>
+  );
+
   const title = `${match.matchNo}경기 ${props.mode === "result" ? "결과" : "승리 팀 수정"}`;
 
   // 펼치기 전에는 고르기 칸(과 챔피언 목록 조각)을 그리지 않는다.
   const championSection = (
-    <details className="champ-details" onToggle={(e) => setChampionsOpen(e.currentTarget.open)}>
+    <details
+      className="champ-details"
+      open={championsOpen}
+      onToggle={(e) => setChampionsOpen(e.currentTarget.open)}
+    >
       <summary>
         챔피언도 기록하기(선택)
         {championCount > 0 ? ` · ${championCount}명` : ""}
@@ -170,6 +240,7 @@ export function ResultSheet(props: {
   if (quick) {
     return (
       <Dialog title={title} onClose={props.onClose}>
+        {leftoverNote}
         <div className="result-pick" role="group" aria-label="어느 팀이 이겼나요?">
           {TEAMS.map((team) => (
             <button
@@ -244,6 +315,7 @@ export function ResultSheet(props: {
 
   return (
     <Dialog title={title} onClose={props.onClose}>
+      {leftoverNote}
       {props.mode === "correct" && (
         <p className="note">
           승리 팀을 바꾸면 10명의 승패가 서로 바뀌어요. 진영을 다시 확인해 주세요.

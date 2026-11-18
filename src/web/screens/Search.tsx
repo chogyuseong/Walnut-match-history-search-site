@@ -18,6 +18,18 @@ import { useSearchJump } from "../ui";
 
 /** 경기 결과를 처음에 보여주는 수와 "더 보기"로 더 여는 수. */
 const MATCH_PAGE = 20;
+/**
+ * "참가 경기 보기": 같은 모임 주소 아래의 기록 화면을 이 사람 조건·전체 기간으로 연다(조건 이름은 Records.tsx "보기 조건 ↔ 주소").
+ * 지금 주소의 ".../search"를 ".../records"로 바꾸므로 운영자(#/search)·모임 링크(#/v/토큰/search)·참가 중인 모임·예시가
+ * 따로 길을 넘겨주지 않아도 된다. App.tsx에서 넘기지 않는 것은 첫 화면 묶음 예산(check:bundle 17KB) 때문이기도 하다.
+ */
+function personMatchesHash(personId: string): string {
+  const path = location.hash.replace(/\?.*$/, "").replace(/\/search$/, "/records");
+  return `${path}?scope=all&who=${encodeURIComponent(personId)}`;
+}
+
+/** 사람 결과가 이 수 이하일 때만 줄마다 "참가 경기 보기"를 단다. 초성 한 글자처럼 여러 명이 걸리면 줄만 길어진다. */
+const MATCH_LINK_MAX_PEOPLE = 3;
 
 /** "2026-11-07" → "11월 7일"(올해가 아니면 "2025년 11월 7일"). */
 function dateTitle(date: string, today: string): string {
@@ -281,6 +293,19 @@ export function Search(props: {
                     </span>
                     {r.games > 0 && <RateBar wins={r.wins} games={r.games} small hued />}
                   </button>
+                  {/* 경기 검색이 되는 검색(openMatch가 있음)에서만 둔다. 기록 화면이 없는 곳에서 쓰는 검색에는 갈 곳이 없다. */}
+                  {props.openMatch && !comparing && r.games > 0 && found.length <= MATCH_LINK_MAX_PEOPLE && (
+                    <button
+                      type="button"
+                      className="link person-matches"
+                      onClick={() => {
+                        remember(query);
+                        location.hash = personMatchesHash(r.id);
+                      }}
+                    >
+                      {r.name} 참가 경기 보기 →
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

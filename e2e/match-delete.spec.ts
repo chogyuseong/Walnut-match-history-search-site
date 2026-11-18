@@ -103,7 +103,8 @@ test("운영자가 경기 상세에서 지우면 기록·랭킹에서 사라지�
   await noHorizontalOverflow(page);
   await confirm.click();
 
-  await expect(page).toHaveURL(/#\/records$/);
+  // 기록 화면은 보기 조건을 주소에 적는다(#/records?scope=today 등, Records.tsx "보기 조건 ↔ 주소").
+  await expect(page).toHaveURL(/#\/records(\?|$)/);
   await expect(page.getByRole("status").filter({ hasText: `${second.matchNo}경기를 지웠어요` })).toBeVisible();
   const list = page.getByRole("region", { name: "경기 목록" });
   await expect(list.getByRole("heading", { level: 2 })).toContainText("1경기 확정");

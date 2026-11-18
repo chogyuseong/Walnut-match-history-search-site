@@ -664,6 +664,19 @@ details.help > .help-body p {
 .note.warn {
   border-color: var(--ih-control-border);
 }
+/* 결과 입력 창: 이 기기에 남은 작성 중 내용(resultDraft.ts) 이어 쓰기 안내 */
+.draft-note {
+  margin-bottom: var(--space-3);
+}
+.draft-note p {
+  margin: 0 0 var(--space-2);
+}
+.draft-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
 .note.error {
   border-color: var(--ih-danger);
 }
@@ -1827,6 +1840,14 @@ button.list-row:not(:disabled):hover {
 /* 카드가 넘치는 부분을 잘라 내므로 초점 테두리는 줄 안쪽에 그린다. */
 .list-card .list-row:focus-visible,
 .list-card .list-row :focus-visible {
+  outline-offset: -2px;
+}
+/* 검색 결과 사람 줄 아래 "참가 경기 보기 →"(Search.tsx). 줄 글자와 왼쪽을 맞추고, 카드가 잘라 내지 않게 초점은 안쪽에.
+   왼쪽 여백 8px + .link 자체 안쪽 여백 4px = 사람 줄(.list-card .list-row)의 왼쪽 안쪽 여백 12px. 한쪽을 바꾸면 같이 맞춘다. */
+.list-card .person-matches {
+  margin: 0 0 var(--space-1) var(--space-2);
+}
+.list-card .person-matches:focus-visible {
   outline-offset: -2px;
 }
 
@@ -3018,6 +3039,12 @@ main:focus {
 .filter-summary > span {
   min-width: 0;
   padding: var(--space-2) 0;
+}
+.filter-summary > .filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* 개인 통계 요약 */

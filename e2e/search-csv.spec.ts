@@ -139,7 +139,7 @@ test("초성 검색 → 개인 통계, 주소 반영과 뒤로 가기, 최근 �
 
   // 결과를 누르면 개인 통계, 뒤로 가면 같은 질의의 검색 화면.
   await box.fill("ㄱㅅㅇ");
-  await results.first().getByRole("button").click();
+  await results.first().getByRole("button").first().click();
   await expect(page.getByRole("heading", { level: 1, name: "김선우" })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole("heading", { level: 1, name: "전적 검색" })).toBeVisible();
@@ -204,7 +204,8 @@ test('단축키 "/": 입력 칸 밖에서 누르면 검색 화면으로 가서 �
   await rankSearch.click();
   await page.keyboard.press("/");
   await expect(rankSearch).toHaveValue("/");
-  await expect(page).toHaveURL(/#\/records$/);
+  // 기록 화면은 보기 조건을 주소에 적는다(#/records?scope=today 등, Records.tsx "보기 조건 ↔ 주소").
+  await expect(page).toHaveURL(/#\/records(\?|$)/);
 
   await rankSearch.blur();
   await page.locator("h1").click();
@@ -265,7 +266,7 @@ test("조회 링크: 주소로 연 검색, 단축키, CSV 내려받기(로그인
   await noHorizontalOverflow(guest, "조회 링크 검색");
 
   // 결과 → 개인 통계 → 뒤로 가기.
-  await results.first().getByRole("button").click();
+  await results.first().getByRole("button").first().click();
   await expect(guest.getByRole("heading", { level: 1, name: "홍진호" })).toBeVisible();
   await guest.goBack();
   await expect(box).toHaveValue("ㅎㅈ");

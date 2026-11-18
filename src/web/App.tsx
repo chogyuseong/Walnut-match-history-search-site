@@ -587,7 +587,7 @@ function OperatorScreen(props: { route: string[] }) {
         back={() => go("/records")}
         openMatch={(matchId) => go(`/m/${matchId}`)}
         openPerson={(personId) => go(`/p/${personId}`)}
-        openCompare={(personId, other) => go(`/compare/${personId}/${other ?? "-"}`)}
+        openCompare={(personId, other, query) => go(`/compare/${personId}/${other ?? "-"}${query ?? ""}`)}
         openGraphs={(personId) => go(`/graphs/${personId}`)}
       />
     );

@@ -517,7 +517,7 @@ test("화면 이동: 검색에서 연 개인 통계의 '← 뒤로'는 검색으
   await finish(page.request, s, await start(page.request, s, s.people.slice(0, 10)), "A", "blue");
   await page.goto("/#/search");
   await page.getByRole("searchbox", { name: "이름·날짜·메모 검색" }).fill("선수03");
-  await page.getByRole("region", { name: "검색 결과" }).getByRole("button").click();
+  await page.getByRole("region", { name: "검색 결과" }).getByRole("button").first().click();
   await expect(page.getByRole("heading", { level: 1, name: "선수03" })).toBeVisible();
   await page.getByRole("button", { name: "← 뒤로" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "전적 검색" })).toBeVisible();

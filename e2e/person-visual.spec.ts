@@ -159,7 +159,7 @@ test("랭킹은 누적 50경기 이상을 먼저, 개인 통계는 그림과 숫
 
   // 개인 통계(선수02: 누적 60경기, 정글만, 20승 40패).
   await page.getByRole("searchbox").fill("선수02");
-  await results.first().getByRole("button").click();
+  await results.first().getByRole("button").first().click();
   await expect(page.getByRole("heading", { name: "선수02", level: 1 })).toBeVisible();
   const summary = page.getByRole("region", { name: "요약" });
   await expect(summary.locator(".ring")).toBeVisible();

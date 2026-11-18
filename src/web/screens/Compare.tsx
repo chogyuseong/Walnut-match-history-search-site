@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useRouteScope } from "../routeQuery";
 import { laneDuelSplit } from "../../shared/headToHead";
 import {
   COMPARE_MIN_GAMES,
@@ -20,7 +21,6 @@ import {
   personRecords,
   scopeLabel as scopeLabelOf,
   SMALL_SAMPLE,
-  type Scope,
   type Tally,
 } from "../../shared/stats";
 import { resolveMerged } from "../../shared/merge";
@@ -110,7 +110,8 @@ export function Compare(props: {
   // 합쳐진 사람의 주소로 들어오면 남은 사람으로 비교한다(기록은 모두 남은 사람에게 있다).
   const a = props.a && props.a !== "-" ? resolveMerged(snapshot.participants, props.a) : null;
   const b = props.b && props.b !== "-" ? resolveMerged(snapshot.participants, props.b) : null;
-  const [scope, setScope] = useState<Scope>({ kind: "all" });
+  // 개인 통계에서 넘어오면 그 기간(?scope=)으로 연다. 사람을 바꿔도 기간을 주소에 다시 적는다.
+  const [scope, setScope] = useRouteScope(snapshot, `${a ?? "-"}/${b ?? "-"}`);
   const [list, setList] = useState<"against" | "together">("against");
   const [shown, setShown] = useState(FIRST_PAGE);
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);

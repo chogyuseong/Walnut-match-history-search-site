@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   anchorRecord,
   EMPTY_FILTER,
@@ -88,7 +88,8 @@ import {
   SortHead,
   StandingNote,
 } from "../screenKit";
-import { Dialog, ErrorNote, useSearchJump } from "../ui";
+import { readRouteParams, replaceRouteParams, scopeFromParam, scopeParam, useScrollMemory } from "../routeQuery";
+import { CopyButton, Dialog, ErrorNote, useSearchJump } from "../ui";
 import type { AppValue } from "../useApp";
 import { ResultSheet } from "./ResultSheet";
 
@@ -287,6 +288,111 @@ function MatchFilterPeople(props: {
   );
 }
 
+/* ---------- 보기 조건 ↔ 주소(2026-11-18) ----------
+   기록 화면의 보기 조건을 주소 "?" 뒤에 남긴다. 경기 상세에 다녀와도, 새로 고쳐도, 주소를 남에게 보내도 같은 목록이 열린다.
+   운영자(#/records), 모임 링크(#/v/토큰/records), 참가 중인 모임(#/mine/모임/records), 예시(#/demo/records)가 같은 규칙을 쓴다.
+
+   주소 이름 | 뜻                                    | 적지 않을 때(기본값)
+   scope    | 범위 all·today·season.ID·year.2026    | 늘 적는다(아래 readRecordsView 참고)
+   who      | 거를 사람 ID, 쉼표로 이음(첫 사람 = 기준) | 사람 조건 없음
+   pos      | 기준인 사람의 라인                       | 라인 모두
+   res      | 기준인 사람의 승패 win·loss              | 승패 모두
+   side     | 이긴 진영 blue·red·unknown              | 진영 모두
+   sort     | 플레이어 랭킹 정렬 wins·games·rating      | rate(승률)
+   line     | 플레이어 랭킹의 라인                      | 모든 라인
+   n        | 경기 목록에 펼친 개수                     | PAGE(30)
+
+   조건을 하나 더 남기려면 세 곳을 함께 고친다: RecordsView(모양), readRecordsView(읽기·검사), recordsParams(쓰기).
+   이 표도 같이 고친다. 이름은 주소에 그대로 보이므로 짧고 뜻이 드러나게, 이미 공유된 링크가 깨지지 않게 바꾸지 않는다.
+   랭킹 이름 검색 칸(query)은 일부러 남기지 않는다: 잠깐 찾아보는 용도라 뒤로 왔을 때 걸러진 순위표가 남으면 오히려 헷갈린다.
+   다른 화면에서 조건을 붙여 기록 화면을 열 때(검색의 "참가 경기 보기" 등)도 이 이름을 쓴다(App.tsx·Viewer.tsx). */
+
+/** 기록 화면에서 주소(#/records?…)에 남기는 보기 조건. */
+interface RecordsView {
+  scope: Scope;
+  filter: MatchFilter;
+  sort: RankingSort;
+  /** 플레이어 랭킹의 라인(경기 거르기의 라인 filter.position과 따로다). */
+  line: Position | null;
+  /** 경기 목록에 펼친 개수. 뒤로 왔을 때 스크롤 위치가 같은 경기를 가리키려면 이것도 남겨야 한다. */
+  shown: number;
+}
+
+// 주소에서 받아도 되는 값 목록. 타입(RankingSort 등)에 값을 더하면 여기에도 더해야 주소로 열 수 있다
+// (빠뜨리면 그 값은 주소에서 무시되고 기본값으로 열릴 뿐 오류는 나지 않는다).
+const RANKING_SORTS: readonly RankingSort[] = ["rate", "wins", "games", "rating"];
+const RESULT_FILTERS: readonly MatchFilter["result"][] = ["win", "loss"];
+const WINNER_SIDES: readonly WinnerSideFilter[] = ["blue", "red", "unknown"];
+
+/** 주소 값이 허용 목록에 있으면 그 값, 없으면(빈 값·오타·옛 이름) null. */
+function pickOne<T extends string>(value: string | null, allowed: readonly (T | null)[]): T | null {
+  return allowed.includes(value as T) ? (value as T) : null;
+}
+
+/**
+ * 주소 조건 → 보기 조건. 손으로 고친 주소나 지워진 사람·시즌이 있어도 화면이 깨지지 않게 모르는 값은 기본값으로 둔다.
+ * 범위가 주소에 없으면 예전처럼 최근 세션에 경기가 있을 때만 "오늘", 아니면 전체로 연다.
+ * 주의:
+ * - 합치기로 사라진 사람 ID는 participants에 없어서 조건에서 빠진다(남은 사람으로 바꿔 주지는 않는다).
+ * - 라인·승패는 기준인 사람이 있을 때만 뜻이 있어(MatchFilter 주석) 사람이 없으면 버린다.
+ * - 화면이 처음 그려질 때 한 번만 부른다. 그 뒤로는 화면 상태가 주인이고 주소는 따라 적힐 뿐이다.
+ */
+function readRecordsView(snapshot: Snapshot): RecordsView {
+  const params = readRouteParams();
+  const known = new Set(snapshot.participants.map((p) => p.id));
+  const people = [...new Set((params.get("who") ?? "").split(",").filter((id) => known.has(id)))];
+  const scope =
+    scopeFromParam(params.get("scope"), snapshot) ??
+    (matchesInScope(snapshot, { kind: "today" }).length > 0 ? { kind: "today" } : { kind: "all" });
+  const shown = Number(params.get("n"));
+  return {
+    scope,
+    filter: {
+      people,
+      position: people.length > 0 ? pickOne(params.get("pos"), POSITIONS) : null,
+      result: people.length > 0 ? pickOne(params.get("res"), RESULT_FILTERS) : null,
+      winnerSide: pickOne(params.get("side"), WINNER_SIDES),
+    },
+    sort: pickOne(params.get("sort"), RANKING_SORTS) ?? "rate",
+    line: pickOne(params.get("line"), POSITIONS),
+    shown: Number.isInteger(shown) && shown > PAGE ? shown : PAGE,
+  };
+}
+
+/**
+ * 보기 조건 → 주소 조건. 주소가 짧게 남도록 기본값은 적지 않는다.
+ * 범위만은 늘 적는다: 범위의 기본값은 "오늘 경기가 있는지"에 따라 바뀌어서, 빼 두면 다음 날 같은 주소가 다른 목록을 연다.
+ */
+function recordsParams(view: RecordsView): URLSearchParams {
+  const params = new URLSearchParams({ scope: scopeParam(view.scope) });
+  const { filter } = view;
+  if (filter.people.length > 0) params.set("who", filter.people.join(","));
+  if (filter.position) params.set("pos", filter.position);
+  if (filter.result) params.set("res", filter.result);
+  if (filter.winnerSide) params.set("side", filter.winnerSide);
+  if (view.sort !== "rate") params.set("sort", view.sort);
+  if (view.line) params.set("line", view.line);
+  if (view.shown > PAGE) params.set("n", String(view.shown));
+  return params;
+}
+
+/**
+ * "이 조건으로 공유"에 넣을 주소. 운영자 주소(#/records)는 로그인한 운영자만 열 수 있어서, 모임 링크가 있으면
+ * 모임 링크의 기록 화면(#/v/토큰/records)으로 바꿔 보낸다. 모임 링크·예시 모임에서는 지금 주소 그대로다.
+ * 운영자인데 모임 링크가 없으면 보낼 주소가 없어 null(버튼을 숨긴다).
+ * 참가 중인 모임(#/mine/…)은 지금 주소를 그대로 준다. 받는 사람도 그 모임에 로그인해 있어야 열린다.
+ */
+function shareLinkOf(snapshot: Snapshot, params: URLSearchParams): string | null {
+  const query = params.toString();
+  if (location.hash.startsWith("#/records")) {
+    const token = snapshot.group.viewToken;
+    return token ? `${location.origin}/#/v/${token}/records?${query}` : null;
+  }
+  // 주소는 효과(useEffect)에서 고치므로 그리는 순간의 location.hash는 한 박자 늦을 수 있다. 경로만 쓰고 조건은 새로 붙인다.
+  const path = location.hash.replace(/\?.*$/, "");
+  return `${location.origin}${location.pathname}${path}?${query}`;
+}
+
 /** 플레이어 랭킹 머리 줄의 정렬 열 이름. 정렬 이름(RANKING_SORT_LABEL, 도움말에 쓴다)과 달리 열 머리라 "MMR"만 쓴다. */
 const RANK_COLUMN_LABEL: Record<RankingSort, string> = { rate: "승률", wins: "승수", games: "경기 수", rating: "MMR" };
 
@@ -312,16 +418,32 @@ export function Records(props: {
   const { snapshot } = props;
   const seriesBadge = useSeriesBadges(snapshot);
   const expectation = useExpectations(snapshot);
-  // 최근 세션에 경기가 없으면 "오늘"이 비어 보이므로 전체로 연다.
-  const [scope, setScope] = useState<Scope>(() =>
-    matchesInScope(snapshot, { kind: "today" }).length > 0 ? { kind: "today" } : { kind: "all" },
-  );
-  const [shown, setShown] = useState(PAGE);
+  // 처음 보기 조건은 주소에서 읽는다(뒤로 왔을 때·공유 링크). 한 번만 읽고 그 뒤로는 화면 상태를 주소에 적는다.
+  // 흐름: 화면 상태(scope·filter·sort·line·shown) → viewParams → 아래 효과가 replaceRouteParams로 주소를 고친다.
+  // 주소를 고쳐도 화면 상태를 다시 읽지 않으므로 둘이 서로를 바꾸며 도는 일은 없다.
+  const [initial] = useState(() => readRecordsView(snapshot));
+  const [scope, setScope] = useState<Scope>(initial.scope);
+  const [shown, setShown] = useState(initial.shown);
   const [query, setQuery] = useState("");
   const rankJump = useSearchJump<HTMLDivElement>();
-  const [filter, setFilterState] = useState<MatchFilter>(EMPTY_FILTER);
-  const [sort, setSort] = useState<RankingSort>("rate");
-  const [line, setLine] = useState<Position | null>(null);
+  const [filter, setFilterState] = useState<MatchFilter>(initial.filter);
+  const [sort, setSort] = useState<RankingSort>(initial.sort);
+  const [line, setLine] = useState<Position | null>(initial.line);
+  const viewParams = useMemo(
+    () => recordsParams({ scope, filter, sort, line, shown }),
+    [scope, filter, sort, line, shown],
+  );
+  useEffect(() => {
+    replaceRouteParams(viewParams);
+    // 기록 화면에서 메뉴의 "기록"을 다시 누르면 조건 없는 주소가 되지만 화면 상태는 그대로다. 주소를 화면에 다시 맞춘다.
+    const keep = () => {
+      if (location.hash.replace(/\?.*$/, "").endsWith("/records")) replaceRouteParams(viewParams);
+    };
+    window.addEventListener("hashchange", keep);
+    return () => window.removeEventListener("hashchange", keep);
+  }, [viewParams]);
+  // 경기 상세에서 뒤로 오면 떠날 때의 스크롤 위치로 돌아간다. 펼친 개수(n)도 주소에 있어 같은 위치가 같은 경기다.
+  useScrollMemory();
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const tz = snapshot.group.timezone;
 
@@ -376,6 +498,7 @@ export function Records(props: {
   // 경기가 한 번도 없으면(지운 경기의 변경 내역도 없으면) 빈 순위표·시리즈·변경 내역 대신 안내 하나만 둔다.
   // 행동은 머리의 "지난 경기 입력"(운영자) 하나다(CLAUDE.md 8절).
   const neverPlayed = snapshot.matches.length === 0 && changeLog.length === 0;
+  const shareLink = filtering ? shareLinkOf(snapshot, viewParams) : null;
 
   return (
     <div className="screen cols records-screen">
@@ -449,9 +572,12 @@ export function Records(props: {
                 ? ` · ${nameOf(anchor)} ${rateText(anchorTally.wins, anchorTally.games)} · ${anchorTally.wins}승 ${anchorTally.games - anchorTally.wins}패 (${anchorTally.games}경기)`
                 : ""}
             </span>
-            <button type="button" className="link" onClick={() => setFilter(EMPTY_FILTER)}>
-              조건 지우기
-            </button>
+            <span className="filter-actions">
+              {shareLink && <CopyButton label="이 조건으로 공유" text={() => shareLink} />}
+              <button type="button" className="link" onClick={() => setFilter(EMPTY_FILTER)}>
+                조건 지우기
+              </button>
+            </span>
           </p>
         )}
         {ordered.length === 0 ? (
