@@ -5,19 +5,28 @@ import { localDate, matchesInScope, personRecords, searchByName, placementGamesO
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rateHueText, rateText, standingsOf } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
+import { arrivedByBack } from "../nav";
 import { addRecentSearch, loadRecentSearches, saveRecentSearches } from "../recentSearch";
-import {
-  pushHashQuery,
-  readHashQuery,
-  replaceHashQuery,
-  SEARCH_FOCUS_EVENT,
-  takeSearchFocus,
-} from "../searchRoute";
+import { pushHashQuery, readHashQuery, readHashShown, replaceHashQuery } from "../searchHash";
+import { SEARCH_FOCUS_EVENT, takeSearchFocus } from "../searchRoute";
 import { ALL_TIME_SCOPE, RateBar, ScopeBasis, ScreenHead, StandingNote } from "../screenKit";
+import { useScrollMemory } from "../scrollMemory";
 import { LineIcon, useSearchJump } from "../ui";
 
 /** 경기 결과를 처음에 보여주는 수와 "더 보기"로 더 여는 수. */
 const MATCH_PAGE = 20;
+
+/**
+ * 검색 주소별로 마지막에 연 경기. 경기 상세에서 뒤로 오면 그 카드에 초점을 돌려줘 키보드로 이어서 훑게 한다.
+ * 스크롤 위치(scrollMemory.ts)처럼 이 창 메모리에만 둔다. 열쇠가 주소 전체라 질의·펼친 수가 다르면 따로 기억한다.
+ */
+const openedMatchByHash = new Map<string, string>();
+
+/** 주소에 적힌 펼친 수. 기본 쪽보다 작거나 없으면 기본 쪽. */
+function initialMatchShown(): number {
+  return Math.max(MATCH_PAGE, readHashShown());
+}
+
 /**
  * "참가 경기 보기": 같은 모임 주소 아래의 기록 화면을 이 사람 조건·전체 기간으로 연다(조건 이름은 Records.tsx "보기 조건 ↔ 주소").
  * 지금 주소의 ".../search"를 ".../records"로 바꾸므로 운영자(#/search)·모임 링크(#/v/토큰/search)·참가 중인 모임·예시가
@@ -63,7 +72,8 @@ export function Search(props: {
   const [comparing, setComparing] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>(() => loadRecentSearches(groupId));
-  const [matchShown, setMatchShown] = useState(MATCH_PAGE);
+  // 펼친 수는 주소(&n=)에도 적어, 경기 상세에 다녀오면 같은 길이로 다시 그린다. 그래야 되돌린 스크롤 위치가 같은 경기를 가리킨다.
+  const [matchShown, setMatchShown] = useState(initialMatchShown);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultJump = useSearchJump<HTMLDivElement>();
   const records = useMemo(() => personRecords(snapshot.matches), [snapshot]);
@@ -100,16 +110,27 @@ export function Search(props: {
     return visible.filter((m) => textContains(m.memo, query));
   }, [blank, props.openMatch, comparing, snapshot, date, tz, query]);
 
-  // 입력하는 동안 주소의 질의를 고친다(기록은 쌓지 않는다).
+  // 입력하는 동안 주소의 질의와 펼친 수를 고친다(기록은 쌓지 않는다).
   useEffect(() => {
-    replaceHashQuery(query);
-  }, [query]);
+    replaceHashQuery(query, matchShown > MATCH_PAGE ? matchShown : 0);
+  }, [query, matchShown]);
+
+  useScrollMemory();
+  // 뒤로 와서 처음 그릴 때만: 마지막에 연 경기 카드에 초점. 스크롤은 위 useScrollMemory가 맞추므로 초점은 화면을 움직이지 않게 준다.
+  useEffect(() => {
+    if (!arrivedByBack()) return;
+    const openedId = openedMatchByHash.get(location.hash);
+    if (!openedId) return;
+    document
+      .querySelector<HTMLElement>(`[data-match-id="${CSS.escape(openedId)}"] .mc-main`)
+      ?.focus({ preventScroll: true });
+  }, []);
 
   // 뒤로 가기·최근 검색어로 주소가 바뀌면 입력 칸을 맞춘다.
   useEffect(() => {
     const onHash = () => {
       setQuery(readHashQuery());
-      setMatchShown(MATCH_PAGE);
+      setMatchShown(initialMatchShown());
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -337,6 +358,7 @@ export function Search(props: {
                     upset={expectation.get(m.id)?.upset}
                     onOpen={() => {
                       remember(query);
+                      openedMatchByHash.set(location.hash, m.id);
                       props.openMatch!(m.id);
                     }}
                     onPerson={(id) => {

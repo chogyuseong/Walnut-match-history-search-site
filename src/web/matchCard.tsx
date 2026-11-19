@@ -64,7 +64,10 @@ export function MatchCard(props: {
   const when = `${props.showDate ? `${formatDate(match.playedAt, props.timeZone)} ` : ""}${formatTime(match.playedAt, props.timeZone)}`;
 
   return (
-    <li className={`match-card match-row tone-${tone}${match.state === "excluded" ? " is-excluded" : ""}`}>
+    <li
+      className={`match-card match-row tone-${tone}${match.state === "excluded" ? " is-excluded" : ""}`}
+      data-match-id={match.id}
+    >
       <div className="mc-head">
         <button type="button" className="mc-main" onClick={props.onOpen}>
           <span className="mc-title">

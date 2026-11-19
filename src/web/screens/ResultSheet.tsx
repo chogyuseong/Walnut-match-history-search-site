@@ -12,7 +12,7 @@ import { mutate, newRequestId } from "../api";
 import { MemoField, memoTooLong } from "../memoField";
 import { formatTime, TEAM_MARK, teamBoxClass, teamName, teamRoster, winnerText } from "../format";
 import { ChampionFields } from "../lazyScreens";
-import { clearResultDraft, loadResultDraft, saveResultDraft, type ResultDraft } from "../resultDraft";
+import { clearResultDraft, loadResultDraft, saveResultDraft, type LoadedResultDraft } from "../resultDraft";
 import { Dialog, ErrorNote } from "../ui";
 import { useAppValue } from "../useApp";
 
@@ -77,15 +77,17 @@ export function ResultSheet(props: {
   // 이 기기에 남은 작성 중 내용(결과 입력만, resultDraft.ts). 이어 쓸지 버릴지 고르기 전까지는 덮어쓰지 않는다.
   // 열자마자 저절로 채우지 않고 묻는 것은, 다른 운영자가 그 사이 같은 경기를 다르게 본 경우 옛 입력을 모르고 저장하지 않게 하려는 것이다.
   // hasInput: 창을 연 뒤 실제로 무언가 고르거나 쓴 경우만 남긴다(빈 창을 열고 닫기만 하면 아무것도 남기지 않는다).
-  const [leftover, setLeftover] = useState<ResultDraft | null>(() =>
+  const [leftover, setLeftover] = useState<LoadedResultDraft | null>(() =>
     props.mode === "result" && app.groupId ? loadResultDraft(app.groupId, match.id) : null,
   );
   const hasInput = winner !== null || memo !== (match.memo ?? "") || championCount > 0;
+  // 이 기기에 남기지 못했는지(저장소가 가득 찼거나 막힘). 입력마다 알리지 않고 창 아래 안내 한 줄로만 둔다.
+  const [draftUnstored, setDraftUnstored] = useState(false);
   useEffect(() => {
     if (props.mode !== "result" || !app.groupId || !hasInput) return;
     // 남은 내용을 고르지 않고 새로 입력하기 시작하면 새 입력을 남긴다(창에 보이는 쪽이 사용자가 원하는 내용이다).
     setLeftover(null);
-    saveResultDraft(app.groupId, match.id, {
+    const stored = saveResultDraft(app.groupId, match.id, {
       matchVersion: match.version,
       winner,
       side,
@@ -93,18 +95,20 @@ export function ResultSheet(props: {
       champions,
       savedAt: Date.now(),
     });
+    setDraftUnstored(!stored);
   }, [props.mode, app.groupId, match.id, match.version, hasInput, winner, side, memo, champions]);
 
   /**
    * 남은 내용으로 창을 채운다. 진영은 남은 값 그대로 쓴다(시작 때 진영이 바뀌었으면 요약의 "진영이 반대예요" 안내가 뜬다).
    * 챔피언 칸이 비어 있지 않으면 접힌 영역을 펼쳐 둔다. 펼치지 않으면 저장 때 챔피언을 보내는데 화면에는 안 보인다.
    */
-  function resume(draft: ResultDraft) {
+  function resume({ draft }: LoadedResultDraft) {
     // 그 사이 명단이 바뀌었을 수 있으니 지금 명단에 있는 사람의 챔피언만 되살린다.
     const inRoster = new Set(match.roster.map((r) => r.participantId));
     const kept = Object.fromEntries(Object.entries(draft.champions).filter(([id]) => inRoster.has(id)));
     setWinner(draft.winner);
-    setSide(draft.side);
+    // 3단계 화면에서 진영을 고르기 전에 닫았으면 진영이 비어 있다. 진영이 정해진 경기는 시작 진영으로 다시 채운다.
+    setSide(draft.side ?? (draft.winner ? presetWinnerSide(draft.winner, match.teamASide) : null));
     setMemo(draft.memo);
     setChampions(kept);
     setChampionsOpen(Object.keys(kept).length > 0);
@@ -169,9 +173,10 @@ export function ResultSheet(props: {
   const leftoverNote = leftover && (
     <div className="note draft-note" role="status">
       <p>
-        {formatTime(new Date(leftover.savedAt).toISOString())}에 작성하던 내용이 이 기기에 남아 있어요.
-        {leftover.matchVersion !== match.version &&
+        {formatTime(new Date(leftover.draft.savedAt).toISOString())}에 작성하던 내용이 이 기기에 남아 있어요.
+        {leftover.draft.matchVersion !== match.version &&
           " 그 사이 이 경기가 다른 곳에서 바뀌었어요. 이어 쓴 뒤 명단과 진영을 다시 확인해 주세요."}
+        {leftover.winnerReset && " 이긴 팀 기록은 읽을 수 없어 다시 골라야 해요. 메모와 챔피언은 이어 쓸 수 있어요."}
       </p>
       <div className="draft-note-actions">
         <button type="button" className="secondary" onClick={() => resume(leftover)}>
@@ -182,6 +187,13 @@ export function ResultSheet(props: {
         </button>
       </div>
     </div>
+  );
+
+  // 결과 저장(서버 확정)과 기기 임시 보관은 다른 일이라 문구에서 "결과 저장 전"을 분명히 한다.
+  const unstoredNote = draftUnstored && (
+    <p className="hint" role="status">
+      이 기기에 작성 중인 내용을 남기지 못했어요. 결과 저장 전에 창을 닫으면 입력이 사라져요.
+    </p>
   );
 
   const title = `${match.matchNo}경기 ${props.mode === "result" ? "결과" : "승리 팀 수정"}`;
@@ -298,6 +310,7 @@ export function ResultSheet(props: {
         {winner && <MemoField value={memo} onChange={setMemo} />}
         {winner && championSection}
 
+        {unstoredNote}
         <ErrorNote error={error} onCheck={() => void save()} />
         {/* 꺼진 저장 버튼만 보이면 무엇을 해야 하는지 알 수 없다. */}
         {!winner && <p className="hint">이긴 팀을 누르면 저장할 수 있어요.</p>}
@@ -381,6 +394,7 @@ export function ResultSheet(props: {
         </section>
       )}
 
+      {unstoredNote}
       <ErrorNote error={error} onCheck={() => void save()} />
       {!winner && <p className="hint">이긴 팀을 누르면 저장할 수 있어요.</p>}
       <button

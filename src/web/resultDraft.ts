@@ -1,4 +1,4 @@
-import type { Side, Team } from "../shared/types";
+import { TEAMS, type Side, type Team } from "../shared/types";
 
 // 결과 입력 창(screens/ResultSheet.tsx)에서 저장 전에 고른 내용을 이 기기에 잠시 남긴다.
 // 열 명의 챔피언과 메모를 넣다가 창을 잘못 닫거나 새로 고쳐도 다시 열면 이어 쓸 수 있게 하려는 것이다.
@@ -35,27 +35,86 @@ function keyOf(groupId: string, matchId: string): string {
   return `${KEY_PREFIX}${groupId}:${matchId}`;
 }
 
-export function loadResultDraft(groupId: string, matchId: string): ResultDraft | null {
+const SIDES: readonly Side[] = ["blue", "red", "unknown"];
+
+/** 버전을 읽을 수 없는 초안에 붙이는 값. 어떤 경기 버전과도 같지 않아 "다시 확인해 주세요" 안내가 뜬다. */
+const UNKNOWN_VERSION = -1;
+
+export interface LoadedResultDraft {
+  draft: ResultDraft;
+  /** 남아 있던 승리 팀(또는 진영) 값을 믿을 수 없어 비웠다. 운영자가 이긴 팀을 다시 골라야 한다. */
+  winnerReset: boolean;
+}
+
+/**
+ * 저장소에서 꺼낸 글을 초안으로 되살린다. 쓸 수 없으면 null(만료 포함).
+ * 다른 판의 코드가 남긴 값, 손으로 고친 값, 일부만 쓰다 끊긴 값이 올 수 있어 칸마다 따로 거른다.
+ * 메모와 챔피언처럼 틀려도 저장 전에 눈으로 확인할 수 있는 것은 살리고, 이긴 팀처럼 10명의 승패를 정하는 값은
+ * 허용값이 아니면 비운다(진영은 이긴 팀 기준 값이라 함께 비운다). 화면 코드 없이 테스트하려고 저장소와 떼어 뒀다.
+ */
+export function parseResultDraft(text: string, now: number): LoadedResultDraft | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.savedAt !== "number" || !Number.isFinite(raw.savedAt) || now - raw.savedAt > DRAFT_TTL_MS) {
+    return null;
+  }
+
+  const winnerOk = raw.winner === null || raw.winner === undefined || TEAMS.includes(raw.winner as Team);
+  const sideOk = raw.side === null || raw.side === undefined || SIDES.includes(raw.side as Side);
+  const winnerReset = !winnerOk || !sideOk;
+  const winner = winnerReset ? null : ((raw.winner as Team | undefined) ?? null);
+  const side = winnerReset || winner === null ? null : ((raw.side as Side | undefined) ?? null);
+
+  const champions: Record<string, string> = {};
+  if (typeof raw.champions === "object" && raw.champions !== null && !Array.isArray(raw.champions)) {
+    for (const [participantId, championId] of Object.entries(raw.champions)) {
+      if (typeof championId === "string" && championId !== "") champions[participantId] = championId;
+    }
+  }
+
+  return {
+    draft: {
+      matchVersion: typeof raw.matchVersion === "number" ? raw.matchVersion : UNKNOWN_VERSION,
+      winner,
+      side,
+      memo: typeof raw.memo === "string" ? raw.memo : "",
+      champions,
+      savedAt: raw.savedAt,
+    },
+    winnerReset,
+  };
+}
+
+export function loadResultDraft(groupId: string, matchId: string): LoadedResultDraft | null {
   try {
     const raw = localStorage.getItem(keyOf(groupId, matchId));
     if (!raw) return null;
-    const draft = JSON.parse(raw) as ResultDraft;
-    if (typeof draft.savedAt !== "number" || Date.now() - draft.savedAt > DRAFT_TTL_MS) {
-      localStorage.removeItem(keyOf(groupId, matchId));
-      return null;
-    }
-    return draft;
+    const loaded = parseResultDraft(raw, Date.now());
+    // 만료됐거나 아예 읽을 수 없는 것은 이 경기 열쇠만 지운다. 다른 경기·모임의 초안은 건드리지 않는다.
+    if (!loaded) localStorage.removeItem(keyOf(groupId, matchId));
+    return loaded;
   } catch {
-    // 저장소를 못 쓰거나 내용이 깨졌으면 이어 쓰기 없이 새로 입력한다.
+    // 저장소를 못 쓰면 이어 쓰기 없이 새로 입력한다.
     return null;
   }
 }
 
-export function saveResultDraft(groupId: string, matchId: string, draft: ResultDraft): void {
+/**
+ * 남기지 못했으면 false. 저장소가 가득 찼거나 막힌 브라우저(사생활 보호 모드 등)다.
+ * 입력은 창 안에 그대로 있으니 계속 쓸 수 있고, 창을 닫으면 사라진다는 것만 화면에서 알린다.
+ */
+export function saveResultDraft(groupId: string, matchId: string, draft: ResultDraft): boolean {
   try {
     localStorage.setItem(keyOf(groupId, matchId), JSON.stringify(draft));
+    return true;
   } catch {
-    // 저장소가 가득 찼거나 막혀 있어도 입력은 계속한다(창을 닫으면 사라질 뿐이다).
+    return false;
   }
 }
 

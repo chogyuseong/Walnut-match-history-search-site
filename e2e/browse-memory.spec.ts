@@ -14,6 +14,8 @@ import {
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
 /** 390px에서 경기 카드가 화면보다 길어져 스크롤이 생길 만큼. */
 const GAMES_PLAYED = 8;
+/** 검색 결과가 한 쪽(20경기)을 넘어 "더 보기"가 생기고, 23번째 경기를 열 수 있을 만큼. */
+const SEARCH_GAMES = 25;
 
 let counter = 0;
 const requestId = () => `e2e-memory-${Date.now().toString(36)}-${++counter}`;
@@ -236,5 +238,121 @@ for (const width of [390, 1440]) {
       ),
     );
     expect(left).toEqual([]);
+  });
+
+  test(`${width}px: 망가진 임시 내용으로 열어도 메모는 이어 쓰고 이긴 팀은 다시 고르게 한다`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    const s = await setup(page);
+    await s.start();
+
+    const openResult = async () => {
+      await page
+        .getByRole("region", { name: "지금 할 일" })
+        .getByRole("button", { name: "1경기 결과 입력" })
+        .click();
+    };
+    await page.goto("/#/");
+    await openResult();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: /블루팀 승/ }).click();
+    await dialog.getByLabel("메모 (선택)").fill("용 싸움 패배");
+    await page.keyboard.press("Escape");
+
+    // 다른 판의 코드가 남긴 것처럼 챔피언 칸을 지우고 이긴 팀을 허용값 밖으로 바꾼다.
+    await page.evaluate(() => {
+      const key = Object.keys(localStorage).find((k) =>
+        k.startsWith("naejeon.result-draft"),
+      )!;
+      const draft = JSON.parse(localStorage.getItem(key)!);
+      delete draft.champions;
+      draft.winner = "C";
+      localStorage.setItem(key, JSON.stringify(draft));
+    });
+    await page.reload();
+    await openResult();
+    await expect(dialog.getByText(/이긴 팀 기록은 읽을 수 없어/)).toBeVisible();
+    await dialog
+      .getByRole("button", { name: "작성하던 내용 이어 쓰기" })
+      .click();
+
+    // 이긴 팀은 비어 있어 저장할 수 없고, 고르면 남아 있던 메모가 그대로 보인다.
+    await expect(
+      dialog.getByRole("button", { name: "결과 저장" }),
+    ).toBeDisabled();
+    await dialog.getByRole("button", { name: /레드팀 승/ }).click();
+    await expect(dialog.getByLabel("메모 (선택)")).toHaveValue("용 싸움 패배");
+    await noHorizontalOverflow(page, "망가진 임시 내용 이어 쓰기");
+  });
+
+  test(`${width}px: 검색에서 더 보기로 연 23번째 경기에 다녀와도 펼친 목록·위치·초점이 남는다`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    const s = await setup(page);
+    // 한 쪽(20경기)을 넘기려면 같은 메모의 경기가 21개 이상 있어야 한다.
+    for (let game = 0; game < SEARCH_GAMES; game++) {
+      const match = await s.start();
+      await post(page.request, `/api/groups/${s.groupId}/matches/${match.id}/result`, {
+        requestId: requestId(),
+        baseMatchVersion: match.version,
+        winnerTeam: "A",
+        winnerSide: "blue",
+        memo: `용 싸움 ${game + 1}`,
+      });
+    }
+
+    await page.goto(`/#/search?q=${encodeURIComponent("용 싸움")}`);
+    const found = page.getByRole("region", { name: "찾은 경기" });
+    const cards = found.locator(".mc-main");
+    await expect(cards).toHaveCount(20);
+    await found.getByRole("button", { name: /경기 더 보기/ }).click();
+    await expect(cards).toHaveCount(SEARCH_GAMES);
+
+    const target = cards.nth(22);
+    await target.scrollIntoViewIfNeeded();
+    await target.click();
+    await expect(page).toHaveURL(/#\/m\//);
+    await page.goBack();
+
+    await expect(page.getByRole("searchbox")).toHaveValue("용 싸움");
+    await expect(cards).toHaveCount(SEARCH_GAMES);
+    await expect(target).toBeInViewport();
+    await expect(target).toBeFocused();
+
+    // 질의를 바꾸면 앞 검색의 펼침은 따라오지 않는다.
+    await page.getByRole("searchbox").fill("용 싸움 2");
+    await expect(page).not.toHaveURL(/[?&]n=/);
+  });
+
+  test(`${width}px: 기기 저장소가 막혀도 결과를 입력·저장하고, 남기지 못한다는 안내는 한 줄만 뜬다`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    const s = await setup(page);
+    await s.start();
+    await page.goto("/#/");
+    // 저장소가 가득 찬 브라우저처럼 결과 임시 내용 쓰기만 거절한다(로그인·편성 등 다른 저장은 그대로 둔다).
+    await page.evaluate(() => {
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key: string, value: string) {
+        if (key.startsWith("naejeon.result-draft")) {
+          throw new DOMException("full", "QuotaExceededError");
+        }
+        return original.call(this, key, value);
+      };
+    });
+    await page
+      .getByRole("region", { name: "지금 할 일" })
+      .getByRole("button", { name: "1경기 결과 입력" })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: /블루팀 승/ }).click();
+    await dialog.getByLabel("메모 (선택)").fill("저장소 없음");
+    await expect(dialog.getByText(/작성 중인 내용을 남기지 못했어요/)).toHaveCount(1);
+    await noHorizontalOverflow(page, "임시 보관 실패 안내");
+    await dialog.getByRole("button", { name: "결과 저장" }).click();
+    await expect(dialog.getByText(/1경기 저장됨/)).toBeVisible();
   });
 }

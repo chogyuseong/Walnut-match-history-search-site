@@ -1,31 +1,9 @@
 import { useEffect, useRef } from "react";
 import { go } from "./useApp";
 
-// 검색 화면 주소(#/search?q=..., #/v/토큰/search?q=...)의 읽고 쓰기와 "/" 단축키.
-// 화면(screens/Search.tsx)과 따로 둔 것은 첫 화면 묶음(App.tsx)이 주소 처리만 할 때 검색 화면 코드까지 받지 않게 하기 위해서다.
-//
-// 질의는 해시의 "?" 뒤(q=)에 encodeURIComponent로 넣는다. 그래서 질의 안의 "/"(예: 11/7)가 화면 경로를 나누지 않는다.
-// 입력하는 동안은 history.replaceState로 지금 기록만 고치고(뒤로 가기가 글자마다 쌓이지 않게),
-// 최근 검색어를 누르는 것처럼 새 검색으로 옮겨 갈 때는 기록을 하나 더 쌓는다.
-
-/** 해시를 화면 경로와 질의로 나눈다. "#/v/t/search?q=%E3%84%B1" → { path: "/v/t/search", q: "ㄱ" }. */
-export function splitHash(hash: string): { path: string; q: string } {
-  const raw = hash.replace(/^#/, "");
-  const at = raw.indexOf("?");
-  if (at < 0) return { path: raw, q: "" };
-  let q: string;
-  try {
-    q = new URLSearchParams(raw.slice(at + 1)).get("q") ?? "";
-  } catch {
-    q = "";
-  }
-  return { path: raw.slice(0, at), q };
-}
-
-/** 경로 + 질의 → 해시("#/search?q=..."). 질의가 비면 경로만. */
-export function hashWithQuery(path: string, q: string): string {
-  return q === "" ? `#${path}` : `#${path}?q=${encodeURIComponent(q)}`;
-}
+// 첫 화면 묶음(App.tsx)이 쓰는 검색 주소 처리: 주소에서 질의 떼기와 "/" 단축키.
+// 질의·펼친 수를 읽고 쓰는 것은 검색 화면만 쓰므로 searchHash.ts에 따로 두었다. 첫 화면 예산(check:bundle 17KB)이 빠듯해
+// 검색 화면 전용 코드를 여기에 더하면 예산을 넘는다.
 
 /**
  * useRoute()가 "/"로 나눈 주소에서 "?" 뒤(질의)를 떼어 낸 화면 경로. 화면 고르기는 이 값으로 한다.
@@ -39,35 +17,6 @@ export function stripRouteQuery(route: readonly string[]): string[] {
     .slice(0, at)
     .split("/")
     .filter((part) => part !== "");
-}
-
-/** 지금 주소가 검색 화면인지(경로의 마지막 조각이 "search"). */
-function onSearchPath(path: string): boolean {
-  const parts = path.split("/").filter((p) => p !== "");
-  return parts[parts.length - 1] === "search";
-}
-
-/** 지금 주소의 질의. */
-export function readHashQuery(): string {
-  return splitHash(location.hash).q;
-}
-
-/** 입력 중: 기록을 쌓지 않고 지금 주소의 질의만 바꾼다. 검색 화면이 아니면 아무것도 하지 않는다. */
-export function replaceHashQuery(q: string): void {
-  const { path, q: current } = splitHash(location.hash);
-  if (!onSearchPath(path) || current === q) return;
-  try {
-    history.replaceState(history.state, "", hashWithQuery(path, q));
-  } catch {
-    // 주소를 고치지 못해도 검색은 된다.
-  }
-}
-
-/** 새 검색으로 옮겨 간다(뒤로 가기로 앞 검색에 돌아올 수 있게 기록을 하나 쌓는다). */
-export function pushHashQuery(q: string): void {
-  const { path, q: current } = splitHash(location.hash);
-  if (!onSearchPath(path) || current === q) return;
-  location.hash = hashWithQuery(path, q).slice(1);
 }
 
 /** "/"를 눌렀을 때 갈 검색 화면 경로. 참가 신청 화면처럼 검색이 없는 곳은 null. */

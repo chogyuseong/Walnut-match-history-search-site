@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { arrivedByBack } from "./nav";
 
-// 기록 화면(screens/Records.tsx)의 뒤로 가기 스크롤 복원. 보기 조건을 주소에 적는 코드는 screenKit.tsx("주소의 보기 조건")에 있다.
-// nav.ts가 아니라 여기에 둔 것은 nav.ts가 첫 화면 묶음에 들어가기 때문이다(check:bundle 예산 17KB). 기록 화면만 쓰므로 그 조각에 들어간다.
+// 기록 화면(screens/Records.tsx)과 전적 검색(screens/Search.tsx)의 뒤로 가기 스크롤 복원.
+// 보기 조건을 주소에 적는 코드는 기록은 screenKit.tsx("주소의 보기 조건"), 검색은 searchRoute.ts(q=·n=)에 있다.
+// nav.ts가 아니라 여기에 둔 것은 nav.ts가 첫 화면 묶음에 들어가기 때문이다(check:bundle 예산 17KB). 두 화면의 조각에만 들어간다.
 
 /**
  * 주소별 마지막 스크롤 위치. 열쇠는 "?" 뒤 조건까지 포함한 주소 전체라, 같은 기록 화면이라도 조건이 다르면 따로 기억한다.
@@ -14,7 +15,7 @@ const scrollByHash = new Map<string, number>();
  * 뒤로 가기로 이 화면에 돌아오면 떠날 때의 스크롤 위치로 되돌린다. 기록 화면처럼 "더 보기"로 길어지는 목록에 쓴다.
  * 브라우저도 위치를 되돌리지만, 그 순간에는 앞 화면(경기 상세 등)이 그려져 있어 페이지 길이가 짧아 끝까지 못 간다.
  * 주의:
- * - 목록 길이(더 보기 개수)도 주소에 남겨 두어야 같은 위치가 같은 경기를 가리킨다(Records.tsx의 n=).
+ * - 목록 길이(더 보기 개수)도 주소에 남겨 두어야 같은 위치가 같은 경기를 가리킨다(Records.tsx·searchRoute.ts의 n=).
  * - 뒤로 가기 판단은 nav.ts(arrivedByBack)가 한다. nav.ts의 hashchange 처리가 화면보다 먼저 돌아야 맞는다.
  * - 화면이 처음 그려질 때 한 번만 맞춘다. 스냅숏을 다시 받는 중이라 목록이 늦게 그려지는 경우까지 기다리지는 않는다.
  */
