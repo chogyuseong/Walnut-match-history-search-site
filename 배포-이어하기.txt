@@ -18,6 +18,20 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-19: 운영 f865fb52 = staging 9ff90f4d = main 8ebbfd8(사용 안내 /guide)]
+
+- 서치 콘솔 URL 검사 결과(사용자 11-19): 첫 화면 "크롤링됨 - 현재 색인이 생성되지 않음", 마지막 크롤링 11-13,
+  크롤링·가져오기·색인 허용 모두 "예". 색인 요청은 "일일 할당량 초과".
+- 대응: 스크립트 없이 읽히는 정적 사용 안내 public/guide.html(+guide.css)을 /guide로. 운영 sitemap.xml에 /guide 추가,
+  앱 모든 화면 바닥글에 "사용 안내" 링크. staging은 X-Robots-Tag: noindex로 막힘(확인).
+- 마이그레이션 없음. Claude가 staging·운영 배포와 push(사용자가 글 요약을 보고 "진행해").
+- 운영: /api/health 200, /guide 200·noindex 없음(메타·헤더), sitemap.xml에 "/"와 /guide. 스크립트 끈 브라우저로 /guide
+  390 다크·1440 라이트 가로 넘침 0·요청 실패 0, 예시 모임 바닥글 "사용 안내"로 이동, 콘솔 오류 0.
+- 검사: typecheck·lint 오류 0·단위 1245·build·check:bundle(운영 빌드 "검색 노출: 열림")·audit:design 0,
+  E2E search-index(2개 추가)·site·intro-demo 14개 통과.
+- 사용자가 할 것: 할당량이 풀리면 URL 검사에서 첫 화면과 /guide를 각각 "실제 URL 테스트" → 색인 생성 요청.
+  네이버 서치어드바이저(사용자가 이미 등록함, 저장소에는 확인 태그·파일 없음)에도 /guide 수집 요청. 모임 공지·커뮤니티에 링크.
+
 [2026-11-19: 운영 5ef7e26c = staging d067bcf5 = main 791283d(서치 콘솔: 첫 화면 오류 문구)]
 
 - 서치 콘솔 사이트맵은 11-15에 이미 "성공"(README에 옛 내용이 남아 있던 것). 사이트 쪽 재확인: 구글봇 이름으로
