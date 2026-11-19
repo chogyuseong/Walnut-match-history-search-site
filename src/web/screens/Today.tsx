@@ -117,9 +117,14 @@ export function Today() {
         />
       )}
 
-      {app.loadError && app.loadError.status !== 401 && (
+      {/* 소개 화면은 서버 자료 없이 그려지므로 연결 실패를 알리지 않는다. 구글은 robots.txt가 막은 /api/를 렌더링 때도
+          부르지 않아, 여기서 알리면 검색엔진이 보는 첫 화면 본문에 오류 문구가 들어갔다(2026-11-19).
+          받은 자료가 없는데 "마지막으로 받은 내용"이라고 하면 틀린 말이라, 그때는 연결 실패만 적는다. */}
+      {app.loadError && app.loadError.status !== 401 && !introOnly && (
         <p className="note warn" role="alert">
-          최신 상태를 불러오지 못했어요. 아래는 마지막으로 받은 내용이에요.{" "}
+          {snapshot
+            ? "최신 상태를 불러오지 못했어요. 아래는 마지막으로 받은 내용이에요."
+            : "서버에 연결하지 못했어요. 팀 짜기와 명단 복사는 그대로 쓸 수 있어요."}{" "}
           <button type="button" className="link" onClick={() => void app.refresh()}>
             다시 불러오기
           </button>
