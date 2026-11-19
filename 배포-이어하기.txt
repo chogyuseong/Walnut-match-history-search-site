@@ -18,6 +18,18 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-19: 운영 ac731a49 = staging af10d3e6 = main 4cbe8f2(폰 폭 다듬기)]
+
+- 경기 상세 시리즈 판을 한 줄에 하나(지금 판 글자도 44px 높이), 변경 이력 0건이면 접힘 상자 대신 "변경 이력 없음",
+  기록 화면 CSV 줄 위 12px, 개인 통계 요약 MMR 줄을 항목 단위로만 줄바꿈, "최근 경기" 아래 쌓인 링크 둘 왼쪽 끝 맞춤.
+- design-mobile-apps(sleek.design) 스킬은 외부 유료 서비스·React Native용이라 쓰지 않기로 하고 사용자 요청으로 지움
+  (.claude/skills/design-mobile-apps, skills-lock.json 항목). 승인 전에 멈춰 받은 키 없음.
+- 마이그레이션 없음. Claude가 staging·운영 배포와 push(사용자 "진행해").
+- staging·운영 모두 /api/health 200. 390 예시 모임 경기 상세 "변경 이력 없음"·시리즈 판 세로, 개인 통계 링크 두 개
+  글자 시작 16px 같음(staging). 390·1440 요약·기록·경기 상세·개인 통계 가로 넘침 0·콘솔 오류 0.
+- 검사: typecheck·lint 오류 0·build·check:bundle·audit:design 0, 전체 E2E 171 통과·4 건너뜀.
+- 다음 후보: 앞 묶음과 같다(운영 결과 저장 뒤 실제 시간 재기, 실기기 확인, 다음 내전 관찰).
+
 [2026-11-19: 운영 f2ec74ff = staging 5daddf8e = main 66ec2ba(MMR 이어서 계산, 같은 날 회차 이름)]
 
 - 결과 저장 뒤 느린 곳을 재 보니 서버(2000경기 응답 193ms)가 아니라 기기의 MMR 계산(1.5~1.9초)이었다. 앞 경기 열이
