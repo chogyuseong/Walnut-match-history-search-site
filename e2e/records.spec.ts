@@ -241,10 +241,9 @@ test("그래프 분석", async ({ page }) => {
   await expect(page.getByText("자료 적음(5경기 미만) 2명", { exact: true })).toBeVisible();
   await expect(page.locator(".scope-basis")).toContainText("전체 누적 · 확정 11경기");
   const summary = page.getByRole("region", { name: "분석 요약" });
-  await expect(summary.locator(".ps-tiles > div")).toHaveCount(3);
-  await expect(summary.locator(".ps-tiles > div").nth(0)).toContainText("11경기");
-  await expect(summary.locator(".ps-tiles > div").nth(1)).toContainText("12명");
-  await expect(summary.locator(".ps-tiles > div").nth(1)).toContainText("12명");
+  // 확정 경기 수는 위 기준 줄에만 두고 타일은 참가자·진영 승률 둘이다.
+  await expect(summary.locator(".ps-tiles > div")).toHaveCount(2);
+  await expect(summary.locator(".ps-tiles > div").nth(0)).toContainText("12명");
 
   // 보기 전환: 기본은 개인별 승률 하나만 그린다.
   const views = page.getByRole("group", { name: "분석 보기" });
@@ -282,7 +281,7 @@ test("그래프 분석", async ({ page }) => {
   await expect(summary).toContainText("블루 63% · 5승 3패 (8경기)");
   await expect(summary).toContainText("레드 38% · 3승 5패 (8경기)");
   await expect(summary).toContainText("진영 미상 3경기는 제외했어요.");
-  await expect(summary.locator(".ps-tiles > div").nth(2)).toContainText("63% : 37%");
+  await expect(summary.locator(".ps-tiles > div").nth(1)).toContainText("63% : 37%");
 
   // 라인별 승률: 플레이어를 고르기 전에는 고르기 안내만 둔다(전체 합은 항상 50%, 이유는 제목 옆 i 설명에).
   const lines = page.getByRole("region", { name: "라인별 승률" });

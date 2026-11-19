@@ -8,6 +8,7 @@ import {
   isCounted,
   matchesInScope,
   matchYears,
+  personRecords,
   ratePercent,
   scopeLabel,
   sideTotals,
@@ -376,20 +377,25 @@ export function StandingNote(props: {
 /**
  * 누적 경기 수, 진영별 승률, 참가자 수를 한 줄로 보여준다. 확정된 경기가 없으면 그리지 않는다.
  * 진영 승률은 "54% ▬▬▬ 46%"처럼 두 숫자 사이에 블루·레드 비율 막대를 둔다(2026-11-10 요약 화면 시안의 상단 띠).
+ * 참가자는 확정 경기를 한 번이라도 한 사람이다(보관한 사람 포함). 랭킹 "24명"·그래프 분석 참가자와 같은 수여야 해서
+ * 활성 명단 수로 세지 않는다.
+ * hideGames: 바로 위 기준 줄(ScopeBasis)이 확정 경기 수를 이미 말하는 화면(기록)에서 같은 숫자를 두 번 쓰지 않게 뺀다.
  */
-export function KpiStrip(props: { snapshot: Snapshot }) {
+export function KpiStrip(props: { snapshot: Snapshot; hideGames?: boolean }) {
   const { snapshot } = props;
   const games = snapshot.matches.filter(isCounted).length;
   if (games === 0) return null;
   const sides = sideTotals(snapshot.matches);
-  const people = snapshot.participants.filter((p) => p.status === "active").length;
+  const people = personRecords(snapshot.matches).size;
   // 목록·요약의 승률은 정수(%)로 쓴다(소수 한 자리는 그래프 분석 화면에서만). 두 값의 합이 100이 되게 한다.
   const blueRate = ratePercent(sides.blueWins, sides.known);
   return (
     <p className="kpi">
-      <span>
-        누적 경기<strong>{games}경기</strong>
-      </span>
+      {!props.hideGames && (
+        <span>
+          누적 경기<strong>{games}경기</strong>
+        </span>
+      )}
       {sides.known > 0 && (
         // 숫자 사이의 막대는 같은 비율을 그림으로 한 번 더 보여 줄 뿐이라 읽지 않는다(숫자가 뜻을 전한다).
         <span className="kpi-sides">

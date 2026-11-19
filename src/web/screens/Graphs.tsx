@@ -261,7 +261,6 @@ export function Graphs(props: {
     }
     return activityCalendar(dailyCounts(scoped, timeZone, playerId || null), range.start, range.end);
   }, [view, scope, snapshot, scoped, timeZone, playerId]);
-  const counted = useMemo(() => scoped.filter((m) => m.state === "confirmed").length, [scoped]);
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const placement = useMemo(() => standingsOf(snapshot), [snapshot]);
 
@@ -399,7 +398,7 @@ export function Graphs(props: {
         </div>
         <div className="graph-meta">
           <p className="hint">
-            {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. 경기·참가자 수는 바로 아래 요약 칸에 크게 있으니
+            {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. 참가자 수는 바로 아래 요약 칸에 크게 있으니
                 되풀이하지 않고, 플레이어를 골라 요약 칸이 사라질 때만 이 줄에 적는다. 범위·확정 경기 수는 아래 기준 줄에 있다. */}
             {playerId !== "" && `참가자 ${matrixRows.length}명 · `}
             {`자료 적음(${SMALL_SAMPLE}경기 미만) ${fewCount}명`}
@@ -429,14 +428,8 @@ export function Graphs(props: {
       ) : (
       <section className="graph-summary" aria-label="분석 요약">
         <h2 className="sr-only">요약</h2>
-        <dl className="ps-tiles season-tiles">
-          <div>
-            <dt className="tile-label">확정 경기</dt>
-            <dd className="season-stat">
-              {counted}
-              <span className="season-unit">경기</span>
-            </dd>
-          </div>
+        {/* 확정 경기 수는 바로 위 기준 줄에 있어 타일로 되풀이하지 않는다. 남은 두 칸은 768px부터도 두 칸(.pair-tiles). */}
+        <dl className="ps-tiles season-tiles pair-tiles">
           <div>
             <dt className="tile-label">참가자</dt>
             <dd className="season-stat">

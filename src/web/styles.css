@@ -4862,12 +4862,17 @@ main:focus {
 .sb-main:focus-visible {
   outline-offset: -2px;
 }
-.sb-main:not(:disabled):hover .sb-kicker {
+/* 카드 전체가 경기 상세로 가는 누름 영역이라 머리 글은 보조 글자색으로 두고, 올리거나 초점일 때만 강조색이 된다
+   (표 줄의 이름 링크 .link.name-link와 같은 방식, CLAUDE.md 5절). 늘 골드면 제목처럼 읽혀 강조색이 흔해진다. */
+.sb-main:not(:disabled):hover .sb-kicker,
+.sb-main:focus-visible .sb-kicker {
+  color: var(--ih-accent);
   text-decoration: underline;
 }
 .sb-kicker {
-  color: var(--ih-accent);
+  color: var(--ih-text-secondary);
   font-weight: 500;
+  transition: color var(--motion);
 }
 .sb-extra {
   margin: var(--space-2) var(--space-5) 0;
@@ -5153,6 +5158,10 @@ main:focus {
   }
   .season-tiles:not(.fair-tiles) > div:last-child:nth-child(3) {
     grid-column: auto;
+  }
+  /* 그래프 분석 요약은 두 칸(참가자·진영 승률)이라 세 칸 격자면 오른쪽 한 칸이 빈다. */
+  .ps-tiles.season-tiles.pair-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 .season-tiles dd.season-stat {

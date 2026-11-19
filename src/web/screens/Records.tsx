@@ -562,7 +562,7 @@ export function Records(props: {
       </FilterBar>
       <ScopeBasis snapshot={snapshot} scope={scope} />
 
-      <KpiStrip snapshot={snapshot} />
+      <KpiStrip snapshot={snapshot} hideGames />
 
       <section className="rec-matches" aria-label="경기 목록">
         <h2>

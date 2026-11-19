@@ -93,7 +93,8 @@ test("진영 미상으로 넣으면 승패는 세고 진영 통계에서만 빠�
 
   await page.getByRole("button", { name: "그래프 분석" }).click();
   const sides = page.getByRole("region", { name: "분석 요약" });
-  await expect(sides.locator(".ps-tiles > div").nth(0)).toContainText("3경기");
+  // 확정 경기 수는 요약 타일이 아니라 기준 줄에 있다(2026-11-19 타일에서 뺌).
+  await expect(page.locator(".scope-basis")).toContainText("확정 3경기");
   await expect(sides).toContainText("진영을 아는 경기가 없어요.");
   await expect(sides).toContainText("진영 기록 없음");
   await expect(sides).toContainText("진영 미상 3경기는 제외했어요.");
