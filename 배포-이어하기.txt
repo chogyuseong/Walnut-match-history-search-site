@@ -1,4 +1,4 @@
-배포 이어하기 (2026-11-19 기준)
+배포 이어하기 (2026-11-20 기준)
 
 다른 컴퓨터에서 이어서 할 때 이 파일부터 보면 된다. 자세한 명령과 이유는 docs/배포안내.md에 있다.
 Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된다.
@@ -17,6 +17,24 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 새 운영(Worker naejeon, D1 naejeon-db)이 열려 있고 기능·보안 점검을 통과했다. 기록은 0건에서 시작한다.
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
+
+[2026-11-20: 배포 없음. 운영 f865fb52 그대로, main 994742b(파일 정리·lint 경고 0)]
+
+- 쓰지 않던 파일 정리: 원격 D1 스파이크 설정(wrangler.spike.jsonc, vitest.spike.config.ts)을 지움(1d9c59f).
+  한 번도 돌리지 않았고, 같은 원자성 검사는 test/spike-atomicity.test.ts가 npm test마다 로컬 D1에서 한다.
+  docs/배포안내.md 7-1절은 짧은 안내로 바꿈. 다시 필요하면 git 기록에서 되살린다.
+- docs의 P0~P4·내전로그 문서는 옮기려다 되돌림: P0~P4는 코드·테스트·마이그레이션 주석 약 40곳이 "docs/P2 P2-11"처럼
+  근거로 가리키고, 내전로그 셋은 다음 작업 후보 목록이라 아직 쓰는 문서다.
+- lint 경고 35개 → 0(994742b): 화면 api.ts의 any를 실제 타입으로(오류 details는 Record<string, unknown>, Group.tsx 한 줄
+  맞춤), Match.tsx 60초 새로 고침 Hook 의존성, shareImage.tsx는 부르는 쪽 다섯 곳이 make를 렌더마다 새로 넘겨
+  의존성에 넣으면 이미지를 계속 다시 만들므로 이유를 단 disable 주석, SheetImport.tsx 안 쓰는 disable 주석 삭제.
+  테스트 29곳은 오류 응답을 ErrorBody로 좁히고, 모양이 제각각인 응답·백업 JSON은 test/helpers.ts LooseJson(any 별칭)
+  한 곳으로 모음. 이것까지 없애려면 api<T> 호출마다 응답 타입을 적어야 해서 하지 않음.
+- 검사: typecheck·lint 경고 0·단위 1245·build·check:bundle 통과. 화면 흐름이 바뀌지 않아 E2E는 안 돌림. Claude가 push
+  (사용자 "푸시해"). GitHub 연결 도구가 접속 실패라 CI 결과는 확인 못 함.
+- 운영에는 아직 안 올림. 사용자에게 보이는 차이는 없다(오류 문구·새로 고침 동작 같음). 다음 배포 때 함께 올라간다.
+- 구조 개선 후보(아직 안 함): src/web/styles.css 8755줄 나누기, docs/구현현황.md(약 590KB) 월별로 나누기,
+  1000줄 넘는 파일(server/matches.ts 1991줄 등) 쪼개기.
 
 [2026-11-19: 운영 f865fb52 = staging 9ff90f4d = main 8ebbfd8(사용 안내 /guide)]
 
