@@ -182,12 +182,23 @@ for (const width of [390, 1440]) {
     ).toHaveAttribute("aria-pressed", "true");
 
     // ③ 검색 → 참가 경기 보기 → 기록 화면이 그 사람·전체 기간으로 열린다.
+    // 진행 중인 경기를 하나 두면 기록 목록에는 보이지만 승패에는 안 들어간다. 검색의 "(8경기)"가 기록 화면에서
+    // "9경기 · … (확정 8경기)"로 이어져, 두 숫자가 왜 다른지 같은 줄에서 읽혀야 한다.
+    await s.start();
     await page.goto("/#/search?q=선수02");
+    // 해시만 바뀌는 goto는 문서를 다시 읽지 않아 방금 시작한 경기가 스냅숏에 없다.
+    await page.reload();
     await shot(page, `search-${width}`);
+    await expect(
+      page.getByRole("region", { name: "검색 결과" }).getByRole("listitem").first(),
+    ).toContainText(`(${GAMES_PLAYED}경기)`);
     await page.getByRole("button", { name: "선수02 참가 경기 보기 →" }).click();
     await expect(page).toHaveURL(/#\/records\?scope=all&who=/);
     await expect(summary).toContainText("선수02 참가");
-    await expect(summary).toContainText(`${GAMES_PLAYED}경기`);
+    await expect(summary).toContainText(`${GAMES_PLAYED + 1}경기`);
+    await expect(summary).toContainText(`(확정 ${GAMES_PLAYED}경기)`);
+    await summary.scrollIntoViewIfNeeded();
+    await shot(page, `records-from-search-${width}`);
     await noHorizontalOverflow(page, "검색에서 연 기록 화면");
   });
 

@@ -574,9 +574,13 @@ export function Records(props: {
           <p className="filter-summary" role="status">
             <span>
               <strong>{filterText(filter, nameOf)}</strong> · {filtered.length}경기
+              {/* 앞의 경기 수는 목록에 보이는 경기(결과 미입력·전적 제외 포함), 승패는 확정 경기만이라 괄호에 "확정"을 적는다.
+                  검색 결과 줄의 "(40경기)"와 같은 숫자가 여기서 "43경기"와 나란히 나오면 왜 다른지 읽을 수 있어야 한다. */}
               {anchor && anchorTally && anchorTally.games > 0
-                ? ` · ${nameOf(anchor)} ${rateText(anchorTally.wins, anchorTally.games)} · ${anchorTally.wins}승 ${anchorTally.games - anchorTally.wins}패 (${anchorTally.games}경기)`
-                : ""}
+                ? ` · ${nameOf(anchor)} ${rateText(anchorTally.wins, anchorTally.games)} · ${anchorTally.wins}승 ${anchorTally.games - anchorTally.wins}패 (확정 ${anchorTally.games}경기)`
+                : anchor && filtered.length > 0
+                  ? ` · ${nameOf(anchor)} 확정된 경기 없음`
+                  : ""}
             </span>
             <span className="filter-actions">
               {shareLink && <CopyButton label="이 조건으로 공유" text={() => shareLink} />}
