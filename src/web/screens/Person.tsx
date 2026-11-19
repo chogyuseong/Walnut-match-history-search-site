@@ -410,9 +410,13 @@ export function Person(props: {
               </p>
               {rating && rating.games > 0 && (
                 <p className="ps-rating">
+                  {/* 고리 옆 칸이 좁은 폰에서 "최근 / 10경기 −20"처럼 항목 중간이 갈리지 않게 항목마다 묶는다. */}
                   <span className="rating-num">
-                    MMR {shownRating(rating.rating)} · 최고 {shownRating(rating.peak)} · 최근{" "}
-                    {Math.min(RATING_RECENT_GAMES, rating.games)}경기 {signedDelta(rating.delta10)}
+                    <span className="nowrap">MMR {shownRating(rating.rating)}</span> ·{" "}
+                    <span className="nowrap">최고 {shownRating(rating.peak)}</span> ·{" "}
+                    <span className="nowrap">
+                      최근 {Math.min(RATING_RECENT_GAMES, rating.games)}경기 {signedDelta(rating.delta10)}
+                    </span>
                   </span>{" "}
                   <RatingTierBadge rating={rating.rating} placed={placement.done} />
                 </p>

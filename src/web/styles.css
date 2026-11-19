@@ -5152,16 +5152,26 @@ main:focus {
   color: var(--ih-loss-text);
   font-weight: 500;
 }
+/* 판은 한 줄에 하나. 옆으로 흘리면 폰에서 지금 판(굵은 글자)과 다른 판(44px 링크)의 높이가 달라 줄이 어긋났다.
+   지금 판 글자도 링크와 같은 44px 높이로 세워 판 사이 간격을 맞춘다. */
 .series-games {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
+  flex-direction: column;
+  align-items: flex-start;
   margin: var(--space-1) 0 0;
   padding: 0;
   list-style: none;
 }
 .series-games li {
   min-width: 0;
+}
+.series-games li > strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.series-games .link {
+  padding-left: 0;
 }
 .series-line {
   overflow-wrap: anywhere;
@@ -5876,11 +5886,13 @@ main:focus {
   min-width: 0;
 }
 /* CSV 내려받기 줄: 버튼과 설명을 나란히, 좁으면 줄바꿈 */
+/* 목록 카드 바로 아래에 붙지 않게 12px 띄운다(목록과 한 덩어리로 읽혔다). */
 .csv-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-3);
 }
 
 /* ---------- 준비 화면 두 단 ----------
@@ -7452,6 +7464,10 @@ label:has(> select) {
    글자가 제목보다 4px 안쪽에서 시작해 어긋나 보이므로 왼쪽 여백만 뺀다(.page-back .link와 같은 처리). */
 @media (max-width: 767px) {
   .page-actions > .link:first-child {
+    padding-left: 0;
+  }
+  /* 글자 링크가 둘 이상이라 줄을 바꿔 쌓이면(개인 통계 "최근 경기" 아래) 둘째 줄부터도 왼쪽 끝을 맞춘다. */
+  .page-actions > .link + .link {
     padding-left: 0;
   }
 }

@@ -1389,28 +1389,33 @@ export function MatchDetail(props: {
         openMatch={props.openMatch}
       />
 
-      <details open={history.length > 0 && history.some((r) => r.kind === "correction")}>
-        <summary>변경 이력 {history.length}건</summary>
-        <ul className="list">
-          {history.map((r) => (
-            <li key={r.id} className="list-row static">
-              <span>
-                {deletionOf(r) !== null
-                  ? `${deletionOf(r) ? "삭제" : "삭제 되살림"} · ${DELETED_BY_LABEL[String(r.changes.by?.to)] ?? "운영자"}`
-                  : (REVISION_LABEL[r.kind] ?? r.kind) +
-                    (Object.keys(r.changes).length > 0 && r.kind === "correction"
-                      ? ` · ${Object.keys(r.changes)
-                          .map((k) => changeText(k, nameOf, match))
-                          .join(", ")}`
-                      : "")}
-              </span>
-              <span className="hint">
-                {formatDate(r.createdAt, tz)} {formatTime(r.createdAt, tz)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </details>
+      {/* 이력이 없으면 펼칠 것도 없는 접힘 상자 대신 한 줄로 알린다. */}
+      {history.length === 0 ? (
+        <p className="hint">변경 이력 없음</p>
+      ) : (
+        <details open={history.some((r) => r.kind === "correction")}>
+          <summary>변경 이력 {history.length}건</summary>
+          <ul className="list">
+            {history.map((r) => (
+              <li key={r.id} className="list-row static">
+                <span>
+                  {deletionOf(r) !== null
+                    ? `${deletionOf(r) ? "삭제" : "삭제 되살림"} · ${DELETED_BY_LABEL[String(r.changes.by?.to)] ?? "운영자"}`
+                    : (REVISION_LABEL[r.kind] ?? r.kind) +
+                      (Object.keys(r.changes).length > 0 && r.kind === "correction"
+                        ? ` · ${Object.keys(r.changes)
+                            .map((k) => changeText(k, nameOf, match))
+                            .join(", ")}`
+                        : "")}
+                </span>
+                <span className="hint">
+                  {formatDate(r.createdAt, tz)} {formatTime(r.createdAt, tz)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {resultOpen && (
         <ResultSheet
