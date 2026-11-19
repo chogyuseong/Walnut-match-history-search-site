@@ -152,29 +152,99 @@ export function computeRatings(matches: readonly MatchView[], options: Partial<R
   return table;
 }
 
+/** decay[d] = d경기 전 결과의 최근 가중. MIN_DECAY 아래는 계산에서 빠지므로 거기까지만 둔다(약 1330칸). */
+const DECAY: readonly number[] = (() => {
+  const weights: number[] = [];
+  for (let d = 0; ; d++) {
+    const w = 0.5 ** (d / RATING_HALF_LIFE);
+    if (w < MIN_DECAY) return weights;
+    weights.push(w);
+  }
+})();
+
+/**
+ * 경기를 앞에서부터 하나씩 넣어 맞춘 중간 상태(마지막 다듬기 전). 다음 스냅숏이 같은 경기 열 뒤에 경기만 붙인 것이면
+ * (결과 저장·경기 시작처럼 흔한 경우) 처음부터 다시 맞추지 않고 이 상태에서 이어 넣는다. 경기를 넣는 계산은 그 경기와
+ * 그 앞 경기만 보므로 이어 넣어도 처음부터 계산한 것과 숫자가 똑같다(rating.test.ts "이어서 계산" 테스트가 확인한다).
+ * 2000경기 모임에서 처음부터 맞추는 데 약 1.8초, 이어 넣으면 마지막 다듬기 몇 ms다(2026-11-19 측정).
+ */
+interface FitState {
+  /** 넣은 경기마다 결과를 바꾸는 내용(경기 ID·이긴 팀·명단의 사람·팀)의 열쇠. 앞부분이 하나라도 다르면 처음부터 다시 맞춘다. */
+  keys: string[];
+  people: string[];
+  indexOf: Map<string, number>;
+  /** 경기를 평평한 배열로 편다: 경기 j의 자리는 offsets[j]..offsets[j + 1]. 자리마다 사람 번호·팀 계수(±1/팀 인원)·연속 가중. */
+  offsets: number[];
+  who: number[];
+  gameOf: number[];
+  coef: number[];
+  streakWeight: number[];
+  runs: number[];
+  aWon: number[];
+  /** 사람별 자리 번호(경기 순). */
+  seatsOf: number[][];
+  /** 직전까지: 양수 연승 수, 음수 연패 수. */
+  streaks: Map<number, number>;
+  theta: number[];
+  /** 경기마다 A팀 θ 평균 − B팀 θ 평균. 한 사람을 움직일 때마다 그 사람 경기만 고쳐 둔다. */
+  lin: number[];
+  /** 사람마다 지금 맞추는 구간(오래돼 빠진 경기 뒤 ~ 지금 경기)에 드는 자리의 시작·끝(seatsOf 안 위치). */
+  from: number[];
+  to: number[];
+  /** 이번 경기 묶음 안에서의 순번(사람 번호 → 0..9). 묶음 밖은 −1. */
+  slot: number[];
+  histories: RatingPoint[][];
+}
+
+/** 시작값별 마지막 중간 상태. 모임을 바꾸거나 옛 경기를 고치면 열쇠가 어긋나 새로 맞추며 덮어쓴다. */
+const lastFit = new Map<number, FitState>();
+
+function matchKey(match: MatchView): string {
+  return `${match.id}|${match.winnerTeam}|${match.roster.map((r) => `${r.participantId}:${r.team}`).join(",")}`;
+}
+
+function emptyFit(): FitState {
+  return {
+    keys: [],
+    people: [],
+    indexOf: new Map(),
+    offsets: [0],
+    who: [],
+    gameOf: [],
+    coef: [],
+    streakWeight: [],
+    runs: [],
+    aWon: [],
+    seatsOf: [],
+    streaks: new Map(),
+    theta: [],
+    lin: [],
+    from: [],
+    to: [],
+    slot: [],
+    histories: [],
+  };
+}
+
 function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
   // 한쪽 팀이 비어 있는 이상한 경기(이관 자료 등)는 비교할 상대가 없으므로 건너뛴다.
   const timeline = countedChronological(matches).filter(
     (m) => m.roster.some((r) => r.team === "A") && m.roster.some((r) => r.team === "B"),
   );
-  const people: string[] = [];
-  const indexOf = new Map<string, number>();
-  // 경기를 평평한 배열로 편다: 경기 j의 자리는 offsets[j]..offsets[j + 1]. 자리마다 사람 번호·팀 계수(±1/팀 인원)·연속 가중.
-  const offsets = new Int32Array(timeline.length + 1);
-  const seats = timeline.reduce((n, m) => n + m.roster.length, 0);
-  const who = new Int32Array(seats);
-  const gameOf = new Int32Array(seats);
-  const coef = new Float64Array(seats);
-  const streakWeight = new Float64Array(seats);
-  const runs = new Int32Array(seats);
-  const aWon = new Uint8Array(timeline.length);
-  /** 사람별 자리 번호(경기 순). */
-  const seatsOf: number[][] = [];
-  const streaks = new Map<number, number>(); // 직전까지: 양수 연승 수, 음수 연패 수
-  let seat = 0;
-  timeline.forEach((match, j) => {
-    offsets[j] = seat;
-    aWon[j] = match.winnerTeam === "A" ? 1 : 0;
+  const keys = timeline.map(matchKey);
+  let st = lastFit.get(start);
+  if (!st || st.keys.length > keys.length || st.keys.some((key, j) => key !== keys[j])) {
+    st = emptyFit();
+    lastFit.set(start, st);
+  }
+  const { people, indexOf, offsets, who, gameOf, coef, streakWeight, runs, aWon, seatsOf, streaks } = st;
+  const { theta, lin, from, to, slot, histories } = st;
+  const firstNew = st.keys.length;
+
+  for (let j = firstNew; j < timeline.length; j++) {
+    const match = timeline[j]!;
+    aWon.push(match.winnerTeam === "A" ? 1 : 0);
+    lin.push(0);
     const sizeA = match.roster.filter((r) => r.team === "A").length;
     const sizeB = match.roster.length - sizeA;
     for (const r of match.roster) {
@@ -184,40 +254,29 @@ function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
         indexOf.set(r.participantId, k);
         people.push(r.participantId);
         seatsOf.push([]);
+        theta.push(0);
+        from.push(0);
+        to.push(0);
+        slot.push(-1);
+        histories.push([]);
       }
       const won = (r.team === "A") === (match.winnerTeam === "A");
       const before = streaks.get(k) ?? 0;
       const run = (won ? before > 0 : before < 0) ? Math.abs(before) + 1 : 1;
       streaks.set(k, won ? run : -run);
-      who[seat] = k;
-      gameOf[seat] = j;
-      coef[seat] = r.team === "A" ? 1 / sizeA : -1 / sizeB;
-      runs[seat] = run;
-      streakWeight[seat] = streakMultiplier(run);
-      seatsOf[k]!.push(seat);
-      seat += 1;
+      seatsOf[k]!.push(who.length);
+      who.push(k);
+      gameOf.push(j);
+      coef.push(r.team === "A" ? 1 / sizeA : -1 / sizeB);
+      runs.push(run);
+      streakWeight.push(streakMultiplier(run));
     }
-  });
-  offsets[timeline.length] = seat;
-
-  // decay[d] = d경기 전 결과의 최근 가중.
-  const decay: number[] = [];
-  for (let d = 0; d <= timeline.length; d++) {
-    const w = 0.5 ** (d / RATING_HALF_LIFE);
-    if (w < MIN_DECAY) break;
-    decay.push(w);
+    offsets.push(who.length);
   }
-
-  const theta = new Float64Array(people.length);
-  /** 경기마다 A팀 θ 평균 − B팀 θ 평균. 한 사람을 움직일 때마다 그 사람 경기만 고쳐 둔다. */
-  const lin = new Float64Array(timeline.length);
-  // 사람마다 지금 맞추는 구간(오래돼 빠진 경기 뒤 ~ 지금 경기)에 드는 자리의 시작·끝(seatsOf 안 위치).
-  const from = new Int32Array(people.length);
-  const to = new Int32Array(people.length);
 
   /** 사람 k의 자리 중 최근 가중 창에서 빠진 옛 경기를 건너뛴다. */
   const dropOld = (k: number, upto: number) => {
-    const oldest = upto - decay.length + 1;
+    const oldest = upto - DECAY.length + 1;
     const mine = seatsOf[k]!;
     while (from[k]! < to[k]! && gameOf[mine[from[k]!]!]! < oldest) from[k] = from[k]! + 1;
   };
@@ -246,7 +305,7 @@ function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
       for (let i = from[k]!; i < to[k]!; i++) {
         const s = mine[i]!;
         const j = gameOf[s]!;
-        const w = streakWeight[s]! * decay[upto - j]!;
+        const w = streakWeight[s]! * DECAY[upto - j]!;
         const p = 1 / (1 + Math.exp(-lin[j]!));
         const c = coef[s]!;
         grad += w * (p - aWon[j]!) * c;
@@ -260,8 +319,6 @@ function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
     return largest * POINTS_PER_LOGIT;
   };
 
-  /** 이번 경기 묶음 안에서의 순번(사람 번호 → 0..9). 묶음 밖은 −1. */
-  const slot = new Int32Array(people.length).fill(-1);
   /**
    * 경기 j를 넣은 뒤 그 경기의 사람들만 함께 맞춘다(다른 사람 고정, 열 명 연립 뉴턴법). 한 명씩 맞추면 같은 기록의
    * 팀원이 맞추는 순서 때문에 몇십 점씩 갈라졌다. 연속 가중이 사람마다 달라 식이 대칭이 아니므로 가우스 소거로 푼다.
@@ -284,7 +341,7 @@ function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
         for (let i = from[k]!; i < to[k]!; i++) {
           const s = mine[i]!;
           const g = gameOf[s]!;
-          const w = streakWeight[s]! * decay[j - g]!;
+          const w = streakWeight[s]! * DECAY[j - g]!;
           const p = 1 / (1 + Math.exp(-lin[g]!));
           const c = coef[s]!;
           grad += w * (p - aWon[g]!) * c;
@@ -309,8 +366,8 @@ function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
   };
 
   const points = (k: number) => start + theta[k]! * POINTS_PER_LOGIT;
-  const histories: RatingPoint[][] = people.map(() => []);
-  timeline.forEach((match, j) => {
+  for (let j = firstNew; j < timeline.length; j++) {
+    const match = timeline[j]!;
     const before: number[] = [];
     let line = 0;
     for (let s = offsets[j]!; s < offsets[j + 1]!; s++) {
@@ -329,14 +386,21 @@ function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
         multiplier: streakWeight[s]!,
       });
     }
-  });
+    st.keys.push(keys[j]!);
+  }
+
+  // 마지막 다듬기는 끝나면 되돌린다. 다음 스냅숏이 경기를 이어 넣을 때는 다듬기 전 값에서 시작해야 처음부터 계산한 것과 같다.
+  const savedTheta = theta.slice();
+  const savedLin = lin.slice();
+  const savedFrom = from.slice();
   if (timeline.length > 0) {
     for (let i = 0; i < FINAL_SWEEPS_MAX; i++) if (sweep(timeline.length - 1) < FINAL_TOLERANCE) break;
   }
 
   const table: RatingTable = new Map();
   people.forEach((participantId, k) => {
-    const history = histories[k]!;
+    // 기록 배열은 다음 이어 넣기에서 늘어나므로 표에는 사본을 준다(이미 그린 화면의 표가 바뀌지 않게).
+    const history = histories[k]!.slice();
     const rating = points(k);
     const recent = history[Math.max(0, history.length - RATING_RECENT_GAMES)]!;
     table.set(participantId, {
@@ -348,6 +412,9 @@ function fitRatings(matches: readonly MatchView[], start: number): RatingTable {
       history,
     });
   });
+  savedTheta.forEach((v, k) => (theta[k] = v));
+  savedLin.forEach((v, j) => (lin[j] = v));
+  savedFrom.forEach((v, k) => (from[k] = v));
   return table;
 }
 

@@ -35,6 +35,7 @@ import { playedSessions, sessionGames, sessionMates, type PlayedSession, type Se
 import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
 import {
   formatDate,
+  formatTime,
   nameMap,
   POSITION_LABEL,
   rateHueClass,
@@ -795,6 +796,16 @@ function SessionGamesPanel(props: {
     [snapshot, session.sessionId, me, other, nameOf],
   );
   const count = (relation: SessionRelation) => games.filter((g) => g.relation === relation).length;
+  // 같은 날 회차가 둘 이상이면 날짜만으로는 갈리지 않아 첫 경기 시각을 붙인다("11월 18일 오후 8:10").
+  const dayCounts = new Map<string, number>();
+  for (const s of props.sessions) {
+    const day = formatDate(s.startedAt, tz);
+    dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
+  }
+  const sessionName = (s: PlayedSession) => {
+    const day = formatDate(s.startedAt, tz);
+    return (dayCounts.get(day) ?? 0) > 1 ? `${day} ${formatTime(s.startedAt, tz)}` : day;
+  };
 
   return (
     <section className="full cmp-section cmp-session" aria-label="그날 경기">
@@ -805,7 +816,7 @@ function SessionGamesPanel(props: {
           <select value={session.sessionId} onChange={(e) => props.pickSession(e.target.value)}>
             {props.sessions.map((s) => (
               <option key={s.sessionId} value={s.sessionId}>
-                {formatDate(s.startedAt, tz)} · {s.myGames}경기 출전
+                {sessionName(s)} · {s.myGames}경기 출전
               </option>
             ))}
           </select>

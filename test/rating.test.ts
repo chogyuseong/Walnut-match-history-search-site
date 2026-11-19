@@ -15,6 +15,7 @@ import {
   streakMultiplier,
   type RatingOptions,
 } from "../src/shared/rating";
+import { buildDemoSnapshot } from "../src/shared/demo";
 import { personRecords } from "../src/shared/stats";
 import { DEFAULT_TITLE_BANDS, standings } from "../src/shared/titles";
 import type { MatchView, Team } from "../src/shared/types";
@@ -348,5 +349,40 @@ describe("경기 상세의 열 명 MMR 변화", () => {
     const table = computeRatings(matches);
     expect(matchRatingChanges(table, matches[1]!)).toEqual([]);
     expect(matchRatingChanges(table, matches[2]!)).toEqual([]);
+  });
+});
+
+describe("이어서 계산", () => {
+  // 결과를 저장할 때마다 새 스냅숏이 오므로, 앞 경기가 같으면 지난 계산에서 이어 넣는다(rating.ts FitState).
+  // 이어 넣은 결과는 처음부터 계산한 것과 숫자 하나까지 같아야 한다.
+  const all = buildDemoSnapshot({ matches: 240 }).matches;
+  const table = (t: Map<string, unknown>) => [...t.entries()];
+  /** 다른 모임 기록을 한 번 계산해 이어 넣을 상태를 비운 뒤 계산한다(처음부터 계산한 값). */
+  const fresh = (matches: readonly MatchView[]) => {
+    computeRatings([...all.slice(0, 3)].reverse().map((m, i) => ({ ...m, id: `other-${i}` })));
+    return table(computeRatings([...matches]));
+  };
+
+  it("경기를 하나씩 붙여도 처음부터 계산한 것과 같다", () => {
+    const expected = fresh(all);
+    computeRatings(all.slice(0, 1));
+    for (let n = 2; n < all.length; n += 7) computeRatings(all.slice(0, n));
+    expect(table(computeRatings([...all]))).toEqual(expected);
+  });
+
+  it("앞 경기의 결과를 고치면 처음부터 다시 맞춘다", () => {
+    computeRatings([...all]);
+    const fixed = all.map((m, i) => (i === 10 ? { ...m, winnerTeam: (m.winnerTeam === "A" ? "B" : "A") as Team } : m));
+    const resumedOrNot = table(computeRatings(fixed));
+    expect(resumedOrNot).toEqual(fresh(fixed));
+    expect(resumedOrNot).not.toEqual(fresh(all));
+  });
+
+  it("이미 돌려준 표는 다음 계산에 바뀌지 않는다", () => {
+    const first = computeRatings(all.slice(0, 100));
+    const someone = [...first.values()][0]!;
+    const before = someone.history.length;
+    computeRatings(all.slice(0, 200));
+    expect(someone.history).toHaveLength(before);
   });
 });
