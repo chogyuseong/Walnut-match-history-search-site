@@ -5,6 +5,7 @@ dist/
 *.log
 test-results/
 playwright-report/
+.playwright-mcp/
 .claude/settings.local.json
 # 작업 중 임시 파일(세션 임시 스크립트 __*.mjs, *.tmp.*). eslint.config.js ignores와 같다.
 *.tmp.*

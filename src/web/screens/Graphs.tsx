@@ -396,14 +396,17 @@ export function Graphs(props: {
             </select>
           </label>
         </div>
+        {(playerId !== "" || fewCount > 0) && (
         <div className="graph-meta">
           <p className="hint">
             {/* 자료 적음 인원은 요약 칸(최대 셋)에서 이 줄로 내렸다. 참가자 수는 바로 아래 요약 칸에 크게 있으니
                 되풀이하지 않고, 플레이어를 골라 요약 칸이 사라질 때만 이 줄에 적는다. 범위·확정 경기 수는 아래 기준 줄에 있다. */}
-            {playerId !== "" && `참가자 ${matrixRows.length}명 · `}
-            {`자료 적음(${SMALL_SAMPLE}경기 미만) ${fewCount}명`}
+            {playerId !== "" && `참가자 ${matrixRows.length}명${fewCount > 0 ? " · " : ""}`}
+            {/* 0명이면 알릴 것이 없어 뺀다. 필터 오른쪽에 "0명"만 떠 있으면 무언가 빠진 것처럼 보인다. */}
+            {fewCount > 0 ? `자료 적음(${SMALL_SAMPLE}경기 미만) ${fewCount}명` : ""}
           </p>
         </div>
+        )}
       </div>
       <ScopeBasis snapshot={snapshot} scope={scope} />
 

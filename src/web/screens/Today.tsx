@@ -374,14 +374,16 @@ export function Today() {
       )}
 
       {app.ready && !app.me?.accountId && !introOnly && (
-        <p className="hint">
-          팀 짜기와 명단 복사는 로그인 없이 돼요. 경기를 저장하거나 지난 기록을 가져올 때 로그인해요.
-          이미 쓰고 있다면 맨 위 [로그인]을 누르거나{" "}
+        // 로그인 링크를 문장 안에 넣으면 44px 터치 영역 때문에 그 줄만 벌어지고, 문장이 "맨 위 [로그인]"을 가리키느라
+        // 길었다. 안내 한 문장과 결과를 적은 링크 한 줄로 나눈다(CLAUDE.md 8절: 버튼 이름에 결과).
+        <div className="login-note">
+          <p className="hint">
+            팀 짜기와 명단 복사는 로그인 없이 돼요. 경기를 저장하거나 지난 기록을 가져올 때 로그인해요.
+          </p>
           <button type="button" className="link" onClick={() => setLoginOpen(true)}>
-            여기서 로그인
+            로그인하고 내 모임 불러오기
           </button>
-          하세요.
-        </p>
+        </div>
       )}
 
       {loginOpen && (

@@ -527,6 +527,15 @@ legend {
   line-height: 1.45;
   max-width: 68ch;
 }
+/* 오늘 화면(로그인 전) 아래 안내 한 줄 + "로그인하고 내 모임 불러오기" 링크. 링크 글자를 안내 글과 같은 왼쪽 선에 맞춘다. */
+.login-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.login-note > .link {
+  padding-left: 0;
+}
 /* 제목·꼬리표 옆 i 버튼(screenKit InfoTip). 버튼은 터치 기준 44px이고 보이는 원(.info-tip-dot)만 작게 그린다.
    i 버튼을 품은 제목 줄은 글자와 버튼을 한 줄 flex로 세로 가운데에 맞춘다. 그래서 그 줄은 44px 높이가 된다
    (줄 높이를 음수 여백으로 누르지 않는다. 간격 규칙 위반). 펼친 설명은 다음 줄 전체를 쓴다. */
@@ -1206,11 +1215,10 @@ details > *:not(summary) {
 input[type="search"] {
   margin-bottom: var(--space-2);
 }
+/* 검색 칸 하나를 카드로 감싸지 않는다(CLAUDE.md 2절). 입력 칸 테두리만으로 충분히 구분되고, 카드였을 때는 바로 아래
+   결과 카드와 같은 무게라 무엇이 입력이고 무엇이 결과인지 덜 갈렸다. */
 .record-search {
-  padding: var(--space-4);
-  border: 1px solid var(--ih-line);
-  border-radius: var(--radius-panel);
-  background: var(--ih-panel);
+  margin: 0;
 }
 .record-search label {
   font-size: var(--text-label);
@@ -2726,6 +2734,14 @@ main:focus {
 .sub-head {
   margin: var(--space-2) 0 var(--space-2);
   color: var(--ih-text-secondary);
+}
+/* 요약 "요즘 흐름": 두 목록(연승 중·최근 10경기 승률)이 8px로 붙으면 한 목록처럼 읽히고, 끝의 설명 글은 카드에
+   바로 붙어 있었다. 둘째 소제목 위는 묶음 사이(24px), 설명 글 위는 관련 요소 사이(8px)로 띄운다(CLAUDE.md 1절). */
+.home-flow > .sub-head ~ .sub-head {
+  margin-top: var(--space-5);
+}
+.home-flow > :is(.list, .hint) + .hint {
+  margin-top: var(--space-2);
 }
 
 /* 경기 카드: 머리 줄(경기 번호·결과·시각)이 경기 상세로 가는 버튼이고, 카드의 빈 곳도 같은 곳으로 간다.
@@ -6266,7 +6282,8 @@ label:has(> select) {
 .graph-tools {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  /* 오른쪽 요약 글이 고르기 칸(44px)의 가운데 높이에 오게 한다. 위에 붙이면 칸보다 높이 떠 보인다. */
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-1) var(--space-4);
 }
@@ -7408,6 +7425,13 @@ label:has(> select) {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+/* 폰에서는 행동 줄이 제목 아래로 내려온다. 맨 앞이 글자 링크("챔피언 티어 →")면 터치 영역 좌우 여백 때문에
+   글자가 제목보다 4px 안쪽에서 시작해 어긋나 보이므로 왼쪽 여백만 뺀다(.page-back .link와 같은 처리). */
+@media (max-width: 767px) {
+  .page-actions > .link:first-child {
+    padding-left: 0;
+  }
 }
 
 /* 필터 줄(FilterBar): 카드로 감싸지 않은 한 줄. 구간 탭은 칸이 붙은 한 덩어리, 고르기 상자·검색 칸은 그 옆. */

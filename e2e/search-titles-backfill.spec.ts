@@ -228,7 +228,8 @@ test("연도 필터: 경기가 있는 해만 고를 수 있고 모임 시간대�
   await page.goto("/#/graphs");
   await page.getByLabel("범위", { exact: true }).selectOption({ label: "2025년" });
   await expect(page.locator(".scope-basis")).toContainText("2025년 · 확정 2경기");
-  await expect(page.getByRole("region", { name: "분석 요약" }).locator(".ps-tiles > div").nth(0)).toContainText("2경기");
+  // 확정 경기 수는 기준 줄에만 있다(요약 타일은 참가자·진영 승률). 2025년에 뛴 사람은 열 명이다.
+  await expect(page.getByRole("region", { name: "분석 요약" }).locator(".ps-tiles > div").nth(0)).toContainText("10명");
 
   // 320px에서 범위 고르기가 넘치지 않는다.
   await page.setViewportSize({ width: 320, height: 640 });

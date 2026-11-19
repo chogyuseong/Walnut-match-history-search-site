@@ -185,7 +185,7 @@ export function Dashboard(props: {
           </ul>
         </section>
 
-        <section aria-label="요즘 흐름">
+        <section className="home-flow" aria-label="요즘 흐름">
           <h2>요즘 흐름</h2>
           <h3 className="sub-head">{HOT_STREAK_MIN}연승 이상 이어가는 중</h3>
           {flow.hotStreaks.length === 0 ? (

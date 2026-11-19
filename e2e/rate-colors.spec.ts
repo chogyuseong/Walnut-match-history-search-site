@@ -166,14 +166,15 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await setTheme(page, "dark");
 
   // 개인 통계: 가장 높은 선수12(70% 이상)는 가장 붉은 단계, 가장 낮은 선수01(20%)은 가장 가라앉은 단계.
+  // 보이는 승률 숫자는 고리 가운데에만 있다(요약 줄의 승률은 화면 읽기용, 2026-11-19).
   const top = s.people[11]!;
   const low = s.people[0]!;
   await page.goto(`/#/p/${top.id}`);
   const summary = page.getByRole("region", { name: "요약" });
   await expect(summary.locator(".ring-fill")).toHaveClass(/rate-hue-6/);
-  await expect(summary.locator(".summary-line")).toHaveClass(/rate-hue-6/);
+  await expect(summary.locator(".ring-text strong")).toHaveClass(/rate-hue-6/);
   const hotRing = await colorOf(page, ".ring-fill", "stroke");
-  const hotText = await colorOf(page, ".summary-line", "color");
+  const hotText = await colorOf(page, ".person-summary .ring-text strong", "color");
   // 진영 막대는 진영 색 그대로(승률 단계 클래스가 붙지 않는다). 다크 테마의 승리 색 #4f8ddd · 패배 색 #d9534f.
   const sides = page.getByRole("region", { name: "진영별" });
   await expect(sides.locator(".meter-fill.tone-blue")).toHaveCount(1);
@@ -202,9 +203,9 @@ test("승률 막대·글자는 같은 색 단계를 따르고 진영·승패·�
   await page.reload();
   await expect(page.getByRole("heading", { name: "선수01", level: 1 })).toBeVisible();
   await expect(summary.locator(".ring-fill")).toHaveClass(/rate-hue-1/);
-  await expect(summary.locator(".summary-line")).toHaveClass(/rate-hue-1/);
+  await expect(summary.locator(".ring-text strong")).toHaveClass(/rate-hue-1/);
   expect(await colorOf(page, ".ring-fill", "stroke")).not.toBe(hotRing);
-  expect(await colorOf(page, ".summary-line", "color")).not.toBe(hotText);
+  expect(await colorOf(page, ".person-summary .ring-text strong", "color")).not.toBe(hotText);
   await expect(summary.locator(".title-chip")).toHaveClass(/grade-8/);
   await expect(summary.locator(".title-chip")).toHaveText("불굴의 개척자");
   // 최근 승패(2026-11-17부터 칸 없이 글자): 승은 승리 글자색 #86b4ea, 패는 패배 글자색 #ea847f. 바탕·테두리 없음.

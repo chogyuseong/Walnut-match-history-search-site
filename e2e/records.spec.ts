@@ -235,7 +235,7 @@ test("그래프 분석", async ({ page }) => {
   await page.goto("/#/records");
   await page.getByRole("button", { name: "그래프 분석" }).click();
   await expect(page.getByRole("heading", { name: "그래프 분석", level: 1 })).toBeVisible();
-  // 요약 칸 셋: 확정 경기·참가자·블루:레드. 자료 적음(5경기 미만: 선수11·12)은 위 한 줄로 내렸다(디자인 4단계).
+  // 요약 칸 둘: 참가자·블루:레드(확정 경기 수는 기준 줄). 자료 적음(5경기 미만: 선수11·12)은 위 한 줄로 내렸다(디자인 4단계).
   // 위 한 줄은 요약 칸과 겹치는 경기·참가자 수를 되풀이하지 않는다.
   // 범위는 기준 줄로 옮겼다(2026-11-18).
   await expect(page.getByText("자료 적음(5경기 미만) 2명", { exact: true })).toBeVisible();

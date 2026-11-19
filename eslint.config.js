@@ -25,7 +25,7 @@ const { default: globals } = await import("globals");
 export default tseslint.config(
   {
     // 마지막 둘: 작업 중에 잠깐 만드는 임시 파일(*.tmp.*, __*.mjs 세션 임시 스크립트). .gitignore와 같다.
-    ignores: ["dist/**", ".wrangler/**", "node_modules/**", "test-results/**", "playwright-report/**", "**/*.tmp.*", "**/__*.mjs"],
+    ignores: ["dist/**", ".wrangler/**", "node_modules/**", "test-results/**", "playwright-report/**", ".playwright-mcp/**", "**/*.tmp.*", "**/__*.mjs"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -389,8 +389,17 @@ export function Person(props: {
           <div className="ps-hero">
             <RateRing wins={detail.summary.wins} games={detail.summary.games} />
             <div className="ps-main">
-              <p className={`summary-line ${rateHueText(detail.summary.wins, detail.summary.games)}`}>
-                {line(detail.summary)}
+              {/* 승률 숫자는 바로 왼쪽 고리 가운데에 크게 있어 이 줄에서는 화면 읽기용으로만 둔다(고리는 aria-hidden).
+                  같은 62%가 나란히 두 번 보이지 않게 하려는 것이고, 경기가 없으면 고리가 없으니 "기록 없음"을 그대로 쓴다. */}
+              <p className="summary-line">
+                {detail.summary.games === 0 ? (
+                  line(detail.summary)
+                ) : (
+                  <>
+                    <span className="sr-only">{rate(detail.summary)} · </span>
+                    {detail.summary.wins}승 {detail.summary.losses}패 ({detail.summary.games}경기)
+                  </>
+                )}
               </p>
               <p className="hint">
                 {placement.done
