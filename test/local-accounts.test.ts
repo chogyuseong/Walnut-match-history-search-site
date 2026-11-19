@@ -13,7 +13,7 @@ import {
 } from "../src/server/local";
 import { rateClock } from "../src/server/ratelimit";
 import { cookieFrom, direct } from "./direct";
-import { unique } from "./helpers";
+import { unique, type LooseJson } from "./helpers";
 
 // 자체 계정(아이디 + 비밀번호): 가입·로그인·복구 코드·비밀번호 바꾸기·탈퇴·악용 방지.
 
@@ -33,7 +33,7 @@ const PASSWORD = "correct horse 1";
 
 interface Call {
   status: number;
-  body: any;
+  body: LooseJson;
   cookie: string | null;
 }
 

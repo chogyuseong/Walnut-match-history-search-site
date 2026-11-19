@@ -6,7 +6,7 @@ import { convertLegacy, legacySourceKey, type LegacyFutureMode, type LegacyMatch
 import { classifyImport, toSheetPayload, type ExistingImport, type SheetSideMode } from "../src/shared/sheetTable";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
-import { api, login, requestId, setupGroup, snapshot, unique, type TestGroup } from "./helpers";
+import { api, login, requestId, setupGroup, snapshot, unique, type LooseJson, type TestGroup } from "./helpers";
 
 // 기존 사이트(v1) 기록 가져오기: 읽기 경로의 권한·요청 수 제한·SSRF 방어(가짜 fetch),
 // 가져오기 → 다시 가져오기 0건 → 경기 추가 뒤 추가분만 → id 같고 내용 바뀜은 "바뀐 경기", 묶음 제외·복구, 백업 → 복원.
@@ -77,7 +77,7 @@ function fakeScript(body: () => Response | string, opts: { first?: () => Respons
 
 async function read(g: TestGroup, url = SCRIPT_URL, overrides = {}) {
   const res = await direct(overrides, "POST", `/api/groups/${g.gid}/legacy/read`, { cookie: g.cookie, body: { url } });
-  return { status: res.status, body: (await res.json()) as any };
+  return { status: res.status, body: (await res.json()) as LooseJson };
 }
 
 describe("기존 사이트 읽기 경로", () => {
@@ -376,7 +376,7 @@ describe("기존 사이트 가져오기 → 다시 가져오기", () => {
     // 다른 선택(빼기)으로 읽어도 이미 들어간 경기만 남아 0건.
     expect((await importLegacy(g, ms, { futureMode: "drop" })).sent).toBe(0);
     const backup = (await api(g.cookie, "GET", `/api/groups/${g.gid}/export`)).body;
-    expect(backup.importBatches.find((b: any) => b.options)).toMatchObject({ kind: "legacy", sourceKey: SOURCE_KEY, options: { futureMode: "shift", from: soon } });
+    expect(backup.importBatches.find((b: { options?: unknown }) => b.options)).toMatchObject({ kind: "legacy", sourceKey: SOURCE_KEY, options: { futureMode: "shift", from: soon } });
   });
 
   it("묶음 단위 전적 제외·복구, 백업 → 복원(같은 모임·새 모임) 뒤에도 출처·줄 위치·중복 방지가 유지되고 모임 삭제로 지워진다", async () => {
@@ -389,7 +389,7 @@ describe("기존 사이트 가져오기 → 다시 가져오기", () => {
 
     const backup = (await api(g.cookie, "GET", `/api/groups/${g.gid}/export`)).body;
     expect(backup.importBatches[0]).toMatchObject({ kind: "legacy", sourceKey: SOURCE_KEY, label: "기존 사이트", options: null });
-    expect(backup.matches.every((m: any) => /^v1id:[0-9a-f]{16}$/.test(m.importRowKey))).toBe(true);
+    expect(backup.matches.every((m: { importRowKey: string }) => /^v1id:[0-9a-f]{16}$/.test(m.importRowKey))).toBe(true);
 
     await importLegacy(g, v1Matches(8));
     const snap = await snapshot(g);

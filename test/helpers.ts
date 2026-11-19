@@ -1,7 +1,19 @@
 import { SELF } from "cloudflare:test";
 import type { MatchView, ParticipantView, Position, RosterEntry, Snapshot } from "../src/shared/types";
 
-export interface ApiResult<T = any> {
+/** 오류 응답의 본문 모양. 테스트는 error.code만 주로 본다. */
+export interface ErrorBody {
+  error: { code: string; message?: string; details?: LooseJson };
+}
+
+/**
+ * 응답·백업 JSON을 깊이 파고드는 테스트(body.a.b[0].c)용 느슨한 타입. 모양을 호출마다 적는 테스트가 수백 곳이라
+ * 프로젝트에서 any를 쓰는 곳은 여기 하나로 모은다. 모양이 정해진 곳은 api<T>나 ErrorBody처럼 구체 타입으로 좁힌다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 테스트 응답 JSON 전용 느슨한 타입(위 설명)
+export type LooseJson = any;
+
+export interface ApiResult<T = LooseJson> {
   status: number;
   body: T;
 }
@@ -44,7 +56,7 @@ function withRequestId(method: string, path: string, body: unknown): unknown {
   return body;
 }
 
-export async function api<T = any>(
+export async function api<T = LooseJson>(
   cookie: string | null,
   method: string,
   path: string,
@@ -54,7 +66,7 @@ export async function api<T = any>(
 }
 
 /** 본문을 그대로 보낸다(requestId를 채우지 않는다). */
-export async function apiRaw<T = any>(
+export async function apiRaw<T = LooseJson>(
   cookie: string | null,
   method: string,
   path: string,
@@ -117,7 +129,7 @@ export async function start(
   g: TestGroup,
   roster: RosterEntry[],
   extra: Record<string, unknown> = {},
-): Promise<ApiResult<{ match: MatchView; error?: any }>> {
+): Promise<ApiResult<{ match: MatchView; error: ErrorBody["error"] }>> {
   const snap = await snapshot(g);
   return api(g.cookie, "POST", `/api/groups/${g.gid}/matches/start`, {
     requestId: requestId(),
@@ -132,7 +144,7 @@ export async function matchAction(
   match: { id: string; version: number },
   action: string,
   extra: Record<string, unknown> = {},
-): Promise<ApiResult<{ match: MatchView; error?: any }>> {
+): Promise<ApiResult<{ match: MatchView; error: ErrorBody["error"] }>> {
   return api(g.cookie, "POST", `/api/groups/${g.gid}/matches/${match.id}/${action}`, {
     requestId: requestId(),
     baseMatchVersion: match.version,

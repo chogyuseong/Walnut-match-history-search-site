@@ -15,6 +15,7 @@ import {
   setupGroup,
   snapshot,
   start,
+  type ErrorBody,
   type TestGroup,
 } from "./helpers";
 
@@ -140,7 +141,7 @@ describe("모임 삭제", () => {
       body: { confirm: "삭제" },
     });
     expect(cut.status).toBe(503);
-    expect(((await cut.json()) as any).error.code).toBe("DELETE_INCOMPLETE");
+    expect(((await cut.json()) as ErrorBody).error.code).toBe("DELETE_INCOMPLETE");
     // 조회 링크는 이미 막혔고, 다른 쓰기는 점검 상태로 거절된다.
     expect((await api(null, "GET", `/api/view/${token}`)).status).toBe(404);
     const snap = await snapshot(g);

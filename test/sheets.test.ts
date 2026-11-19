@@ -7,7 +7,7 @@ import { linkNames } from "../src/shared/importLink";
 import { classifyImport, detectMapping, parseSheet, toSheetPayload, type ExistingImport } from "../src/shared/sheetTable";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
-import { api, login, matchAction, requestId, setupGroup, snapshot, start, rosterOf, unique, type TestGroup } from "./helpers";
+import { api, login, matchAction, requestId, setupGroup, snapshot, start, rosterOf, unique, type LooseJson, type TestGroup } from "./helpers";
 
 // 구글 시트에서 가져오기(작업 F): 시트 읽기 경로의 권한·요청 수 제한·SSRF 방어, 가져오기 → 다시 가져오기.
 
@@ -53,7 +53,7 @@ const html = (status: number) => () =>
 
 async function read(g: TestGroup, url = SHEET_URL, overrides: Partial<Env> = {}) {
   const res = await direct(overrides, "POST", `/api/groups/${g.gid}/sheets/read`, { cookie: g.cookie, body: { url } });
-  return { status: res.status, body: (await res.json()) as any };
+  return { status: res.status, body: (await res.json()) as LooseJson };
 }
 
 describe("시트 읽기 경로", () => {
@@ -425,7 +425,7 @@ describe("구글 시트 가져오기 → 다시 가져오기", () => {
     const all = await api(g.cookie, "POST", `/api/groups/${g.gid}/imports/${batchId}`, { requestId: requestId(), exclude: false });
     expect(all.status).toBe(409);
     expect(all.body.error.details).toMatchObject({ restorable: 1 });
-    expect(all.body.error.details.overlaps.map((o: any) => o.matchNo)).toEqual([old[0]!.matchNo, old[1]!.matchNo]);
+    expect(all.body.error.details.overlaps.map((o: { matchNo: number }) => o.matchNo)).toEqual([old[0]!.matchNo, old[1]!.matchNo]);
     const some = await api(g.cookie, "POST", `/api/groups/${g.gid}/imports/${batchId}`, {
       requestId: requestId(),
       exclude: false,
@@ -487,7 +487,7 @@ describe("구글 시트 가져오기 → 다시 가져오기", () => {
     expect(backup.formatVersion).toBe(4);
     expect(backup.importBatches).toHaveLength(1);
     expect(backup.importBatches[0]).toMatchObject({ kind: "sheet", sourceKey: SOURCE_KEY, label: "내전 기록 - 2026" });
-    expect(backup.matches.filter((m: any) => m.importFingerprint).length).toBe(6);
+    expect(backup.matches.filter((m: { importFingerprint?: string }) => m.importFingerprint).length).toBe(6);
 
     // 복원 전에 경기를 더 넣어 둔다(복원하면 사라져야 한다).
     await importSheet(g, sheetCsv(8));

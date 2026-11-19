@@ -10,7 +10,7 @@ export class ApiFailure extends Error {
     message: string,
     public readonly status?: number,
     public readonly code?: string,
-    public readonly details?: any,
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -25,9 +25,9 @@ const TIMEOUT_MS = 15000;
 const generations = new Map<string, number>();
 const GROUP_PATH = /^\/api\/groups\/([^/]+)(\/|$)/;
 
-function rememberGeneration(path: string, parsed: any): void {
+function rememberGeneration(path: string, parsed: unknown): void {
   const match = /^\/api\/groups\/([^/]+)\/snapshot$/.exec(path);
-  const generation = parsed?.group?.generation;
+  const generation = (parsed as { group?: { generation?: unknown } } | null)?.group?.generation;
   if (match && typeof generation === "number") generations.set(match[1]!, generation);
 }
 
@@ -80,19 +80,21 @@ async function send<T>(method: string, path: string, body?: unknown): Promise<{ 
   } finally {
     clearTimeout(timer);
   }
-  let parsed: any;
+  let parsed: unknown;
   try {
     parsed = await response.json();
   } catch {
     throw new ApiFailure("unknown", "서버 응답을 읽지 못했어요.", response.status);
   }
   if (!response.ok) {
-    const error = parsed?.error ?? {};
+    // 서버 오류 본문은 { error: { code, message, details } }다(src/server/index.ts onError). 다른 모양이면 기본 문구로 둔다.
+    const error =
+      (parsed as { error?: { message?: unknown; code?: unknown; details?: Record<string, unknown> } } | null)?.error ?? {};
     throw new ApiFailure(
       "api",
       typeof error.message === "string" ? error.message : "요청을 처리하지 못했어요.",
       response.status,
-      error.code,
+      typeof error.code === "string" ? error.code : undefined,
       error.details,
     );
   }

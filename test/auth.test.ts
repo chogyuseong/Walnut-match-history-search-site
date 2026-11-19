@@ -418,7 +418,7 @@ describe("가짜 로그인·테스트 훅은 허용 목록으로만 열린다(�
       expect(res.status, base).toBe(404);
       expect(res.headers.get("Set-Cookie")).toBeNull();
       expect((await at(base, local, "POST", "/api/test/sheet-fixture", fixture, cookie)).status, base).toBe(404);
-      const meBody = (await (await at(base, local, "GET", "/api/me", undefined, cookie)).json()) as any;
+      const meBody = (await (await at(base, local, "GET", "/api/me", undefined, cookie)).json()) as { authMode: string; accountId: string | null };
       expect(meBody.authMode).toBe("oauth");
       expect(meBody.accountId).toBeNull();
     }
@@ -429,7 +429,7 @@ describe("가짜 로그인·테스트 훅은 허용 목록으로만 열린다(�
     for (const base of ["http://127.0.0.1:8787", "http://localhost:8787", "https://example.test"]) {
       const res = await at(base, local, "POST", "/api/auth/fake-login", { subject: unique("local") });
       expect(res.status, base).toBe(200);
-      const meBody = (await (await at(base, local, "GET", "/api/me")).json()) as any;
+      const meBody = (await (await at(base, local, "GET", "/api/me")).json()) as { authMode: string };
       expect(meBody.authMode).toBe("fake");
     }
   });

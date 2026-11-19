@@ -746,7 +746,8 @@ export function ShareImageDialog(props: {
       alive = false;
       if (url) URL.revokeObjectURL(url);
     };
-    // 창을 열 때 한 번만 만든다.
+    // 창을 열 때 한 번만 만든다. 부르는 쪽이 make를 렌더마다 새 함수로 넘기므로 의존성에 넣으면 이미지를 계속 다시 만든다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const downloadable = typeof document !== "undefined" && "download" in document.createElement("a");

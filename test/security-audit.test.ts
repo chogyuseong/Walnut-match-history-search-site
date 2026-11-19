@@ -4,7 +4,7 @@ import { normalizeMemo } from "../src/shared/memo";
 import { cleanName, nameKey } from "../src/shared/names";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
-import { api, login, setupGroup, unique } from "./helpers";
+import { api, login, setupGroup, unique, type LooseJson } from "./helpers";
 import headersFile from "../public/_headers?raw";
 
 // 2026-11-10 보안 감사 수정(docs/개선-서버-2026-11-10.md): 비밀번호 페퍼 분리, __Host- 세션 쿠키, 대표 운영자 작업의
@@ -31,7 +31,7 @@ async function send(
   method: string,
   path: string,
   options: { cookie?: string | null; body?: unknown; headers?: Record<string, string> } = {},
-): Promise<{ status: number; body: any; response: Response }> {
+): Promise<{ status: number; body: LooseJson; response: Response }> {
   const response = await direct(overrides, method, path, {
     ...options,
     headers: { "CF-Connecting-IP": unique("ip"), ...(options.headers ?? {}) },

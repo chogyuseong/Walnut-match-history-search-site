@@ -12,6 +12,7 @@ import {
   setupGroup,
   snapshot,
   start,
+  type LooseJson,
   type TestGroup,
 } from "./helpers";
 
@@ -71,7 +72,7 @@ function seriesAction(g: TestGroup, seriesId: string, action: string, body: Reco
   return api(cookie, "POST", `/api/groups/${g.gid}/series/${seriesId}/${action}`, { requestId: requestId(), ...body });
 }
 
-async function exportOf(g: TestGroup): Promise<Record<string, any>> {
+async function exportOf(g: TestGroup): Promise<Record<string, LooseJson>> {
   const res = await api(g.cookie, "GET", `/api/groups/${g.gid}/export`);
   expect(res.status).toBe(200);
   return res.body;

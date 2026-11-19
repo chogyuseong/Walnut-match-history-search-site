@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { sheetHooks } from "../src/server/sheets";
 import { direct } from "./direct";
-import { setupGroup, type TestGroup } from "./helpers";
+import { setupGroup, type LooseJson, type TestGroup } from "./helpers";
 
 // 시트를 탭 이름으로 읽기: 이름 → gid는 공개 보기 페이지(htmlview)의 탭 목록에서 찾고, 내용은 늘 export?gid=로 읽는다.
 // 없는 이름은 엉뚱한 탭(첫 탭)을 읽지 않고 탭 목록과 함께 알린다.
@@ -35,7 +35,7 @@ const html = (body: string, status = 200) => () => new Response(body, { status, 
 
 async function read(g: TestGroup, body: Record<string, unknown>) {
   const res = await direct({}, "POST", `/api/groups/${g.gid}/sheets/read`, { cookie: g.cookie, body });
-  return { status: res.status, body: (await res.json()) as any };
+  return { status: res.status, body: (await res.json()) as LooseJson };
 }
 
 describe("시트 탭 고르기", () => {

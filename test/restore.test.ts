@@ -17,6 +17,8 @@ import {
   setupGroup,
   snapshot,
   start,
+  type ErrorBody,
+  type LooseJson,
   type TestGroup,
 } from "./helpers";
 
@@ -27,7 +29,7 @@ afterEach(() => {
   deletionHooks.afterStage = null;
 });
 
-type Backup = Record<string, any>;
+type Backup = Record<string, LooseJson>;
 
 async function exportOf(g: TestGroup): Promise<Backup> {
   const res = await api<Backup>(g.cookie, "GET", `/api/groups/${g.gid}/export`);
@@ -184,7 +186,7 @@ describe("손상된 파일은 아무것도 바꾸지 않는다(시나리오 37)"
     ["참조 누락", (b) => (b.matches[0].roster[0].participantId = "missing-person"), /참가자가 파일에 없습니다/],
     ["경기 수 불일치", (b) => (b.matchCount = 5), /경기 수가 맞지 않습니다/],
     ["명단 9명", (b) => b.matches[0].roster.pop(), /10명이 아닙니다/],
-    ["팀 인원", (b) => (b.matches[0].roster.find((r: any) => r.team === "A").team = "B"), /팀당 5명|같은 포지션/],
+    ["팀 인원", (b) => (b.matches[0].roster.find((r: { team: string }) => r.team === "A").team = "B"), /팀당 5명|같은 포지션/],
     ["형식 버전", (b) => (b.formatVersion = 99), /형식 버전/],
     ["이력 참조", (b) => (b.revisions[0].matchId = "nope"), /연결된 경기가 파일에 없습니다/],
     ["순환 참조", (b) => b.rotationEvents.push({ ...b.rotationEvents[0], id: "x1", cycle_id: "nope" }), /주기·경기·참가자/],
@@ -244,7 +246,7 @@ describe("복원 중·복원 뒤의 다른 탭(시나리오 38)", () => {
       headers: { "X-Group-Generation": String(oldTab.group.generation) },
     });
     expect(withHeader.status).toBe(409);
-    expect(((await withHeader.json()) as any).error.code).toBe("GROUP_RESTORED");
+    expect(((await withHeader.json()) as ErrorBody).error.code).toBe("GROUP_RESTORED");
 
     // 세대를 보내지 않는 요청도 버전 검사로 막힌다.
     const startOld = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/start`, {
@@ -295,7 +297,7 @@ describe("복원 중·복원 뒤의 다른 탭(시나리오 38)", () => {
     };
     const broken = await direct(small, "POST", `/api/groups/${g.gid}/restore`, { cookie: g.cookie, body });
     expect(broken.status).toBe(503);
-    expect(((await broken.json()) as any).error.code).toBe("RESTORE_INCOMPLETE");
+    expect(((await broken.json()) as ErrorBody).error.code).toBe("RESTORE_INCOMPLETE");
     restoreHooks.afterStage = null;
     expect((await snapshot(g)).group.maintenance).toBe(true);
 
@@ -468,7 +470,7 @@ describe("여러 단계 복원의 잠금(검토 M2)", () => {
   });
   const run = (g: TestGroup, body: unknown, overrides: Partial<Env> = small) =>
     direct(overrides, "POST", `/api/groups/${g.gid}/restore`, { cookie: g.cookie, body });
-  const codeOf = async (res: Response) => ((await res.clone().json()) as any).error?.code;
+  const codeOf = async (res: Response) => ((await res.clone().json()) as Partial<ErrorBody>).error?.code;
   const jobOf = (gid: string) =>
     env.DB.prepare("SELECT request_id, run_token, heartbeat_ms FROM restore_jobs WHERE group_id = ?1")
       .bind(gid)
@@ -715,7 +717,7 @@ describe("새 모임 가져오기의 재전송(검토 L11)", () => {
     expect(cut.status).toBe(503);
     const again = await direct(small, "POST", "/api/restore/new-group", { cookie: newcomer, body });
     expect(again.status).toBe(200);
-    const gid = ((await again.json()) as any).groupId as string;
+    const gid = ((await again.json()) as { groupId: string }).groupId;
     const snap = (await api<Snapshot>(newcomer, "GET", `/api/groups/${gid}/snapshot`)).body;
     expect(snap.group.maintenance).toBe(false);
     expect(snap.matches).toHaveLength((await snapshot(g)).matches.length);
@@ -740,13 +742,13 @@ describe("복원 묶음 크기는 UTF-8 바이트로 센다(검토 L2)", () => {
   });
 
   it("한 행이 D1 값 한도에 가까우면 아무것도 실행하기 전(계획 단계)에 거절한다", () => {
-    let thrown: any = null;
+    let thrown = null as { code?: string; details: { problems: string[] } } | null;
     try {
       chunkRows([["가".repeat(200 * 1024)]], 1000);
     } catch (e) {
-      thrown = e;
+      thrown = e as typeof thrown;
     }
     expect(thrown?.code).toBe("RESTORE_INVALID");
-    expect(thrown.details.problems.join(" ")).toMatch(/너무 큽니다/);
+    expect(thrown!.details.problems.join(" ")).toMatch(/너무 큽니다/);
   });
 });

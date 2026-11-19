@@ -69,6 +69,7 @@ function nextRestNames(snapshot: Snapshot | null, saved: MatchView): string[] {
 /** 화면 4 — 진행 중 경기. 주요 행동은 "결과 입력" 하나다. */
 export function Match() {
   const app = useAppValue();
+  const { refresh } = app;
   // 결과를 저장하면 그 경기는 더 이상 "진행 중"이 아니므로, 창에 띄운 경기를 따로 붙잡아 둔다.
   const [sheetMatch, setSheetMatch] = useState<MatchView | null>(null);
   const [sharing, setSharing] = useState(false);
@@ -83,10 +84,10 @@ export function Match() {
   // 진행 중 화면에서는 긴 주기로 최신 상태를 확인한다.
   useEffect(() => {
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") void app.refresh();
+      if (document.visibilityState === "visible") void refresh();
     }, 60000);
     return () => clearInterval(timer);
-  }, [app.refresh]);
+  }, [refresh]);
 
   const snapshot = app.snapshot;
   const match = snapshot?.matches.find((m) => m.state === "in_progress") ?? null;

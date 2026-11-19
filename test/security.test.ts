@@ -5,7 +5,7 @@ import { ApiError, CONTENT_SECURITY_POLICY, PERMISSIONS_POLICY, canConsoleLog, p
 import app from "../src/server/index";
 import { rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
-import { api, requestId, setupGroup, unique } from "./helpers";
+import { api, requestId, setupGroup, unique, type ErrorBody } from "./helpers";
 import headersFile from "../public/_headers?raw";
 
 // 검토 L5(CSRF: Origin·Content-Type), L6(본문 크기), L7(비싼 GET 요청 수), L8(로그의 토큰).
@@ -29,7 +29,7 @@ async function raw(
 }
 
 async function codeOf(res: Response): Promise<string | undefined> {
-  return ((await res.json()) as any).error?.code;
+  return ((await res.json()) as Partial<ErrorBody>).error?.code;
 }
 
 describe("다른 사이트의 쓰기 요청(검토 L5)", () => {

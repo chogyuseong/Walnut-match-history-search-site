@@ -586,7 +586,7 @@ export function Group() {
                               if (e instanceof ApiFailure && e.code === "RESTORE_DUPLICATE") {
                                 setRestoreOverlap({
                                   batchId: b.id,
-                                  overlapping: (e.details?.overlaps ?? []).length,
+                                  overlapping: Array.isArray(e.details?.overlaps) ? e.details.overlaps.length : 0,
                                   restorable: Number(e.details?.restorable ?? 0),
                                 });
                               }

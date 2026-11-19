@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
 import { rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
-import { api, login, playConfirmed, rosterOf, setupGroup, unique } from "./helpers";
+import { api, login, playConfirmed, rosterOf, setupGroup, unique, type LooseJson } from "./helpers";
 
 // 사이트 운영자 현황(GET /api/admin/overview, src/server/siteAdmin.ts).
 // 사이트 운영자는 SITE_ADMIN_ACCOUNT_IDS로만 정한다. 아니면(일반 계정·모임 운영자·공동 운영자·비로그인) 404.
@@ -134,7 +134,7 @@ describe("현황 응답", () => {
 
     const admin = await login();
     const config = asAdmin(await accountIdOf(admin));
-    const body = (await (await direct(config, "GET", "/api/admin/overview", { cookie: admin })).json()) as any;
+    const body = (await (await direct(config, "GET", "/api/admin/overview", { cookie: admin })).json()) as LooseJson;
     const group = body.errors.groups.find((g: { message: string }) => g.message === message);
     expect(group).toMatchObject({ source: "client", kind: "boundary", path: "#/records", count: 3 });
     expect(group.stack).toContain("at Comp");

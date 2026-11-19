@@ -1,11 +1,11 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, upgradeGroupWeights, type Snapshot } from "../src/shared/types";
-import { api, login, requestId, setupGroup, snapshot, type TestGroup } from "./helpers";
+import { api, login, requestId, setupGroup, snapshot, type LooseJson, type TestGroup } from "./helpers";
 
 // 티어 5단계(2026-11-06): 1~5 저장·거절, migrations/0020, 4개짜리 가중치 읽기, 4단계 시절 백업 복원, 조회 응답.
 
-type Backup = Record<string, any>;
+type Backup = Record<string, LooseJson>;
 
 async function setTier(g: TestGroup, index: number, skillGroup: unknown) {
   return api(g.cookie, "PATCH", `/api/groups/${g.gid}/participants/${g.people[index]!.id}`, { skillGroup });

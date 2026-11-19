@@ -4,7 +4,7 @@ import { backupKey, kstDay, runBackups } from "../src/server/backupCron";
 import type { Env } from "../src/server/env";
 import { groupLimitGuard, MAX_GROUPS_PER_ACCOUNT } from "../src/server/groups";
 import worker from "../src/server/index";
-import { api, apiRaw, login, playConfirmed, requestId, rosterOf, setupGroup, snapshot, unique } from "./helpers";
+import { api, apiRaw, login, playConfirmed, requestId, rosterOf, setupGroup, snapshot, unique, type LooseJson } from "./helpers";
 
 // 2026-11-07 서버 개선(docs/개선-서버-2026-11-07.md): 조건부 요청(ETag·304), 쓰기 경로 통일·동시 수정 보호,
 // 모임 수 한도 경쟁, 자동 백업(예정 작업 + R2).
@@ -308,7 +308,7 @@ describe("자동 백업(예정 작업 + R2)", () => {
     await runUntilDone(g.gid, now);
     const today = await bucket().get(backupKey(g.gid, kstDay(now)));
     expect(today).not.toBeNull();
-    const saved = (await today!.json()) as Record<string, any>;
+    const saved = (await today!.json()) as Record<string, LooseJson>;
     const exported = (await api(g.cookie, "GET", `/api/groups/${g.gid}/export`)).body;
     expect(saved.formatVersion).toBe(exported.formatVersion);
     expect(saved.group.id).toBe(g.gid);

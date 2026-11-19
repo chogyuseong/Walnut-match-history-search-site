@@ -147,7 +147,6 @@ export function SheetImport() {
       setText(pasted);
       openTable({ rows: parseDelimited(pasted), kind: "paste", sourceKey: null, title: null });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const timeZone = snapshot?.group.timezone ?? "Asia/Seoul";
