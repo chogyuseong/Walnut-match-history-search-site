@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      사용 안내(/guide). 자바스크립트 없이 읽히는 정적 글이다. 첫 화면("/")은 앱이 그려서 서버 HTML이 비어 있고 색인할 주소도
+      하나뿐이라, 구글 서치 콘솔이 "크롤링됨 - 현재 색인이 생성되지 않음"으로 남겼다(2026-11-19). 검색엔진이 읽을 글과 주소를 하나 더 둔다.
+      - vite를 거치지 않고 public/에서 그대로 복사된다. 그래서 noindex 메타가 없다. staging 등 운영이 아닌 빌드는
+        _headers의 X-Robots-Tag: noindex(scripts/search-index-plugin.mjs)가 이 주소도 막는다.
+      - canonical·og:url은 운영 주소로 적어 두었다. 운영 주소를 바꾸면 search-index-plugin.mjs SITE_ORIGIN과 함께 고친다.
+      - 지금 있는 기능만 적는다. 기능 이름·순서가 바뀌면 이 글도 고친다(첫 화면 소개는 src/web/screens/Intro.tsx).
+      - 인라인 스크립트·스타일은 CSP(public/_headers)가 막는다. 모양은 guide.css에 둔다.
+    -->
+    <title>내전 기록 사이트 사용 안내 · 팀 짜기부터 전적 검색까지 | 내전로그</title>
+    <meta
+      name="description"
+      content="리그 오브 레전드 내전(사용자 설정 게임)은 라이엇 전적에 남지 않아요. 내전로그로 팀을 짜고 결과를 기록해 모임의 승률 랭킹·개인 통계·전적 검색을 쓰는 방법을 정리했어요."
+    />
+    <link rel="canonical" href="https://naejeon.guseong-family.workers.dev/guide" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="내전로그" />
+    <meta property="og:title" content="내전 기록 사이트 사용 안내 | 내전로그" />
+    <meta
+      property="og:description"
+      content="내전 팀 짜기, 결과 기록, 승률 랭킹과 전적 검색을 쓰는 방법. 참가자는 로그인 없이 링크로 기록을 봐요."
+    />
+    <meta property="og:url" content="https://naejeon.guseong-family.workers.dev/guide" />
+    <meta property="og:image" content="https://naejeon.guseong-family.workers.dev/og-image.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/fonts/pretendard-1.3.9/pretendard.css" />
+    <link rel="stylesheet" href="/guide.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/">내전로그</a>
+    </header>
+    <main>
+      <h1>내전 기록 사이트 사용 안내</h1>
+      <p class="lead">
+        리그 오브 레전드의 사용자 설정 게임(내전)은 라이엇 전적에 남지 않아요. 내전로그는 모임에서 팀을 짜고 경기 결과를
+        남기면 승률 랭킹, 개인 통계, 전적 검색이 쌓이는 사이트예요. 이 페이지에는 처음 쓰는 순서와 화면별로 볼 수 있는 것을
+        정리했어요.
+      </p>
+      <p class="actions">
+        <a class="button primary" href="/#/pick">로그인 없이 팀 짜기</a>
+        <a class="button secondary" href="/#/demo">예시 기록 보기</a>
+      </p>
+
+      <section aria-labelledby="why">
+        <h2 id="why">내전 기록이 따로 필요한 이유</h2>
+        <p>
+          랭크 게임과 달리 사용자 설정 게임은 전적 사이트에 승패가 남지 않아요. 그래서 모임마다 단톡방 메시지나 스프레드시트로
+          결과를 적곤 하는데, 사람이 늘수록 누가 몇 번 이겼는지, 어느 라인에서 잘하는지 다시 세기 어려워져요. 내전로그는 경기를
+          시작할 때의 팀과 라인, 끝난 뒤의 승패를 한 번 저장하면 나머지 통계를 자동으로 계산해요.
+        </p>
+      </section>
+
+      <section aria-labelledby="start">
+        <h2 id="start">처음 쓰는 순서</h2>
+        <ol class="steps">
+          <li>
+            <h3>로그인 없이 팀 짜기</h3>
+            <p>
+              참가자 10명을 고르고(11~20명이면 먼저 고른 10명이 뛰고 나머지는 쉬어요) 티어와 라인을 넣으면, 실력을 맞춘 팀
+              추천 세 가지를 보여 줘요. 서포터를 돌아가며 맡도록 순서도 챙겨요. 짠 팀은 명단 텍스트로 복사해 단톡방에 붙일 수
+              있어요.
+            </p>
+          </li>
+          <li>
+            <h3>로그인하고 모임 만들기</h3>
+            <p>
+              경기 결과를 저장하려면 로그인하고 모임을 만들어요. 짠 팀으로 경기를 시작하고, 끝나면 "블루팀 승"이나 "레드팀
+              승"을 눌러 결과를 저장해요. 진영·참가자·시각을 잘못 넣었으면 나중에 고칠 수 있고, 고친 내역이 남아요.
+            </p>
+          </li>
+          <li>
+            <h3>참가자에게 모임 링크 보내기</h3>
+            <p>
+              모임 링크를 받은 참가자는 가입하거나 로그인하지 않고 기록을 보고, 지금 경기에서 자기 팀과 라인을 확인하고, 다음
+              내전에 참가 신청을 해요.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="records">
+        <h2 id="records">기록에서 볼 수 있는 것</h2>
+        <dl class="features">
+          <div>
+            <dt>승률 랭킹과 MMR 랭킹</dt>
+            <dd>
+              확정된 경기만 세어 승률·승수·경기 수로 순위를 매겨요. MMR은 팀원과 상대가 누구였는지를 모든 경기에 걸쳐 함께
+              감안한 점수예요. 늘 약한 팀원과 묶이는 사람도 제 실력만큼 올라가요.
+            </dd>
+          </div>
+          <div>
+            <dt>개인 통계</dt>
+            <dd>
+              라인별·진영별 승률, 최근 10경기 흐름, 같은 팀일 때 잘 맞는 사람과 상대 팀일 때 어려운 사람, 참여한 경기 목록을
+              한 화면에서 봐요.
+            </dd>
+          </div>
+          <div>
+            <dt>두 사람 비교</dt>
+            <dd>
+              두 사람의 승률과 라인별 기록을 나란히 놓고, 같은 팀이었을 때와 상대였을 때의 전적을 따로 봐요. 그날 경기에서는
+              한 회차 안에서 누구와 같은 팀이었다가 상대가 됐는지 경기 순서대로 보여 줘요.
+            </dd>
+          </div>
+          <div>
+            <dt>전적 검색</dt>
+            <dd>이름을 초성(ㄱㅅ)으로도 찾고, 날짜(11/7)나 메모 글자로 지난 경기를 찾아요.</dd>
+          </div>
+          <div>
+            <dt>시즌 요약</dt>
+            <dd>시즌이나 한 해를 골라 경기 수, 참가자, 최고 승률·최다 승 같은 시상을 보고 이미지로 나눠요.</dd>
+          </div>
+          <div>
+            <dt>챔피언 티어</dt>
+            <dd>
+              결과를 저장할 때 챔피언을 함께 적으면 모임에서 많이 고른 챔피언과 승률을 모아 보여 줘요. 챔피언은 선택 입력이라
+              랭킹·MMR·팀 추천에는 섞지 않아요.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="faq">
+        <h2 id="faq">자주 묻는 질문</h2>
+        <dl class="faq">
+          <div>
+            <dt>로그인 없이 어디까지 쓸 수 있나요?</dt>
+            <dd>팀 짜기와 명단 복사는 로그인 없이 돼요. 경기 결과를 저장하고 모임 기록을 쌓을 때만 로그인해요.</dd>
+          </div>
+          <div>
+            <dt>참가자도 모두 가입해야 하나요?</dt>
+            <dd>아니요. 운영자가 보낸 모임 링크로 기록을 보고 참가 신청을 해요.</dd>
+          </div>
+          <div>
+            <dt>라이엇 계정과 연결되나요?</dt>
+            <dd>
+              연결하지 않아요. 내전은 라이엇 기록에 남지 않아 가져올 것이 없고, 계정 전적도 조회하지 않아요. 기록은 모임에서
+              직접 저장한 경기로만 쌓여요.
+            </dd>
+          </div>
+          <div>
+            <dt>결과를 잘못 넣으면 어떻게 하나요?</dt>
+            <dd>
+              경기 상세에서 승리 팀·진영·참가자·라인·시각을 고칠 수 있어요. 고치면 승률과 MMR이 처음 경기부터 다시 계산되고,
+              무엇을 언제 고쳤는지 변경 이력에 남아요.
+            </dd>
+          </div>
+          <div>
+            <dt>먼저 어떤 모습인지 보고 싶어요.</dt>
+            <dd><a href="/#/demo">예시 기록</a>에서 가짜 이름으로 만든 모임의 요약·기록·랭킹·개인 통계를 둘러볼 수 있어요.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <p class="actions">
+        <a class="button primary" href="/#/pick">로그인 없이 팀 짜기</a>
+        <a class="link" href="/">첫 화면으로</a>
+      </p>
+    </main>
+    <footer class="legal">
+      <p>
+        내전로그 isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially
+        involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks
+        or registered trademarks of Riot Games, Inc.
+      </p>
+      <p>이 사이트는 라이엇 게임즈의 공식 서비스가 아니며, 내전 모임의 경기 기록과 통계를 위해 만들었습니다.</p>
+      <p><a href="/#/privacy">개인정보 처리방침</a></p>
+    </footer>
+  </body>
+</html>

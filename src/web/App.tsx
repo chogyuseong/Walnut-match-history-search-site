@@ -389,8 +389,11 @@ function LegalFooter(props: { privacyHref?: string }) {
       {/* 2026-11-15 유료 요금제로 바꾼 뒤에는 사이트가 멈추지 않는다. 남은 제한은 사이트 자체의 하루 무거운 읽기 예산
           (RATE_SNAPSHOT_ROWS_SITE_DAY)이고, 걸려도 경기 시작·결과 저장은 막지 않는다(서버 index.ts spendHeavyRead). */}
       <p>이용량이 많은 날에는 일부 화면이 잠시 느리거나 막힐 수 있어요. 경기 시작·결과 저장은 그대로 돼요.</p>
+      {/* 사용 안내(/guide)는 앱 밖의 정적 글(public/guide.html)이라 해시 주소가 아니다. 검색엔진이 첫 화면에서 이 글을
+          찾아가는 길이기도 하다(2026-11-19 서치 콘솔 "크롤링됨 - 색인 미생성" 대응). */}
       <p className="legal-links">
         <a href={props.privacyHref ?? "#/privacy"}>개인정보 처리방침</a>
+        <a href="/guide">사용 안내</a>
       </p>
     </footer>
   );

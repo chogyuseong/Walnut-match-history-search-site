@@ -7,9 +7,9 @@
 //
 //   막을 때: index.html의 noindex 메타를 그대로 두고, _headers 끝에 X-Robots-Tag: noindex를 붙인다. robots.txt는 열어 둔다.
 //            robots.txt로 막으면 검색엔진이 페이지를 받지 않아 noindex를 못 읽고, 링크만 보고 주소를 결과에 올릴 수 있다.
-//   열 때:   noindex 메타를 지우고, robots.txt는 /api/만 막고 sitemap.xml("/" 하나)을 알린다.
+//   열 때:   noindex 메타를 지우고, robots.txt는 /api/만 막고 sitemap.xml("/"와 /guide)을 알린다.
 //
-// 화면 주소는 해시 방식(#/v/토큰 등)이라 검색엔진이 보는 페이지는 "/" 하나다. 모임 기록·토큰 링크는 따로 잡히지 않는다.
+// 화면 주소는 해시 방식(#/v/토큰 등)이라 검색엔진이 보는 앱 페이지는 "/" 하나다(정적 사용 안내 /guide는 따로). 모임 기록·토큰 링크는 따로 잡히지 않는다.
 // canonical·og:url은 빌드와 상관없이 운영 주소로 고정한다(staging 주소가 공유돼도 운영을 가리키게).
 // 운영 주소를 바꾸면(도메인 연결 등) SITE_ORIGIN 한 곳만 고친다.
 import { appendFileSync } from "node:fs";
@@ -32,9 +32,12 @@ Disallow: /api/
 Sitemap: ${SITE_ORIGIN}/sitemap.xml
 `;
 
+// /guide는 public/guide.html(정적 사용 안내). 빌드를 거치지 않아 noindex 메타가 없고, 운영이 아닌 빌드는 아래 X-Robots-Tag가 막는다.
+// 그 파일의 canonical·og:url도 운영 주소로 적혀 있어 SITE_ORIGIN을 바꾸면 함께 고친다.
 const SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>${SITE_ORIGIN}/</loc></url>
+  <url><loc>${SITE_ORIGIN}/guide</loc></url>
 </urlset>
 `;
 

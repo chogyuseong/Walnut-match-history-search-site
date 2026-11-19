@@ -26,3 +26,30 @@ test("로그인하지 않은 첫 화면은 검색용 제목과 소개를 그대�
     "https://naejeon.guseong-family.workers.dev/",
   );
 });
+
+test("사용 안내(/guide)는 스크립트 없이 읽히고, 운영이 아닌 빌드에서는 막혀 있다", async ({ browser, request }) => {
+  // public/guide.html: 첫 화면이 비어 있는 HTML이라 색인이 안 돼서 둔 정적 글(2026-11-19).
+  const guide = await request.get("/guide");
+  expect(guide.status()).toBe(200);
+  expect(guide.headers()["x-robots-tag"]).toBe("noindex");
+  const html = await guide.text();
+  expect(html).toContain("<h1>내전 기록 사이트 사용 안내</h1>");
+  expect(html).toContain('<link rel="canonical" href="https://naejeon.guseong-family.workers.dev/guide" />');
+
+  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 360, height: 800 } });
+  const page = await context.newPage();
+  await page.goto("/guide");
+  await expect(page.getByRole("heading", { level: 2, name: "자주 묻는 질문" })).toBeVisible();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow, "360px 가로 넘침").toBeLessThanOrEqual(0);
+  await context.close();
+});
+
+test("앱 바닥글에서 사용 안내로 간다", async ({ page }) => {
+  await page.goto("/#/demo");
+  await page.getByRole("contentinfo").getByRole("link", { name: "사용 안내" }).click();
+  await expect(page).toHaveURL(/\/guide$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("내전 기록 사이트 사용 안내");
+});

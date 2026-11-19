@@ -2544,6 +2544,9 @@ table {
   color: var(--ih-accent);
 }
 .legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
   margin-top: var(--space-2);
 }
 .legal-links a {
