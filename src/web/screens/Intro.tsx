@@ -27,7 +27,7 @@ type IntroShot = { name: string; alt: string; height: number };
 const SHOT_WIDTH = 390;
 
 /** 소개에 적는 기능. 모두 지금 있는 기능만 적는다. 넷을 넘기지 않는다(첫 화면은 행동이 먼저다). */
-const FEATURES: { icon: LineIconName; title: string; text: string; shot?: IntroShot }[] = [
+const FEATURES: { icon: LineIconName; title: string; text: string; shot: IntroShot }[] = [
   {
     icon: "group",
     title: "팀 짜기",
@@ -93,20 +93,22 @@ function IntroShotImages({ shot }: { shot: IntroShot }) {
 export function Intro() {
   const [loginOpen, setLoginOpen] = useState(false);
   const featuresTitle = useId();
+  const previewId = useId();
+  const [feature, setFeature] = useState(FEATURES[0]!);
   return (
     <section className="intro" aria-label="이 사이트 소개">
       <div className="intro-hero">
-        <h1>우리 모임 내전, 팀 짜기부터 전적 관리까지 한곳에서</h1>
+        <h1>우리 모임 내전,<br /> <span>팀 짜기부터 전적 관리까지</span> 한곳에서</h1>
         <p className="intro-lead">
           리그 오브 레전드의 사용자 설정 게임(내전)은 라이엇 전적에 남지 않아요. 여기서 팀을 짜고 결과를 기록하면 모임의
           전적과 통계가 쌓이고, 이름으로 전적을 검색할 수 있어요.
         </p>
         <div className="intro-actions">
           <button type="button" className="primary" onClick={() => go("/pick")}>
-            로그인 없이 팀 짜기
+            <LineIcon name="group" small /> 로그인 없이 팀 짜기
           </button>
           <button type="button" className="secondary" onClick={() => go("/demo")}>
-            예시 기록 보기
+            <LineIcon name="ranking" small /> 예시 기록 보기
           </button>
           <button type="button" className="link" onClick={() => setLoginOpen(true)}>
             로그인하고 모임 만들기
@@ -116,18 +118,25 @@ export function Intro() {
       </div>
       <section className="intro-features" aria-labelledby={featuresTitle}>
         <h2 id={featuresTitle}>모임에서 이렇게 써요</h2>
-        <ul>
-          {FEATURES.map((f) => (
-            <li key={f.title}>
-              <LineIcon name={f.icon} />
-              <div>
-                <h3>{f.title}</h3>
-                <p>{f.text}</p>
-              </div>
-              {f.shot && <IntroShotImages shot={f.shot} />}
+        <ul className="intro-choices">
+          {FEATURES.map((item) => (
+            <li key={item.title}>
+              <button
+                type="button"
+                aria-pressed={feature === item}
+                aria-controls={previewId}
+                onClick={() => setFeature(item)}
+              >
+                <LineIcon name={item.icon} small />
+                {item.title}
+              </button>
             </li>
           ))}
         </ul>
+        <div id={previewId} className="intro-preview">
+          <p aria-live="polite">{feature.text}</p>
+          <IntroShotImages shot={feature.shot} />
+        </div>
       </section>
       {loginOpen && (
         <LoginDialog

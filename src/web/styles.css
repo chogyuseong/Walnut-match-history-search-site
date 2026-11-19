@@ -1202,6 +1202,43 @@ details > *:not(summary) {
 input[type="search"] {
   margin-bottom: var(--space-2);
 }
+.record-search {
+  padding: var(--space-4);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  background: var(--ih-panel);
+}
+.record-search label {
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+.record-search-field {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-top: var(--space-2);
+}
+.record-search-field > .line-icon {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  color: var(--ih-text-secondary);
+  pointer-events: none;
+}
+.record-search-field input {
+  padding-inline-start: var(--space-7);
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 400;
+}
+.record-search .hint {
+  margin: var(--space-2) 0 0;
+}
+.record-search kbd {
+  font: inherit;
+  padding-inline: var(--space-1);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+}
 /* 검색 결과를 감싼 자리(ui.tsx useSearchJump). 화면 키보드를 내릴 때(터치 기기)만 초점이 여기로 온다.
    누르는 컨트롤이 아니라 키보드를 내리려고 잠깐 받는 도착 표시라 테두리를 그리지 않는다. 2px 포커스 테두리 규칙은
    조작할 수 있는 요소의 것이고, 안의 줄·버튼은 Tab으로 가면 각자 테두리가 보인다. PC에서는 초점이 검색 칸에 남는다. */
@@ -5393,142 +5430,110 @@ main:focus {
 .award-none-list .award-rule {
   display: block;
 }
-/* 첫 화면 소개(처음 온 방문자, src/web/screens/Intro.tsx). 확정 시안 구조: 카드 없이 소개 제목·설명·행동, 그 아래
-   1px 구분선 목록. 390×844에서 주 버튼이 스크롤 없이 하단 메뉴 위에 보여야 하므로 제목 위 여백을 늘리지 않는다
-   (e2e/intro-demo.spec.ts가 잰다). 1200px 이상은 왼쪽 소개·행동 | 오른쪽 기능 목록. */
+/* 첫 방문자는 시작 방법을 고르고 기능별 실제 화면을 확인한다. */
 .intro {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-7);
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
 }
 .intro h1 {
-  max-width: var(--reading-max);
   font-size: var(--text-hero);
   line-height: 1.25;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+.intro h1 span {
+  color: var(--ih-accent);
 }
 .intro-lead {
   max-width: var(--reading-max);
-  margin-top: var(--space-2);
+  margin-top: var(--space-4);
   color: var(--ih-text-secondary);
+  word-break: keep-all;
 }
 .intro-note {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ih-line);
   color: var(--ih-text-secondary);
   font-size: var(--text-label);
 }
-/* 버튼 세 단계: 채운 주 버튼(하나) / 중립 보조 버튼 / 텍스트 링크. 좁은 화면은 세로로, 링크는 글자 폭만. */
 .intro-actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-5);
 }
-.intro-actions > .link {
-  align-self: flex-start;
+.intro-actions > :is(.primary, .secondary),
+.intro-choices button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.intro-features {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  background: var(--ih-panel);
 }
 .intro-features h2 {
   margin: 0;
 }
-.intro-features ul {
-  margin: var(--space-4) 0 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--ih-line);
-}
-/* 줄 하나 = 아이콘 | 제목·설명, 예시 사진은 설명 아래(아이콘 칸은 비움). 768~1199px만 설명 오른쪽 칸. */
-.intro-features li {
+.intro-choices {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-3);
-  align-items: start;
-  padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--ih-line);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0;
 }
-/* 예시 사진(src/web/screens/Intro.tsx IntroShotImages). 글자를 얹지 않고 1px 경계만 둔다(CLAUDE.md 6절).
-   테마마다 한 장씩 있어 지금 테마가 아닌 쪽은 숨긴다. 기본 테마는 다크다(src/web/theme.ts). */
+.intro-choices button {
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  word-break: keep-all;
+}
+.intro-choices button[aria-pressed="true"] {
+  background: var(--ih-selected);
+  border-color: var(--ih-accent);
+  color: var(--ih-accent);
+}
+.intro-preview {
+  border-top: 1px solid var(--ih-line);
+  padding-top: var(--space-4);
+}
+.intro-preview p {
+  margin: 0 0 var(--space-4);
+  color: var(--ih-text-secondary);
+  word-break: keep-all;
+}
 .intro-shot {
-  grid-column: 2;
   display: block;
   width: 100%;
-  max-width: var(--intro-shot-max);
+  max-width: 390px;
   height: auto;
+  margin-inline: auto;
   border: 1px solid var(--ih-line);
-  border-radius: 8px;
-}
-:root {
-  /* 사진 폭 상한. 찍은 폭(390px)보다 넓히면 글자가 번진다. 설명 옆에 놓는 768~1199px도 이 값이다. */
-  --intro-shot-max: 320px;
+  border-radius: var(--radius-panel);
 }
 :root[data-theme="light"] .intro-shot-dark,
 :root:not([data-theme="light"]) .intro-shot-light {
   display: none;
 }
-/* 768~1199px: 사진을 설명 오른쪽 칸(320px)에. 720px 본문에서 설명 칸이 350px 남짓 남는다. */
-@media (min-width: 768px) and (max-width: 1199px) {
-  .intro-features li {
-    grid-template-columns: auto minmax(0, 1fr) var(--intro-shot-max);
-  }
-  .intro-shot {
-    grid-column: 3;
-  }
-}
-.intro-features li:last-child {
-  border-bottom: 0;
-}
-/* 아이콘 칸 높이를 제목 첫 줄(16px × 1.5 = 24px)에 맞춰 아이콘이 첫 줄 가운데에 온다. */
-.intro-features li > .line-icon {
-  height: 24px;
-  color: var(--ih-text-secondary);
-}
-.intro-features h3 {
-  margin: 0;
-  color: var(--ih-text);
-  font-size: var(--text-body);
-}
-.intro-features p {
-  margin-top: var(--space-1);
-  color: var(--ih-text-secondary);
-  font-size: var(--text-label);
-}
 @media (min-width: 768px) {
-  .intro-actions {
-    flex-direction: row;
-    align-items: center;
-  }
-  .intro-actions > .link {
-    align-self: auto;
+  .intro-features {
+    padding: var(--space-5);
   }
 }
-/* 1200px 이상: 왼쪽 소개·행동 | 오른쪽 기능 목록. 사진은 설명 아래에 찍은 폭(390px) 그대로 두어 사진 속 글자가 읽힌다.
-   오른쪽 목록이 길어 왼쪽이 비지 않도록 소개 단을 따라오게 한다. 창이 낮으면(720px 미만) 소개 단이 창보다 길어져
-   버튼이 잘릴 수 있어 고정하지 않는다. 200% 확대는 폭이 1200px 아래로 내려가 한 단이 된다. */
 @media (min-width: 1200px) {
   .intro {
-    display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--space-8);
-    align-items: start;
-  }
-  :root {
-    --intro-shot-max: 390px;
-  }
-}
-/* 소개 단을 첫 화면 높이만큼 세우고 글을 세로 가운데보다 조금 위에 둔다. 위에 붙여 두면 오른쪽 목록 옆으로
-   버튼 아래가 500px 가까이 비어 첫 화면이 덜 짜인 것처럼 보였다. 따라올 때(sticky)도 같은 높이라 창 안에 들어온다. */
-@media (min-width: 1200px) and (min-height: 720px) {
-  :root {
-    /* 첫 화면에서 소개 단 위에 쓰이는 높이: 상단 바 64 + 탭 줄 61 + 위 여백 24 ≈ 152. 탭 줄 높이가 바뀌면 같이 고친다. */
-    --intro-chrome-above: 152px;
   }
   .intro-hero {
-    position: sticky;
-    top: calc(var(--topbar-height) + var(--space-5));
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: calc(100svh - var(--intro-chrome-above) - var(--space-5));
-    /* 아래 여백만큼 글 덩어리가 위로 올라가 눈으로 본 가운데에 놓인다. */
-    padding-bottom: var(--space-7);
+    padding-block: var(--space-8);
   }
 }
 /* 예시 모임(#/demo) 메뉴 줄 왼쪽의 안내(src/web/screens/Demo.tsx DemoNav). 메뉴 줄과 같은 패널 바탕이고, 안내 글은
