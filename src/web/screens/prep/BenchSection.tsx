@@ -7,6 +7,7 @@ import type { PrepEditing } from "./usePrepEditing";
  * 쉬는 사람 구역(2026-11-10, 예전 "대기자"). 편성 판·직전 대비 줄 바로 아래에 두어 누가 뛰고 누가 쉬는지가 한 단에 이어진다.
  * 편성에서 한 사람을 고른 뒤 이름을 누르면 둘이 바뀐다(usePrepEditing.onTapBench). 쉬는 사람도 오늘 명단도 없으면 그리지 않는다.
  * 오늘 명단이 있을 때만 판 수·빼기·늦게 온 사람·글 복사가 붙는다(예전 초안·다른 기기에서는 예전 대기자 목록 그대로).
+ * 글 복사는 채팅용 이름 목록이다. 다른 기기로 편성째 옮기는 길은 준비 화면 위쪽 HandoffNote의 "다른 기기로 넘기기"라서 도움말도 그쪽을 가리킨다.
  * 진영 색 띠는 쓰지 않는다: 어느 팀에도 속하지 않은 사람들이다.
  */
 export function BenchSection(props: { edit: PrepEditing; night: NightPoolEditing; onAddLate: () => void }) {
@@ -103,7 +104,13 @@ export function BenchSection(props: { edit: PrepEditing; night: NightPoolEditing
               세지 않아요.
             </p>
             <p>PC에서는 끌어다 놓아도 돼요. 빠진 사람은 쉬는 사람 맨 뒤로 가요.</p>
-            <p>오늘 명단은 이 기기에만 있어요. 다른 기기에서 이어 가려면 글을 복사해 그 기기의 참가자 고르기에 붙여 넣어요.</p>
+            <p>
+              다른 기기에서 이어 가려면 위의 "다른 기기로 넘기기"를 눌러요. 팀·포지션, 쉬는 사람, 오늘 명단이 함께 넘어가요.
+            </p>
+            <p>
+              글 복사는 이름만 한 줄에 한 명씩 담아요. 채팅방에 오늘 온 사람을 알릴 때 써요. 다른 기기의 참가자 고르기에 붙여
+              넣으면 이름만 옮겨져서 팀·포지션은 다시 짜야 해요.
+            </p>
             <div className="button-row">
               <CopyButton label="오늘 명단 글 복사" text={props.night.text} />
             </div>

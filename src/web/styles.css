@@ -962,9 +962,13 @@ button.row.picked:hover {
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+/* 가로 칸은 짧은 라벨(블루·레드·기억나지 않음 등)뿐이라 낱말 중간에서 꺾지 않는다.
+   칸이 좁으면 글자를 쪼개는 대신 칸째 다음 줄로 내려간다(390px에서 "기억나지 않음"이 "기억나/지/않음"으로 꺾이던 것). */
 .choice-row .choice {
   flex: 1 1 30%;
   align-items: center;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 .toggle {
   display: flex;

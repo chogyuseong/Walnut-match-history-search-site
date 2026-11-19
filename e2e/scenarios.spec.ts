@@ -116,7 +116,7 @@ async function fireVisible(page: Page) {
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [확인하기], 확인 뒤에만 저장됨, 이력 1행", async ({ page }) => {
+test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [다시 저장해 보기], 그 뒤에만 저장됨, 이력 1행", async ({ page }) => {
   const s = await setup(page, { rotation: false });
   const match = await start(page.request, s, s.people.slice(0, 10));
   await page.goto("/#/match");
@@ -134,14 +134,14 @@ test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [확�
   });
   await sheet.getByRole("button", { name: "저장" }).click();
   await expect(sheet.getByRole("alert")).toContainText("저장됐는지 확인하지 못했어요");
-  const check = sheet.getByRole("button", { name: "확인하기" });
+  const check = sheet.getByRole("button", { name: "다시 저장해 보기" });
   await expect(check).toBeVisible();
   // 확인 전에는 "저장됨"을 쓰지 않는다. 입력은 그대로다.
   await expect(sheet.getByText(/저장됨/)).toHaveCount(0);
   await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
   expect(delivered).toBeGreaterThanOrEqual(1);
 
-  // 서버에는 이미 저장돼 있다. 확인하기는 같은 요청 ID로 다시 묻고, 그 응답을 받은 뒤에만 "저장됨"이다.
+  // 서버에는 이미 저장돼 있다. 같은 요청 ID로 다시 보내면 서버가 처음 결과를 돌려주고, 그 응답을 받은 뒤에만 "저장됨"이다.
   await page.unroute("**/matches/*/result");
   await check.click();
   await expect(sheet.getByText(`${match.matchNo}경기 저장됨 · 블루팀 승`)).toBeVisible();
@@ -154,6 +154,36 @@ test("7: 결과 저장 응답이 끊기면 '확인하지 못했어요'와 [확�
     (r: { matchId: string; kind: string }) => r.matchId === match.id && r.kind === "result",
   );
   expect(results).toHaveLength(1);
+});
+
+test("7-1: 결과 창을 연 사이 다른 곳에서 먼저 저장하면 덮지 않고 지금 승패를 알린다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const s = await setup(page, { rotation: false });
+  const match = await start(page.request, s, s.people.slice(0, 10));
+  await page.goto("/#/match");
+  await page.getByRole("button", { name: "결과 입력" }).click();
+  const sheet = page.getByRole("dialog", { name: `${match.matchNo}경기 결과` });
+  await sheet.getByRole("radio", { name: /팀 A/ }).check();
+  await sheet.getByRole("radio", { name: "블루", exact: true }).check();
+
+  // 창이 열린 동안 다른 운영자가 반대 팀 승으로 확정한다.
+  await post(page.request, `/api/groups/${s.groupId}/matches/${match.id}/result`, {
+    requestId: requestId(),
+    baseMatchVersion: match.version,
+    winnerTeam: "B",
+    winnerSide: "red",
+  });
+  await sheet.getByRole("button", { name: "결과 저장" }).click();
+  await expect(sheet.getByRole("alert")).toContainText("기록이에요. 그 사이 다른 곳에서 저장됐어요");
+  await expect(sheet.getByText(/저장됨/)).toHaveCount(0);
+  await expect(sheet.getByRole("radio", { name: "블루", exact: true })).toBeChecked();
+  // 휴대폰 폭에서 긴 안내 문장이 창을 옆으로 밀지 않는다.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "test-results/result-conflict-390.png" });
+
+  const snap = await getSnapshot(page.request, s.groupId);
+  const saved = snap.matches.find((m: { id: string }) => m.id === match.id);
+  expect(saved.winnerTeam).toBe("B");
 });
 
 test("13: 입력 중 서버 갱신이 와도 초점·입력값·스크롤이 그대로다", async ({ page }) => {

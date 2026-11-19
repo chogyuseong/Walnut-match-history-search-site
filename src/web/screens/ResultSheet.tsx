@@ -8,7 +8,7 @@ import {
   type Team,
 } from "../../shared/types";
 import { normalizeMemo } from "../../shared/memo";
-import { mutate, newRequestId } from "../api";
+import { ApiFailure, mutate, newRequestId } from "../api";
 import { MemoField, memoTooLong } from "../memoField";
 import { formatTime, TEAM_MARK, teamBoxClass, teamName, teamRoster, winnerText } from "../format";
 import { ChampionFields } from "../lazyScreens";
@@ -162,10 +162,28 @@ export function ResultSheet(props: {
       props.onSaved?.(result.match);
     } catch (e) {
       setError(e);
+      // 그 사이 다른 기기·운영자가 저장했다. 최신 기록을 읽어 아래 conflictNote가 지금 승패를 보여 주게 한다.
+      if (e instanceof ApiFailure && e.code === "VERSION_CONFLICT") void app.refresh();
     } finally {
       setBusy(false);
     }
   }
+
+  // 다시 읽은 기록에서 이 경기가 이미 확정돼 있으면 일반 충돌 문구 대신 지금 승패를 적는다.
+  // 누가 저장했는지는 모른다(이 기기의 앞선 요청일 수도 있다). 그래서 "다른 운영자가"라고 단정하지 않는다.
+  const latest = app.snapshot?.matches.find((m) => m.id === match.id);
+  const conflictNote =
+    error instanceof ApiFailure &&
+    error.code === "VERSION_CONFLICT" &&
+    latest?.state === "confirmed" &&
+    latest.winnerTeam &&
+    latest.version !== match.version ? (
+      <p className="note error" role="alert">
+        {latest.matchNo}경기는 지금 {winnerText(latest.winnerTeam, latest.teamASide)} 기록이에요. 그 사이 다른 곳에서
+        저장됐어요. 입력은 그대로 있어요. 다르면 창을 닫고 기록에서 승리 팀을 고쳐 주세요.
+      </p>
+    ) : null;
+  const errorNote = conflictNote ?? <ErrorNote error={error} onCheck={() => void save()} resends />;
 
   // 이어 쓰기 안내. 두 화면(큰 버튼 화면·3단계 화면) 맨 위에 같은 것을 둔다.
   // 경기 버전이 다르면(그 사이 명단 교체·진영 정정 등) 되살리기는 허락하되 다시 확인하라고 적는다.
@@ -311,7 +329,7 @@ export function ResultSheet(props: {
         {winner && championSection}
 
         {unstoredNote}
-        <ErrorNote error={error} onCheck={() => void save()} />
+        {errorNote}
         {/* 꺼진 저장 버튼만 보이면 무엇을 해야 하는지 알 수 없다. */}
         {!winner && <p className="hint">이긴 팀을 누르면 저장할 수 있어요.</p>}
         <button
@@ -395,7 +413,7 @@ export function ResultSheet(props: {
       )}
 
       {unstoredNote}
-      <ErrorNote error={error} onCheck={() => void save()} />
+      {errorNote}
       {!winner && <p className="hint">이긴 팀을 누르면 저장할 수 있어요.</p>}
       <button
         type="button"
