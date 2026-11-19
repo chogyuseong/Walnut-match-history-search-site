@@ -255,16 +255,24 @@ export function scopeSuffix(scope: Scope | undefined): string {
 /**
  * 주소의 scope=로 시작하고, 고른 기간을 다시 주소에 적는 기간 상태(개인 통계·두 사람 비교).
  * screenId: 같은 화면 부품이 남은 채 사람만 바뀌면(개인 통계 → 다른 사람) 새 주소에도 기간을 다시 적으려고 받는다.
- * 주의: 주소 조건을 통째로 scope 하나로 바꾼다. 이 화면들에 다른 조건을 더하면 여기서 함께 적어야 한다.
+ * 주의: 주소 조건을 통째로 scope와 extra로 바꾼다. 화면이 남기려는 다른 조건은 extra로 넘겨야 사라지지 않는다
+ * (두 사람 비교의 회차 session=).
  * 지워진 시즌을 가리키는 주소로 열면 전체 기간으로 연다(scopeFromParam이 null을 준다).
  */
-export function useRouteScope(snapshot: Snapshot, screenId: string): [Scope, (scope: Scope) => void] {
+export function useRouteScope(
+  snapshot: Snapshot,
+  screenId: string,
+  extra: Record<string, string> = {},
+): [Scope, (scope: Scope) => void] {
   const [scope, setScope] = useState<Scope>(
     () => scopeFromParam(readRouteParams().get("scope"), snapshot) ?? { kind: "all" },
   );
+  const extraQuery = new URLSearchParams(extra).toString();
   useEffect(() => {
-    replaceRouteParams(new URLSearchParams(scope.kind === "all" ? {} : { scope: scopeParam(scope) }));
-  }, [scope, screenId]);
+    const params = new URLSearchParams(extraQuery);
+    if (scope.kind !== "all") params.set("scope", scopeParam(scope));
+    replaceRouteParams(params);
+  }, [scope, screenId, extraQuery]);
   return [scope, setScope];
 }
 

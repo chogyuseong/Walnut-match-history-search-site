@@ -31,11 +31,30 @@ import {
   type PersonRating,
   ratingOptionsOf,
 } from "../../shared/rating";
+import { playedSessions, sessionGames, sessionMates, type PlayedSession, type SessionRelation } from "../../shared/sessionGames";
 import { POSITIONS, type MatchView, type Snapshot } from "../../shared/types";
-import { nameMap, rateHueClass, rateHueText, rateText as tallyRateText, standingsOf } from "../format";
+import {
+  formatDate,
+  nameMap,
+  POSITION_LABEL,
+  rateHueClass,
+  rateHueText,
+  rateText as tallyRateText,
+  standingsOf,
+} from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import { BackLink, FormDots, PosLabel, ScopeBasis, ScopePicker, ScreenHead, StandingNote, useRouteScope } from "../screenKit";
+import {
+  BackLink,
+  FormDots,
+  PosLabel,
+  readRouteParams,
+  ScopeBasis,
+  ScopePicker,
+  ScreenHead,
+  StandingNote,
+  useRouteScope,
+} from "../screenKit";
 
 function rateText(t: Tally): string {
   return tallyRateText(t.wins, t.games);
@@ -109,8 +128,26 @@ export function Compare(props: {
   // 합쳐진 사람의 주소로 들어오면 남은 사람으로 비교한다(기록은 모두 남은 사람에게 있다).
   const a = props.a && props.a !== "-" ? resolveMerged(snapshot.participants, props.a) : null;
   const b = props.b && props.b !== "-" ? resolveMerged(snapshot.participants, props.b) : null;
-  // 개인 통계에서 넘어오면 그 기간(?scope=)으로 연다. 사람을 바꿔도 기간을 주소에 다시 적는다.
-  const [scope, setScope] = useRouteScope(snapshot, `${a ?? "-"}/${b ?? "-"}`);
+  const known = (id: string | null) =>
+    id !== null && snapshot.participants.some((p) => p.id === id && !p.mergedInto);
+  const ready = known(a) && known(b) && a !== b;
+  // 그날 경기: 고를 수 있는 회차는 첫 번째 사람이 뛴 회차(두 사람을 다 고르면 둘이 같은 경기에 들어간 회차).
+  // 개인 통계 "함께 뛴 사람별로 보기"는 ?session=으로 회차를 넘긴다. 범위(기간)와 상관없이 모든 경기에서 찾는다.
+  const aKnown = known(a);
+  const sessions = useMemo(
+    () => (aKnown ? playedSessions(snapshot.matches, a!, ready ? b! : undefined) : []),
+    [snapshot, a, b, aKnown, ready],
+  );
+  const [sessionPick, setSessionPick] = useState(() => readRouteParams().get("session"));
+  const pickedSession = sessions.find((s) => s.sessionId === sessionPick) ?? null;
+  // 두 사람을 다 골랐으면 고른 회차가 없어도 가장 최근 회차를 보여 준다. 한 사람만이면 넘겨받은 회차가 있을 때만.
+  const session = pickedSession ?? (ready ? (sessions[0] ?? null) : null);
+  // 개인 통계에서 넘어오면 그 기간(?scope=)으로 연다. 사람을 바꿔도 기간과 고른 회차를 주소에 다시 적는다.
+  const [scope, setScope] = useRouteScope(
+    snapshot,
+    `${a ?? "-"}/${b ?? "-"}`,
+    pickedSession ? { session: pickedSession.sessionId } : undefined,
+  );
   const [list, setList] = useState<"against" | "together">("against");
   const [shown, setShown] = useState(FIRST_PAGE);
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
@@ -130,9 +167,6 @@ export function Compare(props: {
       ),
     [snapshot, nameOf],
   );
-  const known = (id: string | null) =>
-    id !== null && snapshot.participants.some((p) => p.id === id && !p.mergedInto);
-  const ready = known(a) && known(b) && a !== b;
 
   const da = useMemo(() => (ready ? personDetail(scoped, a!, nameOf) : null), [ready, scoped, a, nameOf]);
   const db = useMemo(() => (ready ? personDetail(scoped, b!, nameOf) : null), [ready, scoped, b, nameOf]);
@@ -188,6 +222,19 @@ export function Compare(props: {
             ? "확정된 경기가 있는 사람이 두 명 이상이어야 비교할 수 있어요."
             : "비교할 두 사람을 골라 주세요. 승률·라인별 승률·같은 팀일 때·상대일 때 전적을 나란히 보여 줘요."}
         </p>
+        {aKnown && session && (
+          <SessionGamesPanel
+            snapshot={snapshot}
+            me={a!}
+            other={null}
+            sessions={sessions}
+            session={session}
+            nameOf={nameOf}
+            pickSession={setSessionPick}
+            pickOther={(id) => props.choose(a, id)}
+            openMatch={props.openMatch}
+          />
+        )}
       </div>
     );
   }
@@ -640,6 +687,20 @@ export function Compare(props: {
         )}
       </section>
 
+      {session ? (
+        <SessionGamesPanel
+          snapshot={snapshot}
+          me={a!}
+          other={b!}
+          sessions={sessions}
+          session={session}
+          nameOf={nameOf}
+          pickSession={setSessionPick}
+          pickOther={(id) => props.choose(a, id)}
+          openMatch={props.openMatch}
+        />
+      ) : null}
+
       <section className="full cmp-games" aria-label="맞대결 경기">
         <h2>함께 뛴 경기</h2>
         <div className="segmented" role="group" aria-label="경기 목록 고르기">
@@ -693,5 +754,102 @@ export function Compare(props: {
         <p className="hint">카드 색과 승·패 표시는 {nameA} 기준이에요.</p>
       </section>
     </div>
+  );
+}
+
+/** 그날 경기 줄의 관계 글자. "apart"는 고른 사람이 그 경기에 없었다는 사실만 말한다(이유는 기록에 없다). */
+const RELATION_LABEL: Record<SessionRelation, string> = {
+  together: "같은 팀",
+  against: "상대 팀",
+  apart: "함께 안 뜀",
+};
+
+/**
+ * 그날 경기: 한 회차에서 첫 번째 사람이 뛴 경기를 앞 경기부터 한 줄씩 두고, 두 번째 사람을 고르면 줄마다
+ * 같은 팀·상대 팀·함께 안 뜀을 붙인다. 줄을 누르면 경기 상세로 가고, 뒤로 가면 주소의 session=으로 같은 회차가 열린다.
+ * 첫 번째 사람이 쉰 경기는 줄이 없어 경기 번호가 건너뛴다(1경기 → 3경기). 그래서 "바로 다음 경기" 같은 말은 쓰지 않는다.
+ * 두 번째 사람을 아직 고르지 않았으면 그 회차에 같은 경기에 들어간 사람 중에서 고르게 한다.
+ */
+function SessionGamesPanel(props: {
+  snapshot: Snapshot;
+  me: string;
+  other: string | null;
+  sessions: readonly PlayedSession[];
+  session: PlayedSession;
+  nameOf: (id: string) => string;
+  pickSession: (sessionId: string) => void;
+  pickOther: (id: string) => void;
+  openMatch: (id: string) => void;
+}) {
+  const { snapshot, me, other, session, nameOf } = props;
+  const tz = snapshot.group.timezone;
+  const games = useMemo(
+    () => sessionGames(snapshot.matches, session.sessionId, me, other),
+    [snapshot, session.sessionId, me, other],
+  );
+  const mates = useMemo(
+    () =>
+      other === null
+        ? sessionMates(snapshot.matches, session.sessionId, me).sort((x, y) => nameOf(x).localeCompare(nameOf(y), "ko"))
+        : [],
+    [snapshot, session.sessionId, me, other, nameOf],
+  );
+  const count = (relation: SessionRelation) => games.filter((g) => g.relation === relation).length;
+
+  return (
+    <section className="full cmp-section cmp-session" aria-label="그날 경기">
+      <h2>그날 경기</h2>
+      <div className="cmp-session-tools">
+        <label>
+          회차
+          <select value={session.sessionId} onChange={(e) => props.pickSession(e.target.value)}>
+            {props.sessions.map((s) => (
+              <option key={s.sessionId} value={s.sessionId}>
+                {formatDate(s.startedAt, tz)} · {s.myGames}경기 출전
+              </option>
+            ))}
+          </select>
+        </label>
+        {other === null && (
+          <label>
+            함께 뛴 사람
+            <select value="" onChange={(e) => e.target.value && props.pickOther(e.target.value)}>
+              <option value="">고르기</option>
+              {mates.map((id) => (
+                <option key={id} value={id}>
+                  {nameOf(id)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      <p className="hint">
+        그날 모임 {session.sessionGames}경기 중 {nameOf(me)} 출전 {session.myGames}경기, 앞 경기부터예요.
+        {other === null && " 함께 뛴 사람을 고르면 경기마다 같은 팀이었는지 상대였는지 붙여요."}
+      </p>
+      {other !== null && (
+        <p className="cmp-session-tally">
+          {nameOf(other)}: <span className="nowrap">같은 팀 {count("together")}</span> ·{" "}
+          <span className="nowrap">상대 팀 {count("against")}</span> ·{" "}
+          <span className="nowrap">함께 안 뜀 {count("apart")}</span>
+        </p>
+      )}
+      <ul className="list list-card">
+        {games.map((g) => (
+          <li key={g.match.id}>
+            <button type="button" className="list-row" onClick={() => props.openMatch(g.match.id)}>
+              <span>
+                {g.match.matchNo}경기{g.position ? ` · ${POSITION_LABEL[g.position]}` : ""}
+              </span>
+              <span className="stat">
+                <span className={g.won ? "form-dot win" : "form-dot loss"}>{g.won ? "승" : "패"}</span>
+                {g.relation && ` · ${RELATION_LABEL[g.relation]}`}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

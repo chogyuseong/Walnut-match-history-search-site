@@ -3815,7 +3815,8 @@ main:focus {
 }
 /* 공통 label:has(> select)(한 줄 배치)보다 구체적으로: 글자 위, 칸 아래. */
 .compare-screen .cmp-slot-pick,
-.compare-screen .cmp-pick label {
+.compare-screen .cmp-pick label,
+.cmp-session-tools label {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -3827,7 +3828,8 @@ main:focus {
   color: var(--ih-text-secondary);
 }
 .cmp-slot-pick select,
-.cmp-pick select {
+.cmp-pick select,
+.cmp-session-tools select {
   width: 100%;
   min-width: 0;
   color: var(--ih-text);
@@ -3899,6 +3901,20 @@ main:focus {
   }
 }
 
+/* 그날 경기: 회차 고르기와 함께 뛴 사람 고르기를 한 줄에, 좁으면 아래로 내린다. */
+.cmp-session-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.cmp-session-tools label {
+  flex: 1 1 12rem;
+}
+.cmp-session-tally {
+  margin: 0;
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+}
 /* 비교 구역(나란히 보기·라인별·맞대결·같은 팀·상대): 카드로 감싸지 않고 제목 + 위 1px 구분선으로 나눈다(CLAUDE.md 2절). */
 .cmp-section {
   display: flex;

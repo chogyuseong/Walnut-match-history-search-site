@@ -28,6 +28,7 @@ import {
   RATING_TIER_HELP,
 } from "../../shared/rating";
 import { resolveMerged } from "../../shared/merge";
+import { playedSessions } from "../../shared/sessionGames";
 import { POSITIONS, type Snapshot } from "../../shared/types";
 import { formatDate, nameMap, POSITION_LABEL, percentText, rateHueText, rateText, standingsOf } from "../format";
 import { attendanceReport } from "../../shared/attendance";
@@ -128,6 +129,7 @@ export function Person(props: {
   const person = snapshot.participants.find((p) => p.id === participantId);
 
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
+  const lastSession = useMemo(() => playedSessions(snapshot.matches, participantId)[0] ?? null, [snapshot, participantId]);
   // 기준 줄의 "참여 확정 N경기 · 결과 미입력 n경기는 세지 않아요"는 이 사람이 명단에 있는 경기로 센다.
   const joined = useMemo(
     () => scoped.filter((m) => m.roster.some((r) => r.participantId === participantId)),
@@ -515,15 +517,29 @@ export function Person(props: {
               );
             })}
           </ul>
-          {detail.matches.length > RECENT_PREVIEW && (
-            <button
-              type="button"
-              className="link"
-              onClick={() => document.getElementById(MATCHES_ANCHOR)?.scrollIntoView({ block: "start" })}
-            >
-              참여 경기 전체 보기 ↓
-            </button>
-          )}
+          <div className="page-actions">
+            {/* 두 사람 비교의 "그날 경기"로 가장 최근 회차를 넘긴다. 회차가 없는 가져온 경기뿐이면 링크를 두지 않는다. */}
+            {props.openCompare && lastSession && (
+              <button
+                type="button"
+                className="link"
+                onClick={() =>
+                  props.openCompare!(participantId, undefined, `?session=${encodeURIComponent(lastSession.sessionId)}`)
+                }
+              >
+                {formatDate(lastSession.startedAt, snapshot.group.timezone)} 경기를 함께 뛴 사람별로 보기 →
+              </button>
+            )}
+            {detail.matches.length > RECENT_PREVIEW && (
+              <button
+                type="button"
+                className="link"
+                onClick={() => document.getElementById(MATCHES_ANCHOR)?.scrollIntoView({ block: "start" })}
+              >
+                참여 경기 전체 보기 ↓
+              </button>
+            )}
+          </div>
         </section>
       )}
 
