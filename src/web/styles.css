@@ -3910,6 +3910,12 @@ main:focus {
 .cmp-session-tools label {
   flex: 1 1 12rem;
 }
+/* 넓은 화면에서 고르기 칸이 본문 폭(최대 1200px)만큼 늘어나지 않게. 폰에서는 한 줄을 다 쓴다. */
+@media (min-width: 768px) {
+  .cmp-session-tools label {
+    flex: 0 1 20rem;
+  }
+}
 .cmp-session-tally {
   margin: 0;
   font-size: var(--text-label);
