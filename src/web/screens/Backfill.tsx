@@ -316,7 +316,7 @@ export function Backfill() {
             </ul>
           </div>
         )}
-        <ErrorNote error={error} onCheck={() => void save()} />
+        <ErrorNote error={error} onCheck={() => void save()} resends="다시 저장해 보기" />
         <button type="submit" className="primary wide" disabled={busy}>
           {busy ? "저장 중" : "이 경기 저장"}
         </button>

@@ -338,7 +338,7 @@ export function Merge() {
               바꿨으면 되돌린 뒤 알려 드려요. 2026년 11월 8일 전에 한 합치기는 연결 기록이 없어 연결이 돌아가지 않아요.
             </p>
           </Help>
-          <ErrorNote error={error} onCheck={() => void runMerge()} />
+          <ErrorNote error={error} onCheck={() => void runMerge()} resends="다시 합쳐 보기" />
           <div className="button-row">
             <button type="button" className="primary" disabled={busy} onClick={() => void runMerge()}>
               합치기
@@ -386,6 +386,7 @@ export function Merge() {
           <ErrorNote
             error={error}
             onCheck={() => void runUndo(pendingUndo.id, nameOf(pendingUndo.sourceId), nameOf(pendingUndo.targetId))}
+            resends="다시 되돌려 보기"
           />
           <div className="button-row">
             <button

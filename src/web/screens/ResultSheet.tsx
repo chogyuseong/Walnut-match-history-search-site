@@ -183,7 +183,7 @@ export function ResultSheet(props: {
         저장됐어요. 입력은 그대로 있어요. 다르면 창을 닫고 기록에서 승리 팀을 고쳐 주세요.
       </p>
     ) : null;
-  const errorNote = conflictNote ?? <ErrorNote error={error} onCheck={() => void save()} resends />;
+  const errorNote = conflictNote ?? <ErrorNote error={error} onCheck={() => void save()} resends="다시 저장해 보기" />;
 
   // 이어 쓰기 안내. 두 화면(큰 버튼 화면·3단계 화면) 맨 위에 같은 것을 둔다.
   // 경기 버전이 다르면(그 사이 명단 교체·진영 정정 등) 되살리기는 허락하되 다시 확인하라고 적는다.

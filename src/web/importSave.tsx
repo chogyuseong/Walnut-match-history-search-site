@@ -105,7 +105,7 @@ export function ImportProgress(props: {
       {!done && (
         <p role="status">{busy ? `저장 중 · ${saved}/${total}경기` : `${total}경기 중 ${saved}경기까지 저장됐어요.`}</p>
       )}
-      <ErrorNote error={props.error} onCheck={props.onRun} />
+      <ErrorNote error={props.error} onCheck={props.onRun} resends="다시 넣어 보기" />
       {!done && !busy && (
         <>
           <p className="hint">이어서 넣으면 이미 들어간 묶음은 다시 들어가지 않아요.</p>

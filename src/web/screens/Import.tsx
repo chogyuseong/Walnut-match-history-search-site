@@ -349,7 +349,7 @@ export function Import() {
             잘못 넣었다면 모임 탭의 표 일괄 입력 기록에서 이번에 넣은 경기를 한 번에 전적 제외할 수
             있어요.
           </p>
-          <ErrorNote error={error} onCheck={() => void run()} />
+          <ErrorNote error={error} onCheck={() => void run()} resends="다시 넣어 보기" />
           {saved > 0 && !busy && (
             <p className="note" role="status">
               {plan.current?.total}경기 중 {saved}경기까지 저장됐어요. 이어서 넣으면 이미 들어간

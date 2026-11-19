@@ -97,11 +97,12 @@ export function Dialog(props: { title: string; onClose: () => void; children: Re
 
 /**
  * 저장 상태 문구. 서버가 확인하기 전에는 "저장됨"을 쓰지 않는다.
- * resends: onCheck가 서버 상태를 읽는 게 아니라 같은 요청 ID로 저장을 다시 보내는 화면이면 true.
- * 서버가 요청 ID로 처음 결과를 돌려주므로(server/mutation.ts) 두 번 저장되지 않지만, 버튼 이름은 실제로 하는 일을 적는다.
- * 지금은 결과 입력 창만 켠다. 다른 재시도 화면(가져오기·합치기 등)은 하나씩 확인한 뒤 옮긴다.
+ * resends: onCheck가 서버 상태를 읽는 게 아니라 같은 요청 ID로 같은 요청을 다시 보내는 화면이면 그 버튼 이름("다시 저장해 보기").
+ * 서버가 요청 ID로 처음 결과를 돌려주므로(server/mutation.ts) 두 번 들어가지 않지만, 버튼 이름은 실제로 하는 일을 적는다.
+ * 넘기기 전에 그 화면이 재시도에 정말 같은 요청 ID를 쓰는지 확인한다. 새 ID를 만들면 두 번 들어간다.
+ * 경기 시작(usePrepStart.retryLast)은 오류가 바뀌면 다시 읽기만 해서 "확인하기" 그대로 둔다.
  */
-export function ErrorNote(props: { error: unknown; onCheck?: () => void; resends?: boolean }) {
+export function ErrorNote(props: { error: unknown; onCheck?: () => void; resends?: string }) {
   const { error } = props;
   if (!error) return null;
   if (error instanceof ApiFailure) {
@@ -116,10 +117,10 @@ export function ErrorNote(props: { error: unknown; onCheck?: () => void; resends
       return (
         <p className="note error" role="alert">
           저장됐는지 확인하지 못했어요. 입력은 그대로 있어요.
-          {props.resends && " 이미 저장됐으면 다시 눌러도 두 번 저장되지 않아요."}{" "}
+          {props.resends && " 이미 됐으면 다시 눌러도 두 번 들어가지 않아요."}{" "}
           {props.onCheck && (
             <button type="button" className="link" onClick={props.onCheck}>
-              {props.resends ? "다시 저장해 보기" : "확인하기"}
+              {props.resends ?? "확인하기"}
             </button>
           )}
         </p>
