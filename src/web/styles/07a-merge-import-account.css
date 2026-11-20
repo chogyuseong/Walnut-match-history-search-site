@@ -309,8 +309,8 @@
   border-color: var(--ih-control-border);
 }
 /* 768px 미만은 "로그인됨" 글자 대신 사람 아이콘(account.tsx). 320px에서 사이트 이름·피드백·테마·로그인됨이 288px 칸에
-   Pretendard로도 겨우 들어가(293px) 글꼴을 받기 전이나 리눅스 대체 글꼴에서 16~28px 넘쳤다(CI E2E 넷이 11-18부터 실패).
-   아이콘으로 약 46px 줄인다. 글자는 낭독기용으로 남겨 버튼 이름은 늘 "로그인됨"이다. */
+   Pretendard로도 겨우 들어가(293px), 넓은 글꼴로 그리면 16px 넘쳤다. 아이콘으로 약 46px 줄인다. 글자는 낭독기용으로 남겨
+   버튼 이름은 늘 "로그인됨"이다. (처음에는 CI E2E 넘침의 원인으로 보고 고쳤으나 실제 원인은 검색 칸이었다: .filter-search) */
 .topbar-account-button .line-icon {
   display: none;
 }

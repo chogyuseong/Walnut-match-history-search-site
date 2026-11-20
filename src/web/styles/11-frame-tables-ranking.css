@@ -109,9 +109,13 @@
 .scope-basis-main {
   color: var(--ih-text);
 }
+/* 기록·랭킹·챔피언 티어의 이름·챔피언 검색 칸. min-width: 0이 없으면 flex 항목이라 입력 칸의 원래 폭(글자 20자 × 글꼴의
+   평균 글자 폭)보다 좁아지지 않는다. 그 폭을 리눅스 크롬은 윈도보다 넓게 셈해 320px에서 칸이 332px로 화면 밖에 나갔다
+   (CI E2E 넷이 11-18부터 실패, 2026-11-21 e2e/overflow.ts로 찾음). */
 input[type="search"].filter-search {
   flex: 1 1 12rem;
   width: auto;
+  min-width: 0;
   max-width: 22rem;
   margin: 0;
 }
