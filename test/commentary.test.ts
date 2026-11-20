@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { attendanceReport } from "../src/shared/attendance";
-import { COACHING_MAX, GROUP_REMARK_MAX, groupCommentary, PLAYER_REMARK_MAX, playerCommentary } from "../src/shared/commentary";
+import { COACHING_MAX, GROUP_REMARK_MAX, PLAYER_REMARK_MAX } from "../src/shared/commentaryRules";
+import { groupCommentary } from "../src/shared/groupCommentary";
+import { playerCommentary } from "../src/shared/playerCommentary";
 import { computeRatings } from "../src/shared/rating";
 import type { MatchView, Position, Side, Team } from "../src/shared/types";
 import { matchExpectations } from "../src/shared/upset";

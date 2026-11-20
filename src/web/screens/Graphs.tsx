@@ -24,7 +24,9 @@ import { useExpectations } from "../matchCard";
 import { BALANCED_MMR_GAP, fairnessReport, FAIRNESS_GOOD, FAIRNESS_MIN_GAMES, FAIRNESS_OK, personUpsets, UPSET_MMR_GAP, LOPSIDED_MMR_GAP, fairnessVerdict, type FairnessVerdict } from "../../shared/upset";
 import { attendanceReport } from "../../shared/attendance";
 import { computeRatings, shownRating, ratingOptionsOf } from "../../shared/rating";
-import { groupCommentary, playerCommentary, type Commentary, type EvidenceGroup } from "../../shared/commentary";
+import type { Commentary, EvidenceGroup } from "../../shared/commentary";
+import { groupCommentary } from "../../shared/groupCommentary";
+import { playerCommentary } from "../../shared/playerCommentary";
 import {
   activityCalendar,
   calendarRange,
