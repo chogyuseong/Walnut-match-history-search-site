@@ -8,9 +8,11 @@
 }
 /* 두 사람 비교(src/web/screens/Compare.tsx).
    머리 카드 두 장(요약) + 가운데 VS → 도구 줄 → 나란히 보기(자세한 수치)·라인별·같은 팀·상대 → 경기 목록.
-   두 사람은 색이 아니라 모양으로 가른다(CLAUDE.md 5절: 장식 색 없음, 파랑·빨강은 진영 뜻): 첫 번째 사람은 꽉 찬 표식·막대,
-   두 번째 사람은 속 빈(1px 테두리) 표식·막대. 둘 다 보조 글자 색이고, 이름이 늘 옆에 붙는다. */
-/* 표 머리·이름 옆의 작은 표식(첫 번째 = 꽉 찬 네모, 두 번째 = 속 빈 네모). */
+   두 사람은 사람 색으로 가른다(CLAUDE.md 5절 예외, 2026-11-20 사용자 요청): 왼쪽(첫 번째) 연보라, 오른쪽(두 번째) 청록.
+   이야기 카드 색을 다시 쓰고 새 색은 만들지 않는다. 파랑·빨강(진영)·골드(강조)는 쓰지 않는다. 쓰는 곳은 이름 옆 표식과
+   맞대결 막대(상대일 때·라인별)뿐이고, 승률 숫자·작은 승률 막대는 승률 여섯 색 그대로다. 이름이 늘 옆에 붙는다.
+   색 토큰은 01-tokens.css의 --cmp-person-a·b. */
+/* 표 머리·이름 옆의 작은 표식: 사람 색으로 채운 8px 네모. */
 .cmp-col-a::before,
 .cmp-face-name.cmp-a::before,
 .cmp-col-b::before,
@@ -20,14 +22,17 @@
   flex: none;
   width: 8px;
   height: 8px;
-  border: 1px solid var(--ih-text-secondary);
   border-radius: 4px;
   vertical-align: 0.05em;
 }
 .cmp-col-a::before,
 .cmp-face-name.cmp-a::before {
   margin-right: var(--space-2);
-  background: var(--ih-text-secondary);
+  background: var(--cmp-person-a);
+}
+.cmp-col-b::before,
+.cmp-face-name.cmp-b::after {
+  background: var(--cmp-person-b);
 }
 .cmp-col-b::before {
   margin-right: var(--space-2);
@@ -429,20 +434,13 @@
   flex-basis: 0;
   min-width: 0;
 }
+/* 맞대결 막대: 왼쪽 칸 = 왼쪽 사람 승, 오른쪽 칸 = 오른쪽 사람 승. 좌우 비율로 읽는다.
+   화면 폭을 다 채우는 막대라 원색이면 눈을 찌른다(2026-11-20 사용자). 사람 색을 바탕과 섞어 낮춘다. */
 .cmp-bar-a {
-  background: var(--ih-text-secondary);
+  background: color-mix(in srgb, var(--cmp-person-a) 60%, var(--ih-bg));
 }
 .cmp-bar-b {
-  border: 1px solid var(--ih-text-secondary);
-}
-/* 양쪽 칸을 각자 승률의 여섯 색으로 채운다. 맞대결 막대는 1경기부터 칠한다(Compare.tsx DUEL_BAR_MIN_GAMES).
-   화면 폭을 다 채우는 막대라 원색 그대로면 다크에서 청록·분홍이 눈을 찌른다(2026-11-20 사용자). 같은 색을 바탕과 섞어 낮춘다.
-   비율을 내리면 옆 칸과 구분이 흐려지니 숫자 글자색(원색)과 나란히 놓고 본다. */
-.cmp-bar-a[class*="rate-hue-"],
-.cmp-bar-b[class*="rate-hue-"] {
-  --duel-bar-fill: color-mix(in srgb, var(--rate-hue) 55%, var(--ih-bg));
-  background: var(--duel-bar-fill);
-  border-color: var(--duel-bar-fill);
+  background: color-mix(in srgb, var(--cmp-person-b) 60%, var(--ih-bg));
 }
 .cmp-together-bar {
   display: block;
