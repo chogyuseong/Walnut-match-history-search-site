@@ -1,0 +1,327 @@
+/* 검색·칭호·연도·지난 경기 입력, 로그인·복원·처리방침.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* ---------- A: 검색·칭호·연도·지난 경기 ---------- */
+/* 칭호 표식: 엠블럼 + 이름, 바탕 없이 1px 테두리. 등급(grade-1~8, 구간 순서로 정함)마다 글자·엠블럼 색(--title-N)이
+   다르다(CLAUDE.md 5절 예외). 색만으로 가르지 않게 엠블럼 도형(screenKit.tsx TITLE_EMBLEMS)과 이름 글자를 함께 둔다.
+   엠블럼은 currentColor를 따르므로 글자색만 바꾸면 된다. 등급 없는 칭호는 본문 글자색. 모서리 4px 네모.
+   테두리는 등급 색이 아니라 중립 구분선이다: 색 테두리를 두르면 여덟 상자가 버튼처럼 도드라지고, 고른 칸을 뜻하는
+   1px 색 테두리와 헷갈린다. */
+.title-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+  background: transparent;
+  color: var(--ih-text);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+.title-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title-chip[class*="grade-"] {
+  padding-left: var(--space-1);
+}
+:is(.title-chip, .title-preview).grade-1 { color: var(--title-1); }
+:is(.title-chip, .title-preview).grade-2 { color: var(--title-2); }
+:is(.title-chip, .title-preview).grade-3 { color: var(--title-3); }
+:is(.title-chip, .title-preview).grade-4 { color: var(--title-4); }
+:is(.title-chip, .title-preview).grade-5 { color: var(--title-5); }
+:is(.title-chip, .title-preview).grade-6 { color: var(--title-6); }
+:is(.title-chip, .title-preview).grade-7 { color: var(--title-7); }
+:is(.title-chip, .title-preview).grade-8 { color: var(--title-8); }
+/* 목록 줄의 칭호(TitleBadge compact): 줄이 빽빽해지지 않게 테두리·바탕 없이 글자 + 작은 엠블럼만. */
+.title-chip.compact,
+.title-chip.compact[class*="grade-"] {
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+}
+.title-chip.compact .title-emblem {
+  width: 13px;
+  height: 13px;
+}
+.title-emblem {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  fill-opacity: 0.28;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.title-preview {
+  display: inline-flex;
+  flex: none;
+  color: var(--ih-text);
+}
+.title-preview .title-emblem {
+  width: 20px;
+  height: 20px;
+}
+
+/* 범위 고르기(오늘·시즌·연도·전체): 좁은 화면에서도 한 줄에 들어가게 칸이 줄어들 수 있다.
+   긴 시즌 이름은 목록 상자 안에서 잘린다. */
+.scope-picker > button,
+.scope-picker > select {
+  flex: 1 1 3.5em;
+  min-width: 0;
+}
+.scope-picker > select {
+  padding-left: var(--space-2);
+  padding-right: var(--space-1);
+  text-overflow: ellipsis;
+}
+
+/* 지난 경기 입력 */
+.backfill {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.backfill fieldset {
+  margin: 0;
+}
+/* .input-row > :first-child(첫 칸만 늘림)보다 우선해 날짜·시각을 반씩 나눈다. */
+.input-row.backfill-when > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.backfill-when input {
+  min-width: 0;
+}
+.backfill-slot {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.backfill-slot input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* 칸 번호(1~5): 이름 칸이 비어도 몇 번째 사람인지 보이는 꼬리표(placeholder를 라벨로 쓰지 않는다). */
+.backfill-no {
+  flex: none;
+  min-width: 1.5em;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.backfill-slot select {
+  flex: none;
+  width: 8.5em; /* 가장 긴 선택지 "포지션 없음"이 잘리지 않는 폭 */
+  max-width: 45%;
+}
+
+/* 칭호 설정 창: 줄마다 [엠블럼] [이름 칸] [경계 칸 % 이상] [빼기]. 칸 위에 보이는 라벨(CLAUDE.md 7절)을 두고,
+   엠블럼·빼기는 칸 높이(44px)에 맞춰 아래쪽 정렬한다. 좁으면 경계 칸이 다음 줄로 내려간다.
+   줄 사이를 목록 기본(8px)보다 띄워 라벨이 윗줄 칸이 아니라 제 줄 칸에 붙어 보이게 한다. */
+.title-rows {
+  gap: var(--space-3);
+}
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.title-row > .title-preview {
+  min-height: var(--control-height);
+  align-items: center;
+}
+.title-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-label);
+}
+.title-field-label {
+  color: var(--ih-text-secondary);
+}
+.title-name {
+  flex: 1 1 8em;
+  min-width: 0;
+}
+.title-min {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.title-min input {
+  width: 5em;
+}
+.title-rest {
+  display: flex;
+  align-items: center;
+  min-width: 5em;
+  min-height: var(--control-height);
+}
+
+/* ---------- B: 로그인·복원·처리방침 ---------- */
+/* 키트 토큰만 쓴다. 예외: 카카오·Google 로그인 버튼의 색은 각 회사의 브랜드 지침이 정한 값이라
+   테마와 관계없이 고정한다(카카오 #FEE500 바탕·검정 85% 글자, Google 흰 바탕·#747775 테두리·#1F1F1F 글자). */
+
+.legal a,
+.privacy a,
+.login-buttons a {
+  color: var(--ih-accent);
+}
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
+  margin-top: var(--space-2);
+}
+.legal-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.login-buttons {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+}
+.login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  font-weight: 600;
+  font-size: var(--text-body);
+  text-decoration: none;
+}
+.login-btn:focus-visible {
+  outline: 2px solid var(--ih-accent);
+  outline-offset: 2px;
+}
+.login-symbol {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.login-buttons a.login-kakao {
+  background: #fee500;
+  color: rgba(0, 0, 0, 0.85);
+  border-radius: 12px;
+}
+.login-buttons a.login-google {
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid #747775;
+  border-radius: 4px;
+}
+
+.privacy section {
+  margin-top: var(--space-4);
+}
+.privacy ul {
+  margin: var(--space-1) 0 var(--space-2);
+  padding-left: var(--space-5);
+}
+.privacy li + li {
+  margin-top: var(--space-1);
+}
+.privacy-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 var(--space-2);
+}
+.privacy-facts dt {
+  color: var(--ih-text-secondary);
+}
+.privacy-facts dd {
+  margin: 0;
+}
+.table-scroll {
+  overflow-x: auto;
+  margin: var(--space-1) 0 var(--space-2);
+}
+.privacy-table,
+.restore-diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-label);
+}
+.privacy-table {
+  min-width: 34em;
+}
+/* 개인정보·사이트 현황 표는 문장이 든 칸이라 좁은 열에서도 낱말을 자르지 않는다("막/기"처럼 끊겼다).
+   전역 table의 word-break: normal을 여기서만 되돌린다. 표는 .table-scroll 안이라 넓어지면 그 영역만 스크롤된다.
+   anywhere로 두면 표가 칸 최소 폭을 글자 하나로 잡아 390px에서 "운영자/, 본인"처럼 쉼표 앞에서 줄이 바뀌었다.
+   break-word는 칸 폭을 낱말 기준으로 잡고, 칸보다 긴 낱말만 넘칠 때 자른다. */
+.privacy-table :is(th, td) {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+/* 표 행 최소 48px(CLAUDE.md 7절). 칸 높이는 최소값으로 동작해 긴 칸은 그대로 늘어난다. */
+.privacy-table tbody :is(th, td) {
+  height: 48px;
+}
+.privacy-table .num {
+  text-align: right;
+}
+.privacy-table th,
+.privacy-table td,
+.restore-diff th,
+.restore-diff td {
+  border-bottom: 1px solid var(--ih-line);
+  padding: var(--space-2) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+.privacy-table thead th,
+.restore-diff thead th {
+  color: var(--ih-text-secondary);
+  font-weight: 500;
+  background: var(--ih-subtle);
+}
+.restore-diff tbody th {
+  font-weight: 400;
+}
+.restore-caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.restore .file-pick {
+  margin: var(--space-2) 0;
+}
+.restore .file-pick input[type="file"] {
+  border: 1px dashed var(--ih-control-border);
+  margin-top: var(--space-1);
+}
+.restore-preview {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.problem-list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+.problem-list li + li {
+  margin-top: var(--space-1);
+}
+

@@ -1,13 +1,16 @@
-// styles.css에서 CLAUDE.md 디자인 규칙 밖의 값을 세고 줄 번호를 보여 준다. 하나라도 있으면 exit 1.
+// 앱 스타일(src/web/styles/*.css, styles.css는 @import 목록뿐)에서 CLAUDE.md 디자인 규칙 밖의 값을 세고
+// "파일:줄"을 보여 준다. 하나라도 있으면 exit 1.
 // 배포 전 점검(scripts/predeploy-check.mjs)이 이 스크립트를 돌려 실패하면 배포를 멈춘다.
 //   npm run audit:design            항목별 개수 + 값별 줄 번호
 //   npm run audit:design -- --brief 항목별 개수만
 // 규칙상 꼭 필요한 값이 걸리면 값을 억지로 맞추지 말고, CLAUDE.md에 같은 예외가 있는지 확인한 뒤 EXCEPTIONS에 이유와 함께 넣는다.
 // 색은 여기서 보지 않는다. 대비는 test/theme-contrast.test.ts가 보고, 장식색은 사람이 판단한다.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CSS_PATH = fileURLToPath(new URL("../src/web/styles.css", import.meta.url));
+const CSS_DIR = fileURLToPath(new URL("../src/web/styles/", import.meta.url));
+const CSS_FILES = readdirSync(CSS_DIR).filter((name) => name.endsWith(".css")).sort();
 const brief = process.argv.includes("--brief");
 
 /**
@@ -106,8 +109,10 @@ function spaceWordOk(w) {
 const durationsOf = (value) => value.match(/(?<![\w-])[\d.]+m?s\b/g) ?? [];
 const isMotionOk = (d) => d === "120ms" || d === "0.12s" || d === "0s" || d === "0ms";
 
-const css = stripComments(readFileSync(CSS_PATH, "utf8"));
-const decls = declarations(css);
+// 줄 번호 자리에 "파일:줄"을 넣는다. 파일마다 선택자 블록이 닫혀 있어 따로 읽어도 결과가 같다.
+const decls = CSS_FILES.flatMap((name) =>
+  declarations(stripComments(readFileSync(join(CSS_DIR, name), "utf8"))).map((d) => ({ ...d, line: `${name}:${d.line}` })),
+);
 
 /** 항목 이름 → 값 → 줄 번호 목록 */
 const found = new Map();
@@ -190,7 +195,7 @@ const ORDER = [
 ];
 
 let total = 0;
-console.log(`design-audit: ${CSS_PATH.split(/[\\/]/).slice(-3).join("/")}, 선언 ${decls.length}개`);
+console.log(`design-audit: src/web/styles/ ${CSS_FILES.length}개 파일, 선언 ${decls.length}개`);
 for (const [key, label] of ORDER) {
   const byValue = found.get(key) ?? new Map();
   const count = [...byValue.values()].reduce((n, lines) => n + lines.length, 0);
@@ -198,7 +203,7 @@ for (const [key, label] of ORDER) {
   console.log(`${label}: ${count}`);
   if (brief) continue;
   const sorted = [...byValue.entries()].sort((a, b) => b[1].length - a[1].length);
-  for (const [value, lines] of sorted) console.log(`  ${value} ×${lines.length}  줄 ${lines.join(" ")}`);
+  for (const [value, lines] of sorted) console.log(`  ${value} ×${lines.length}  ${lines.join(" ")}`);
 }
 console.log(`합계: ${total}`);
 console.log(`50% 반경(원 용도인지 사람이 확인): ${circleRadius}`);

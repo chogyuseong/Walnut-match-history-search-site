@@ -1,5 +1,3 @@
-// Vite의 `?raw` 가져오기: 파일 내용을 문자열로 받는다(테마 대비 검사가 styles.css를 읽는 데 쓴다).
-declare module "*?raw" {
-  const content: string;
-  export default content;
-}
+// 테스트가 쓰는 Vite 전용 가져오기의 타입: `?raw`(파일 내용을 문자열로, _headers 검사)와
+// import.meta.glob(테마 대비 검사가 src/web/styles/*.css를 모두 읽는다).
+/// <reference types="vite/client" />

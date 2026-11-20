@@ -1,0 +1,513 @@
+/* 그래프 분석 첫 구획, 배치 보정, 준비 화면 표시, PC(1200px 이상) 두 단 배치.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* ---------- 그래프 분석 ----------
+   색은 역할로 쓴다. 승률 막대·표 칸 글자는 승률 3단(heat-*), 진영은 블루·레드(글자와 함께), 단일 값 막대·축은
+   보조 글자색(--ih-text-secondary). 여러 범주를 구별해야 하는 그림(순위 변동·라인 모양)만 범례와 함께 --viz-cat-*을 쓴다(CLAUDE.md 5절).
+   막대 바탕(--viz-track)은 다크에서 화면 배경색, 라이트에서 보조 면 색이다(보조 면 #334155 위에서는 막대 일부가 3:1 미달).
+   승률 막대 세 색과 단일 값 막대는 이 바탕 대비 3:1 이상(test/theme-contrast.test.ts). */
+.viz-root {
+  --viz-track: #0f172a;
+  /* 범주색 다섯 칸(순위 변동 상위 5명, 라인 모양 두 사람)은 dataviz 기본 팔레트의 1·2·3·5·7번(파랑·주황·청록·자홍·보라).
+     라이트는 흰 카드 대비 선 3:1이 되게 조금 진하다. */
+  --viz-cat-1: #4688d8;
+  --viz-cat-2: #cc5f33;
+  --viz-cat-3: #23946d;
+  --viz-cat-4: #cb5b84;
+  --viz-cat-5: #968de2;
+}
+/* 그래프 색은 기기 설정이 아니라 고른 테마를 따른다. */
+[data-theme="light"] .viz-root {
+  --viz-track: #f1f5f9;
+  --viz-cat-1: #3779c9;
+  --viz-cat-2: #dd6c40;
+  --viz-cat-3: #259e72;
+  --viz-cat-4: #d96792;
+  --viz-cat-5: #695acc;
+}
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.filter-row label {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.filter-row select {
+  width: auto;
+  min-width: 0;
+  color: var(--ih-text);
+}
+.chart-card {
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.chart-card h2 {
+  margin: 0;
+}
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-1);
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  text-align: left;
+}
+button.bar-row:hover {
+  background: var(--ih-subtle);
+}
+.bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.bar-note {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+}
+/* 값이 "승률 · N승 M패 (G경기)"로 길어 좁은 화면에서는 값을 다음 줄 오른쪽으로 내린다.
+   이름·칭호를 "…"로 자르지 않는다. */
+@media (max-width: 767px) {
+  .bar-head {
+    flex-wrap: wrap;
+  }
+  .bar-head > .name {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .bar-value {
+    margin-left: auto;
+  }
+}
+/* 값은 본문 색으로 쓰고, 승률 숫자(.rate)만 막대와 같은 색 단계를 따른다. */
+.bar-value {
+  flex: none;
+  color: var(--ih-text);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-label);
+}
+/* 막대 두께 6px. */
+.bar-track {
+  position: relative;
+  display: block;
+  height: 6px;
+  background: var(--viz-track);
+  border-radius: 0 4px 4px 0;
+}
+/* 기준선(왼쪽)은 각지게, 값 쪽 끝만 둥글게. */
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--ih-text-secondary);
+}
+.bar-fill.tone-blue {
+  background: var(--ih-win-accent);
+}
+.bar-fill.tone-red {
+  background: var(--ih-loss-accent);
+}
+/* 승률 여섯 색(rate-hue-1~6, CLAUDE.md 5절 예외): 개인별·라인별 승률 막대와 숫자, 플레이어 × 라인 칸 숫자, 범례 견본,
+   승률 고리의 호, MMR 랭킹 막대. 칸은 format.ts rateHueClass(40·45·50·55·60% 경계). */
+.rate-hue-1 {
+  --rate-hue: var(--rate-hue-1);
+}
+.rate-hue-2 {
+  --rate-hue: var(--rate-hue-2);
+}
+.rate-hue-3 {
+  --rate-hue: var(--rate-hue-3);
+}
+.rate-hue-4 {
+  --rate-hue: var(--rate-hue-4);
+}
+.rate-hue-5 {
+  --rate-hue: var(--rate-hue-5);
+}
+.rate-hue-6 {
+  --rate-hue: var(--rate-hue-6);
+}
+/* 승률 3단 규칙(.matrix td[class*="heat-"] .cell-rate, 뒤쪽)보다 앞서도록 두 클래스를 함께 건다. */
+.matrix td[class*="heat-"][class*="rate-hue-"] .cell-rate {
+  color: var(--rate-hue);
+}
+.swatch[class*="rate-hue-"],
+.bar-fill[class*="rate-hue-"],
+.meter-fill[class*="rate-hue-"] {
+  background: var(--rate-hue);
+}
+.rate[class*="rate-hue-"] {
+  color: var(--rate-hue);
+}
+/* MMR 랭킹 막대: 시작값보다 위는 채운 막대, 아래는 속 빈 테두리 막대 모양은 그대로 두고 색만 승률 칸을 따른다. */
+.mmr-start-fill.up[class*="rate-hue-"] {
+  background: var(--rate-hue);
+}
+.mmr-start-fill.down[class*="rate-hue-"] {
+  border-color: var(--rate-hue);
+}
+.ring-fill[class*="rate-hue-"] {
+  stroke: var(--rate-hue);
+}
+/* 50% 기준선 */
+.bar-mid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ih-text-secondary);
+}
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--ih-line);
+}
+.band-none,
+.band-empty {
+  background: var(--ih-panel);
+}
+.band-empty {
+  color: var(--ih-text-secondary);
+}
+.matrix {
+  width: 100%;
+  table-layout: fixed;
+  /* 칸 사이는 테두리가 아니라 바탕색 틈으로 나눈다. */
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+}
+/* 숫자 칸(라인별 승률)은 오른쪽, 이름 칸은 왼쪽 정렬(CLAUDE.md 7절). */
+.matrix th,
+.matrix td {
+  padding: var(--space-1) 0;
+  text-align: right;
+  border-radius: 4px;
+  color: var(--ih-text);
+  line-height: 1.25;
+}
+/* 머리 행은 화면을 내려도 상단 바 아래에 붙어 있다. 바탕은 다른 표 머리와 같은 보조 면. */
+.matrix thead th {
+  position: sticky;
+  top: var(--topbar-height);
+  z-index: 1;
+  background: var(--ih-subtle);
+  color: var(--ih-text-secondary);
+  font-weight: 400;
+}
+.matrix th:first-child {
+  width: 29%;
+  text-align: left;
+}
+@media (min-width: 1200px) {
+  .matrix th:first-child {
+    width: 18%;
+  }
+}
+.matrix th[scope="row"] {
+  text-align: left;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.matrix tr.picked th[scope="row"] {
+  font-weight: 500;
+}
+/* 표 칸: 모든 칸이 같은 옅은 중립 바탕이고(칸마다 다른 색을 칠하지 않는다, CLAUDE.md 7절) 승률 글자만 3단 색을 따른다.
+   승률은 굵게, 경기 수는 작고 흐리게. 5경기 미만 칸(band-none)은 바탕 없이 둔다. */
+.matrix td {
+  display: table-cell;
+  padding-right: var(--space-1);
+}
+.matrix td[class*="heat-"] {
+  background: var(--ih-subtle);
+}
+.matrix td[class*="heat-"] .cell-rate {
+  color: var(--heat);
+}
+.cell-rate {
+  display: block;
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: 1.2;
+}
+.cell-games {
+  display: block;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  line-height: 1.2;
+}
+.matrix thead th .pos {
+  justify-content: flex-end;
+  width: auto;
+  color: var(--ih-text-secondary);
+}
+/* 이름은 개인 통계로 가는 버튼 */
+.matrix-row {
+  cursor: pointer;
+}
+.matrix-row:hover .matrix-name {
+  color: var(--ih-accent);
+  text-decoration: underline;
+}
+.matrix-name {
+  display: block;
+  width: 100%;
+  /* 누르기 쉬운 높이(44px). 행 전체도 눌린다(Graphs.tsx MatrixTable). */
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ih-text);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.matrix-name:hover {
+  color: var(--ih-accent);
+  text-decoration: underline;
+}
+/* 플레이어 필터로 고른 사람의 행: 칸마다 1px 강조 선, 이름 칸만 선택 바탕(승률 칸 바탕은 다른 줄과 같게 둔다). */
+.matrix tr.picked > th,
+.matrix tr.picked > td {
+  outline: 1px solid var(--ih-accent);
+  outline-offset: -1px;
+}
+.matrix tr.picked > th {
+  background: var(--ih-selected);
+}
+/* 5경기 미만 묶음(접힘) */
+.matrix-few {
+  margin-top: var(--space-2);
+}
+.matrix-few > summary {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+}
+/* ---------- 배치 보정 ---------- */
+
+/* 동작 버튼의 글자는 줄바꿈하지 않는다(입력 칸 옆에서 한 글자씩 꺾이던 문제). */
+.primary,
+.secondary,
+.danger,
+.link,
+.segmented button {
+  white-space: nowrap;
+}
+.input-row > button {
+  flex: none;
+}
+
+/* 목록 줄: 내용은 세로 가운데, 오른쪽 보조 글자(시각 등)는 한 줄로 둔다. 안쪽 버튼(.row-main)이 있는 줄은 바깥 줄의
+   위아래 여백을 버린다. */
+.list-row.static:has(> .row-main) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.row-main > :first-child,
+.list-row > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.row-main > .hint,
+.list-row > .hint {
+  flex: none;
+  white-space: nowrap;
+}
+.list-row.static > .button-row {
+  flex: none;
+  justify-content: flex-end;
+}
+/* 티어 배정: 좁은 화면에서는 1·2·3·4·5·미정 버튼 줄(6칸 × 44px + 간격 = 294px)이 이름 아래로 내려간다.
+   버튼은 44px 이상. 390px 화면의 줄 안쪽 폭(약 330px)에 한 줄로 들어간다. */
+.list-row.priority-row {
+  flex-wrap: wrap;
+}
+.priority-row > .segmented {
+  flex: 1 1 294px;
+}
+.priority-row > .segmented button {
+  min-width: 44px;
+  padding: var(--space-2) var(--space-1);
+}
+/* 360px 미만: 294px 줄이 카드 안쪽 폭(약 280px)보다 넓어 넘치므로 여섯 칸을 똑같이 나눈다(44px 미만이 되지만 한 줄 유지). */
+@media (max-width: 359px) {
+  .priority-row > .segmented {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .priority-row > .segmented button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: var(--space-2) 0;
+  }
+}
+/* 기피 라인 토글: 라인 아이콘 + 이름. 다섯 칸이 390px 안에 들어가게 칸을 똑같이 나누고 글자를 줄이지 않는다. */
+.avoid-row > .segmented button {
+  flex: 1 1 0;
+  min-width: 44px;
+  display: inline-flex;
+  justify-content: center;
+}
+.avoid-row > .segmented .pos,
+.avoid-row > .segmented .role-icon {
+  color: inherit;
+}
+.avoid-row > .segmented button[aria-disabled="true"] {
+  opacity: 0.5;
+}
+/* 준비 화면 명단: 기피 라인에 서 있는 사람 표시(글자 + 점선 테두리, 색만으로 구분하지 않는다). */
+.tag.avoid-tag {
+  border: 1px dashed var(--ih-text-secondary);
+}
+
+/* 넓은 화면: 하단 메뉴가 없으므로 본문 아래 여백을 줄이고, 따라오는 머리는 위에 붙은 상단 바 아래에 붙는다. */
+@media (min-width: 768px) {
+  main {
+    padding-bottom: var(--space-6);
+  }
+  .sticky-head {
+    top: var(--topbar-height);
+  }
+  .action-sticky {
+    bottom: 0;
+    padding-bottom: var(--space-3);
+  }
+  .toast {
+    left: auto;
+    right: 20px;
+    bottom: 20px;
+    max-width: 480px;
+  }
+}
+
+/* PC: 고정 행동 버튼(고르기 "팀 짜기", 준비 "이 팀으로 시작", 경기 "결과 입력")을 오른쪽 끝 320px 이상 한 칸으로.
+   전체 폭(1100px 넘는 골드 막대)이면 화면을 가로질러 다른 내용보다 무겁다. 고르기의 "n명이 더 필요해요"는
+   같은 칸 안에서 버튼 아래 가운데에 온다. 위 1px 선은 고정 줄이 본문 위에 떠 있을 때 경계를 보이려는 것이다. */
+@media (min-width: 1200px) {
+  .action-sticky {
+    display: grid;
+    grid-template-columns: minmax(320px, max-content);
+    justify-content: end;
+    border-top: 1px solid var(--ih-line);
+  }
+  /* 준비 화면은 고정 줄을 한 줄 도구 막대로 쓴다: 왼쪽 명단 복사·편성 이미지·되돌리기 ··· 오른쪽 "이 팀으로 시작"(320px).
+     자리 옮김은 Prep.tsx(twoColumns)가 한다. */
+  .action-sticky:has(> .prep-deskbar) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .prep-deskbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .prep-deskbar > .primary {
+    flex: 0 0 320px;
+    width: auto;
+  }
+}
+
+/* 고정 행동 버튼("이 팀으로 시작" 등)이 있는 화면: 토스트가 그 버튼을 덮지 않게 버튼 위로 올린다. */
+body:has(.action-sticky) .toast {
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 84px);
+}
+@media (min-width: 768px) {
+  body:has(.action-sticky) .toast {
+    bottom: 84px;
+  }
+}
+
+/* ---------- PC(1200px 이상): 넓은 화면을 2단으로 쓴다 ----------
+   입력·진행 화면은 글줄 폭(.screen 폭 규칙)을 유지하고,
+   읽는 화면(기록·개인 통계·그래프·모임)은 구역을 두 단으로 나란히 놓는다. */
+@media (min-width: 1200px) {
+  .screen.cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+  }
+  /* 제목·필터·안내 문구·접는 영역은 두 단을 가로질러 놓는다. 구역(section)만 단을 나눠 갖는다. */
+  .screen.cols > :not(section),
+  .screen.cols > .full {
+    grid-column: 1 / -1;
+  }
+  /* 그래프: 긴 개인별 승률을 왼쪽에 세우고 오른쪽에 라인별·진영별을 한 묶음으로 쌓는다. */
+  .screen.cols > .stack {
+    grid-column: auto;
+    min-width: 0;
+  }
+  .screen.cols > section {
+    min-width: 0;
+  }
+  .matrix th[scope="row"] {
+    width: 18%;
+  }
+  .matrix th,
+  .matrix td {
+    padding: var(--space-2) var(--space-1);
+  }
+}
+
+/* 여러 구역을 세로로 쌓는 묶음. 좁은 화면에서는 다른 구역과 같은 간격으로 이어진다. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+button.row .name {
+  flex: 1 1 4em;
+}
+button.row .tag {
+  margin-left: 0;
+}
+

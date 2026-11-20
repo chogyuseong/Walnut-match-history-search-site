@@ -1,0 +1,1588 @@
+/* 경기 카드, 대시보드, 랭킹 줄, 경기 거르기, 개인 통계, 두 사람 비교, 참가자 고르기, 결과 이미지.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* ---------- C: 경기 카드·대시보드·랭킹·비교·이미지 ---------- */
+/* 새 색을 만들지 않고 키트 토큰만 쓴다. 승·패는 색과 함께 글자(승/패)로 적는다. */
+/* 본문으로 건너뛰기(App.tsx TopBar 앞): 평소에는 화면 읽기 전용처럼 숨고, 키보드 초점을 받으면 상단 바 왼쪽 위에 보인다. */
+.skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link:focus {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--page-gutter);
+  z-index: 10;
+  background: var(--ih-panel);
+}
+/* 건너뛰기로 초점을 받은 main 전체에 테두리를 그리지 않는다(초점 목적지일 뿐 누르는 것이 아니다). */
+main:focus {
+  outline: none;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+}
+.section-head h2 {
+  min-width: 0;
+}
+.sub-head {
+  margin: var(--space-2) 0 var(--space-2);
+  color: var(--ih-text-secondary);
+}
+/* 요약 "요즘 흐름": 두 목록(연승 중·최근 10경기 승률)이 8px로 붙으면 한 목록처럼 읽히고, 끝의 설명 글은 카드에
+   바로 붙어 있었다. 둘째 소제목 위는 묶음 사이(24px), 설명 글 위는 관련 요소 사이(8px)로 띄운다(CLAUDE.md 1절). */
+.home-flow > .sub-head ~ .sub-head {
+  margin-top: var(--space-5);
+}
+.home-flow > :is(.list, .hint) + .hint {
+  margin-top: var(--space-2);
+}
+
+/* 경기 카드: 머리 줄(경기 번호·결과·시각)이 경기 상세로 가는 버튼이고, 카드의 빈 곳도 같은 곳으로 간다.
+   이름 칸은 그 위에 따로 눌리는 버튼이다. 두 팀은 한 줄씩, 포지션이 있으면 라인 순서로 칸을 맞춘다. */
+.match-cards {
+  gap: var(--space-2);
+}
+.match-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2) var(--space-3);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  min-width: 0;
+}
+.mc-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.mc-main,
+.mc-main:not(:disabled):hover {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  border: none;
+  background: none;
+  text-align: left;
+  font-weight: 500;
+}
+/* 카드 전체를 덮는 누름 영역. 이름 버튼과 동작 버튼은 그 위에 놓인다. */
+.mc-main::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.mc-main:focus-visible {
+  outline-offset: -2px;
+}
+.mc-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mc-when {
+  flex: none;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mc-result {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75em;
+  height: 1.75em;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-badge);
+  font-size: var(--text-label);
+}
+.mc-action {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+.mc-grid {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  /* 빈 곳을 누르면 아래의 카드 누름 영역으로 간다. */
+  pointer-events: none;
+  min-width: 0;
+}
+/* 첫 칸(진영·승패 "레드 패")은 두 낱말이 한 줄에 들어가는 고정 폭. 라인 머리 줄(.mc-roles)과 같은 폭이어야 칸이 맞는다. */
+.mc-roles,
+.mc-team {
+  display: grid;
+  grid-template-columns: 3rem repeat(5, minmax(0, 1fr));
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+}
+.mc-roles {
+  padding-bottom: var(--space-1);
+}
+.mc-role {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+.mc-role .pos {
+  width: auto;
+  gap: var(--space-1);
+  font-size: var(--text-meta);
+  color: var(--ih-text-secondary);
+}
+.mc-role .role-icon {
+  width: 12px;
+  height: 12px;
+}
+.mc-team-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  white-space: nowrap;
+  line-height: 1.5;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+.mc-team-name {
+  white-space: nowrap;
+}
+/* 팀 머리 글자의 진영 색. 진영 미상 경기는 A 블루·B 레드(format.ts sideColorOf). */
+.mc-team-name.side-blue {
+  color: var(--ih-win-text);
+}
+.mc-team-name.side-red {
+  color: var(--ih-loss-text);
+}
+.mc-team.is-win .mc-team-label {
+  color: var(--ih-text);
+}
+.mc-name,
+.mc-name:not(:disabled):hover {
+  pointer-events: auto;
+  min-width: 0;
+  overflow: hidden;
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 이름은 한 줄, 넘치면 말줄임표(글자 단위로 "가상선수0 / 3"처럼 꺾이지 않게).
+   전체 이름은 버튼 title에 있다. 칸은 minmax(0, 1fr)라 이름이 길어도 칸이 넓어지지 않는다. */
+.mc-name-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  min-width: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mc-name:not(:disabled):hover {
+  text-decoration: underline;
+}
+@media (max-width: 419px) {
+  .match-card {
+    padding: 0 var(--space-1) var(--space-2) var(--space-2);
+  }
+  .mc-name,
+  .mc-name:not(:disabled):hover {
+    padding: 0;
+  }
+}
+/* 좁은 화면(5칸이 60px 안팎)에서는 한 줄 말줄임이 "가상선수…"처럼 앞이 같은 이름을 전부 가려 버린다.
+   두 줄까지 글자 단위로 꺾어 전체 이름을 보여 주고, 넓은 화면에서만 한 줄 말줄임을 쓴다.
+   "늦게온사/람"처럼 꺾이는 것은 알고 둔 것이다: 390px에서 칸 54px, 5글자 이름 61px이라 피할 수 없다.
+   text-wrap: balance는 "가상선수/03"을 "가상선/수03"으로 만들어 넣지 않았다(.claude/CLAUDE.md 예외). */
+@media (max-width: 480px) {
+  .mc-name-text {
+    white-space: normal;
+    word-break: break-all;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.15;
+  }
+}
+.mc-team.is-win .mc-name {
+  color: var(--ih-text);
+  font-weight: 500;
+}
+.mc-name.is-me,
+.mc-name.is-me:not(:disabled):hover {
+  color: var(--ih-text);
+  background: var(--ih-selected);
+  border: 1px solid var(--ih-accent);
+}
+@media (min-width: 768px) {
+  .mc-name,
+  .mc-name:not(:disabled):hover {
+    font-size: var(--text-label);
+  }
+}
+
+/*
+ * 최근 승패(FormDots): 칸 없이 "승패승"이 붙어 한 낱말처럼 읽힌다. 승은 승리 글자색(파랑), 패는 패배 글자색(빨강).
+ * 예전에는 21px 색칸이었는데 랭킹 24줄이면 칸이 240개라 화면에서 가장 시끄러웠다(2026-11-17 unslop, 요약 상위 5명에서 시작한
+ * 방식을 모든 화면으로). 한글 "승"·"패"는 폭이 같아 줄마다 글자가 세로로 맞는다. 글자 크기는 화면별로 아래에서 정한다.
+ */
+.form-dots {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.form-dot.win {
+  color: var(--ih-win-text);
+}
+.form-dot.loss {
+  color: var(--ih-loss-text);
+}
+/* 요약 화면 랭킹 상위 5명: 줄의 색 강조는 승률 숫자 하나만 남기고 칭호는 보조 글자 색으로 둔다(엠블럼·이름은 그대로).
+   칭호 등급 색은 랭킹·개인 통계처럼 칭호를 보러 가는 화면에서 보인다(CLAUDE.md 5절 칭호 예외). */
+.dash-rank-list .title-chip[class*="grade-"] {
+  color: var(--ih-text-secondary);
+}
+.streak {
+  font-size: var(--text-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.streak.win {
+  color: var(--ih-win-text);
+}
+.streak.loss {
+  color: var(--ih-loss-text);
+}
+
+/* 랭킹 줄과 조작 */
+.rank-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rank-controls .segmented {
+  flex: 1 1 14rem;
+}
+/* 정렬 버튼 네 개(승률·경기 수·승수·MMR 순)가 390px 한 줄에 들어가게 옆 여백만 줄인다. */
+.rank-controls .segmented button {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+/* 결과 기반 MMR 숫자(랭킹 줄·개인 요약). 색은 쓰지 않는다(승률 색 단계와 겹치지 않게). */
+.rating-num {
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  /* nowrap을 두지 않는다: 개인 요약의 "MMR · 최고 · 최근" 한 줄이 320px에서 줄바꿈되어야 한다. */
+}
+.rank-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.rank-line select {
+  color: var(--ih-text);
+}
+.rank-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.rank-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.rank-person {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.form-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+/* 좁은 폰의 랭킹 행: 오른쪽 전적 칸 글자를 키우니 왼쪽이 좁아져 승·패 점 세 개와 "3연승 중"이 두 줄로 접혔다.
+   이 행에서만 점을 작게 두고, 보조 글자는 14px로 맞춘다(12px로 줄이면 전적이 안 읽힌다). 행 높이가 바뀌면 기록 화면 갱신 때 입력 칸이 밀린다. */
+@media (max-width: 419px) {
+  .rank-row .stat .hint,
+  .rank-row .stat .standing,
+  .rank-row .rating-num {
+    font-size: var(--text-label);
+  }
+  /* 오른쪽 전적 칸이 행의 60%까지 차지해 왼쪽이 118px뿐이었다. 58:42로 나눠 왼쪽에 점 세 개 + 연승 글이 한 줄에 들어가게.
+     전적 글은 낱말 단위로만 줄을 바꿔 "(2경/기)"처럼 끊기지 않게. */
+  .rank-row .stat {
+    flex: 0 1 58%;
+    max-width: 58%;
+    word-break: keep-all;
+  }
+  .rank-row .rank-main {
+    flex: 1 1 42%;
+  }
+}
+
+/* 경기 거르기 */
+.match-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.match-filter .filter-row label {
+  flex: 1 1 40%;
+}
+.filter-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: 0 var(--space-1) 0 var(--space-3);
+  background: var(--ih-subtle);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  font-size: var(--text-label);
+  overflow-wrap: anywhere;
+}
+.filter-summary > span {
+  min-width: 0;
+  padding: var(--space-2) 0;
+}
+.filter-summary > .filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 개인 통계 요약 */
+.person-summary .ps-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+.ps-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.ps-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.tile-label {
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+/* 개인 통계 "세부 기록": 요약 카드에서 내린 라인·동료 칸과 이변·출석 줄. */
+.person-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.person-facts > h2 {
+  margin: 0;
+}
+/* 지표 묶음(개인 세부 기록·시즌 요약·섞기 공정성): 상자로 감싸지 않고 칸마다 위 1px 구분선만 둔다(CLAUDE.md 2절). */
+.ps-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+.ps-tiles > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ih-line);
+}
+.ps-tiles dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+.ps-tiles dd .pos {
+  width: auto;
+  font-size: var(--text-body);
+  color: var(--ih-text);
+}
+.ps-tiles dd .streak {
+  font-size: var(--text-body);
+}
+.tile-sub {
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.tile-link,
+.tile-link:not(:disabled):hover {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  font-size: var(--text-body);
+}
+@media (min-width: 768px) {
+  .ps-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+/* 개인 통계: 768px부터 두 단. 키 큰 "라인별"이 오른쪽에서 두 줄을 차지하고
+   왼쪽에 짧은 "최근"·"진영별"을 쌓아 한쪽 아래가 길게 비지 않게 한다.
+   (공통 .screen.cols의 1200px 2단 규칙은 다른 화면용으로 그대로 둔다.) */
+@media (min-width: 768px) {
+  .screen.cols.person-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-3) var(--space-4);
+    align-items: start;
+  }
+  .screen.cols.person-screen > :not(section),
+  .screen.cols.person-screen > .full {
+    grid-column: 1 / -1;
+  }
+  .screen.cols.person-screen > section {
+    min-width: 0;
+  }
+  .screen.cols.person-screen > .person-lines {
+    grid-row: span 2;
+  }
+  /* "경기 수순 / 승률순" 토글은 두 단을 가로지르는 줄이지만 버튼 폭만 차지한다. 전폭이면 구역 사이를 가르는
+     막대처럼 보여 어느 목록의 순서인지 흐려졌다. */
+  .screen.cols.person-screen > .segmented {
+    justify-self: start;
+  }
+  /* 라인별: 비중·승률 막대를 한 줄에 나란히(줄마다 한 줄씩 줄어든다). */
+  .person-lines .meters {
+    grid-template-columns: auto minmax(0, 1fr) 2.5rem auto minmax(0, 1fr) 2.5rem;
+  }
+}
+
+/* 개인 통계의 추이 두 장(누적 승률·MMR): 기본은 세로로 하나씩, 768px부터 반씩 한 줄에 나란히 두어 비교해 본다.
+   SVG가 preserveAspectRatio="none"이라 폭이 절반이 돼도 높이는 그대로다. */
+.trend-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .trend-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* 누적 승률 추이(작은 선 그래프) */
+.trend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+.trend svg {
+  display: block;
+  width: 100%;
+  height: 72px;
+  border-radius: var(--radius-panel);
+}
+/* 눈금 틀: 왼쪽 세로 눈금(위·가운데·아래) + 그림 + 아래 가로 구간(처음·중간·끝). 눈금 글자는 흐린 색, 작은 숫자. */
+.trend-plot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+}
+.trend-y {
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: var(--text-meta);
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding: 0;
+}
+.trend-plot svg {
+  grid-row: 1;
+  grid-column: 2;
+}
+.trend-x {
+  grid-row: 2;
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-meta);
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.trend-bg {
+  fill: var(--ih-subtle);
+}
+.trend-mid {
+  stroke: var(--ih-text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+/* 추이 선 색: 누적 승률은 청록, MMR은 연보라(CLAUDE.md 5절의 명시 예외). 이야기 카드 색 토큰을 다시 쓴다.
+   그림 바탕(--ih-subtle) 위 대비는 그 토큰의 검사(test/theme-contrast.test.ts)가 지킨다.
+   색만으로 구분하지 않도록 제목 글자 앞에 같은 색 점을 둔다. 파랑·빨강(진영)·골드(강조)로 바꾸지 않는다. */
+.trend-rate {
+  --trend: var(--story-pair);
+}
+.trend-rating {
+  --trend: var(--story-attendance);
+}
+.trend-path {
+  fill: none;
+  stroke: var(--trend, var(--ih-text));
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.trend-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.trend-caption strong {
+  color: var(--ih-text);
+}
+.trend-caption > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.trend-caption > span:first-child::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--trend, transparent);
+}
+
+/* 개인 통계·검색의 작은 막대와 승률 고리. 그림은 보조이고 값은 옆 숫자로 함께 적는다.
+   승률 막대는 3단 색 + 50% 기준선, 5경기 미만은 속 빈 테두리 막대(색이 아니라 모양으로 "자료 적음"). */
+/* 막대 높이 5px(작은 막대 4px). 숫자 옆 보조 그림이라 낮게 둔다. */
+.meter {
+  position: relative;
+  display: block;
+  height: 5px;
+  min-width: 0;
+  background: var(--viz-track);
+  border-radius: 0 4px 4px 0;
+}
+.meter-sm {
+  height: 4px;
+}
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--ih-text-secondary);
+}
+.meter-fill.tone-blue {
+  background: var(--ih-win-accent);
+}
+.meter-fill.tone-red {
+  background: var(--ih-loss-accent);
+}
+.meter-fill.tone-share {
+  background: var(--ih-text-secondary);
+}
+/* 속 빈 막대: 5경기 미만 승률(tone-muted, 그래프 .bar-fill도 같은 모양)과 패·비교 두 번째 사람(.wl-loss·.cmp-bar-b).
+   무늬(그라데이션) 없이 1px 테두리만 그린다. 테두리는 막대 바탕 대비 3:1 이상인 보조 글자 색. */
+.meter-fill.tone-muted,
+.bar-fill.tone-muted {
+  background: transparent;
+  border: 1px solid var(--ih-text-secondary);
+}
+.meter-mid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ih-text);
+  opacity: 0.55;
+}
+/* 승·패 비율: 승은 승리 색 채움, 패는 패배 색 테두리만(속 빈 막대, 색이 아니라 모양으로도 구분). */
+.wl-bar {
+  position: relative;
+  display: flex;
+  height: 5px;
+  min-width: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.wl-win,
+.wl-loss {
+  flex-basis: 0;
+  min-width: 0;
+}
+.wl-win {
+  background: var(--ih-win-accent);
+}
+.wl-loss {
+  border: 1px solid var(--ih-loss-accent);
+  border-left-width: 0;
+}
+.wl-bar .meter-mid {
+  top: 0;
+  bottom: 0;
+}
+/* 막대를 둔 목록 줄: 첫 줄은 이름·숫자, 막대는 다음 줄 전체 폭. */
+.list-row.has-bar {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+.list-row.has-bar > .meter,
+.list-row.has-bar > .wl-bar,
+.list-row.has-bar > .meters {
+  flex: 1 0 100%;
+}
+/* 라인별: 비중과 승률을 한 줄씩. 이름표 · 막대 · 값 */
+.meters {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 2.5rem;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.meter-value {
+  text-align: right;
+  color: var(--ih-text);
+  font-variant-numeric: tabular-nums;
+}
+.ps-tiles dd .meter {
+  align-self: stretch;
+  margin-top: var(--space-1);
+}
+/* 개인 통계 요약: 이 화면의 핵심 지표는 고른 범위의 승률이라 고리와 전적 줄을 MMR·칭호 줄보다 한 단계 크게 둔다
+   (고리 104px·전적 줄 20px은 그래프 분석 .graph-profile과 같은 값, 고리 가운데 숫자는 24px). */
+.person-summary .ring {
+  width: 104px;
+  height: 104px;
+}
+.person-summary .ring-text strong {
+  font-size: var(--text-screen);
+}
+.person-summary .summary-line {
+  font-size: var(--text-section);
+}
+/* 요약의 승률 고리 */
+.ps-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.ring {
+  position: relative;
+  flex: none;
+  width: 88px;
+  height: 88px;
+}
+.ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ring-track,
+.ring-fill {
+  fill: none;
+  stroke-width: 8;
+}
+.ring-track {
+  stroke: var(--viz-track);
+}
+.ring-fill {
+  stroke: var(--ih-text-secondary);
+}
+.ring-fill.tone-muted {
+  stroke: var(--ih-text-secondary);
+}
+.ring-mid {
+  stroke: var(--ih-text);
+  stroke-width: 2;
+  opacity: 0.6;
+}
+.ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+}
+.ring-text strong {
+  font-size: var(--text-section);
+  font-variant-numeric: tabular-nums;
+}
+.ring-text span {
+  font-size: var(--text-meta);
+  color: var(--ih-text-secondary);
+}
+
+/* 랭킹 묶음 소제목(누적 50경기 이상 · 배치 완료 · 배치 진행 중) */
+.rank-group {
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1);
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+  border-bottom: 1px solid var(--ih-line);
+}
+.rank-group:first-child {
+  margin-top: 0;
+}
+/* 묶음 머리글 아래 한 줄 설명(MMR 랭킹: 왜 점수가 높은 사람이 아래 묶음에 있는지). */
+.rank-group-why {
+  display: block;
+  font-weight: 400;
+}
+/* 카드 하나로 묶은 순위표 안의 묶음 소제목: 위 구분선 한 줄 + 흐린 글자, 바탕은 표 머리와 같은 올린 면. */
+.list-card > .rank-group {
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-2);
+  background: var(--ih-subtle);
+  border-bottom: 0;
+  border-top: 1px solid var(--ih-line);
+}
+.list-card > .rank-group:first-child {
+  border-top: 0;
+}
+
+/* MMR 티어 이름표(RatingTierBadge): 색 없이 보조 면 바탕 + 본문 글자. 티어는 이름 글자(브론즈~다이아몬드)로 읽고,
+   칭호(.title-chip, 바탕 없이 테두리만)와는 채움·테두리 모양으로 갈린다. 티어마다 색을 주지 않는다(CLAUDE.md 5절). */
+.mmr-tier {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-badge);
+  background: var(--ih-subtle);
+  color: var(--ih-text);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* 모임 탭 MMR 설정: 숫자 칸과 저장 버튼. 좁은 화면에서는 "이름 | 칸" 줄을 위아래로 쌓고 이름 칸 폭을 같게 해
+   숫자 칸 시작점을 맞춘다(이름 길이가 달라 칸이 들쭉날쭉했다). 저장은 맨 아래 줄. 768px 이상은 한 줄로 흐른다. */
+.rating-settings {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.rating-settings .inline-label {
+  display: grid;
+  grid-template-columns: var(--rating-label-width) auto;
+  align-items: center;
+}
+:root {
+  /* 가장 긴 이름 "MMR 시작 점수"(16px, 600)가 한 줄에 들어가는 폭. */
+  --rating-label-width: 8em;
+}
+@media (min-width: 768px) {
+  .rating-settings {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  .rating-settings .inline-label {
+    grid-template-columns: auto auto;
+  }
+}
+/* 최근 변화(▲48·▼7): 바탕 없이 오름은 본문 글자, 내림은 보조 글자. 오르내림은 ▲·▼ 기호가 전한다
+   (초록·빨강은 성공·패배 뜻이라 쓰지 않는다, CLAUDE.md 5절). */
+.delta-chip {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.delta-chip.up {
+  color: var(--ih-text);
+}
+/* 랭킹 화면 안의 작은 글자는 0.875rem 아래로 내리지 않는다(공용 기본값이 더 작은 부품 포함). */
+.mmr-ranking .tile-label,
+.mmr-ranking .rank-group {
+  font-size: var(--text-label);
+}
+
+/* 시작값 기준 막대(Ranking.tsx StartBar): 가는 바탕 선 위에 기준선(시작 MMR)에서 오른쪽(올랐다, 본문 색)·왼쪽(내렸다,
+   속 빈 보조 글자 색)으로 뻗는 막대. 방향이 오르내림을 전한다. 위치는 0~1 비율 CSS 변수(--at·--left·--width)로 받는다.
+   시작값 그대로인 사람도 막대가 사라지지 않게 최소 2px. */
+.mmr-start-bar {
+  grid-area: bar;
+  display: block;
+  min-width: 0;
+  padding: var(--space-1) 0;
+}
+.mmr-start-track {
+  position: relative;
+  display: block;
+  height: 14px;
+}
+.mmr-start-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 1px);
+  height: 2px;
+  background: var(--ih-line);
+}
+.mmr-start-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--left) * 100%);
+  width: max(2px, calc(var(--width) * 100%));
+}
+.mmr-start-fill.up {
+  background: var(--ih-text);
+}
+.mmr-start-fill.down {
+  border: 1px solid var(--ih-text-secondary);
+  background: var(--ih-bg);
+}
+.mmr-start-line {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: calc(var(--at) * 100%);
+  width: 1px;
+  background: var(--ih-text-secondary);
+}
+@media (min-width: 768px) {
+  .mmr-start-track {
+    height: 16px;
+  }
+}
+
+/* 홈 요약 */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.dash-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+.dash-grid > section {
+  min-width: 0;
+}
+.dash-empty-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+@media (min-width: 768px) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* 두 사람 비교 */
+.vs {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+/* 두 사람 비교(src/web/screens/Compare.tsx).
+   머리 카드 두 장(요약) + 가운데 VS → 도구 줄 → 나란히 보기(자세한 수치)·라인별·같은 팀·상대 → 경기 목록.
+   두 사람은 색이 아니라 모양으로 가른다(CLAUDE.md 5절: 장식 색 없음, 파랑·빨강은 진영 뜻): 첫 번째 사람은 꽉 찬 표식·막대,
+   두 번째 사람은 속 빈(1px 테두리) 표식·막대. 둘 다 보조 글자 색이고, 이름이 늘 옆에 붙는다. */
+/* 표 머리·이름 옆의 작은 표식(첫 번째 = 꽉 찬 네모, 두 번째 = 속 빈 네모). */
+.cmp-col-a::before,
+.cmp-face-name.cmp-a::before,
+.cmp-col-b::before,
+.cmp-face-name.cmp-b::after {
+  content: "";
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--ih-text-secondary);
+  border-radius: 4px;
+  vertical-align: 0.05em;
+}
+.cmp-col-a::before,
+.cmp-face-name.cmp-a::before {
+  margin-right: var(--space-2);
+  background: var(--ih-text-secondary);
+}
+.cmp-col-b::before {
+  margin-right: var(--space-2);
+}
+.cmp-face-name.cmp-b::after {
+  margin-left: var(--space-2);
+}
+
+/* 머리 카드: 두 사람이 마주 본다. 좁은 화면에서도 두 장을 나란히 두고 내용은 줄을 바꿔 쌓는다. */
+.cmp-duel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.cmp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  background: var(--ih-panel);
+}
+.cmp-card.cmp-b {
+  align-items: flex-end;
+  text-align: right;
+}
+.cmp-card > * {
+  max-width: 100%;
+  margin: 0;
+}
+.cmp-name,
+.cmp-name:not(:disabled):hover {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--ih-text);
+  text-underline-offset: 4px;
+}
+.cmp-card-rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+.cmp-b .cmp-card-rate,
+.cmp-b .cmp-card-form,
+.cmp-b .form-dots {
+  justify-content: flex-end;
+}
+.cmp-card-rate .rate {
+  font-size: var(--text-screen);
+  font-weight: 600;
+  line-height: 1.1;
+}
+.cmp-card-cap {
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.cmp-card-wl {
+  word-break: keep-all;
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.cmp-card-wl .tag {
+  margin-left: var(--space-1);
+}
+.cmp-card-form {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: var(--space-1);
+}
+.cmp-card-mmr {
+  /* .cmp-card > *의 margin: 0보다 뒤에 있어 이긴다. 카드 높이가 달라도 아래 줄을 맞춘다. */
+  margin-top: auto;
+  align-self: stretch;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--ih-line);
+  font-size: var(--text-label);
+}
+.cmp-card-mmr .rating-num {
+  font-weight: 500;
+}
+.cmp-vs-mark {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+  background: var(--ih-subtle);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  font-weight: 500;
+}
+/* 아직 고르지 않음: 카드 자리에 고르기 칸. 점선 테두리로 "빈 자리"임을 보인다. */
+.cmp-slot {
+  justify-content: center;
+  align-items: stretch;
+  min-height: 120px;
+  text-align: left;
+  background: transparent;
+  border: 1px dashed var(--ih-line);
+}
+.cmp-card.cmp-b.cmp-slot {
+  align-items: stretch;
+  text-align: left;
+}
+/* 공통 label:has(> select)(한 줄 배치)보다 구체적으로: 글자 위, 칸 아래. */
+.compare-screen .cmp-slot-pick,
+.compare-screen .cmp-pick label,
+.cmp-session-tools label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-label);
+  font-weight: 500;
+  text-align: left;
+  color: var(--ih-text-secondary);
+}
+.cmp-slot-pick select,
+.cmp-pick select,
+.cmp-session-tools select {
+  width: 100%;
+  min-width: 0;
+  color: var(--ih-text);
+}
+
+/* 도구 줄: 사람 고르기 · 서로 바꾸기 · 범위. */
+.cmp-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+.cmp-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: var(--space-2);
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+.cmp-swap {
+  padding-inline: var(--space-3);
+}
+.cmp-tools .scope-picker {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+/* 좁은 화면: 바꾸기 버튼은 기호만 보이고 이름(서로 바꾸기)은 읽기용으로 남긴다. */
+@media (max-width: 479px) {
+  .cmp-swap-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .cmp-swap {
+    min-width: 44px;
+  }
+}
+@media (min-width: 768px) {
+  .cmp-duel {
+    gap: var(--space-3);
+  }
+  .cmp-card {
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-4);
+  }
+  .cmp-name,
+  .cmp-name:not(:disabled):hover {
+    font-size: var(--text-section);
+  }
+  .cmp-card-rate .rate {
+    font-size: var(--text-hero);
+  }
+  .cmp-vs-mark {
+    width: 40px;
+    height: 40px;
+    font-size: var(--text-label);
+  }
+  .cmp-pick {
+    grid-template-columns: minmax(8rem, 14rem) auto minmax(8rem, 14rem);
+    flex: 0 1 auto;
+  }
+  .cmp-tools .scope-picker {
+    flex: 0 1 22rem;
+  }
+}
+
+/* 그날 경기: 회차 고르기와 함께 뛴 사람 고르기를 한 줄에, 좁으면 아래로 내린다. */
+.cmp-session-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.cmp-session-tools label {
+  flex: 1 1 12rem;
+}
+/* 넓은 화면에서 고르기 칸이 본문 폭(최대 1200px)만큼 늘어나지 않게. 폰에서는 한 줄을 다 쓴다. */
+@media (min-width: 768px) {
+  .cmp-session-tools label {
+    flex: 0 1 20rem;
+  }
+}
+.cmp-session-tally {
+  margin: 0;
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+}
+/* 비교 구역(나란히 보기·라인별·맞대결·같은 팀·상대): 카드로 감싸지 않고 제목 + 위 1px 구분선으로 나눈다(CLAUDE.md 2절). */
+.cmp-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--ih-line);
+}
+.cmp-section > h2 {
+  margin: 0;
+}
+/* 표(나란히 보기·라인별). 앞선 쪽 칸은 ▲ + 굵게(칸 바탕은 칠하지 않는다, CLAUDE.md 7절). */
+.cmp-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-table th,
+.cmp-table td {
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--ih-line);
+  text-align: left;
+  vertical-align: top;
+  /* 전역 table의 word-break: normal을 물려받으면 390px에서 "많이 플레이/한 라인", "누/적 기준"처럼 낱말 가운데가
+     끊겼다. 이 표는 칸 폭이 고정(table-layout: fixed)이라 keep-all이어도 표가 넓어지지 않는다.
+     칸보다 긴 낱말(긴 이름)만 anywhere로 자른다. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.cmp-table tbody tr:last-child > * {
+  border-bottom: none;
+}
+.cmp-table thead th {
+  vertical-align: bottom;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text);
+  background: var(--ih-subtle);
+}
+.cmp-table th[scope="row"] {
+  width: 28%;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+.cmp-lines th[scope="row"] {
+  width: 22%;
+}
+.cmp-table .pos {
+  width: auto;
+}
+.cmp-table td .pos {
+  color: var(--ih-text);
+  font-size: inherit;
+}
+.cmp-table td.cmp-lead {
+  font-weight: 500;
+}
+.cmp-lead-mark {
+  margin-right: var(--space-1);
+  font-size: var(--text-meta);
+  vertical-align: 0.15em;
+}
+.cmp-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  max-width: 100%;
+}
+.cmp-value-num {
+  white-space: nowrap;
+}
+.cmp-meter {
+  flex: none;
+  width: 3rem;
+}
+.cmp-empty-row > * {
+  opacity: 0.5;
+}
+.cmp-sub {
+  display: block;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+  /* "(62경기)"가 낱말 중간에서 줄이 바뀌지 않게. */
+  word-break: keep-all;
+}
+.cmp-sub-inline {
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.cmp-small {
+  font-size: var(--text-label);
+}
+.cmp-delta {
+  font-weight: 500;
+}
+
+/* 같은 팀일 때·상대일 때: 양끝에 이름, 가운데 큰 숫자, 그 아래 띠. */
+.cmp-face {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-2);
+  margin: 0;
+}
+.cmp-face-name {
+  min-width: 0;
+  font-size: var(--text-label);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.cmp-face-name.cmp-b {
+  text-align: right;
+}
+.cmp-face-mid {
+  margin: 0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-face-big {
+  font-size: var(--text-screen);
+  line-height: 1.1;
+}
+.cmp-face-sub {
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.cmp-score {
+  grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+}
+.cmp-score .tag {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin: 0;
+}
+/* 맞대결 점수는 비교 화면의 대표 수치(32px). 두 단을 가로지르는 구역이라 내용은 읽기 폭까지만 늘린다. */
+.cmp-h2h-top > * {
+  max-width: var(--reading-max);
+}
+.cmp-score-n {
+  font-size: var(--text-hero);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.cmp-score-n.is-lead {
+  color: var(--ih-text);
+}
+.cmp-score-colon {
+  font-size: var(--text-screen);
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.cmp-bar {
+  display: flex;
+  gap: var(--space-1);
+  height: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--ih-subtle);
+}
+.cmp-bar > span {
+  flex-basis: 0;
+  min-width: 0;
+}
+.cmp-bar-a {
+  background: var(--ih-text-secondary);
+}
+.cmp-bar-b {
+  border: 1px solid var(--ih-text-secondary);
+}
+.cmp-together-bar {
+  display: block;
+}
+.cmp-together-bar .meter {
+  height: 10px;
+  border-radius: 4px;
+}
+.cmp-together-bar .meter-fill {
+  border-radius: 4px;
+}
+.cmp-synergy {
+  margin: 0;
+  font-weight: 600;
+}
+.cmp-synergy strong {
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.cmp-up {
+  color: var(--ih-text);
+}
+.cmp-down {
+  color: var(--ih-text-secondary);
+}
+/* "상대일 때": 승 수 아래 첫 번째 사람 기준 승률 한 줄 */
+.cmp-h2h-rate {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
+}
+.cmp-h2h-more {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ih-line);
+}
+.cmp-h2h-more .row-label {
+  margin: 0 0 var(--space-2);
+}
+.cmp-h2h-more .hint {
+  margin: 0;
+}
+@media (min-width: 480px) {
+  .cmp-h2h-more {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-5);
+  }
+}
+/* 같은 라인으로 맞붙었을 때(두 사람 비교): 왼쪽 A 승률 · 가운데 라인·경기 수 · 오른쪽 B 승률, 아래 A:B 막대.
+   카드 안이라 줄마다 상자를 두르지 않고 위 1px 구분선으로만 나눈다(CLAUDE.md 2절 카드 중첩 금지). */
+.cmp-lane-duels {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cmp-lane-duels li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--ih-line);
+}
+.cmp-duel-side {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-size: var(--text-section);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-duel-side .hint {
+  font-weight: 500;
+}
+.cmp-duel-b {
+  align-items: flex-end;
+  text-align: right;
+}
+.cmp-duel-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+.cmp-duel-mid .pos {
+  width: auto;
+}
+.cmp-duel-bar {
+  grid-column: 1 / -1;
+  height: 12px;
+  gap: var(--space-1);
+}
+.cmp-duel-bar > span {
+  border-radius: 4px;
+}
+/* 앞선 쪽만 승 색, 뒤진 쪽은 흐리게. 같으면 둘 다 본문 색. */
+.cmp-lane-duels .lead-a .cmp-duel-b,
+.cmp-lane-duels .lead-b .cmp-duel-a {
+  opacity: 0.7;
+}
+
+/* 참가자 고르기: 넓은 화면은 여러 열 */
+.pick-item {
+  min-height: 52px;
+}
+.pick-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.pick-meta {
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+.pick-order {
+  flex: none;
+}
+.pick-order button {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-label);
+}
+/* 전체 목록은 카드 한 장(.list-card) 안의 구분선 줄. 고른 줄은 옅은 선택 바탕 + 골드 체크 + "선택됨" 글자로만 보인다.
+   열 명을 고르면 골드 테두리 열 개가 화면에서 가장 큰 골드 덩어리가 되어 주 버튼("팀 짜기")보다 무거웠다(5절: 선택은
+   옅은 배경과 강조 글자). 라이트의 선택 바탕(#FBF3E2)은 흰 패널과 명도 차가 작으니 체크와 글자를 빼지 않는다.
+   마우스를 올려도 선택 바탕이 풀리지 않게 한다. */
+.list-card .list-row.pick-item.selected,
+.list-card button.list-row.pick-item.selected:not(:disabled):hover {
+  background: var(--ih-selected);
+  border-color: var(--ih-line);
+  border-width: 1px 0 0;
+  border-radius: 0;
+}
+.list-card > :first-child > .list-row.pick-item.selected {
+  border-top-width: 0;
+}
+.pick-item.selected .name > .line-icon {
+  color: var(--ih-accent);
+}
+@media (min-width: 768px) {
+  /* 여러 열: 칸마다 위쪽 구분선을 두고, 카드 자체의 위 테두리는 없앤다. 첫 줄 칸들의 선이 카드 위 테두리를 대신해
+     선이 두 겹(2px)으로 보이지 않는다. 참가자가 열 수보다 적으면 위 테두리가 그 칸까지만 그어진다.
+     고른 칸도 다른 칸과 같은 위쪽 구분선만 둔다(위 .pick-item.selected). */
+  .pick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 0;
+  }
+  .pick-grid.list-card {
+    border-top-width: 0;
+  }
+  .pick-grid.list-card > li > .list-row,
+  .pick-grid.list-card > :first-child > .list-row.pick-item.selected {
+    border-top-width: 1px;
+  }
+}
+
+/* 결과 이미지 미리보기: 길게 눌러 저장할 수 있게 그대로 띄운다. */
+.share-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60dvh;
+  object-fit: contain;
+  background: var(--ih-bg);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+}
+

@@ -33,8 +33,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 - 검사: typecheck·lint 경고 0·단위 1245·build·check:bundle 통과. 화면 흐름이 바뀌지 않아 E2E는 안 돌림. Claude가 push
   (사용자 "푸시해"). GitHub 연결 도구가 접속 실패라 CI 결과는 확인 못 함.
 - 운영에는 아직 안 올림. 사용자에게 보이는 차이는 없다(오류 문구·새로 고침 동작 같음). 다음 배포 때 함께 올라간다.
-- 구조 개선 후보(아직 안 함): src/web/styles.css 8755줄 나누기, docs/구현현황.md(약 590KB) 월별로 나누기,
-  1000줄 넘는 파일(server/matches.ts 1991줄 등) 쪼개기.
+- styles.css를 쓴 순서 그대로 src/web/styles/01~12 파일로 나눔(styles.css는 @import 입구). 빌드 CSS가 전후 바이트 단위로
+  같아(index-Bvh8t4hH.css) 운영에 올려도 바뀌는 것 없음. design-audit은 "파일:줄"로 알려 줌. 화면별로 모으기는 아직 안 함
+  (순서가 바뀌어 전 화면 사진 대조가 필요).
+- 구조 개선 후보(아직 안 함): docs/구현현황.md(약 590KB) 월별로 나누기, 1000줄 넘는 파일(server/matches.ts 1991줄 등) 쪼개기.
 - 결과 저장 뒤 다시 읽기 줄이기: 재 보고 하지 않기로 함(사용자 "권장대로"). 로컬 600경기 저장~계산 약 0.1초
   (저장 29ms·다시 읽기 53ms·gzip 47KB·계산 19ms), 2000경기 약 0.2초. 측정은 test/measure/snapshot-size.measure.ts
   두 번째 it. 사용자가 볼 것: 다음 내전 때 휴대폰에서 결과 저장 뒤 화면이 늦게 느껴지는지.

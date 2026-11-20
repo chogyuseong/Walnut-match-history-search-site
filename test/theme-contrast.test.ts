@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import css from "../src/web/styles.css?raw";
 import { TITLE_GRADES } from "../src/shared/titles";
 
-// 두 테마(dark·light)의 색 토큰이 WCAG 대비 기준을 지키는지 styles.css를 직접 읽어 검사한다.
+// 스타일은 src/web/styles/ 아래 여러 파일이고(styles.css는 @import 목록뿐) 토큰 블록도 여러 파일에 있다(.viz-root 등).
+// 파일 이름의 번호 순서가 @import 순서라 이름순으로 이어 붙이면 한 파일일 때와 같다.
+const cssFiles = import.meta.glob<string>("../src/web/styles/*.css", { query: "?raw", import: "default", eager: true });
+const css = Object.keys(cssFiles)
+  .sort()
+  .map((path) => cssFiles[path]!)
+  .join("\n");
+
+// 두 테마(dark·light)의 색 토큰이 WCAG 대비 기준을 지키는지 스타일 파일을 직접 읽어 검사한다.
 // 기준은 저장소 맨 위 CLAUDE.md 5절: 글자 4.5:1, 컨트롤 경계와 승률 막대 3:1. 반투명(rgba) 틴트는 검사하지 않는다.
 // MMR 티어·순위는 본문·보조 글자 색이라 따로 검사할 색이 없다(위 본문 글자 검사에 든다). 칭호는 등급 색(--title-1~8)을 따로 검사한다.
 // light는 dark 토큰(:root 블록)을 물려받고 바뀐 값만 덮어쓴다.

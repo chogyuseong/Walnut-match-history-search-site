@@ -1,0 +1,723 @@
+/* 기록 화면, 요약(Dashboard), 챔피언 초상화·티어, 쉬는 사람 목록.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* ---------- 기록 화면(Records.tsx) ----------
+   PC 2단: 왼쪽 좁은 단 경기 카드 목록, 오른쪽 넓은 단 플레이어 랭킹 표(전적 사이트의 "왼쪽 탐색 + 오른쪽 넓은 표" 관습). */
+@media (min-width: 1200px) {
+  .screen.cols.records-screen {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+/* 한 단 화면(2단이 되기 전 폭): 경기 목록을 맨 아래로 내린다. 경기가 수백 개까지 길어져 그 아래 플레이어 랭킹·시리즈·
+   변경 내역에 닿으려면 끝까지 내려야 했다. 보이는 순서만 바꾸는 것이라 키보드 초점은 경기 목록을 먼저 지난다.
+   위 2단 기준(1200px)을 바꾸면 이 기준도 같이 바꾼다. */
+@media (max-width: 1199px) {
+  .records-screen > .rec-matches {
+    order: 1;
+  }
+}
+.rank-controls .filter-search {
+  flex: 1 1 10rem;
+}
+/* 플레이어 랭킹 칸 배치. 넓은 화면(768px~): 순위 | 이름(아래 줄 칭호·최근 승패) | 승률 | 승수 | 경기 수 | MMR.
+   폰: 순위 | 이름 두 줄 | 오른쪽 위 "70% · 7승 3패 (10경기)", 오른쪽 아래 MMR·티어(예전 줄 모양 그대로). */
+.rank-grid {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "rank line1 line1"
+    "rank sub sub"
+    "rank stat mmr";
+  align-items: center;
+  /* 칸 사이 4px: 390px 폰에서 MMR(14px)·티어 배지 옆에 "100% · 2승 0패 (2경기)"가 한 줄로 들어가야 한다.
+     8px로 넓히면 "(" 뒤에서 "2경기)"가 다음 줄로 떨어진다. */
+  gap: var(--space-1);
+}
+.rank-row.rank-grid {
+  justify-content: stretch;
+}
+.rank-row > .c-rank {
+  grid-area: rank;
+  align-self: start;
+}
+/* 폰: 이름 칸을 풀어(display: contents) 이름·최근 승패 줄과 칭호 줄을 각각 한 줄 전체로 쓴다. 전적은 셋째 줄. */
+.rank-row > .c-who {
+  display: contents;
+}
+.rank-row .rank-line1 {
+  grid-area: line1;
+}
+.rank-row .rank-sub {
+  grid-area: sub;
+}
+.rank-row > .rank-stat {
+  grid-area: stat;
+  display: flex;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+}
+.rank-row > .c-mmr {
+  grid-area: mmr;
+  justify-self: end;
+  font-size: var(--text-label);
+  white-space: nowrap;
+}
+.rank-line1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+.rank-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+}
+@media (min-width: 768px) {
+  .rank-grid {
+    grid-template-columns: 2rem minmax(0, 1fr) 3.5rem 4.75rem 3.75rem 6.75rem;
+    grid-template-areas: none;
+    gap: 0 var(--space-2);
+  }
+  .rank-row > :is(.c-rank, .c-who, .c-mmr),
+  .rank-row :is(.c-rate, .c-wins, .c-games) {
+    grid-area: auto;
+  }
+  .rank-row > .c-who {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+  .rank-row > .rank-stat {
+    display: contents;
+  }
+  .rank-row > .c-rank {
+    align-self: center;
+  }
+  .rank-row :is(.c-rate, .c-wins, .c-games, .c-mmr) {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .rank-row .c-rate {
+    font-weight: 500;
+  }
+}
+
+/* ---------- 요약(Dashboard) ----------
+   PC 2단: 왼쪽 넓은 단(.dash-main) 전광판 + 이전 경기 표, 오른쪽 좁은 단(.dash-grid) 랭킹 상위 5명 + 요즘 흐름. */
+.dash-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+/* 한 단 화면: 이전 경기 목록을 맨 아래로 내려 전광판 → 랭킹 상위 → 요즘 흐름 → 이전 경기 순으로 보인다.
+   이전 경기는 .dash-main 안에 있어서 묶음을 풀어(display: contents) .dashboard의 줄로 올린 뒤 순서를 바꾼다.
+   보이는 순서만 바꾸므로 키보드 초점은 이전 경기를 먼저 지난다. 아래 2단 기준(1200px)을 바꾸면 같이 바꾼다. */
+@media (max-width: 1199px) {
+  .dashboard > .dash-main {
+    display: contents;
+  }
+  .dashboard > .dash-main > .dash-recent {
+    order: 1;
+  }
+}
+@media (min-width: 1200px) {
+  .dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+    gap: var(--space-4) var(--space-5);
+    align-items: start;
+  }
+  .dashboard > .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-4));
+  }
+}
+/* 이전 경기 표: 번호 · 일시 · 결과 · 블루 다섯 · 레드 다섯. 다섯 이름은 칸 안에서 줄을 바꾼다. */
+/* 두 팀 칸을 같은 폭으로 둔다. 자동 폭이면 이긴 팀(굵은 글자) 칸이 먼저 두 줄로 꺾여 짝이 안 맞아 보였다. */
+.recent-table .rm-team {
+  width: 32%;
+}
+.recent-table td {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.recent-table .rm-open,
+.recent-table .rm-open:not(:disabled):hover {
+  padding: 0;
+  color: var(--ih-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+.recent-table .rm-when {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rm-tags .series-badge {
+  max-width: none;
+}
+.rm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+.recent-table .rm-result {
+  font-size: var(--text-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.rm-tone.tone-blue {
+  color: var(--ih-win-text);
+}
+.rm-tone.tone-red {
+  color: var(--ih-loss-text);
+}
+.rm-tone.tone-none {
+  color: var(--ih-text-secondary);
+}
+.rm-names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  line-height: 1.5;
+}
+/* 진영 미정 경기의 "●A"/"■B" 표시. 팀 A는 블루 칸, B는 레드 칸에 놓이므로 칸의 진영 색을 따른다(팀 상자 윗선과 같은 색). */
+.rm-mark {
+  font-size: var(--text-label);
+}
+.rm-blue .rm-mark {
+  color: var(--ih-win-text);
+}
+.rm-red .rm-mark {
+  color: var(--ih-loss-text);
+}
+.rm-name {
+  font-size: var(--text-label);
+  white-space: nowrap;
+}
+.rm-names.is-win {
+  color: var(--ih-text);
+  font-weight: 500;
+}
+.rm-names.is-loss {
+  color: var(--ih-text-secondary);
+}
+.recent-table tr.is-excluded td {
+  color: var(--ih-text-secondary);
+}
+
+/* ---------- 챔피언 초상화(championPortrait.tsx, 설정은 portraits.ts) ----------
+   Data Dragon 그림. 불러오는 동안은 같은 크기의 빈 칸(면 색)이라 자리가 밀리지 않고, 못 불러오면 요소째 빠져 글자만 남는다. */
+.champ-portrait {
+  flex: none;
+  display: block;
+  object-fit: cover;
+  background: var(--ih-subtle);
+  border-radius: 4px;
+}
+.champ-option-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+
+/* ---------- 챔피언 티어(screens/ChampionTier.tsx) ----------
+   PC(1200px 이상): 왼쪽 좁은 격자(초성 줄 + 초성별 초상화) | 오른쪽 표. 그보다 좁으면 한 단, 격자는 접힌 details.
+   768px 창에서 둘을 나란히 두면 표 폭이 400px 남짓이라 챔피언 이름이 "가/렌"처럼 한 글자씩 꺾였다. */
+.champ-tier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.champ-coverage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+}
+.champ-coverage p {
+  margin: 0;
+}
+.champ-coverage strong {
+  color: var(--ih-text);
+}
+.ct-body {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (min-width: 1200px) {
+  .ct-body {
+    grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+  }
+  .ct-board-side {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-4));
+    max-height: calc(100svh - var(--topbar-height) - var(--space-6));
+    overflow-y: auto;
+  }
+}
+.ct-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+}
+.ct-board-fold > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--ih-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ct-initials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.ct-initials button {
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  border-radius: var(--radius-control);
+}
+.ct-initials button[aria-pressed="true"] {
+  background: var(--ih-selected);
+  color: var(--ih-text);
+  font-weight: 500;
+  outline: 1px solid var(--ih-accent);
+  outline-offset: -1px;
+}
+.ct-initials button:disabled {
+  color: var(--ih-text-secondary);
+  opacity: 0.5;
+}
+.ct-group {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+.ct-group-head {
+  padding-top: var(--space-4);
+  color: var(--ih-accent);
+  font-weight: 500;
+}
+.ct-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ct-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-1) 0;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  border-radius: 4px;
+}
+.ct-cell > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ct-cell:not(:disabled):hover {
+  background: var(--ih-subtle);
+  color: var(--ih-text);
+}
+.ct-cell[aria-pressed="true"] {
+  border-color: var(--ih-accent);
+  color: var(--ih-text);
+}
+.ct-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.ct-few h3 {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-body);
+}
+/* 칸이 일곱 개라 공통 표 여백(좌우 12px)을 쓰면 옆 모음판과 나란히 놓일 때 표 칸이 모자라 이름이 꺾인다.
+   모든 너비에서 좌우 8px로 줄인다. */
+.ct-table th,
+.ct-table td,
+.ct-table th > .dt-sort,
+.ct-table th > .dt-sort:not(:disabled):hover {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+.ct-table .ct-rank {
+  width: 2.5rem;
+}
+.ct-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ih-text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+}
+.ct-name:not(:disabled):hover {
+  background: none;
+  text-decoration: underline;
+}
+.ct-table tr.is-open td {
+  background: var(--ih-selected);
+}
+.ct-player-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-label);
+}
+.ct-player {
+  white-space: nowrap;
+}
+/* 티어 칸: 숫자 하나가 든 각진 칸. 색 없이 명도로만 단계를 보인다(CLAUDE.md 5절): 1티어는 본문 글자 색으로 채운 칸,
+   2티어는 컨트롤 경계 테두리, 3·4티어는 보조 면, 5티어는 옅은 테두리. 숫자 글자가 늘 뜻을 전한다. */
+.ct-tier-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-badge);
+  font-size: var(--text-label);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.ct-tier-mark.t1 {
+  background: var(--ih-text);
+  color: var(--ih-bg);
+}
+.ct-tier-mark.t2 {
+  border-color: var(--ih-control-border);
+  color: var(--ih-text);
+}
+.ct-tier-mark.t3 {
+  background: var(--ih-subtle);
+  color: var(--ih-text);
+}
+.ct-tier-mark.t4 {
+  background: var(--ih-subtle);
+  color: var(--ih-text-secondary);
+}
+.ct-tier-mark.t5 {
+  border-color: var(--ih-line);
+  color: var(--ih-text-secondary);
+}
+.ct-tier-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+.ct-tier-counts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.ct-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dt-expand > td {
+  background: var(--ih-subtle);
+}
+.ct-detail {
+  display: grid;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-1) 0;
+  cursor: default;
+}
+@media (min-width: 768px) {
+  .ct-detail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.ct-detail h4 {
+  margin: 0 0 var(--space-1);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+}
+.ct-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-label);
+}
+.ct-detail-list > li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+}
+.ct-detail-list .meter {
+  flex: 1 1 auto;
+}
+.ct-detail-list .num {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ct-result {
+  margin-left: auto;
+  font-weight: 500;
+}
+.ct-result.win {
+  color: var(--ih-win-text);
+}
+.ct-result.loss {
+  color: var(--ih-loss-text);
+}
+@media (max-width: 767px) {
+  /* 폰: 표가 가로로 넘치지 않게 초상화를 조금 작게. */
+  .ct-table .champ-portrait {
+    width: 28px;
+    height: 28px;
+  }
+  .ct-lanes {
+    order: 2;
+  }
+}
+@media (max-width: 480px) {
+  /* 정렬 머리 칸 넷이 누르는 폭(44px 이상)을 지키면 챔피언 칸이 390px에서 106px만 남아, 초상화 옆 이름이
+     "그레이/브즈"처럼 낱말 중간에서 꺾였다. 이름을 초상화 아래로 내려 칸 폭을 다 쓰고, 띄어쓰기에서만 바꾼다
+     ("자르반 4세"). 칸보다 긴 한 낱말만 넘칠 때 끊는다. 줄은 높아지지만 표 칸을 빼지 않아도 된다. */
+  .ct-table .ct-name {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-1) 0;
+    text-align: left;
+  }
+  .ct-table .ct-name > span {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 400px) {
+  /* 360px에서는 이름을 내려도 칸이 60px뿐이라 "블리츠크랭크"가 꺾였다. 칸 좌우 여백을 4px로 줄여 이름 칸에 몰아 준다.
+     정렬 버튼의 44px 누르는 폭(.dt-sort min-width)은 그대로다. */
+  .ct-table th,
+  .ct-table td,
+  .ct-table th > .dt-sort,
+  .ct-table th > .dt-sort:not(:disabled):hover {
+    padding-left: var(--space-1);
+    padding-right: var(--space-1);
+  }
+}
+
+/* 참가자 편성 화면(ViewerLive.tsx): 맨 위 "내 자리" 칸과 명단의 "나"·"바뀜" 글자 꼬리표.
+   강조는 색만으로 하지 않는다(글자 꼬리표가 늘 함께 있다). 움직임은 넣지 않는다. */
+.live-me {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.live-me p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.live-me-head {
+  font-size: var(--text-body);
+}
+.live-me-label {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  margin-right: var(--space-1);
+}
+.tag.tag-me,
+.tag.tag-changed {
+  flex: none;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  border: 1px solid currentColor;
+}
+.tag.tag-me {
+  color: var(--ih-accent);
+}
+.tag.tag-changed {
+  color: var(--ih-text);
+}
+.live-check {
+  margin-top: var(--space-3);
+}
+/* 분석 코멘트 문장 아래 근거. title 풍선은 터치 화면에서 보이지 않아 글로 펼친다. */
+.commentary-remarks .remark-basis {
+  display: block;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  line-height: 1.4;
+}
+/* 편성 화면 명단은 이름을 말줄임하지 않는다. 좁은 폭에서 "바뀜" 꼬리표가 자리를 차지하면 새로 들어온 사람 이름이
+   "참..."처럼 잘려, 정작 알려 주려던 바뀐 사람이 안 보였다. 두 줄로 내려가는 쪽이 낫다. */
+.live-roster .teams .name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* ---------- 쉬는 사람(오늘 명단 이어가기) ----------
+   편성 판 아래 한 장의 목록: 이름 | 오늘 경기 | 연속 | [빼기]. 숫자 칸은 오른쪽 정렬·고정폭 숫자라 줄끼리 세로로 맞는다.
+   어느 팀에도 속하지 않은 사람들이라 진영 색 띠를 쓰지 않는다. 끌기 표시(점선 테두리)는 줄(li)에 단다. */
+.rest-row .row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 4.5em;
+  gap: var(--space-3);
+}
+.rest-row .row-main[draggable="true"] {
+  cursor: grab;
+}
+.rest-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--ih-text-secondary);
+}
+.rest-row .rest-swap {
+  grid-column: 2 / -1;
+  text-align: right;
+}
+.rest-row > .link {
+  flex: none;
+}
+
+/* 경기 상세 "이 경기로 바뀐 MMR". 접는 상자가 이미 테두리를 둘러 표는 테두리 없이 둔다(카드 안 카드 금지). */
+.rating-changes > .data-table {
+  border: 0;
+  border-radius: 0;
+}
+.rating-changes tbody > tr:first-child > th {
+  color: var(--ih-text);
+}
+/* 변화 숫자: 오름 빨강·내림 파랑(사용자 요청, CLAUDE.md 5절 예외). 승패 글자 토큰을 그대로 쓴다(패널 위 대비 확인된 값). */
+.rating-changes .rc-up {
+  color: var(--ih-loss-text);
+}
+.rating-changes .rc-down {
+  color: var(--ih-win-text);
+}
+.rating-changes .rc-streak {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+}
+
+/* 분석 코멘트 "근거 경기" 펼침(Graphs.tsx EvidenceFold). 접힌 도움말(.help) 모양을 그대로 쓰고 줄만 정리한다. */
+.remark-evidence .evidence-label {
+  color: var(--ih-text);
+  font-weight: 500;
+}
+.remark-evidence .evidence-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.remark-evidence .evidence-rows > li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.remark-evidence .evidence-rows .link {
+  padding-left: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 피드백 화면(screens/Feedback.tsx): 읽기 폭 양식. 라벨 → 입력 칸 8px, 안내 → 버튼 16px. */
+.feedback-form,
+.feedback-sent {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 720px;
+}
+.feedback-form textarea {
+  width: 100%;
+  min-height: 9em;
+  resize: vertical;
+}
+.feedback-form > .primary,
+.feedback-sent > .secondary {
+  justify-self: start;
+  margin-top: var(--space-2);
+}
+.feedback-sent-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+/* 사이트 현황의 피드백 목록. 받은 글은 줄바꿈을 그대로 보이고 긴 낱말(주소 등)은 칸 안에서 끊는다. */
+.feedback-list .feedback-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.feedback-list .list-row > div {
+  min-width: 0;
+}
+
+/* 편성 넘기기(screens/prep/HandoffNote.tsx). 안내 글과 버튼 줄을 한 덩어리로 두고, 좁으면 버튼 줄이 아래로 내려간다.
+   준비 화면의 넘긴 것이 없을 때 줄(.handoff-line)은 예전 "이 기기에만 있어요" 배지 자리라 카드 없이 한 줄이다. */
+.handoff-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+.handoff-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+}

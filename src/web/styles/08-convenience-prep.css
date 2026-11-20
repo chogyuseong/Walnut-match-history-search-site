@@ -1,0 +1,439 @@
+/* 사용자 편의 기능(결과 입력 2버튼 등), 준비 화면 두 단, 티어 배정·기피 라인, 편성 끌어다 놓기.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* ---------- 사용자 편의 기능 ---------- */
+/* 결과 입력 2버튼: 진영 색은 팀 상자(.team.side-blue/red)를 그대로 쓴다. 좁은 화면에서도 두 버튼을 나란히 둔다.
+   클래스 이름은 result-pick-*로 둔다. .result-win을 쓰면 경기 카드의 "승" 배지(.mc-result.result-win)와 겹쳐
+   개인 통계·두 사람 비교의 승 배지가 88px 버튼 모양으로 늘어난다. */
+.result-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+@media (max-width: 359px) {
+  .result-pick {
+    grid-template-columns: 1fr;
+  }
+}
+.result-pick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-height: 88px;
+  min-width: 0;
+  padding: var(--space-3);
+  text-align: left;
+}
+.result-pick-title {
+  font-size: var(--text-body);
+}
+.result-pick-names {
+  overflow-wrap: anywhere;
+}
+.result-pick-btn[aria-pressed="true"] {
+  border-color: var(--ih-accent);
+  background: var(--ih-selected);
+}
+.result-side {
+  margin: var(--space-2) 0 var(--space-3);
+}
+.result-side fieldset {
+  margin-bottom: var(--space-1);
+}
+
+/* 챔피언 기록(src/web/championPicker.tsx). 결과 입력 창의 접힌 영역과 경기 상세의 챔피언 수정 창.
+   목록은 떠 있는 상자가 아니라 칸 바로 밑에 끼워 넣는다: 390px 폭에서도 창 밖으로 나가지 않고, 칸을 창 위쪽으로
+   올리면(championPicker의 scrollIntoView) 키보드 위에 목록이 남는다. 다른 사람이 고른 챔피언은 투명도가 아니라
+   보조 글자색으로 흐리게 한다(투명도는 대비 검사 밖이라 테마마다 읽기 어려워질 수 있다). */
+.champ-details {
+  margin: var(--space-2) 0 var(--space-3);
+}
+.champ-fields > .hint {
+  margin: 0 0 var(--space-2);
+}
+.champ-team {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.champ-team > legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+  font-weight: 500;
+}
+.champ-row {
+  display: grid;
+  grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--ih-line);
+}
+.champ-who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.champ-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  /* 칸을 창 위쪽으로 올릴 때 창 머리(닫기)에 바짝 붙지 않게. */
+  scroll-margin-top: 12px;
+}
+.champ-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.champ-clear {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--space-1);
+}
+.champ-list {
+  grid-column: 1 / -1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(240px, 40svh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-control);
+}
+.champ-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+.champ-option + .champ-option {
+  border-top: 1px solid var(--ih-line);
+}
+.champ-option[aria-selected="true"] {
+  background: var(--ih-selected);
+  outline: 1px solid var(--ih-accent);
+  outline-offset: -1px;
+}
+.champ-option.taken {
+  color: var(--ih-text-secondary);
+}
+.champ-note {
+  flex: none;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+}
+.champ-empty {
+  padding: var(--space-3);
+}
+/* 경기 상세의 팀 판: 이름 밑에 챔피언 이름(screenKit.tsx MatchTeams championName). */
+.name-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.champ-name {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 오늘 요약 공유: 붙여 넣을 글 미리보기 */
+.summary-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  font: inherit;
+  font-size: var(--text-label);
+  max-height: 40svh;
+  overflow-y: auto;
+}
+/* 전적 검색: 최근 검색어 칩과 지우기 버튼(좁은 화면에서 줄바꿈) */
+.recent-searches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0;
+  min-width: 0;
+}
+.recent-searches .chips {
+  min-width: 0;
+}
+/* CSV 내려받기 줄: 버튼과 설명을 나란히, 좁으면 줄바꿈 */
+/* 목록 카드 바로 아래에 붙지 않게 12px 띄운다(목록과 한 덩어리로 읽혔다). */
+.csv-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* ---------- 준비 화면 두 단 ----------
+   1200px 미만은 한 단: 두 팀 → 섞기 → 섞은 결과 줄 → 쉬는 사람 → 진영·예상 승률…
+   1200px 이상은 두 단: 왼쪽(.prep-boards)은 두 팀·쉬는 사람이 화면을 내려도 따라오고(sticky), 오른쪽 맨 위에 섞기.
+   섞기의 DOM 자리는 Prep.tsx가 같은 1200px 기준(useMediaQuery)으로 옮긴다. 기준을 바꾸면 둘 다 바꾼다. */
+.prep-layout {
+  display: grid;
+  gap: var(--space-4);
+}
+.prep-boards,
+.prep-tools-col {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+/* 두 팀 상자 위 편성 결과 한 줄(Prep.tsx BalanceLine). 숫자 폭을 맞춰 "다음 추천"을 누를 때 줄이 흔들리지 않게 한다. */
+.balance-line {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 1200px) {
+  .screen.prep-screen {
+    max-width: none;
+  }
+  .prep-layout {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+    gap: var(--space-4) var(--space-5);
+    align-items: start;
+  }
+  .prep-boards {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-4));
+  }
+}
+
+/* ---------- 티어 배정·기피 라인 ----------
+   머리(뒤로·제목·탭)가 따라 내려오고, PC(1200px 이상)에서는 오른쪽 요약 판(티어별 인원·돌아가기)이 따라 내려온다.
+   배정을 마친 뒤 맨 위로 올라가지 않아도 된다. */
+.priority-head {
+  row-gap: var(--space-2);
+  border-bottom: 1px solid var(--ih-line);
+}
+.priority-head .priority-tabs {
+  flex: 1 1 100%; /* 좁은 화면: 둘째 줄 */
+}
+@media (min-width: 768px) {
+  .priority-head .priority-tabs {
+    flex: 0 0 auto;
+    margin-left: auto; /* 넓은 화면: 제목 오른쪽 */
+  }
+}
+.priority-layout {
+  display: grid;
+  gap: var(--space-4);
+}
+.priority-main {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+/* 따라오는 머리에 가리지 않게 앵커 이동 위치를 내린다(머리 두 줄 높이만큼). */
+.priority-main > section {
+  scroll-margin-top: 128px;
+}
+.priority-side {
+  display: none;
+}
+@media (min-width: 1200px) {
+  .screen.priority-screen {
+    max-width: none;
+  }
+  .priority-layout {
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: var(--space-4) var(--space-5);
+    align-items: start;
+  }
+  .priority-main > section {
+    scroll-margin-top: calc(var(--topbar-height) + 68px);
+  }
+  .priority-side {
+    position: sticky;
+    top: calc(var(--topbar-height) + 68px); /* 상단 바 + 따라오는 머리(약 60px) + 여백 */
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--ih-panel);
+    border: 1px solid var(--ih-line);
+    border-radius: var(--radius-panel);
+  }
+}
+.priority-counts {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.priority-jump {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ih-text);
+  font: inherit;
+  text-align: left;
+}
+.priority-jump strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--ih-text-secondary);
+}
+button.priority-jump:hover {
+  background: var(--ih-subtle);
+  border-color: var(--ih-line);
+}
+
+/* ---------- 편성 손으로 고치기: 끌어다 놓기 ----------
+   편성 판·대기자의 사람을 끌어 다른 사람 자리에 놓으면 둘이 바뀐다. 누르기 방식(두 사람 차례로)은 그대로이고,
+   첫 사람을 고르면 나머지 자리에 "바꾸기" 표가 떠서 다음에 뭘 누를지 보인다. */
+button.row[draggable="true"],
+.list-row[draggable="true"] {
+  cursor: grab;
+}
+button.row.dragging,
+.list-row.dragging {
+  opacity: 0.45;
+}
+button.row.drop-target,
+.list-row.drop-target {
+  border-style: dashed;
+  border-color: var(--ih-accent);
+}
+button.row.drop-target:hover,
+.list-row.drop-target:hover {
+  background: var(--ih-selected);
+  border-style: solid;
+}
+button.row.swap-target:hover {
+  border-color: var(--ih-accent);
+}
+/* 팀 판(.team) 안의 사람 줄: 카드 안 줄 칸 규칙에 맞춰 상자 대신 위쪽 구분선 한 줄.
+   테두리 1px 자리는 네 변 모두 두되 평소에는 투명이라, 고른 줄·놓을 자리 표시(네 변 테두리)로 바뀌어도 줄이 밀리지 않는다. */
+.team button.row {
+  margin-bottom: 0;
+  background: transparent;
+  border-color: transparent;
+  border-radius: var(--radius-control);
+}
+.team li + li > button.row,
+.team li.row + li.row,
+.team li + li.row {
+  border-top-color: var(--ih-line);
+}
+.team button.row:not(:disabled):hover {
+  background: color-mix(in srgb, var(--ih-subtle) 55%, transparent);
+}
+.team button.row.picked,
+.team li + li > button.row.picked,
+.team button.row.picked:hover {
+  background: var(--ih-selected);
+  border-color: var(--ih-accent);
+}
+.team button.row.swap-target:hover,
+.team li + li > button.row.swap-target:hover {
+  border-color: var(--ih-accent);
+}
+.team button.row.drop-target,
+.team li + li > button.row.drop-target {
+  border-color: var(--ih-accent);
+}
+.grip {
+  flex: none;
+  width: 10px;
+  height: 16px;
+  fill: var(--ih-text-secondary);
+  opacity: 0.55;
+}
+.swap-hint {
+  margin-left: auto;
+  color: var(--ih-accent);
+  border-color: var(--ih-accent);
+}
+/* 방금 자리가 바뀐 사람(TeamBoards.tsx movedKeys): 1px 점선 테두리. 줄 높이를 바꾸지 않으려고 글자 대신 테두리를 쓴다.
+   고른 사람(.picked)은 골드 실선이라 모양으로 구별된다. 보조 글자색이라 다크·라이트 모두 패널 위 3:1을 넘는다. */
+button.row.moved {
+  border-style: dashed;
+  border-color: var(--ih-text-secondary);
+}
+/* 터치 기기(마우스 없음)에서는 끌기 손잡이를 숨긴다. 누르기 방식만 안내한다. */
+@media (hover: none) {
+  .grip {
+    display: none;
+  }
+}
+/* 좁은 화면(768px 미만): 손잡이와 "바꾸기" 표를 숨겨 이름이 잘리지 않게 한다. 고른 상태는 테두리와 안내 줄로 보인다. */
+@media (max-width: 767px) {
+  .grip,
+  .swap-hint {
+    display: none;
+  }
+}
+/* 서포터 횟수 판: 섞기 기준 버튼 줄 바로 아래에 펼쳐진다. 같은 구역 안이라 들여쓰기 없이 카드 바탕으로만 구분한다. */
+.support-panel {
+  margin-top: var(--space-1);
+  padding: var(--space-3);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+}
+.support-panel h2 {
+  margin-top: 0;
+}
+/* .prep-tools의 display:flex가 hidden 속성을 이겨 접어도 펼쳐 보이지 않게 한다. */
+.support-panel[hidden] {
+  display: none;
+}
+
+/* PC에서는 화면 머리 아래를 4px 더 띄운다. 제목 크기는 폭과 관계없이 같다. */
+@media (min-width: 768px) {
+  .screen-head {
+    margin-bottom: var(--space-1);
+  }
+}
+
+/* 모임 탭 구역 바로 가기: 작은 칩 한 줄, 좁은 화면에서는 가로로 넘긴다. */
+/* 옆으로 밀어 보는 줄로 두었더니 폰에서 오른쪽 버튼이 반쯤 잘려 깨진 것처럼 보였다. 여섯 개 모두 보이게 줄을 바꾼다. */
+.block-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.block-nav .chip {
+  flex: none;
+  /* 누르기 쉬운 크기(44px). 겉모양은 그대로 작게 보이게 위아래 여백만 늘린다. */
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-control);
+  background: var(--ih-panel);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+.block-nav .chip:hover {
+  color: var(--ih-text);
+  border-color: var(--ih-control-border);
+}
+

@@ -1,0 +1,1069 @@
+/* 기본 요소와 공용 부품: html·body·main, 화면 틀, 제목, 버튼, 입력, 안내문, 배지, 팀 상자, 확인 창, 하단 고정 행동, 순위 행.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+html {
+  -webkit-text-size-adjust: 100%;
+  /* 초점 이동·scrollIntoView(검색 이동 useSearchJump도 이 값을 읽는다)가 칸을 하단 메뉴와 고정 버튼 뒤, 따라오는
+     머리(.sticky-head, 약 64px) 아래로 보내지 않게 한다. 88px은 고정 행동 버튼 줄(.action-sticky) 몫이다.
+     768px 미만은 상단 바가 본문과 함께 흐르므로 위쪽은 따라오는 머리 몫만 둔다. */
+  scroll-padding-top: 64px;
+  scroll-padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 88px);
+}
+html[data-keyboard="open"] {
+  scroll-padding-bottom: 16px;
+}
+@media (min-width: 768px) {
+  html {
+    scroll-padding-top: calc(var(--topbar-height) + 72px);
+    scroll-padding-bottom: 88px;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--ih-bg);
+  color: var(--ih-text);
+  font-family: var(--ih-font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* 한국어는 기본값이면 글자 사이 아무 데서나 줄이 바뀌어 "라이/엇"처럼 낱말이 쪼개진다. 띄어쓰기에서만 바꾼다.
+     띄어쓰기 없는 긴 닉네임은 칸을 넘칠 때만 중간에서 끊는다(break-word). anywhere를 여기 걸면 좁은 줄에서
+     "52%" 같은 숫자까지 쪼개질 수 있어, 이름처럼 꼭 줄어들어야 하는 칸에만 따로 건다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+main {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  /* 하단 메뉴와 기기 하단 안전 영역만큼 띄운다. */
+  padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + var(--space-4));
+}
+/* 예시 모임·조회 링크: 맨 위 안내 띠와 메뉴 줄(main 안에 있다)의 바탕·선이 상단 바처럼 창 폭 전체로 그어지게
+   main의 폭 제한을 풀고, 그 아래 본문과 푸터는 .bleed-body가 본문 폭으로 묶는다(App.tsx·Demo·Viewer). */
+main.bleed {
+  max-width: none;
+}
+.bleed-body {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+/* 화면 본문. 좌우 여백이 곧 페이지 안전 여백(--page-gutter)이라 main에는 좌우 여백이 없다. */
+.screen {
+  padding: var(--space-4) var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+/* 폭: 표·두 단 화면(page-wide, cols)은 본문 폭 전체, 그 밖(양식·입력 흐름·읽는 글)은 글줄 폭(--reading-max).
+   준비·티어 배정은 1200px 이상에서만 두 단이라 그때만 본문 폭 전체를 쓴다(아래 각 화면 규칙). */
+.screen:not(.cols, .page-wide) {
+  max-width: calc(var(--reading-max) + 2 * var(--page-gutter));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 글자 단계: 화면 제목 > 구역 제목 > 소제목(작고 흐린 꼬리표) > 본문 > 안내문.
+   제목 크기·굵기는 여기 한 군데에서만 정한다. 넓은 화면이라고 h1을 키우지 않는다(4절: 테마·폭별 크기 변경 금지). */
+h1 {
+  font-size: var(--text-screen);
+  line-height: 1.3;
+  font-weight: 600;
+  margin: 0;
+}
+/* 아래 8px은 "제목과 설명 사이 8px"(1절) 기준. */
+h2 {
+  font-size: var(--text-section);
+  line-height: 1.4;
+  font-weight: 600;
+  margin: var(--space-2) 0;
+}
+h3 {
+  font-size: var(--text-label);
+  line-height: 1.5;
+  font-weight: 500;
+  margin: var(--space-2) 0 var(--space-1);
+  color: var(--ih-text-secondary);
+}
+/* 브라우저 기본 굵게(700)를 규칙 안으로 낮춘다. 강조 글은 600, 표 머리·작은 제목은 500. */
+b,
+strong {
+  font-weight: 600;
+}
+th,
+h4 {
+  font-weight: 500;
+}
+p {
+  margin: 0;
+  /* 마지막 줄에 낱말 하나만 남지 않게 한다(지원하지 않는 브라우저는 그냥 지나친다). */
+  text-wrap: pretty;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+.screen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* 긴 모임 이름·두 사람 이름(비교 화면 제목)도 머리 줄을 넘치지 않고 줄을 바꾼다. */
+.screen-head h1 {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sticky-head {
+  position: sticky;
+  top: 0;
+  background: var(--ih-bg);
+  padding: var(--space-2) 0;
+  z-index: 2;
+}
+.count {
+  font-size: var(--text-section);
+}
+
+/* 버튼·입력 치수(7절): 높이 44, 버튼 좌우 16·글자 14/500, 입력 안쪽 8·12·글자 16.
+   버튼의 위아래 여백은 0이고 높이는 min-height가 낸다. 두 줄짜리 내용을 담는 줄 버튼(.row 등)은 각자 여백을 준다. */
+button,
+select,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--ih-control-border);
+  background: var(--ih-panel);
+  font-size: var(--text-label);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--motion),
+    border-color var(--motion),
+    color var(--motion);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.dialog:focus-visible {
+  outline: 2px solid var(--ih-accent);
+  outline-offset: 2px;
+}
+/* 주 버튼(화면당 하나): 골드 채움. 라이트도 같은 계열(#9A6C12 위 흰 글자). */
+.primary {
+  background: var(--ih-primary);
+  border-color: var(--ih-primary);
+  color: var(--ih-on-primary);
+  font-weight: 500;
+}
+.primary:not(:disabled):hover {
+  background: var(--ih-primary-hover);
+  border-color: var(--ih-primary-hover);
+}
+.danger {
+  border-color: var(--ih-loss-border);
+  color: var(--ih-danger);
+  background: var(--ih-loss-bg);
+}
+/* 글자 링크 모양 버튼. "닫기"·"수정"처럼 글자가 짧아도 누르는 칸은 44×44를 지킨다(min-width).
+   줄 안에서 링크를 작게 보이고 싶어도 min-height·min-width를 내리지 않는다. */
+.link,
+.link:not(:disabled):hover {
+  border-color: transparent;
+  background: none;
+  color: var(--ih-accent);
+}
+.link {
+  border: none;
+  padding: var(--space-2) var(--space-1);
+  text-decoration: underline;
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+}
+/*
+ * 표·목록 줄마다 있는 사람 이름 링크(MMR 랭킹 표·1위 카드·챔피언 펼친 줄). 이름이 모두 골드면 강조가 배경처럼 깔려
+ * "중요한 하나"를 가리키지 못한다(2026-11-17 unslop). 평소에는 본문 글자색 + 옅은 밑줄(누를 수 있다는 표시),
+ * 마우스를 올리면(위 .link:hover) 또는 키보드 초점이면 강조색. 화면 위쪽의 이동 링크("… 보기 →")는 .link 그대로 골드다.
+ */
+.link.name-link {
+  color: var(--ih-text);
+  text-decoration-color: var(--ih-line);
+  text-underline-offset: 4px;
+  transition: color var(--motion);
+}
+.link.name-link:not(:disabled):hover,
+.link.name-link:focus-visible {
+  color: var(--ih-accent);
+  text-decoration-color: currentColor;
+}
+.wide {
+  width: 100%;
+}
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+input,
+textarea,
+select {
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--ih-control-border);
+  background: var(--ih-panel);
+  font-size: var(--text-body);
+  width: 100%;
+}
+/* 날짜 칸: 아이폰 Safari는 기본 모양(appearance)에 자체 최소 폭을 붙여 width: 100%를 넘겨 버린다
+   (모임 탭 시즌 시작일·종료일이 패널 밖으로 넘쳤다. 데스크톱 Chromium에서는 재현되지 않는다).
+   기본 모양을 끄고 최소 폭을 풀어 부모 폭 안에 둔다. 눌렀을 때 날짜 고르기 창은 그대로 뜬다.
+   Safari는 값 글자를 가운데 정렬하므로 다른 입력 칸처럼 왼쪽으로 맞춘다. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+/* 평소 컨트롤 경계, 초점이 오면 테두리가 강조색(초점 고리와 함께). */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--ih-accent);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--ih-text-secondary);
+}
+/* 사람·항목을 고르는 칸은 어느 화면 폭에서나 가장 긴 선택지에 딱 맞는 폭이다. 한 줄 가득 늘어난 칸은 내용에 비해
+   길어 보인다. 선택지 표(시트 가져오기 열 맞추기)·요청 양식처럼 칸이 표의 열이거나 입력 양식인 곳만 각자 100%로 둔다. */
+select {
+  width: auto;
+  max-width: 100%;
+}
+input[type="radio"],
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  flex: none;
+}
+label {
+  display: block;
+}
+.input-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.input-row > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+textarea {
+  resize: vertical;
+}
+fieldset {
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  background: var(--ih-panel);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0 0 var(--space-3);
+  min-width: 0;
+}
+legend {
+  font-weight: 500;
+  padding: 0 var(--space-1);
+}
+
+/* 안내문은 14px. 12px(--text-meta)는 날짜·배지 같은 비핵심 보조 정보에만 쓴다. */
+.hint {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  line-height: 1.45;
+  max-width: 68ch;
+}
+/* 오늘 화면(로그인 전) 아래 안내 한 줄 + "로그인하고 내 모임 불러오기" 링크. 링크 글자를 안내 글과 같은 왼쪽 선에 맞춘다. */
+.login-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.login-note > .link {
+  padding-left: 0;
+}
+/* 제목·꼬리표 옆 i 버튼(screenKit InfoTip). 버튼은 터치 기준 44px이고 보이는 원(.info-tip-dot)만 작게 그린다.
+   i 버튼을 품은 제목 줄은 글자와 버튼을 한 줄 flex로 세로 가운데에 맞춘다. 그래서 그 줄은 44px 높이가 된다
+   (줄 높이를 음수 여백으로 누르지 않는다. 간격 규칙 위반). 펼친 설명은 다음 줄 전체를 쓴다. */
+:is(h2, h3, p):has(> .info-tip) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+/* 펼친 설명은 다음 줄 전체를 차지해야 하는데, 글 폭 제한(68ch)을 상자에 걸면 flex 줄에서 상자가 그만큼 좁아져 넓은 화면에서
+   제목 옆에 붙는다. 그래서 상자는 줄 전체 폭으로 두고, 안쪽을 68ch짜리 한 칸 grid로 만들어 글 폭만 제한한다.
+   grid라서 설명 안에 strong 같은 요소를 글 중간에 넣으면 따로 떨어진다. 문단은 .tip-line으로 나눈다. */
+:is(h2, h3, p):has(> .info-tip) > .info-tip-body,
+.page-title-line > .info-tip-body {
+  flex-basis: 100%;
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, 68ch);
+}
+/* 여러 줄로 꺾이는 긴 글 옆에 i 버튼을 둘 때: 글 묶음 폭을 버튼 자리(44px)만큼 덜어 두어 버튼이 혼자 다음 줄로
+   떨어지지 않게 한다. 글이 짧으면 버튼은 글 바로 뒤에 붙는다. */
+:is(h2, h3, p):has(> .info-tip) > .tip-text {
+  min-width: 0;
+  max-width: calc(100% - var(--control-height));
+}
+.info-tip {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.info-tip-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--ih-control-border);
+  border-radius: 50%;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1;
+}
+.info-tip[aria-expanded="true"] .info-tip-dot {
+  border-color: var(--ih-accent);
+  color: var(--ih-accent);
+}
+/* 여러 문단짜리 설명: 문단마다 .tip-line(설명 상자가 span이라 p를 못 쓴다). */
+.info-tip-body > .tip-line {
+  display: block;
+}
+.info-tip-body > .tip-line + .tip-line {
+  margin-top: var(--space-2);
+}
+.info-tip-body {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 400;
+  line-height: 1.45;
+  max-width: 68ch;
+}
+/* 버튼 줄 위의 짧은 꼬리표. 긴 설명은 .help(도움말)로. */
+.row-label {
+  margin: var(--space-2) 0 0;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+/* 접힌 도움말(screenKit.tsx Help): 카드 모양 details와 달리 테두리 없이 작은 글자 링크처럼 보인다. */
+details.help {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+details.help > summary {
+  /* 누르기 쉬운 높이(44px). 글자는 작게 그대로. */
+  min-height: 44px;
+  padding: 0;
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ih-accent);
+}
+details.help > .help-body {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 var(--space-1);
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  border-left: 1px solid var(--ih-line);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  line-height: 1.45;
+  max-width: 68ch;
+}
+details.help > .help-body p {
+  margin: 0;
+}
+.center {
+  text-align: center;
+}
+/* 줄바꿈 없이 한 덩어리로(예: 랭킹 줄의 "MMR 1105"). */
+.nowrap {
+  white-space: nowrap;
+}
+/* 안내 상자. 바탕·테두리는 중립색이고 뜻은 앞머리 아이콘과 문구가 전한다.
+   .warn(주의): 컨트롤 경계색 테두리 + 경고 아이콘. 주의를 골드·노랑으로 칠하면 강조색(주 버튼·고른 칸)과 헷갈려 쓰지 않는다.
+   .error(저장 실패·입력이 틀림): 오류 색 테두리 + 오류 아이콘. 색만으로 전하지 않게 아이콘과 문구를 같이 둔다.
+   .saved(저장됨): 중립 상자 + 체크 아이콘.
+   아이콘이 붙는 상자는 왼쪽 여백 32px(앞 8 + 아이콘 20 + 뒤 4)에 아이콘을 띄워 둔다. 글이 여러 줄이어도 아이콘 아래로 감기지 않는다. */
+.note,
+.saved {
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-2) var(--space-3);
+}
+.saved {
+  margin-bottom: var(--space-3);
+}
+.note.warn,
+.note.error,
+.saved {
+  position: relative;
+  padding-left: var(--space-6);
+}
+.note.warn {
+  border-color: var(--ih-control-border);
+}
+/* 결과 입력 창: 이 기기에 남은 작성 중 내용(resultDraft.ts) 이어 쓰기 안내 */
+.draft-note {
+  margin-bottom: var(--space-3);
+}
+.draft-note p {
+  margin: 0 0 var(--space-2);
+}
+.draft-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.note.error {
+  border-color: var(--ih-danger);
+}
+/* top 10px: 위 여백 8 + (첫 줄 높이 24 - 아이콘 20) / 2. 아이콘을 첫 줄 가운데에 둔다. */
+.note.warn::before,
+.note.error::before,
+.saved::before {
+  content: "";
+  position: absolute;
+  left: var(--space-2);
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  mask: var(--icon-alert) center / contain no-repeat;
+}
+.note.error::before {
+  color: var(--ih-danger);
+  mask-image: var(--icon-error);
+}
+.saved::before {
+  mask-image: var(--icon-check);
+}
+/* 글줄·이름표 앞의 16px 아이콘: 확인(.badge.ok), 주의(.warn-badge·.warn-tag·.warn-text), 입력 칸 아래 오류(.field-problem). */
+.badge.ok,
+.badge.warn-badge,
+.tag.warn-tag,
+.warn-text,
+.field-problem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.badge.ok::before,
+.badge.warn-badge::before,
+.tag.warn-tag::before,
+.warn-text::before,
+.field-problem::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  mask: var(--icon-alert-16) center / contain no-repeat;
+}
+.badge.ok::before {
+  mask-image: var(--icon-check-16);
+}
+.field-problem::before {
+  mask-image: var(--icon-error-16);
+}
+/* 강제 색 모드(윈도 고대비)는 칠한 배경을 지워 mask 아이콘이 통째로 사라진다. 아이콘 칠만 글자 시스템 색으로 되살린다. */
+@media (forced-colors: active) {
+  .note.warn::before,
+  .note.error::before,
+  .saved::before,
+  .badge.ok::before,
+  .badge.warn-badge::before,
+  .tag.warn-tag::before,
+  .warn-text::before,
+  .field-problem::before,
+  summary::after {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+.warn-text {
+  display: flex;
+  color: var(--ih-text);
+  font-weight: 500;
+}
+/* 작은 이름표(.badge·.tag): 12px/500, 모서리 4, 옅은 테두리, 바탕 없음. 뜻 색은 글자와 테두리에만. */
+.badge {
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+  /* 위아래 여백 없이 줄 높이로 이름표 높이를 낸다(간격 척도에 2px가 없다). */
+  padding: 0 var(--space-2);
+  line-height: 1.85;
+  white-space: nowrap;
+  font-size: var(--text-meta);
+  font-weight: 500;
+  background: transparent;
+  color: var(--ih-text-secondary);
+}
+.badge.ok {
+  color: var(--ih-text);
+}
+/* 접힌 버튼 안의 짧은 주의 표시(예: 서포터 횟수 "초기화 필요"). 아이콘은 위 규칙. */
+.badge.warn-badge {
+  margin-left: var(--space-2);
+  color: var(--ih-text);
+}
+.tag {
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+  padding: 0 var(--space-2);
+  margin-left: var(--space-2);
+  white-space: nowrap;
+  font-size: var(--text-meta);
+  font-weight: 500;
+  background: transparent;
+  color: var(--ih-text-secondary);
+}
+.card {
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* 두 팀: 기본은 좌우 2열, 360px 미만에서는 위아래로 쌓는다. */
+.teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+@media (max-width: 359px) {
+  .teams {
+    grid-template-columns: 1fr;
+  }
+}
+.team {
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-3);
+  min-width: 0;
+}
+.team ul,
+.list,
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.team li {
+  margin: 0;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  text-align: left;
+}
+/* 편성 줄(누를 수 있는 사람 줄). 표시(고정·차례 씀)가 이름을 밀어내지 않게, 자리가 모자라면 표시를 아랫줄로 내린다. */
+button.row {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+  background: var(--ih-panel);
+  border-color: var(--ih-line);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+.row.picked,
+button.row.picked:hover {
+  background: var(--ih-selected);
+  border: 1px solid var(--ih-accent);
+}
+/* 내 이름 줄(경기 상세·실시간 명단): 선택 바탕 + 1px 강조 테두리 + 굵기. 줄이 버튼이 아니라 .picked와 겹칠 일은 없다. */
+.row.me {
+  background: var(--ih-selected);
+  border-color: var(--ih-accent);
+  font-weight: 500;
+}
+.row.empty {
+  color: var(--ih-text-secondary);
+}
+/* 라인 아이콘(키트의 자체 제작 도형)과 라인 이름. 라인 색은 아래 .pos[data-pos] 규칙. */
+.pos {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 3.7em;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+/* 긴 이름은 한 줄로 자르고 말줄임표. 전체 이름은 title과 확인 창에서 볼 수 있다. */
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.side {
+  font-weight: 400;
+  color: var(--ih-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  font-weight: 500;
+  text-align: left;
+}
+/* 고른 줄: 포인트 색 1px 테두리 + 옅은 포인트 바탕. 카드 안 줄 칸(위 선만 있는 줄)이어도 네 변을 다 두른다. */
+.list-row.selected,
+.card .list-row.selected {
+  background: var(--ih-selected);
+  border: 1px solid var(--ih-accent);
+  border-radius: var(--radius-control);
+}
+.list-row.static {
+  cursor: default;
+}
+/* 줄 전체를 누를 수 있는 목록의 안쪽 버튼. 바깥 줄(.list-row.static)이 위아래 여백을 버리고 이 버튼이 갖는다.
+   글자가 두 줄이 되어도 테두리에 닿지 않는다. */
+.row-main {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 44px;
+  border: none;
+  background: none;
+  padding: var(--space-2) 0;
+  font-weight: 500;
+  text-align: left;
+  min-width: 0;
+}
+.row-main:not(:disabled):hover {
+  border: none;
+  background: none;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.chip {
+  border-radius: var(--radius-badge);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-3);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-control-border);
+  border-radius: var(--radius-control);
+  margin-top: var(--space-2);
+  cursor: pointer;
+  /* 요약·선택 창에서는 긴 이름도 줄바꿈해 전체를 보여준다. */
+  overflow-wrap: anywhere;
+}
+.choice.chosen {
+  border: 1px solid var(--ih-accent);
+  background: var(--ih-selected);
+}
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+/* 가로 칸은 짧은 라벨(블루·레드·기억나지 않음 등)뿐이라 낱말 중간에서 꺾지 않는다.
+   칸이 좁으면 글자를 쪼개는 대신 칸째 다음 줄로 내려간다(390px에서 "기억나지 않음"이 "기억나/지/않음"으로 꺾이던 것). */
+.choice-row .choice {
+  flex: 1 1 30%;
+  align-items: center;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+/* 붙은 탭(한 상자 안의 칸 여럿). 칸 모양(테두리 없음·보조 글자)은 아래 키트 구역의 .segmented button, .segmented select. */
+.segmented {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-control-border);
+  border-radius: var(--radius-control);
+}
+.segmented button {
+  flex: 1;
+}
+/* 고른 칸: 포인트 색 1px 테두리 + 옅은 포인트 바탕 + 본문 글자(채운 버튼처럼 보이지 않게).
+   호버 선택자의 :not(:disabled)는 지우지 않는다. 뒤쪽 button:not([class]):not(:disabled):hover와
+   명시도가 같아지면 고른 칸에 마우스를 올릴 때 바탕이 보조 면으로 바뀐다. */
+.segmented button[aria-pressed="true"],
+.segmented button[aria-pressed="true"]:not(:disabled):hover {
+  border: 1px solid var(--ih-accent);
+  background: var(--ih-selected);
+  color: var(--ih-text);
+  font-weight: 500;
+}
+
+details {
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-1) var(--space-3) var(--space-2);
+}
+/* summary를 flex로 두면 브라우저의 펼침 삼각형이 사라진다. 그래서 닫힌 "계정 관리"·"더보기" 상자가 빈 칸이나 입력 칸처럼
+   보였다. 끝에 꺾쇠를 직접 그린다. 상자형은 오른쪽 끝, 글자 링크형(.help)은 글자 바로 뒤. */
+summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  column-gap: var(--space-2);
+  cursor: pointer;
+  font-weight: 500;
+}
+summary::after {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  background: currentColor;
+  mask: var(--icon-chevron-down-16) center / contain no-repeat;
+}
+details[open] > summary::after {
+  mask-image: var(--icon-chevron-up-16);
+}
+details.help > summary::after {
+  margin-left: 0;
+}
+/* 사파리는 flex여도 자기 삼각형을 그릴 수 있어 꺾쇠와 겹치지 않게 지운다. */
+summary::-webkit-details-marker {
+  display: none;
+}
+details > *:not(summary) {
+  margin-top: var(--space-2);
+}
+
+/* 주요 행동: 평소에는 하단 메뉴 위에 고정, 키보드가 열리면 본문 안에 둔다. */
+.action-sticky {
+  position: sticky;
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + var(--space-2));
+  background: var(--ih-bg);
+  padding: var(--space-2) 0;
+  z-index: 1;
+}
+.action-inline {
+  padding: var(--space-2) 0;
+}
+/* 휴대폰 준비 화면의 아래 고정 줄: [다 섞기][라인 섞기] ··· [이 팀으로 시작] (src/web/screens/Prep.tsx).
+   섞기 묶음과 시작 사이를 섞기 버튼끼리보다 넓게(16px) 띄우고 시작은 남은 폭을 채워 오른쪽 끝에 둔다.
+   섞으려다 시작을 누르지 않게 하려는 거리이고, 시작은 채운 주 버튼·섞기는 테두리 버튼이라 모양도 다르다.
+   글자가 줄바꿈되면 버튼이 두 줄 높이가 되어 고정 줄이 본문을 더 가리므로 줄바꿈하지 않는다. */
+.prep-quickbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.quick-shuffles {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+}
+.prep-quickbar button {
+  white-space: nowrap;
+}
+.prep-quickbar .quick-start {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* 화면 키보드가 열리면(좁은 화면) 하단 메뉴를 숨겨 입력 칸·확인 창 버튼을 가리지 않게 한다. */
+@media (max-width: 767px) {
+  html[data-keyboard="open"] .tabs {
+    display: none;
+  }
+  html[data-keyboard="open"] main {
+    padding-bottom: var(--space-4);
+  }
+}
+
+
+/*
+ * 확인 창(<dialog>, src/web/ui.tsx Dialog). showModal로 띄워 브라우저 최상위 층에 그려지므로 하단 탭·고정 버튼보다
+ * 늘 위에 있고 z-index가 필요 없다. 폰에서는 아래에 붙은 시트, 768px 이상은 가운데(아래 미디어 쿼리).
+ * 대화상자·팝오버만 그림자를 쓴다(CLAUDE.md 6절).
+ */
+.dialog {
+  color: var(--ih-text);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+  width: 100%;
+  max-width: 560px;
+  max-height: 92dvh;
+  margin: auto auto 0;
+  overflow-y: auto;
+  /* 창 안 스크롤이 끝에 닿아도 뒤 화면으로 넘어가지 않게 한다. */
+  overscroll-behavior: contain;
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+/* display는 열린 창에만 준다. 닫힌 <dialog>에 주면 브라우저 기본의 숨김(display: none)을 덮어 창이 보인다. */
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+/* 뒤 화면 덮개. 흐림(blur) 없이 단색으로 가린다. overflow를 줘야 overscroll-behavior가 먹어 덮개 위 스크롤이 뒤 화면을 밀지 않는다. */
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dialog-head h2 {
+  margin: 0;
+}
+.candidate {
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-3);
+  background: var(--ih-panel);
+  overflow-wrap: anywhere;
+}
+.manual-copy {
+  flex: 1 1 100%;
+  font-size: var(--text-label);
+}
+.copy {
+  display: contents;
+}
+.toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 12px);
+  background: var(--ih-panel);
+  color: var(--ih-text);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+  font-size: var(--text-label);
+  font-weight: 500;
+  z-index: 20;
+}
+
+/* 넓은 화면: 확인 창을 가운데에 띄우고, 화면·카드 안쪽 여백을 모바일 16px에서 24px로 넓힌다. */
+@media (min-width: 768px) {
+  .dialog {
+    margin: auto;
+    border-radius: var(--radius-panel);
+    padding: var(--space-5);
+  }
+  .screen {
+    padding: var(--space-5) var(--page-gutter);
+  }
+  .card {
+    padding: var(--space-5);
+  }
+}
+
+/* 순위·통계 행 */
+.rank {
+  display: inline-block;
+  min-width: 1.6em;
+  color: var(--ih-text-secondary);
+  font-weight: 500;
+}
+.stat {
+  flex: none;
+  max-width: 62%;
+  text-align: right;
+}
+/* 붙은 탭 안의 select(시즌·연도)는 옆 버튼("오늘"·"전체")과 한 줄 탭으로 읽혀야 한다.
+   select 기본값(16px 입력 글자, 왼쪽 정렬)을 그대로 두면 탭 안에서 select 칸만 글자가 크고 왼쪽에 붙는다.
+   그래서 버튼과 같은 14px/500, 가운데 정렬로 맞춘다. 화살표 자리 때문에 글자가 화살표 폭의 절반쯤 왼쪽에 놓이는 것은
+   브라우저 기본 화살표를 그대로 쓰는 대가로 둔다(appearance를 끄면 화살표를 직접 그려야 한다).
+   text-align-last는 text-align만으로는 가운데로 가지 않는 브라우저(구버전 Chromium·Safari)를 위한 것이다. */
+.segmented select {
+  flex: 1;
+  font-size: var(--text-label);
+  font-weight: 500;
+  text-align: center;
+  text-align-last: center;
+}
+/* 아이폰(iOS Safari)은 16px보다 작은 입력 컨트롤을 누르면 화면을 확대한다. 이 조건은 iOS WebKit에서만 참이라
+   아이폰에서만 16px로 되돌린다. 지우면 시즌·연도 칸을 누를 때마다 확대가 돌아온다.
+   viewport의 maximum-scale로 막지 않는 이유: 사용자 확대까지 막혀 접근성 규칙에 어긋난다. */
+@supports (-webkit-touch-callout: none) {
+  .segmented select {
+    font-size: var(--text-body);
+  }
+}
+.segmented select.chosen {
+  border: 1px solid var(--ih-accent);
+  background: var(--ih-selected);
+  color: var(--ih-text);
+}
+input[type="search"] {
+  margin-bottom: var(--space-2);
+}
+/* 검색 칸 하나를 카드로 감싸지 않는다(CLAUDE.md 2절). 입력 칸 테두리만으로 충분히 구분되고, 카드였을 때는 바로 아래
+   결과 카드와 같은 무게라 무엇이 입력이고 무엇이 결과인지 덜 갈렸다. */
+.record-search {
+  margin: 0;
+}
+.record-search label {
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+.record-search-field {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-top: var(--space-2);
+}
+.record-search-field > .line-icon {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  color: var(--ih-text-secondary);
+  pointer-events: none;
+}
+.record-search-field input {
+  padding-inline-start: var(--space-7);
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 400;
+}
+.record-search .hint {
+  margin: var(--space-2) 0 0;
+}
+.record-search kbd {
+  font: inherit;
+  padding-inline: var(--space-1);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+}
+/* 검색 결과를 감싼 자리(ui.tsx useSearchJump). 화면 키보드를 내릴 때(터치 기기)만 초점이 여기로 온다.
+   누르는 컨트롤이 아니라 키보드를 내리려고 잠깐 받는 도착 표시라 테두리를 그리지 않는다. 2px 포커스 테두리 규칙은
+   조작할 수 있는 요소의 것이고, 안의 줄·버튼은 Tab으로 가면 각자 테두리가 보인다. PC에서는 초점이 검색 칸에 남는다. */
+.search-results:focus {
+  outline: none;
+}
+/* 전적 검색은 사람 결과와 찾은 경기를 한 자리로 감쌌다. 화면(.screen)의 구역 사이 간격을 안에서도 그대로 둔다. */
+.search-screen > .search-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.season-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+/* 날짜 입력은 브라우저가 정한 최소 폭 아래로 줄지 않아, 좁은 화면에서 시작일·종료일을 나란히 두면 겹친다.
+   768px 미만에서는 종료일을 시작일 아래 줄로 내린다. */
+.season-form .input-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+.season-form label {
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .season-form .input-row {
+    flex-direction: row;
+  }
+  .season-form .input-row > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+

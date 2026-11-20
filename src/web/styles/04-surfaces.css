@@ -1,0 +1,566 @@
+/* 앞 부품 위에 겹치는 문맥 규칙: 스크롤바, 표면·호버, 카드 안 목록, 경기 줄, 팀 상자 색, 상단 바, 아이콘, 푸터.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* ==========================================================================
+   표면·버튼 호버·카드 안 목록·경기 줄·팀 상자 색·상단 바·푸터
+   (기본 부품의 모양은 파일 앞쪽에 있고, 여기는 그 위에 겹치는 문맥 규칙이다)
+   ========================================================================== */
+
+/* 스크롤바: 얇게, 막대는 구분선 색. 표준 속성을 쓰고, 표준을 모르는 브라우저만 ::-webkit-scrollbar로 맞춘다
+   (Chrome은 표준 속성이 있으면 웹킷 규칙을 무시한다). scrollbar-color는 상속되지만 scrollbar-width는 상속되지 않아
+   안쪽 스크롤 상자(표·목록)마다 걸리도록 모든 요소에 준다. */
+:root {
+  scrollbar-color: var(--ih-line) transparent;
+}
+* {
+  scrollbar-width: thin;
+}
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ih-line);
+    border-radius: 4px;
+  }
+}
+
+/* 버튼 호버: 테두리만 한 단계 진하게. 클래스 없는 기본 버튼과 secondary는 바탕도 한 단계 밝아진다. 다른 버튼은 각자 규칙을 따른다. */
+button:not(:disabled):hover {
+  border-color: var(--ih-text-secondary);
+}
+button:not([class]):not(:disabled):hover,
+.secondary:not(:disabled):hover {
+  background: var(--ih-subtle);
+}
+/* 버튼 단계: primary(화면당 하나, 강조색 채움) > secondary(조용한 바탕, 또렷한 테두리) > link(글자). 그림자 없음. */
+.secondary {
+  background: var(--ih-panel);
+  border-color: var(--ih-control-border);
+}
+
+/* 카드 안의 목록 줄: 상자를 겹치지 않고 위쪽 구분선 한 줄로만 나눈다("기록지"의 줄 칸).
+   :where()로 명시도를 .list-row와 같게 두어, 고른 줄(.selected)·경기 줄 색 띠·랭킹 띠 같은 2단 규칙이 명시도로 이긴다. */
+:is(.card, .chart-card, details) :where(.list) {
+  gap: 0;
+}
+:is(.card, .chart-card, details, .list-card) :where(.list-row) {
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+}
+button.list-row:not(:disabled):hover {
+  background: var(--ih-subtle);
+  border-color: var(--ih-control-border);
+}
+/* 카드 하나로 묶은 목록: 줄을 상자로 늘어놓지 않고 카드 한 장 안의 줄 칸으로.
+   줄 사이는 구분선 한 줄, 간격 0. 첫 줄은 카드 테두리와 겹치지 않게 위 선을 뺀다. 경기 카드 목록은 쓰지 않는다. */
+.list.list-card {
+  gap: 0;
+  overflow: hidden;
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+}
+.list-card :where(.list-row) {
+  padding: var(--space-3) var(--space-3);
+  border-color: var(--ih-line);
+}
+.list-card > :first-child > .list-row,
+.list-card > .list-row:first-child {
+  border-top-width: 0;
+}
+.list-card button.list-row:not(:disabled):hover {
+  background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
+  border-color: var(--ih-line);
+}
+.list-card:empty {
+  display: none;
+}
+.list-card > li.hint {
+  padding: var(--space-3) var(--space-3);
+}
+.list-card > li.hint:not(:first-child) {
+  border-top: 1px solid var(--ih-line);
+}
+/* 카드가 넘치는 부분을 잘라 내므로 초점 테두리는 줄 안쪽에 그린다. */
+.list-card .list-row:focus-visible,
+.list-card .list-row :focus-visible {
+  outline-offset: -2px;
+}
+/* 검색 결과 사람 줄 아래 "참가 경기 보기 →"(Search.tsx). 줄 글자와 왼쪽을 맞추고, 카드가 잘라 내지 않게 초점은 안쪽에.
+   왼쪽 여백 8px + .link 자체 안쪽 여백 4px = 사람 줄(.list-card .list-row)의 왼쪽 안쪽 여백 12px. 한쪽을 바꾸면 같이 맞춘다. */
+.list-card .person-matches {
+  margin: 0 0 var(--space-1) var(--space-2);
+}
+.list-card .person-matches:focus-visible {
+  outline-offset: -2px;
+}
+
+/* 경기 줄: 왼쪽 1px 선만 색을 쓰고 바탕은 카드 바탕 그대로다. 전체 목록에서는 이긴 팀의 진영(블루·레드), 개인 화면에서는
+   그 사람의 승·패. 선이 가늘어 색은 보조이고, 뜻은 줄 안의 "승/패"·진영 글자가 전한다(두꺼운 띠는 3절에서 금지).
+   손을 올리면 옅은 틴트가 든다. */
+.match-row {
+  border-left-color: var(--ih-line);
+}
+.match-row.tone-blue,
+.match-row.tone-win {
+  background: var(--ih-panel);
+  border-color: var(--ih-line);
+  border-left-color: var(--ih-win-accent);
+}
+.match-row.tone-red,
+.match-row.tone-loss {
+  background: var(--ih-panel);
+  border-color: var(--ih-line);
+  border-left-color: var(--ih-loss-accent);
+}
+button.match-row.tone-blue:not(:disabled):hover,
+button.match-row.tone-win:not(:disabled):hover,
+li.match-row.tone-blue:hover {
+  background: var(--ih-win-bg-hover);
+  border-color: var(--ih-win-border);
+  border-left-color: var(--ih-win-accent);
+}
+button.match-row.tone-red:not(:disabled):hover,
+button.match-row.tone-loss:not(:disabled):hover,
+li.match-row.tone-red:hover {
+  background: var(--ih-loss-bg-hover);
+  border-color: var(--ih-loss-border);
+  border-left-color: var(--ih-loss-accent);
+}
+.result-win {
+  color: var(--ih-win-text);
+  font-weight: 500;
+}
+.result-loss {
+  color: var(--ih-loss-text);
+  font-weight: 500;
+}
+
+/* 팀 상자: 진영이 정해진 경기(준비 화면은 항상)는 1px 진영 색 테두리, 제목은 "● 블루팀"/"■ 레드팀"(format.ts teamName).
+   진영을 모르면 중립 표면에 "팀 A"/"팀 B". 바탕은 칠하지 않는다. 진영 색은 테두리와 팀 이름에만 쓰고, 어느 팀인지는
+   제목의 기호·글자가 전한다. 경기 상세·준비 화면·결과 입력 버튼(.result-pick-btn)이 같은 모양이다. 상자 자체는 위 .team. */
+.team h3 {
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--ih-line);
+  /* "● 블루팀"·"■ 레드팀"이 좁은 화면에서도 한 줄로 보이게. */
+  white-space: nowrap;
+}
+.team.side-blue {
+  border-color: var(--ih-win-accent);
+}
+.team.side-red {
+  border-color: var(--ih-loss-accent);
+}
+.team.side-blue h3,
+.team.side-blue .result-pick-title {
+  color: var(--ih-win-text);
+}
+.team.side-red h3,
+.team.side-red .result-pick-title {
+  color: var(--ih-loss-text);
+}
+
+/* 라인별 색(토큰 --pos-*는 맨 위 테마 블록). screenKit.tsx의 PosLabel이 data-pos, RoleIcon이 pos-라인 클래스(예: pos-top)를 단다.
+   글자와 아이콘(currentColor) 모두에 라인 색. 표·비교 화면의 `.xxx .pos { color }` 규칙(명시도 0,2,0)을 이기도록
+   선택자를 겹쳐 명시도를 0,3,0으로 올렸다. 라인 색을 끄고 싶은 곳은 같은 명시도 이상으로 덮는다. */
+.pos[data-pos="top"][data-pos],
+.role-icon.pos-top.role-icon {
+  color: var(--pos-top);
+}
+.pos[data-pos="jungle"][data-pos],
+.role-icon.pos-jungle.role-icon {
+  color: var(--pos-jungle);
+}
+.pos[data-pos="mid"][data-pos],
+.role-icon.pos-mid.role-icon {
+  color: var(--pos-mid);
+}
+.pos[data-pos="adc"][data-pos],
+.role-icon.pos-adc.role-icon {
+  color: var(--pos-adc);
+}
+.pos[data-pos="support"][data-pos],
+.role-icon.pos-support.role-icon {
+  color: var(--pos-support);
+}
+
+.role-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.list-row .pos {
+  width: auto;
+  font-size: inherit;
+}
+.list-row .role-icon {
+  width: 16px;
+  height: 16px;
+}
+/* 좁은 화면의 두 팀 배치에서는 이름 자리를 위해 아이콘을 뺀다. */
+@media (max-width: 419px) {
+  .teams .pos {
+    width: 2.4em;
+  }
+  .teams .role-icon {
+    display: none;
+  }
+}
+
+/* 붙은 탭의 칸: 테두리 없이 보조 글자. 고른 칸은 위 .segmented button[aria-pressed="true"]·.segmented select.chosen이
+   명시도로 이긴다. 이 규칙은 .filter-row select(본문 글자)보다 뒤에 있어야 범위 고르기 칸 글자가 보조 글자로 남는다. */
+.segmented button,
+.segmented select {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--ih-text-secondary);
+}
+/* 펼친 목록(시즌·연도 등)의 글자: select의 반투명 바탕·흐린 글자색을 물려받으면 읽기 어렵다.
+   목록 줄은 불투명한 바탕에 본문 글자 색으로 고정한다(다크·라이트 모두 16:1 안팎). */
+select option,
+select optgroup {
+  background-color: var(--ih-panel);
+  color: var(--ih-text);
+  font-weight: 500;
+}
+select option:disabled {
+  color: var(--ih-text-secondary);
+}
+
+/* 순위와 승률 구간 */
+/* 숫자가 세로로 줄을 맞추도록 고정폭 숫자. */
+.stat,
+.count,
+.kpi,
+.rate,
+.rank,
+.rating-num,
+.mmr-value,
+table {
+  /* 표 칸은 body의 keep-all을 물려받지 않는다. 물려받으면 한글 칸의 최소 폭이 낱말 길이로 늘어
+     320px에서 챔피언 티어 표가 화면 밖으로 53px 나갔다. 칸 안에서는 예전처럼 글자 단위로 줄어든다. */
+  word-break: normal;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+/* 순위 숫자(format.ts rankClass): 색을 쓰지 않고 굵기·명도로만 가른다(CLAUDE.md 5절, 금은동 색 없음).
+   1~3위는 본문 글자 600, 4~10위 본문 글자, 11위~ 보조 글자. 순번 숫자 자체가 뜻을 전한다. */
+.rank.rank-1,
+.rank.rank-2,
+.rank.rank-3 {
+  color: var(--ih-text);
+  font-weight: 600;
+}
+.rank.rank-mid {
+  color: var(--ih-text);
+}
+.rank.rank-rest {
+  color: var(--ih-text-secondary);
+  font-weight: 400;
+}
+.rate {
+  font-weight: 500;
+}
+/* 승률 3단(CLAUDE.md 5절, format.ts heatClass): 높음(heat-h1~h4) 강조색 · 기준(heat-0, 45~54%) 주요 글자 ·
+   낮음(heat-l1~l4) 보조 글자. 클래스 이름은 예전 아홉 단계를 그대로 두고(테스트·화면 코드가 단계 이름을 쓴다)
+   색만 세 값으로 모았다. 한 변수(--heat)가 글자·막대·고리 색을 함께 정한다. 대비는 test/theme-contrast.test.ts. */
+.heat-h1,
+.heat-h2,
+.heat-h3,
+.heat-h4 {
+  --heat: var(--ih-accent);
+}
+.heat-0 {
+  --heat: var(--ih-text);
+}
+.heat-l1,
+.heat-l2,
+.heat-l3,
+.heat-l4 {
+  --heat: var(--ih-text-secondary);
+}
+.rate[class*="heat-"] {
+  color: var(--heat);
+}
+.meter-fill[class*="heat-"],
+.bar-fill[class*="heat-"],
+.swatch[class*="heat-"] {
+  background: var(--heat);
+}
+.ring-fill[class*="heat-"] {
+  stroke: var(--heat);
+}
+.summary-line {
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 한 줄 요약 지표 */
+.kpi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+/* 요약 지표 상자 바로 아래 설명은 상자에 붙지 않게(사이트 현황의 자동 백업). */
+.kpi + .hint {
+  margin-top: var(--space-2);
+}
+.kpi strong {
+  margin-left: var(--space-1);
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text);
+}
+.kpi strong.blue {
+  color: var(--ih-win-text);
+}
+.kpi strong.red {
+  margin-left: 0;
+  color: var(--ih-loss-text);
+}
+/* 진영 승률: "블루 : 레드 승률 54% ▬▬▬ 46%". 칸이 넓으면 막대가 남은 폭을 다 쓰고, 좁은 폰에서는 한 줄을 혼자 차지한다. */
+.kpi-sides {
+  flex: 1 1 18rem;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.kpi-split {
+  flex: 1 1 auto;
+  display: flex;
+  gap: var(--space-1);
+  min-width: 3rem;
+  height: 6px;
+  margin: 0 var(--space-2);
+}
+.kpi-split-blue {
+  background: var(--ih-win-accent);
+}
+.kpi-split-red {
+  background: var(--ih-loss-accent);
+}
+
+/* 상단 바: 768px 미만은 본문과 함께 흐르고, 768px 이상은 위에 붙는다. 바탕은 화면 배경과 같고 아래 1px 구분선으로만 나눈다.
+   높이(--topbar-height)를 바꾸면 따라오는 머리·판의 top과 html scroll-padding이 같이 움직인다. */
+.topbar {
+  height: var(--topbar-height);
+  background: var(--ih-bg);
+  border-bottom: 1px solid var(--ih-line);
+}
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--page-gutter);
+}
+/* 사이트 이름: 16px/600 중립색. 로고·제목은 강조색으로 칠하지 않는다(CLAUDE.md 5절). */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--ih-text);
+  text-decoration: none;
+  font-size: var(--text-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.brand:focus-visible {
+  outline: 2px solid var(--ih-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
+}
+.theme-select {
+  width: auto;
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-label);
+  font-weight: 500;
+  border-color: var(--ih-control-border);
+}
+
+/* 선 아이콘(ui.tsx LineIcon): 20px, 선 1.5px. */
+.line-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* 16px: 20칸 그림을 0.8배로 줄이므로 선을 1.875로 두어 화면에서 1.5px를 맞춘다. */
+.line-icon.small {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.875;
+}
+/* 고른 사람 표시(고르기 화면의 칩·전체 목록 줄): 이름 앞 체크. 글자 줄 안에 놓여 아래 끝을 글자에 맞춘다. */
+.chip > .line-icon,
+.pick-item .name > .line-icon {
+  vertical-align: text-bottom;
+  margin-right: var(--space-1);
+}
+
+/* 주 메뉴(운영자 .tabs)와 조회·예시 메뉴(.viewer-nav > span)의 칸. 둘이 같은 모양이다.
+   :not(:disabled):hover까지 함께 적는 것은 공통 버튼·.link의 호버 색을 덮으려는 것이다. */
+.tabs button,
+.tabs button:not(:disabled):hover,
+.viewer-nav > span > .link,
+.viewer-nav > span > .link:not(:disabled):hover {
+  min-height: var(--control-height);
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tabs button:not(:disabled):not([aria-current="page"]):hover,
+.viewer-nav > span > .link:not(:disabled):not([aria-current="page"]):hover {
+  color: var(--ih-text);
+  background: var(--ih-subtle);
+}
+/* 지금 화면 칸: 옅은 선택 배경 + 강조 글자. 주 버튼처럼 채우지 않는다(CLAUDE.md 5절).
+   색 쌍은 --ih-accent / --ih-selected이라 대비 검사를 함께 받는다. */
+.tabs button[aria-current="page"],
+.tabs button[aria-current="page"]:hover,
+.viewer-nav > span > .link[aria-current="page"],
+.viewer-nav > span > .link[aria-current="page"]:hover {
+  background: var(--ih-selected);
+  color: var(--ih-accent);
+}
+/* 조회·예시 메뉴 줄: 모임 이름 + 화면 칸. 좁은 화면에서는 화면 칸 묶음(> span)만 아래 메뉴로 내려가고 이름은 위에 남는다.
+   줄은 창 폭 전체(main.bleed)이고, 좌우 여백 --bleed-inline이 글자를 본문(1200px 칸 + 여백)의 정렬선에 맞춘다. */
+.viewer-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--bleed-inline);
+  border-bottom: 1px solid var(--ih-line);
+  background: var(--ih-panel);
+}
+
+/* 768px 미만: 화면 아래 고정 64px(+기기 안전 영역). 칸마다 20px 아이콘 + 12px 글자를 세로로 쌓는다.
+   칸은 위아래 4px를 띄운 56px라 누르는 영역이 44px를 넘는다. 좌우 틈 없이 똑같이 나눠 6칸이 360px에 들어간다
+   (칸 폭 약 59px, 가장 긴 "현재 경기"가 12px 글자로 약 50px). 7칸은 넘치므로 "챔피언"을 빼는 .nav-wide-only를 둔다.
+   본문 아래 여백(main padding-bottom)과 고정 버튼·토스트 위치가 --tabs-height를 따른다. */
+@media (max-width: 767px) {
+  .tabs,
+  .viewer-nav > span {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    height: calc(var(--tabs-height) + env(safe-area-inset-bottom));
+    padding: 0 var(--space-1) env(safe-area-inset-bottom);
+    background: var(--ih-panel);
+    border-top: 1px solid var(--ih-line);
+  }
+  .tabs-inner,
+  .viewer-nav > span {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .tabs-inner {
+    height: 100%;
+  }
+  .tabs button,
+  .tabs button:not(:disabled):hover,
+  .viewer-nav > span > .link,
+  .viewer-nav > span > .link:not(:disabled):hover {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    min-width: 0;
+    margin: var(--space-1) 0;
+    padding: 0;
+    font-size: var(--text-meta);
+  }
+  html[data-keyboard="open"] .viewer-nav > span {
+    display: none;
+  }
+  .tabs button.nav-wide-only,
+  .viewer-nav > span > .link.nav-wide-only {
+    display: none;
+  }
+}
+/* 768px 이상: 주 메뉴는 상단 바 아래 한 줄(글자만). 줄 테두리는 창 폭 전체, 칸은 본문과 같은 왼쪽 정렬선.
+   상단 바만 따라오고 메뉴 줄은 본문과 함께 올라간다(따라오는 높이를 64px로 묶어 좁은 창·확대에서 본문을 덜 가리게). */
+@media (min-width: 768px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+  .tabs {
+    border-bottom: 1px solid var(--ih-line);
+  }
+  .tabs-inner {
+    display: flex;
+    gap: var(--space-1);
+    max-width: var(--content-max);
+    margin: 0 auto;
+    padding: var(--space-2) var(--page-gutter);
+  }
+  .tabs button,
+  .tabs button:not(:disabled):hover,
+  .viewer-nav > span > .link,
+  .viewer-nav > span > .link:not(:disabled):hover {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-4);
+  }
+  .viewer-nav > span {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .tabs .line-icon,
+  .viewer-nav .line-icon {
+    display: none;
+  }
+}
+/* 조회 화면의 점검 안내: 본문(.screen)과 같은 좌우 여백. */
+.viewer-note {
+  margin: var(--space-3) var(--page-gutter) 0;
+}
+
+/* 푸터: 라이엇 게임즈와 무관함을 알리는 문구. 본문과 48px 띄운다(큰 구획 사이). */
+.legal {
+  margin: var(--space-7) var(--page-gutter) 0;
+  padding: var(--space-5) 0 var(--space-2);
+  border-top: 1px solid var(--ih-line);
+  /* 법적 고지는 읽을 수 있게 두되 본문 행동보다 물러나게(8절): 12px, 흐린 글자. */
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.legal p + p {
+  margin-top: var(--space-2);
+}
+

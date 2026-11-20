@@ -1,0 +1,949 @@
+/* PC 밀도, 그래프 분석 그림 4종과 고른 플레이어 묶음, 섞기 공정성.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* ---------- PC 밀도 ----------
+   기록 목록의 경기 카드는 PC에서 줄 높이와 글자를 줄여 한 화면에 더 많은 경기가 보이게 한다. 구조는 같다. */
+@media (min-width: 1200px) {
+  .match-cards .match-card {
+    padding-bottom: var(--space-1);
+  }
+  .match-cards .mc-name,
+  .match-cards .mc-name:not(:disabled):hover {
+    font-size: var(--text-body);
+  }
+  .match-cards .mc-roles {
+    font-size: var(--text-label);
+  }
+}
+
+/* 글자 + 고르기 칸을 한 줄에 둘 때(개인 통계 "상대 고르기"). 글자와 칸이 붙어 보이지 않게 띄우고 칸 폭을 넉넉히 둔다. */
+.inline-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+/* 고르기 칸 폭: 줄 안에 놓인 칸도 내용 폭이다(맨 위 select 규칙). 다른 규칙이 100%로 늘린 칸을 되돌린다. */
+.merge-select,
+.rank-line select,
+.list-row .button-row > select,
+.inline-label > select {
+  width: auto;
+  min-width: 0;
+}
+/* 글자 + 고르기 칸을 품은 label: 글자와 칸 사이를 띄운다(넓은 화면에서 한 줄, 좁은 화면에서는 칸이 다음 줄로 내려감). */
+label:has(> select) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-2);
+  max-width: 100%;
+}
+/* 중복 참가자 합치기: 두 고르기 칸이 한 줄에 놓일 때 사이를 띄운다(좁은 화면에서는 세로로). */
+.merge-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  align-items: center;
+}
+
+/* 날짜 점검(DateCheck.tsx): 중복 가능성 표식 */
+.tag.warn-tag {
+  color: var(--ih-text);
+}
+.same-time .button-row {
+  flex: none;
+}
+/* 시각 + "열 명이 같아요" 꼬리표: 이름 칸의 한 줄 말줄임(.name)을 풀어 꼬리표 글이 잘리지 않고 다음 줄로 내려가게 한다. */
+.same-time .name {
+  white-space: normal;
+  overflow: visible;
+}
+/* 날짜 점검 "범위 직접 고르기": 경기 번호 칸은 숫자 몇 자리면 되므로 짧게 */
+.inline-label > input[type="number"] {
+  width: 7em;
+}
+
+/* 개인 통계 > 다른 플레이어와 비교: 전적 두 줄 + 두 사람 비교로 가는 큰 버튼. 폰은 위아래, PC는 옆으로. */
+.rival-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* 고르기 칸 바로 아래에 타일이 붙으면 칸이 묻혀 보인다. 한 칸 띄운다. */
+  margin-top: var(--space-3);
+  /* 버튼을 옆에 둘지는 화면 폭이 아니라 이 구역의 폭으로 정한다(2단 배치에서는 구역이 350px 정도라 옆에 두면 타일이 찌그러진다). */
+  container-type: inline-size;
+}
+/* 전적 타일 두 칸: 폰에서도 나란히(2칸), 각 칸은 이름표 → 큰 값 → 막대. */
+.rival-tiles {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.rival-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  background: var(--ih-panel);
+}
+.rival-tile .tile-label {
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.rival-tile .stat {
+  max-width: none;
+  text-align: left;
+  font-size: var(--text-body);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+/* 첫 span이 승률 숫자(RateText, 승률 색 단계 클래스). */
+.rival-tile .stat > span:first-child {
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+.compare-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-color: var(--ih-accent);
+  background: var(--ih-selected);
+}
+.compare-cta strong {
+  font-size: var(--text-body);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.compare-cta strong::after {
+  content: " →";
+}
+.compare-cta span {
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+@container (min-width: 600px) {
+  .rival-pane {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .compare-cta {
+    flex: 0 0 220px;
+    justify-content: center;
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+/* 그래프 분석: 도구 띠 → 요약 타일 → 보기 전환 → 고른 보기 하나(전체 폭).
+   두 단으로 나누지 않고 한 단으로 쌓는다(두 단이면 왼쪽만 길고 오른쪽 아래가 빈다). */
+@media (min-width: 1200px) {
+  .screen.cols.viz-root {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* 라인별 승률(플레이어 하나): PC에서 다섯 라인을 한 줄 5칸으로. */
+  .line-first .bars {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+}
+/* 도구 띠: 다른 화면의 필터 줄처럼 카드 없이 한 줄. 왼쪽 고르기 칸, 오른쪽 요약 글·도움말. 좁으면 요약이 아래 줄로 내려간다. */
+.graph-tools {
+  display: flex;
+  flex-wrap: wrap;
+  /* 오른쪽 요약 글이 고르기 칸(44px)의 가운데 높이에 오게 한다. 위에 붙이면 칸보다 높이 떠 보인다. */
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+}
+.graph-tools > .filter-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-1) 0;
+}
+/* 필터 오른쪽의 요약 글 한 줄(범위·경기 수·참가자 수). */
+.graph-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 var(--space-4);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--space-1) 0;
+}
+.graph-meta > .hint {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 767px) {
+  .graph-meta {
+    justify-content: space-between;
+    flex-basis: 100%;
+    padding: 0;
+  }
+}
+.graph-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.graph-summary > .hint {
+  margin: 0;
+  max-width: none;
+}
+/* 요약 칸(그래프 분석·시즌 요약 셋)은 숫자 크기를 같게(1.5rem/600). 진영 칸도 다른 칸과 같은 크기. */
+.graph-summary .season-tiles dd.season-sides {
+  font-size: var(--text-screen);
+  font-weight: 600;
+}
+/* 보기 전환 여섯 칸: 폰은 3칸 두 줄, 넓으면 한 줄. 칸은 같은 폭이고 좁으면 글자가 두 줄로 접혀도 된다. */
+.graph-views {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 840px;
+}
+@media (min-width: 768px) {
+  .graph-views {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+.graph-views button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-2);
+  white-space: normal;
+  line-height: 1.25;
+}
+/* 개인별 승률 묶음 머리글: 작은 꼬리표 줄 + 위 묶음과 가는 선으로 나눈다. */
+.bar-group + .bar-group {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--ih-line);
+}
+.bar-group-label {
+  margin: 0 0 var(--space-1);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+.bar-group-count {
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+@media (min-width: 1200px) {
+  .people-bars {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-5);
+  }
+}
+/* 위에서 고른 플레이어의 막대 줄. */
+.bar-row.picked {
+  background: var(--ih-selected);
+  outline: 1px solid var(--ih-accent);
+  outline-offset: -1px;
+}
+
+/* 막대 그래프에서 기록 없는 줄: 값 자리에 "—", 막대는 빈 트랙(높이는 다른 줄과 같다). */
+.bar-empty {
+  color: var(--ih-text-secondary);
+}
+.line-first .bar-row {
+  min-height: 56px;
+}
+/* 라인별 승률(맨 위, PC 5칸): 칸이 좁아 라인 이름이 밀려나지 않게 이름을 위, 값을 아래에 쌓는다. */
+@media (min-width: 1200px) {
+  .line-first .bar-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+  .line-first .bar-head > .name {
+    font-size: var(--text-body);
+    font-weight: 500;
+  }
+  .line-first .bar-value {
+    margin-left: 0;
+    font-size: var(--text-label);
+  }
+  /* 값 줄이 두 줄로 접히는 칸이 있어도 막대는 모두 같은 높이(아래)에 놓인다. */
+  .line-first .bars > li {
+    display: flex;
+  }
+  .line-first .bar-row {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .line-first .bar-track {
+    margin-top: auto;
+  }
+}
+
+
+/* ---------- 그래프 분석 그림 4종 + 고른 플레이어 묶음 ----------
+   범주색(--viz-cat-*, 그래프 분석 구역 머리의 .viz-root)은 사람을 따르고(순위가 아니라) 글자는 늘 본문 색이다.
+   고른 사람이 상위 5명 밖이면 본문 색 굵은 선. */
+.cat-1 {
+  --cat: var(--viz-cat-1);
+}
+.cat-2 {
+  --cat: var(--viz-cat-2);
+}
+.cat-3 {
+  --cat: var(--viz-cat-3);
+}
+.cat-4 {
+  --cat: var(--viz-cat-4);
+}
+.cat-5 {
+  --cat: var(--viz-cat-5);
+}
+
+/* 이야기 띠: 폰 2칸, 넓으면 4칸. 누르면 그 사람을 고른다. */
+.story-strip ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 768px) {
+  .story-strip ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.story-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  height: 100%;
+  min-height: 64px;
+  padding: var(--space-3) var(--space-3);
+  text-align: left;
+  white-space: normal;
+  background: var(--ih-subtle);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  color: var(--ih-text);
+}
+.story-card:hover {
+  border-color: var(--ih-control-border);
+}
+/* 카드 종류별 라벨 색. --story가 없는 종류(MMR 최고 상승)는 보조 글자색 그대로이고 점도 없다. */
+.story-card .tile-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--story, var(--ih-text-secondary));
+}
+.story-card[class*="kind-"] .tile-label::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--story, transparent);
+}
+.story-card.kind-streak {
+  --story: var(--story-streak);
+}
+.story-card.kind-upset {
+  --story: var(--story-upset);
+}
+.story-card.kind-pair {
+  --story: var(--story-pair);
+}
+.story-card.kind-attendance {
+  --story: var(--story-attendance);
+}
+.story-card strong {
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.story-card.picked {
+  background: var(--ih-selected);
+  border-color: var(--ih-accent);
+}
+
+/* 순위 변동(graphFigures RankRaceChart): 기본 회색 얇은 선, 상위 5명 .cat-n 색 2px, 고른 사람 3.5px.
+   .race-hit은 누르기 쉬운 투명 굵은 선. 굵기를 바꾸면 고른 사람과 상위 5명의 구별이 약해지지 않게 차이를 남긴다. */
+.race-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.race {
+  display: block;
+}
+.race-grid {
+  stroke: var(--viz-track);
+  stroke-width: 1;
+}
+.race-axis,
+.cal-axis {
+  fill: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+.race-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+}
+.race-line {
+  fill: none;
+  stroke: var(--ih-text-secondary);
+  stroke-width: 1;
+  stroke-opacity: 0.45;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.race-series {
+  cursor: pointer;
+}
+.race-series[class*="cat-"] .race-line {
+  stroke: var(--cat);
+  stroke-width: 2;
+  stroke-opacity: 1;
+}
+.race-series.picked .race-line {
+  stroke-width: 3.5;
+  stroke-opacity: 1;
+}
+.race-series.picked.rest .race-line {
+  stroke: var(--ih-text);
+}
+/* 마우스를 올리거나(넓은 화면) 눌러 고른(터치) 선만 진하게, 나머지는 흐리게. */
+.race:has(.race-series:hover) .race-series:not(:hover) .race-line,
+.race.has-focus .race-series:not(.focused) .race-line {
+  stroke-opacity: 0.15;
+}
+.race-series:hover .race-line,
+.race-series.focused .race-line {
+  stroke-opacity: 1;
+  stroke-width: 3;
+}
+.race-series.rest:hover .race-line,
+.race-series.rest.focused .race-line {
+  stroke: var(--ih-text);
+}
+.race-end {
+  fill: var(--cat, var(--ih-text));
+  stroke: var(--ih-panel);
+  stroke-width: 2;
+}
+.race-tie {
+  stroke: var(--ih-text-secondary);
+  stroke-width: 1;
+}
+.race-name {
+  fill: var(--ih-text);
+  font-size: var(--text-meta);
+  font-weight: 600;
+}
+.race-label.picked .race-name {
+  font-weight: 500;
+}
+
+/* 라인 모양(graphFigures LineShapeChart): 상자는 정사각형, 축 이름표는 HTML로 상자 위에 % 위치로 얹는다. */
+.shape-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-4);
+}
+.shape-tools .segmented {
+  flex: 0 0 auto;
+}
+.shape-tools label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.radar {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+.radar-box {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 1;
+}
+/* 프로필 묶음 안의 오각형. 300px은 왼쪽 요약보다 작아 비어 보여서(사용자 피드백) 칸 폭(.profile-shape 420px)을 따라가게 했다. */
+.radar.small .radar-box {
+  max-width: 370px;
+}
+.radar-box svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.radar-grid {
+  fill: none;
+  stroke: var(--viz-track);
+  stroke-width: 1;
+}
+.radar-spoke {
+  stroke: var(--viz-track);
+  stroke-width: 1;
+}
+.radar-area {
+  fill: var(--cat);
+  fill-opacity: 0.18;
+  stroke: var(--cat);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+/* 라인 오각형은 골드(사용자 요청, CLAUDE.md 5절 예외). 두 사람 비교의 첫 사람도 골드이고(범례 막대 포함),
+   두 번째 사람은 범주색 주황 + 점선으로 남겨 겹쳐도 구별되게 했다. */
+.radar-shape.solo,
+.radar-shape.cat-1,
+.radar-key.cat-1 {
+  --cat: var(--ih-accent);
+}
+/* 두 번째 사람은 점선(색만으로 구분하지 않게). */
+.radar-shape.cat-2 .radar-area {
+  stroke-dasharray: 5 3;
+}
+.radar-dot {
+  fill: var(--cat);
+  stroke: var(--ih-panel);
+  stroke-width: 2;
+}
+.radar-dot.weak {
+  fill: var(--ih-panel);
+  stroke: var(--cat);
+  stroke-width: 1.5;
+  opacity: 0.6;
+}
+.radar-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--text-label);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+}
+.radar-pos {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ih-text-secondary);
+}
+.radar-pos .role-icon {
+  width: 14px;
+  height: 14px;
+}
+.radar-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ih-text);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.radar-value.weak {
+  color: var(--ih-text-secondary);
+  font-weight: 400;
+}
+.radar-key {
+  display: inline-block;
+  width: 10px;
+  height: 3px;
+  border-radius: 4px;
+  background: var(--cat);
+}
+.radar-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 활동 달력: 이 그림만 가로 스크롤을 허용한다. */
+.cal-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--space-1);
+}
+.cal {
+  display: block;
+}
+.cal-cell {
+  fill: var(--viz-track);
+}
+.cal-l1 {
+  fill: color-mix(in oklab, var(--ih-text-secondary) 35%, var(--viz-track));
+}
+.cal-l2 {
+  fill: color-mix(in oklab, var(--ih-text-secondary) 60%, var(--viz-track));
+}
+.cal-l3 {
+  fill: color-mix(in oklab, var(--ih-text-secondary) 82%, var(--viz-track));
+}
+.cal-l4 {
+  fill: var(--ih-text-secondary);
+}
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.cal-legend-step svg {
+  display: block;
+}
+
+/* 고른 플레이어 묶음: 폰은 세로로 쌓고, 768px부터 왼쪽(요약·흐름·승패 띠) | 오른쪽(라인 모양). */
+.graph-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+}
+/* 묶음 안 왼쪽 항목은 개인 통계보다 한 단계 크게(사용자 피드백: 오각형을 키우니 왼쪽이 작아 보임).
+   고리 104px, 전적 줄 20px, 안내 줄 16px로 키운다. */
+.graph-profile .ring {
+  width: 104px;
+  height: 104px;
+}
+.graph-profile .summary-line {
+  font-size: var(--text-section);
+}
+.graph-profile .profile-main .hint,
+.graph-profile .profile-main .tile-label,
+.graph-profile .trend-caption {
+  font-size: var(--text-body);
+}
+.graph-profile .profile-main {
+  gap: var(--space-2);
+}
+/* 누적 승률 추이는 가로 60%(높이는 개인 통계와 같은 72px). 요약 줄 사이에 끼는 그림이라 폭이 좁아야 거슬리지 않는다. */
+.graph-profile .trend-plot {
+  width: 60%;
+  min-width: 200px;
+}
+/* 설명 글은 "5경기째 60% → 65경기째 66%" 한 줄만. 축 설명까지 두면 좁은 그림 아래서 세 줄로 접힌다. */
+.graph-profile .trend-caption span:first-child {
+  display: none;
+}
+/* 분석 코멘트: 규칙으로 만든 판단 문장. 글자는 본문 크기(16px), 점 색은 공정성 판정 색과 같은 초록·주황, 보통은 회색. */
+.commentary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+}
+/* 제목·총평·문장 앞 점은 골드(사용자 요청, CLAUDE.md 5절 예외). 문장 본문과 근거 줄은 읽기 쉽게 중립색 그대로. */
+.commentary h2 {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--ih-accent);
+}
+.commentary-summary {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--ih-accent);
+}
+.commentary-remarks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.commentary-remarks > li,
+.commentary-empty {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+.commentary-remarks > li {
+  position: relative;
+  padding-left: var(--space-4);
+}
+.commentary-remarks > li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.55em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ih-text-secondary);
+}
+/* 점은 모양으로 가른다: 보통은 보조 글자색 점, 좋음은 골드 점, 주의는 골드 속 빈 점.
+   뜻은 문장이 전하고 점은 훑어볼 때의 표시다. */
+.commentary-remarks .remark-good::before {
+  background: var(--ih-accent);
+}
+.commentary-remarks .remark-warn::before {
+  background: transparent;
+  border: 1px solid var(--ih-accent);
+}
+.commentary .commentary-note {
+  margin: 0;
+  max-width: none;
+}
+/* 코칭(최대 세 줄): 문장 목록 아래 1px 구분선으로 나눈다. 라벨은 제목처럼 골드(분석 코멘트 예외 범위), 문장은 본문색. */
+.commentary-coaching {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ih-line);
+}
+.commentary-coaching h3 {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-accent);
+}
+.commentary-coaching ol {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+/* 번호(1·2·3)는 우선순위라 골드로 둔다(분석 코멘트 예외 범위). 문장은 본문색. */
+.commentary-coaching li::marker {
+  color: var(--ih-accent);
+  font-weight: 500;
+}
+.commentary-coaching .remark-basis {
+  display: block;
+  font-size: var(--text-meta);
+  color: var(--ih-text-secondary);
+}
+.profile-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-2);
+}
+.profile-head h2 {
+  margin: 0;
+}
+.profile-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3) var(--space-5);
+}
+.profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.profile-main > .hint,
+.profile-main .ps-main p {
+  margin: 0;
+}
+.profile-shape {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+/* PC: 왼쪽 요약, 오른쪽 라인 모양. 오른쪽 칸을 넓게 두면 오각형이 화면 오른쪽 끝으로 밀려 보여서(사용자 피드백)
+   두 칸을 같은 폭으로 하고 오각형은 칸 왼쪽에 붙여 폭을 제한한다. */
+@media (min-width: 768px) {
+  .profile-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .profile-shape {
+    justify-self: start;
+    width: 100%;
+    /* 왼쪽 요약(고리·최근 10경기·추이·두 줄)과 높이가 맞는 폭. 더 키우면 오각형이 요약보다 길어져 아래가 빈다. */
+    max-width: 420px;
+  }
+}
+
+/* ---------- 섞기 공정성(모임 전체) 묶음, 그래프 분석 ----------
+   머리(큰 비율 + 판정) → 분포 띠(균형/조금/많이) → 보조 타일 3칸(미터).
+   큰 숫자는 중립색 하나이고 판정은 글(FAIR_VERDICT_TEXT)이 전한다. 띠의 세 구간은 명도와 채움으로 가른다(5절: 단일 지표를
+   여러 색 구간으로 칠하지 않는다): 균형은 본문 글자색 채움, 조금 치우침은 보조 글자색 채움, 많이 치우침은 1px 테두리만 있는
+   속 빈 칸. 범례 글자가 구간 이름을 직접 적는다. 세 칠은 패널 위 3:1 이상(본문·보조 글자 4.5:1 검사에 든다). */
+.fair-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-panel);
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+}
+.fair-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 5.2em;
+}
+.fair-pct {
+  font-size: var(--text-hero);
+  font-weight: 600;
+  line-height: 1.1;
+  /* 큰 숫자는 균형 경기 비율이라 띠의 균형 구간과 같은 색. */
+  color: var(--story-streak);
+  font-variant-numeric: tabular-nums;
+}
+.fair-big-label {
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.fair-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.fair-verdict strong {
+  font-size: var(--text-body);
+  color: var(--ih-text);
+}
+/* 분포 띠: 구간 폭 = flex-grow(경기 수). 둥근 모서리는 띠 전체에만.
+   경기 수는 범례에 없어 띠 안 숫자(12px)를 남긴다. 높이 16px은 그 숫자가 띠 위아래 끝에 닿지 않는 가장 낮은 값이다. */
+.fair-dist {
+  display: flex;
+  gap: var(--space-1);
+  height: 16px;
+  margin-top: var(--space-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.fair-seg {
+  flex: 1 1 0;
+  min-width: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-meta);
+  line-height: 1;
+  font-weight: 500;
+  color: var(--ih-bg);
+}
+/*
+ * 구간 색(2026-11-12 사용자 요청, CLAUDE.md 5절 예외): 균형 연두 · 조금 치우침 골드 · 많이 치우침 분홍.
+ * 이야기 카드 색을 다시 쓰고 새 색은 만들지 않는다. 구간 이름은 범례 글자, 경기 수는 띠 안 숫자로 함께 읽는다.
+ * 띠 안 숫자는 화면 배경색(--ih-bg) 글자라 세 색 모두 4.5:1(test/theme-contrast.test.ts).
+ */
+.fair-seg-balanced {
+  background: var(--story-streak);
+}
+.fair-seg-slight {
+  background: var(--ih-accent);
+}
+.fair-seg-lopsided {
+  background: var(--story-upset);
+}
+.fair-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-2) 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.fair-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.fair-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
+}
+/* 보조 타일은 폰·PC 모두 3칸. 미터는 타일 바닥에 붙인다. */
+.fair-tiles,
+.ps-tiles.fair-tiles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.fair-tiles > div {
+  display: flex;
+  flex-direction: column;
+}
+.fair-tiles .meter {
+  margin-top: auto;
+}
+/* 보조 타일 미터: 치우침·이변은 많이 치우침과 같은 분홍, 예상 우세 팀 승률은 골드. */
+.fair-tile-skew .meter-fill {
+  background: var(--story-upset);
+}
+.fair-tile-favorite .meter-fill {
+  background: var(--ih-accent);
+}
+@media (max-width: 419px) {
+  .fair-head {
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-3);
+  }
+  .fair-pct {
+    font-size: var(--text-screen);
+  }
+}
+
