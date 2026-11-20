@@ -18,6 +18,14 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-20: 운영 8fe4125b = staging a16cce56 = main 6983aef(최고의 콤비)]
+
+- 서로가 서로의 잘 맞는 동료인 두 사람에게 "최고의 콤비" 배지(shared/bestCombos.ts). 비교 같은 팀일 때·개인 통계 잘 맞는 동료·
+  그래프 고른 플레이어·팀 짜기(같은 팀일 때 두 이름 옆 "콤비"). 동료 판정은 분석 코멘트와 같은 confirmedBuddy. 마이그레이션 없음.
+- 배포 전: 단위 1249, E2E 전체 174 통과(4 건너뜀, 새 e2e/combo.spec.ts 포함), typecheck·lint·audit:design 0·build·check:bundle.
+- 배포 뒤(20초 뒤): 두 곳 /api/health 200, index-Qe5UrPii.js·index-6Wsm9RcI.css, 예시 비교 390·1440 넘침 0·콘솔 오류 0.
+- 예시 모임에는 콤비가 없다(누적 30경기 넘는 사람이 적음). 실제 모임에서 처음 나오는 때 모양을 한 번 볼 것.
+
 [2026-11-20: 운영 32054c19 = staging e40c4453 = main 2de6fb5(두 사람 비교 "같은 팀일 때" 이름 붙이기)]
 
 - 같은 팀일 때 두 이름을 양 끝이 아니라 한 줄에 붙이고(.cmp-team) 승률은 다음 줄로. 마이그레이션 없음.
