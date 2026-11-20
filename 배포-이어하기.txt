@@ -18,7 +18,7 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
-[2026-11-20: 배포 없음. 운영 f865fb52 그대로, main 994742b(파일 정리·lint 경고 0)]
+[2026-11-20: 배포 없음. 운영 f865fb52 그대로, main은 그 뒤 파일 정리·lint 경고 0·큰 파일 나누기(아래)]
 
 - 쓰지 않던 파일 정리: 원격 D1 스파이크 설정(wrangler.spike.jsonc, vitest.spike.config.ts)을 지움(1d9c59f).
   한 번도 돌리지 않았고, 같은 원자성 검사는 test/spike-atomicity.test.ts가 npm test마다 로컬 D1에서 한다.
@@ -66,7 +66,11 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
   routeKit.ts(본인 확인·스냅숏 셈 등 공용)·authRoutes·adminRoutes·groupRoutes·matchRoutes·memberRoutes·viewRoutes.
   경로·앞단 동작 같음(겹치는 경로 없음 확인). typecheck·lint 0·단위 1245·build·check:bundle·E2E 173 통과, 배포 없음.
   배포하면 Worker 코드가 바뀌므로 다음 배포 뒤 /api/health와 로그인·스냅숏 한 번씩 확인.
-- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(server/groups.ts 1078줄) 쪼개기,
+  958242e는 import 한 줄이 비어 타입 검사가 깨진 채 올라갔고 e9f6292로 고침(실행 동작은 같았음).
+- server/groups.ts(1116줄)를 여섯으로 나눔: groups.ts(모임 수 한도·이름 검증·만들기·목록·이름·조회 토큰)·
+  participants.ts·groupSettings.ts(설정·서포터 새 주기·내전 마치기)·seasons.ts·backupExport.ts·operatorTransfer.ts.
+  줄 대조 같음, 가져오는 12곳 경로 수정. 이제 1000줄 넘는 .ts·.tsx 없음. 배포 없음.
+- 구조 개선 후보(아직 안 함): screenKit.tsx(978줄)·SheetImport.tsx(963줄) 쪼개기,
   styles 화면별로 모으기(전 화면 사진 대조 필요).
 - 결과 저장 뒤 다시 읽기 줄이기: 재 보고 하지 않기로 함(사용자 "권장대로"). 로컬 600경기 저장~계산 약 0.1초
   (저장 29ms·다시 읽기 53ms·gzip 47KB·계산 19ms), 2000경기 약 0.2초. 측정은 test/measure/snapshot-size.measure.ts

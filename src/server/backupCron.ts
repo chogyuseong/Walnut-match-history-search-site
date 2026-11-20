@@ -17,7 +17,7 @@
  * 때를 위해 R2 수명 주기 규칙(backups/ 접두어, 30일)을 함께 걸어 둔다(docs/배포안내.md).
  */
 import type { Env } from "./env";
-import { exportBackup } from "./groups";
+import { exportBackup } from "./backupExport";
 import { nowIso, positiveInt } from "./http";
 
 const DEFAULT_GROUPS_PER_RUN = 5;

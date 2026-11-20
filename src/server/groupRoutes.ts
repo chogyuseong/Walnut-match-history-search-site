@@ -3,7 +3,11 @@
 import { saveSupportCounts } from "./supportCounts";
 import { clearDraftHandoff, putDraftHandoff, readDraftHandoff } from "./draftHandoff";
 import { clearSessionCookie, readSession, requireAccountId, requireOperator, requireOwner } from "./auth";
-import { closeSession, createGroup, createSeason, deleteSeason, ensureParticipants, exportBackup, regenerateViewToken, renameGroup, saveSettings, saveSkillGroups, SKILL_GROUPS_BODY_BYTES, startNewCycle, updateParticipant } from "./groups";
+import { closeSession, saveSettings, startNewCycle } from "./groupSettings";
+import { createGroup, regenerateViewToken, renameGroup } from "./groups";
+import { createSeason, deleteSeason } from "./seasons";
+import { ensureParticipants, saveSkillGroups, SKILL_GROUPS_BODY_BYTES, updateParticipant } from "./participants";
+import { exportBackup } from "./backupExport";
 import { ApiError, readJsonBody, readOptionalJsonBody } from "./http";
 import { deleteAccount, deleteGroup } from "./deletion";
 import { mergeParticipants, previewMerge, undoMerge } from "./merge";
@@ -51,7 +55,7 @@ export function registerGroupRoutes(app: App): void {
     });
   });
 
-  // 여러 사람의 티어를 한 번에(src/server/groups.ts saveSkillGroups). 화면 "티어 배정 → 기록으로 제안받기"의 적용.
+  // 여러 사람의 티어를 한 번에(src/server/participants.ts saveSkillGroups). 화면 "티어 배정 → 기록으로 제안받기"의 적용.
   app.post("/api/groups/:gid/participants/skill-groups", async (c) => {
     const gid = c.req.param("gid");
     await requireOperator(c.env, c.req.raw, gid);

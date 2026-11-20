@@ -1,7 +1,7 @@
 // 사람을 모임에 잇는 API: 운영자 넘기기, 공동 운영자 초대·나가기, 참가 신청 링크(공개 경로 포함), 참가자 본인 연결과 멤버 경로.
 import { readSession, requireAccountId, requireMember, requireOperator, requireOwner } from "./auth";
 import { acceptCoInvite, coInviteInfo, createCoInvite, listCoOperators, removeCoOperator } from "./coOperators";
-import { acceptTransfer, createTransfer, transferInfo } from "./groups";
+import { acceptTransfer, createTransfer, transferInfo } from "./operatorTransfer";
 import { ApiError, assertOnlyKeys, readJsonBody, readOptionalJsonBody } from "./http";
 import { clearJoinEntries, createJoinLink, joinAdd, joinAdminView, joinCancel, joinInfoConditional, removeJoinEntry, setJoinOpen } from "./join";
 import { acceptClaim, anonymizeParticipant, claimInfo, createClaimLink, createMemberRequest, memberSnapshot, memberSnapshotEtag, resolveMemberRequest, setOwnAvoid, unlinkByOperator, unlinkSelf } from "./members";

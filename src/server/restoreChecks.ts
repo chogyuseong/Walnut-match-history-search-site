@@ -1,7 +1,7 @@
 /**
  * 백업 파일 검증: 형식 1~4의 파일 전체를 읽어 문제 목록이나 정리한 자료(BackupData)를 돌려준다. DB는 읽지도 쓰지도 않는다.
  * restore.ts(미리보기·같은 모임 복구·새 모임 가져오기)가 쓰고, restoreRows.ts가 행 크기 거절에 invalid를 쓴다.
- * 백업 항목을 새로 만들면 groups.ts exportBackup과 여기 검증, restore.ts buildRestorePlan의 넣기를 함께 고친다.
+ * 백업 항목을 새로 만들면 backupExport.ts exportBackup과 여기 검증, restore.ts buildRestorePlan의 넣기를 함께 고친다.
  */
 import { encodeAvoid, normalizeAvoidPositions } from "../shared/avoid";
 import { LEGACY_SOURCE_KEY, parseLegacyChoice, type LegacyChoice } from "../shared/legacy";
@@ -10,7 +10,8 @@ import { MAX_NAME_LENGTH, cleanName, nameKey } from "../shared/names";
 import { SERIES_NAME_MAX } from "../shared/series";
 import { isValidTimeZone } from "../shared/stats";
 import { MAX_SKILL_GROUP } from "../shared/types";
-import { MAX_PARTICIPANTS_PER_GROUP, parseSettings } from "./groups";
+import { MAX_PARTICIPANTS_PER_GROUP } from "./groups";
+import { parseSettings } from "./groupSettings";
 import { ApiError } from "./http";
 
 const MAX_MATCHES = 10_000;

@@ -20,7 +20,7 @@ import type { MemberRequestKind, Snapshot } from "../shared/types";
 import { decodeAvoid } from "../shared/avoid";
 import { newViewToken, type MemberContext } from "./auth";
 import type { Env } from "./env";
-import { parseAvoidField } from "./groups";
+import { parseAvoidField } from "./participants";
 import { ApiError, assertOnlyKeys, newId, nowIso, requireOneOf, requireRequestId, requireString } from "./http";
 import { maintenanceError, maintenanceGuard, runMutation, sha256Hex } from "./mutation";
 import { buildSnapshot, loadEtagHead, loadMemberRequests, snapshotEtag, type EtagHead } from "./snapshot";

@@ -18,13 +18,7 @@
  * 나눈 파일: 파일 검증은 restoreChecks.ts, 작업 잠금은 restoreJob.ts, 행 넣기 부품(묶음 나누기·ID 대응표)은 restoreRows.ts.
  */
 import type { Env } from "./env";
-import {
-  accountGroupCount,
-  groupLimitGuard,
-  isGroupLimitError,
-  MAX_GROUPS_PER_ACCOUNT,
-  tooManyGroupsError,
-} from "./groups";
+import { accountGroupCount, groupLimitGuard, isGroupLimitError, MAX_GROUPS_PER_ACCOUNT, tooManyGroupsError } from "./groups";
 import { ApiError, assertOnlyKeys, nowIso, readJsonBody, readJsonBodyWithText, requireInt, requireRequestId } from "./http";
 import { ANON_NAME_PATTERN, MAX_LINKS_PER_ACCOUNT } from "./members";
 import type { MovedLink } from "./merge";

@@ -1,5 +1,5 @@
 /**
- * 공동 운영자(migrations/0011). 운영자 넘기기(groups.ts의 createTransfer·acceptTransfer)를 본떴다.
+ * 공동 운영자(migrations/0011). 운영자 넘기기(operatorTransfer.ts의 createTransfer·acceptTransfer)를 본떴다.
  *
  * - 대표 운영자가 1회용 초대 링크를 만든다: 24시간, 토큰은 해시만 저장, 새로 만들면 쓰지 않은 이전 링크는 지운다.
  * - 로그인한 다른 계정이 수락하면 공동 운영자가 된다. 모임당 최대 MAX_CO_OPERATORS명.

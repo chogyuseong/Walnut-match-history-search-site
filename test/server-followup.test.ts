@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
-import { exportBackup } from "../src/server/groups";
+import { exportBackup } from "../src/server/backupExport";
 import { rateClock } from "../src/server/ratelimit";
 import { direct } from "./direct";
 import { api, apiRaw, login, playConfirmed, requestId, rosterOf, setupGroup, snapshot, unique, type TestGroup } from "./helpers";

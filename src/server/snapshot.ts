@@ -96,7 +96,7 @@ const MATCH_COLUMNS = `id, match_no, session_id, state, source, started_at, ende
 /**
  * 지운 경기(migrations/0026)를 빼는 조건. 경기를 화면·계산으로 내보내는 읽기는 모두 이 조건을 붙인다(이 파일 밖의
  * matches 읽기도 같은 글자를 직접 쓴다: matches.ts·series.ts·sheets.ts·restore.ts 등). 지운 경기까지 읽는 곳은
- * 백업(groups.ts exportBackup)·참가자 합치기(merge.ts)·되살리기(matchRemoval.ts undeleteMatch)뿐이다.
+ * 백업(backupExport.ts exportBackup)·참가자 합치기(merge.ts)·되살리기(matchRemoval.ts undeleteMatch)뿐이다.
  */
 const ALIVE = "deleted_at IS NULL";
 
@@ -362,7 +362,7 @@ export async function buildSnapshot(
 }
 
 /**
- * 스냅숏을 만드는 읽기 문장들(이 순서대로 parseSnapshot이 읽는다). 백업 내려받기(groups.ts exportBackup)는
+ * 스냅숏을 만드는 읽기 문장들(이 순서대로 parseSnapshot이 읽는다). 백업 내려받기(backupExport.ts exportBackup)는
  * 여기에 자기 읽기를 이어 붙여 batch 한 번(같은 시점)으로 읽는다.
  * withDeleted: 지운 경기(와 그 시리즈 소속)도 싣는다. 백업과 참가자 합치기만 쓴다. 화면으로 내보내는 응답에는 쓰지 않는다
  * (명단은 경기가 없으면 parseSnapshot이 버리므로 따로 거르지 않는다).

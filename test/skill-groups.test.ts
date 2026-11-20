@@ -4,7 +4,7 @@ import { direct } from "./direct";
 import { api, apiRaw, login, requestId, setupGroup, snapshot, type TestGroup } from "./helpers";
 import { directCounted, FREE_PLAN_QUERY_LIMIT } from "./queryCount";
 
-// 티어 일괄 저장(POST …/participants/skill-groups, src/server/groups.ts saveSkillGroups).
+// 티어 일괄 저장(POST …/participants/skill-groups, src/server/participants.ts saveSkillGroups).
 // 화면 "티어 배정 → 기록으로 제안받기"의 여러 명 적용이 사람마다 PATCH를 보내던 것을 요청 한 번으로 바꿨다.
 
 type Change = { participantId: string; skillGroup: number | null; baseVersion?: number };
