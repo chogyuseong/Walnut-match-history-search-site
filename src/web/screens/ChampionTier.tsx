@@ -19,17 +19,10 @@ import { POSITIONS, type Snapshot } from "../../shared/types";
 import { ChampionPortrait } from "../championPortrait";
 import { formatDate, nameMap, POSITION_LABEL, rateHueText, rateText } from "../format";
 import { DataTable, type TableColumn } from "../dataTable";
-import {
-  FilterBar,
-  Help,
-  Meter,
-  PosLabel,
-  ScopePicker,
-  ScreenHead,
-  StatCard,
-  useMediaQuery,
-  type SortState,
-} from "../screenKit";
+import { FilterBar, Help, ScreenHead, StatCard, useMediaQuery, type SortState } from "../screenKit";
+import { Meter } from "../rateMeters";
+import { PosLabel } from "../roleIcon";
+import { ScopePicker } from "../routeScope";
 import { scrollBehavior, useSearchJump } from "../ui";
 import { go } from "../useApp";
 

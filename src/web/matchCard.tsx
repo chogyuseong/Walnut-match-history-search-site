@@ -17,7 +17,7 @@ import {
   teamName,
   teamRoster,
 } from "./format";
-import { PosLabel } from "./screenKit";
+import { PosLabel } from "./roleIcon";
 
 /**
  * 이변 배지의 뜻. 마우스를 올리면 풍선(title)으로, 화면 읽기 프로그램에는 배지 안 숨은 글로 전한다

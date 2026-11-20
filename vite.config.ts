@@ -22,7 +22,18 @@ export default defineConfig({
         // 화면은 src/web/lazyScreens.ts에서 화면 단위로 나눈다. 여기서는 React를 따로 떼어
         // 화면 코드가 바뀌어도 브라우저 캐시에 남은 React 조각을 다시 받지 않게 한다.
         codeSplitting: {
-          groups: [{ name: "vendor-react", test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ }],
+          groups: [
+            { name: "vendor-react", test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            // 화면 부품은 읽기 쉽게 여러 파일로 나눴지만 조각은 하나로 묶는다. 파일마다 부르는 화면 조합이 달라 따로 두면
+            // 조각이 5개 늘고, 첫 화면의 주소 미리 받기 표(route-preload)가 커져 check:bundle 첫 화면 예산(17KB)을 넘었다.
+            // 부품 파일을 새로 만들면 여기 이름도 더한다.
+            // includeDependenciesRecursively를 끄지 않으면 부품이 부르는 ui.tsx·format.ts까지 이 조각으로 끌려 와 첫 화면이 이 조각을 받게 된다.
+            {
+              name: "screenKit",
+              test: /[\\/]src[\\/]web[\\/](screenKit|roleIcon|routeScope|rankBadges|trendLines|rateMeters)\.tsx$/,
+              includeDependenciesRecursively: false,
+            },
+          ],
         },
       },
     },

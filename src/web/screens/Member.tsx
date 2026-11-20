@@ -11,7 +11,8 @@ import {
 } from "../../shared/types";
 import { ApiFailure, call } from "../api";
 import { formatDate, formatTime, nameMap, POSITION_LABEL, STATE_LABEL, teamName } from "../format";
-import { MatchTeams, PosLabel } from "../screenKit";
+import { MatchTeams } from "../screenKit";
+import { PosLabel } from "../roleIcon";
 import { Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 import { Dashboard } from "./Dashboard";

@@ -36,26 +36,12 @@ import { personUpsets, UPSET_MMR_GAP } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import {
-  BackLink,
-  FormDots,
-  Help,
-  Meter,
-  PosLabel,
-  RateBar,
-  RateRing,
-  RatingTierBadge,
-  RatingTrendLine,
-  ScopeBasis,
-  ScopePicker,
-  scopeSuffix,
-  ScreenHead,
-  useRouteScope,
-  TitleBadge,
-  TrendLine,
-  WinLossBar,
-  FilterBar,
-} from "../screenKit";
+import { BackLink, Help, ScreenHead, FilterBar } from "../screenKit";
+import { FormDots, Meter, RateBar, RateRing, WinLossBar } from "../rateMeters";
+import { PosLabel } from "../roleIcon";
+import { RatingTierBadge, TitleBadge } from "../rankBadges";
+import { RatingTrendLine, TrendLine } from "../trendLines";
+import { ScopeBasis, ScopePicker, scopeSuffix, useRouteScope } from "../routeScope";
 
 function rate(tally: Tally): string {
   return rateText(tally.wins, tally.games);
@@ -106,8 +92,8 @@ export function Person(props: {
   openPerson: (id: string) => void;
   /**
    * 이 사람과 다른 사람을 비교하는 화면으로 간다. other가 있으면 그 사람과 바로 비교한다.
-   * query: 비교 주소 뒤에 그대로 붙일 꼬리("?scope=today" 등, screenKit.tsx scopeSuffix). 지금 고른 기간을 비교로 넘긴다.
-   * 부르는 쪽(App.tsx·Viewer.tsx)이 기간을 해석하지 않고 글자만 붙이게 한 것은, 첫 화면 묶음인 App.tsx가 screenKit.tsx까지
+   * query: 비교 주소 뒤에 그대로 붙일 꼬리("?scope=today" 등, routeScope.tsx scopeSuffix). 지금 고른 기간을 비교로 넘긴다.
+   * 부르는 쪽(App.tsx·Viewer.tsx)이 기간을 해석하지 않고 글자만 붙이게 한 것은, 첫 화면 묶음인 App.tsx가 화면 부품(routeScope.tsx)까지
    * 받지 않게 하기 위해서다(check:bundle 첫 화면 예산 17KB).
    */
   openCompare?: (id: string, other?: string, query?: string) => void;

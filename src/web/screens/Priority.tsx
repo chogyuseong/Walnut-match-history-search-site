@@ -15,7 +15,8 @@ import { placementGamesOf, SMALL_SAMPLE } from "../../shared/stats";
 import { POSITIONS, type ParticipantView, type Position, type Snapshot } from "../../shared/types";
 import { patchParticipant, saveSkillGroups } from "../api";
 import { percentText, POSITION_LABEL } from "../format";
-import { Help, PosLabel } from "../screenKit";
+import { Help } from "../screenKit";
+import { PosLabel } from "../roleIcon";
 import { Dialog, ErrorNote, scrollBehavior } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
 

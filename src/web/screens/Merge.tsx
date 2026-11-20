@@ -4,7 +4,8 @@ import { titleBandsOf, titleGradeFor, type Standing } from "../../shared/titles"
 import type { MatchState, ParticipantView } from "../../shared/types";
 import { call, mutate, newRequestId } from "../api";
 import { formatDate, formatTime, nameMap } from "../format";
-import { Help, TitleBadge } from "../screenKit";
+import { Help } from "../screenKit";
+import { TitleBadge } from "../rankBadges";
 import { Dialog, ErrorNote } from "../ui";
 import { go, useAppValue } from "../useApp";
 

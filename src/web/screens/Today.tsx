@@ -6,7 +6,8 @@ import { formatDate, formatTime, nameMap, rateHueText, rateText, standingsOf } f
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { drawDayImage, drawSessionSummaryImage, fileDate, ShareImageDialog } from "../shareImage";
-import { ScreenHead, StandingNote } from "../screenKit";
+import { ScreenHead } from "../screenKit";
+import { StandingNote } from "../rankBadges";
 import { CopyButton, Dialog, ErrorNote } from "../ui";
 import { Dashboard } from "./Dashboard";
 import { go, useAppValue } from "../useApp";

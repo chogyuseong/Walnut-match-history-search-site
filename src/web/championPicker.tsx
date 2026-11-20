@@ -3,7 +3,7 @@ import { championName, championUsage, searchChampions } from "../shared/champion
 import { TEAMS, type MatchView } from "../shared/types";
 import { ChampionPortrait } from "./championPortrait";
 import { POSITION_LABEL, TEAM_MARK, teamName, teamRoster } from "./format";
-import { PosLabel } from "./screenKit";
+import { PosLabel } from "./roleIcon";
 import { scrollBehavior } from "./ui";
 
 /**

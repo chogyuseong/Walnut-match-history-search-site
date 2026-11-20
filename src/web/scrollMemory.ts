@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { arrivedByBack } from "./nav";
 
 // 기록 화면(screens/Records.tsx)과 전적 검색(screens/Search.tsx)의 뒤로 가기 스크롤 복원.
-// 보기 조건을 주소에 적는 코드는 기록은 screenKit.tsx("주소의 보기 조건"), 검색은 searchRoute.ts(q=·n=)에 있다.
+// 보기 조건을 주소에 적는 코드는 기록은 routeScope.tsx("주소의 보기 조건"), 검색은 searchRoute.ts(q=·n=)에 있다.
 // nav.ts가 아니라 여기에 둔 것은 nav.ts가 첫 화면 묶음에 들어가기 때문이다(check:bundle 예산 17KB). 두 화면의 조각에만 들어간다.
 
 /**

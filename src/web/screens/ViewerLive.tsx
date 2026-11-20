@@ -19,7 +19,8 @@ import {
   teamName,
   teamRoster,
 } from "../format";
-import { PosLabel, ScreenHead } from "../screenKit";
+import { PosLabel } from "../roleIcon";
+import { ScreenHead } from "../screenKit";
 import { LineIcon, Redirect } from "../ui";
 
 /**

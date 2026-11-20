@@ -5,7 +5,7 @@ import type { MatchFilter, RankingSort, WinnerSideFilter } from "../../shared/in
 import { matchesInScope, type Scope } from "../../shared/stats";
 import { POSITIONS, type MatchView, type Position, type Snapshot } from "../../shared/types";
 import { POSITION_LABEL } from "../format";
-import { readRouteParams, scopeFromParam, scopeParam } from "../screenKit";
+import { readRouteParams, scopeFromParam, scopeParam } from "../routeScope";
 
 /** 한 번에 보여주는 경기 카드 수. "더 보기"로 같은 수만큼 더 연다. */
 export const PAGE = 30;

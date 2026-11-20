@@ -24,7 +24,8 @@ import { ratePercent } from "../../../shared/stats";
 import type { Team } from "../../../shared/types";
 import { BALANCED_MMR_GAP, CALIBRATION_PRIOR_GAMES, UPSET_MMR_GAP } from "../../../shared/upset";
 import { POSITION_LABEL } from "../../format";
-import { Help, InfoTip, PosLabel } from "../../screenKit";
+import { Help, InfoTip } from "../../screenKit";
+import { PosLabel } from "../../roleIcon";
 import { prepTeamName } from "./common";
 
 /** 팀 상자(.team.side-blue/red)와 같은 색을 쓰도록 styles.css .fc-tone-A/B가 변수를 잡는다. */

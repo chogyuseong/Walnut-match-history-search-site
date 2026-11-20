@@ -17,7 +17,9 @@ import { formatDate, formatTime, knownSideOf, matchTone, nameMap, rankClass, rat
 import { MatchCard, MatchScoreboard, useExpectations } from "../matchCard";
 import { seriesScoreOfMatch, useSeriesBadges } from "../seriesPanel";
 import { DataTable, type TableColumn } from "../dataTable";
-import { FormDots, StandingNote, useMediaQuery } from "../screenKit";
+import { FormDots } from "../rateMeters";
+import { StandingNote } from "../rankBadges";
+import { useMediaQuery } from "../screenKit";
 
 /** 결과를 저장한 경기가 없을 때(모임 링크·예시의 요약 탭). 무엇이 쌓이는지만 짧게 알려준다.
  *  운영자 오늘 화면은 이 패널 대신 "지금 할 일" 안내 하나만 둔다(Today.tsx). */

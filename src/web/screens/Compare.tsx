@@ -45,17 +45,11 @@ import {
 } from "../format";
 import { MatchCard, useExpectations } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
-import {
-  BackLink,
-  FormDots,
-  PosLabel,
-  readRouteParams,
-  ScopeBasis,
-  ScopePicker,
-  ScreenHead,
-  StandingNote,
-  useRouteScope,
-} from "../screenKit";
+import { BackLink, ScreenHead } from "../screenKit";
+import { FormDots } from "../rateMeters";
+import { PosLabel } from "../roleIcon";
+import { readRouteParams, ScopeBasis, ScopePicker, useRouteScope } from "../routeScope";
+import { StandingNote } from "../rankBadges";
 
 function rateText(t: Tally): string {
   return tallyRateText(t.wins, t.games);

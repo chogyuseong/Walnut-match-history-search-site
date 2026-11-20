@@ -39,21 +39,10 @@ import {
 import { csvFileName, downloadText, matchesCsv, rankingCsv } from "../csvExport";
 import { MatchCard, useExpectations } from "../matchCard";
 import { SeriesListSection, useSeriesBadges } from "../seriesPanel";
-import {
-  FilterBar,
-  FormDots,
-  Glue,
-  Help,
-  KpiStrip,
-  RatingTierBadge,
-  replaceRouteParams,
-  ScopeBasis,
-  ScopePicker,
-  scopeSuffix,
-  ScreenHead,
-  SortHead,
-  StandingNote,
-} from "../screenKit";
+import { FilterBar, Glue, Help, KpiStrip, ScreenHead, SortHead } from "../screenKit";
+import { FormDots } from "../rateMeters";
+import { RatingTierBadge, StandingNote } from "../rankBadges";
+import { replaceRouteParams, ScopeBasis, ScopePicker, scopeSuffix } from "../routeScope";
 import { useScrollMemory } from "../scrollMemory";
 import { CopyButton, ErrorNote, useSearchJump } from "../ui";
 import type { AppValue } from "../useApp";

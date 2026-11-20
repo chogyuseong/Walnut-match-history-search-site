@@ -13,7 +13,8 @@ import {
   type fairnessReport,
 } from "../../shared/upset";
 import { shownRating } from "../../shared/rating";
-import { InfoTip, Meter } from "../screenKit";
+import { InfoTip } from "../screenKit";
+import { Meter } from "../rateMeters";
 
 /**
  * 판정 한 줄 문구. 판정은 이 글로만 전한다(색으로 칠하지 않는다, styles.css 섞기 공정성 머리). 구간을 숫자로만 쓴다(2026-11-10 F5:

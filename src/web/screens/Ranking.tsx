@@ -34,23 +34,11 @@ import {
 } from "../../shared/rating";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rankClass, rateHueClass, rateHueText, rateText, standingsOf } from "../format";
-import {
-  ALL_TIME_SCOPE,
-  FilterBar,
-  FormDots,
-  Glue,
-  Help,
-  InfoTip,
-  Meter,
-  RatingTierBadge,
-  RatingTrendLine,
-  ScopeBasis,
-  ScreenHead,
-  SortHead,
-  StatCard,
-  TitleBadge,
-  type SortState,
-} from "../screenKit";
+import { ALL_TIME_SCOPE, ScopeBasis } from "../routeScope";
+import { FilterBar, Glue, Help, InfoTip, ScreenHead, SortHead, StatCard, type SortState } from "../screenKit";
+import { FormDots, Meter } from "../rateMeters";
+import { RatingTierBadge, TitleBadge } from "../rankBadges";
+import { RatingTrendLine } from "../trendLines";
 import { useSearchJump } from "../ui";
 
 /**

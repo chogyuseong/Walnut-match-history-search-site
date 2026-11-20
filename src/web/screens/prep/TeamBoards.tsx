@@ -4,7 +4,7 @@ import { avoids } from "../../../shared/avoid";
 import { drawStatus, supportCountOf, type RotationContext } from "../../../shared/rotation";
 import { POSITIONS, TEAMS } from "../../../shared/types";
 import { TEAM_MARK, teamBoxClass } from "../../format";
-import { PosLabel } from "../../screenKit";
+import { PosLabel } from "../../roleIcon";
 import { prepTeamName } from "./common";
 import type { PrepEditing } from "./usePrepEditing";
 

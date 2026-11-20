@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { ratePercent, SMALL_SAMPLE, type PersonRecord, type playerLineMatrix, type Tally } from "../../shared/stats";
 import { POSITIONS } from "../../shared/types";
 import { heatClass, PEOPLE_BAR_STEPS, percentText, POSITION_LABEL, rateHueClass, rateTier, type ShownStanding } from "../format";
-import { PosLabel, TitleBadge } from "../screenKit";
+import { PosLabel } from "../roleIcon";
+import { TitleBadge } from "../rankBadges";
 
 /** 막대 옆 짧은 표시: 배치 중이면 "배치 진행 중", 완료자는 칭호. 누적 기준이라는 말은 목록 위 안내에 한 번만 쓴다. */
 export function standingText(standing: ShownStanding | undefined): ReactNode {

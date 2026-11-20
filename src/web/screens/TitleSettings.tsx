@@ -10,7 +10,7 @@ import {
   titleGrade,
 } from "../../shared/titles";
 import type { Settings, TitleBand } from "../../shared/types";
-import { TitleBadge, TitleEmblem } from "../screenKit";
+import { TitleBadge, TitleEmblem } from "../rankBadges";
 import { Dialog, ErrorNote } from "../ui";
 
 interface Row {

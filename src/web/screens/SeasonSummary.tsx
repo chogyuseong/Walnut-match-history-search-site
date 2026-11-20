@@ -10,7 +10,8 @@ import { matchYears, ratePercent, type Scope } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { formatDate, formatRange, nameMap, POSITION_LABEL } from "../format";
 import { drawSeasonImage, ShareImageDialog } from "../shareImage";
-import { BackLink, Help, RoleIcon, ScreenHead } from "../screenKit";
+import { BackLink, Help, ScreenHead } from "../screenKit";
+import { RoleIcon } from "../roleIcon";
 import { CopyButton } from "../ui";
 
 // 주소 읽고 쓰기는 ../seasonRoute.ts에 있다(첫 화면 묶음이 이 화면 코드 없이 쓰도록). 기존 import를 위해 다시 내보낸다.

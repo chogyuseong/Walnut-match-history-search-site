@@ -9,7 +9,10 @@ import { arrivedByBack } from "../nav";
 import { addRecentSearch, loadRecentSearches, saveRecentSearches } from "../recentSearch";
 import { pushHashQuery, readHashQuery, readHashShown, replaceHashQuery } from "../searchHash";
 import { SEARCH_FOCUS_EVENT, takeSearchFocus } from "../searchRoute";
-import { ALL_TIME_SCOPE, RateBar, ScopeBasis, ScreenHead, StandingNote } from "../screenKit";
+import { ALL_TIME_SCOPE, ScopeBasis } from "../routeScope";
+import { RateBar } from "../rateMeters";
+import { ScreenHead } from "../screenKit";
+import { StandingNote } from "../rankBadges";
 import { useScrollMemory } from "../scrollMemory";
 import { LineIcon, useSearchJump } from "../ui";
 
