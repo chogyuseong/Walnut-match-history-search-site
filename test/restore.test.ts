@@ -4,7 +4,10 @@ import type { Env } from "../src/server/env";
 import { deletionHooks } from "../src/server/deletion";
 import { ApiError } from "../src/server/http";
 import { runMutation } from "../src/server/mutation";
-import { chunkRows, JOB_STALE_MS, restoreHooks, utf8Bytes } from "../src/server/restore";
+import { restoreHooks } from "../src/server/restore";
+import { utf8Bytes } from "../src/server/restoreChecks";
+import { JOB_STALE_MS } from "../src/server/restoreJob";
+import { chunkRows } from "../src/server/restoreRows";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
 import {

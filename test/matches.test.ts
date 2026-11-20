@@ -424,7 +424,7 @@ describe("비공개 실력 그룹 (12)", () => {
     const token = (await snapshot(g)).group.viewToken!;
     const backup = await api(g.cookie, "GET", `/api/groups/${g.gid}/export`);
     expect(backup.status).toBe(200);
-    // 형식 4: 복원용 값(제외 직전 상태 등), 중복 참가자 합치기 기록, 일괄 입력 출처·지문을 더한 형식(src/server/restore.ts).
+    // 형식 4: 복원용 값(제외 직전 상태 등), 중복 참가자 합치기 기록, 일괄 입력 출처·지문을 더한 형식(src/server/restoreChecks.ts).
     expect(backup.body.formatVersion).toBe(4);
     expect(backup.body.matchCount).toBe(1);
     const text = JSON.stringify(backup.body);

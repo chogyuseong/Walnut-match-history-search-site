@@ -19,7 +19,7 @@ import { loadGroup, loadOpenSession, parseSnapshot, snapshotStatements } from ".
 /** 한 계정이 맡을 수 있는 모임 수(대표 + 공동 운영 합계). 만들기·백업으로 새 모임·넘겨받기·공동 운영자 수락이 함께 지킨다. */
 export const MAX_GROUPS_PER_ACCOUNT = 5;
 /**
- * 한 모임의 참가자 상한(보관된 사람 포함, 행 수 기준). 백업 복원(restore.ts)도 같은 값으로 파일을 거절하므로
+ * 한 모임의 참가자 상한(보관된 사람 포함, 행 수 기준). 백업 복원(restoreChecks.ts)도 같은 값으로 파일을 거절하므로
  * 둘이 어긋나면 자기 모임의 백업을 복원하지 못한다. 바꿀 때는 이 상수 하나만 고친다.
  */
 export const MAX_PARTICIPANTS_PER_GROUP = 200;
@@ -528,7 +528,7 @@ export function parseAvoidField(value: unknown): string | null {
   return encodeAvoid(list);
 }
 
-/** 설정 스냅샷 검증. 백업 복원(restore.ts)도 같은 규칙으로 검사한다. */
+/** 설정 스냅샷 검증. 백업 복원(restoreChecks.ts)도 같은 규칙으로 검사한다. */
 export function parseSettings(value: unknown): Settings {
   if (typeof value !== "object" || value === null) {
     throw new ApiError(400, "INVALID_FIELD", "settings 값이 올바르지 않습니다.");
@@ -822,7 +822,7 @@ export async function regenerateViewToken(env: Env, groupId: string, body: Body 
 /**
  * 1: 첫 형식. 2: 복원용 값 추가. 3: 중복 참가자 합치기 기록(participantMerges) 추가.
  * 4: 일괄 입력 출처(importBatches)와 경기의 가져오기 지문(importFingerprint, importRowKey) 추가.
- * src/server/restore.ts가 1~4를 모두 읽는다.
+ * src/server/restoreChecks.ts가 1~4를 모두 읽는다.
  * 형식 번호를 올리지 않고 더한 항목(없는 예전 백업도 복원된다): 서포터 횟수 보정값(supportAdjustments),
  * 기피 라인(참가자 avoidPositions), 경기 메모(경기 memo), 시리즈 묶음(series), 경기 삭제 시각(경기 deletedAt, migrations/0026),
  * 티어 5단계(참가자 skillGroup 5, 설정 groupWeights 5개 — 4개짜리 예전 백업은 parseSettings가 5개로 맞춘다).

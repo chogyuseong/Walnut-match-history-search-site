@@ -24,7 +24,8 @@ import { newViewToken } from "./auth";
 import { BACKUP_PREFIX } from "./backupCron";
 import type { Env } from "./env";
 import { ApiError, assertOnlyKeys, nowIso } from "./http";
-import { DELETE_JOB, GROUP_DATA_TABLES, NOW_MS_SQL } from "./restore";
+import { GROUP_DATA_TABLES } from "./restore";
+import { DELETE_JOB, NOW_MS_SQL } from "./restoreJob";
 import { FAILURE_KEY_MATCH, failureKeysFor, LOCAL_PROVIDER } from "./local";
 
 export const GROUP_DELETE_CONFIRM_TEXT = "삭제";
