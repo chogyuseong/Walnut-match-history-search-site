@@ -90,7 +90,7 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 ```
 src/server/   Workers API(Hono). index.ts 라우팅, mutation.ts(모임 안 쓰기 공통 경로), snapshot.ts, auth.ts, matches.ts, groups.ts …
 src/shared/   서버·화면 공용 순수 로직. stats(통계) · draft/prepTools/rotation/priority/avoid(편성) · titles(칭호) · rating(MMR) · search · seasonAwards …
-src/web/      React 화면. App.tsx 라우팅, useApp.ts 상태, lazyScreens.ts 지연 로딩, screens/*(화면), screens/prep/*(준비 화면 조각), styles.css(스타일 입구, @import 목록) + styles/*.css(01-tokens부터 번호 순서가 곧 우선순위)
+src/web/      React 화면. App.tsx 라우팅, useApp.ts 상태, lazyScreens.ts 지연 로딩, screens/*(화면), screens/prep/*(준비 화면 조각), screens/group/*(모임 탭 구역), styles.css(스타일 입구, @import 목록) + styles/*.css(01-tokens부터 번호 순서가 곧 우선순위)
 migrations/   D1 마이그레이션 0001~0028(0004는 없음, 번호 건너뜀)
 test/         Vitest · e2e/  Playwright · docs/  설계·현황·배포 문서 · scripts/  seed, check-bundle
 ```
