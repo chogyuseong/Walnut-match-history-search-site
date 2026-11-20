@@ -52,6 +52,27 @@ export function TitleBadge(props: { name: string; grade: TitleGrade | null; comp
 }
 
 /**
+ * 최고의 콤비 표식(shared/bestCombos.ts): 서로가 서로의 잘 맞는 동료인 두 사람에게 똑같이 붙는다.
+ * 개인 칭호와 다투지 않게 등급 색 없이 회색 테두리 배지(.tag)로 둔다(CLAUDE.md 5·8절). 근거(함께 n경기·승률·시너지)는
+ * 붙이는 화면이 옆 글이나 title로 보여 준다. short는 팀 짜기 줄처럼 좁은 곳용 "콤비"(낭독기에는 전체 이름).
+ */
+export const COMBO_LABEL = "최고의 콤비";
+export function ComboBadge(props: { short?: boolean; title?: string }) {
+  return (
+    <span className="tag combo-tag" title={props.title}>
+      {props.short ? (
+        <>
+          <span aria-hidden="true">콤비</span>
+          <span className="sr-only">{COMBO_LABEL}</span>
+        </>
+      ) : (
+        COMBO_LABEL
+      )}
+    </span>
+  );
+}
+
+/**
  * MMR 티어 이름표(rating.ts RATING_TIERS, S~D). 배치 중이면 그리지 않는다.
  * 칭호(TitleBadge)는 테두리형 알약이라 이것은 채움형 네모로 두어 나란히 서도 구분되게 한다.
  */

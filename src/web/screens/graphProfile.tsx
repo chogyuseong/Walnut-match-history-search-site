@@ -10,7 +10,8 @@ import { playerCommentary } from "../../shared/playerCommentary";
 import { lineShape, ratingRank } from "../../shared/graphs";
 import { percentText, rateHueText, type ShownStanding } from "../format";
 import { FormDots, RateRing } from "../rateMeters";
-import { RatingTierBadge, TitleBadge } from "../rankBadges";
+import { ComboBadge, RatingTierBadge, TitleBadge } from "../rankBadges";
+import { bestCombos } from "../../shared/bestCombos";
 import { TrendLine } from "../trendLines";
 import type { useExpectations } from "../matchCard";
 import { LineShapeChart } from "./graphFigures";
@@ -77,6 +78,8 @@ export function PlayerProfile(props: {
       }),
     [scoped, id, nameOf, ratings, expectations, attendance, cumulative, placementGames, props.snapshot.group.timezone],
   );
+  // 최고의 콤비(bestCombos.ts): 코멘트의 동료 문장과 같은 판정이라, 이 줄이 있으면 코멘트도 그 사람을 잘 맞는 동료로 말한다.
+  const combo = useMemo(() => bestCombos(scoped, cumulative, nameOf).get(id) ?? null, [scoped, cumulative, nameOf, id]);
   return (
     <section className="graph-profile" aria-label="고른 플레이어">
       <div className="profile-head">
@@ -148,6 +151,16 @@ export function PlayerProfile(props: {
           {attend && (
             <p className="hint">
               참석 {attend.days}일 · 출석률 {percentText(attend.days, attend.eligibleDays)} · 연속 {attend.currentStreak}일
+            </p>
+          )}
+          {combo && (
+            <p className="combo-line">
+              <ComboBadge title="서로가 서로의 가장 잘 맞는 동료예요" /> <strong>{nameOf(combo.partnerId)}</strong>
+              <span className="hint">
+                {" "}
+                · 같은 팀 {percentText(combo.together.wins, combo.together.games)} ({combo.together.games}경기) · 두 사람 평균보다 +
+                {combo.synergy}%p
+              </span>
             </p>
           )}
         </div>

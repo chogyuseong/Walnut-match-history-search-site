@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { bestCombos } from "../../shared/bestCombos";
 import {
   bestLine,
   COMPARE_MIN_GAMES,
@@ -39,7 +40,7 @@ import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, Help, ScreenHead, FilterBar } from "../screenKit";
 import { FormDots, Meter, RateBar, RateRing, WinLossBar } from "../rateMeters";
 import { PosLabel } from "../roleIcon";
-import { RatingTierBadge, TitleBadge } from "../rankBadges";
+import { ComboBadge, RatingTierBadge, TitleBadge } from "../rankBadges";
 import { RatingTrendLine, TrendLine } from "../trendLines";
 import { ScopeBasis, ScopePicker, scopeSuffix, useRouteScope } from "../routeScope";
 
@@ -143,6 +144,11 @@ export function Person(props: {
   );
   // 배치와 칭호는 범위와 무관하게 전체 누적 기준이다.
   const standings = useMemo(() => standingsOf(snapshot), [snapshot]);
+  // 최고의 콤비: 잘 맞는 동료 타일의 그 사람이 나를 똑같이 꼽았으면 배지를 붙인다(bestCombos.ts, 고른 범위 기준).
+  const combo = useMemo(
+    () => bestCombos(scoped, standings, nameOf).get(participantId) ?? null,
+    [scoped, standings, nameOf, participantId],
+  );
   // 결과 기반 MMR도 범위와 무관하게 모임 전체 누적 확정 경기로 계산한다(rating.ts).
   const ratingOptions = ratingOptionsOf(snapshot.group.settings);
   const { placementGames } = ratingOptions;
@@ -294,14 +300,17 @@ export function Person(props: {
         ? `${-detail.currentStreak}연패 중`
         : "기록 없음";
 
-  const pairTile = (pair: PairTally | null, sub: string, pool: PairTally[]) =>
+  const pairTile = (pair: PairTally | null, sub: string, pool: PairTally[], badge: ReactNode = null) =>
     !cmp.ready ? (
       <span className="tile-sub">{lockedText}</span>
     ) : pair ? (
       <>
-        <button type="button" className="link tile-link" onClick={() => props.openPerson(pair.participantId)}>
-          {nameOf(pair.participantId)}
-        </button>
+        <span className="tile-name-row">
+          <button type="button" className="link tile-link" onClick={() => props.openPerson(pair.participantId)}>
+            {nameOf(pair.participantId)}
+          </button>
+          {badge}
+        </span>
         <span className="tile-sub">
           {sub} <RateLine tally={pair} />
         </span>
@@ -453,7 +462,16 @@ export function Person(props: {
             </div>
             <div>
               <dt className="tile-label">잘 맞는 동료</dt>
-              <dd>{pairTile(cmp.buddy, "같은 팀일 때", cmp.synergy)}</dd>
+              <dd>
+                {pairTile(
+                  cmp.buddy,
+                  "같은 팀일 때",
+                  cmp.synergy,
+                  combo && combo.partnerId === cmp.buddy?.participantId ? (
+                    <ComboBadge title={`서로가 서로의 가장 잘 맞는 동료예요(두 사람 평균보다 +${combo.synergy}%p)`} />
+                  ) : null,
+                )}
+              </dd>
             </div>
             <div>
               <dt className="tile-label">어려운 상대</dt>

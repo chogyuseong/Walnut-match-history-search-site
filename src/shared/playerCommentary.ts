@@ -2,7 +2,8 @@ import { type AttendanceReport, ABSENT_DAYS } from "./attendance";
 import { ratingRank, topBy } from "./graphs";
 import { championName } from "./champions";
 import { laneRivals, laneRivalSummary } from "./headToHead";
-import { compareMetrics, countedChronological, mainLine, synergyPoints } from "./insights";
+import { confirmedBuddy } from "./bestCombos";
+import { compareMetrics, countedChronological, mainLine } from "./insights";
 import {
   binomialChance,
   PLACEMENT_GAMES_DEFAULT,
@@ -52,7 +53,6 @@ import {
   UNDERDOG_MIN_GAMES,
   UNDERDOG_RATE,
   UPSET_LOSS_EXCESS,
-  BUDDY_SYNERGY_MIN,
   RIVAL_GAP,
   SIDE_MIN_GAMES,
   SIDE_GAP,
@@ -258,18 +258,15 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   }
 
   // 5. 잘 맞는 동료·어려운 상대(개인 통계와 같은 compareMetrics). 혼자 승률과 별 차이 없으면 말하지 않는다.
+  // 동료 판정은 최고의 콤비 배지와 같은 confirmedBuddy(bestCombos.ts)다.
   const compare = compareMetrics(detail, input.cumulative);
-  const synergy = compare.buddy
-    ? synergyPoints(compare.buddy, detail.summary, personRecords(scoped).get(compare.buddy.participantId) ?? { games: 0, wins: 0 })
-    : null;
-  // 동료·상대는 기준 경기 수를 넘는 짝 중 가장 극단을 고른 것이라, 그 짝 수만큼 우연 문턱을 엄하게 한다.
-  // 견주는 쪽은 "그 사람과 함께(맞서) 뛴 경기"와 "그 밖의 내 경기"다.
-  const buddyCandidates = compare.synergy.filter((p) => p.games >= SMALL_SAMPLE).length;
+  const confirmed = confirmedBuddy(detail, input.cumulative, personRecords(scoped));
+  const buddy = confirmed?.pair ?? null;
+  const synergy = confirmed?.synergy ?? null;
+  const buddyChance = confirmed?.chance ?? 1;
+  // 상대도 기준 경기 수를 넘는 짝 중 가장 극단을 고른 것이라, 그 짝 수만큼 우연 문턱을 엄하게 한다.
   const rivalCandidates = compare.versus.filter((p) => p.games >= SMALL_SAMPLE).length;
-  const buddyChance = compare.buddy ? rateGapChance(compare.buddy, without(detail.summary, compare.buddy)) : 1;
   const rivalChance = compare.rival ? rateGapChance(compare.rival, without(detail.summary, compare.rival)) : 1;
-  const buddy =
-    synergy !== null && synergy >= BUDDY_SYNERGY_MIN && beyondChance(buddyChance, buddyCandidates) ? compare.buddy : null;
   const rival =
     compare.rival && rateOf(detail.summary) - rateOf(compare.rival) >= RIVAL_GAP && beyondChance(rivalChance, rivalCandidates)
       ? compare.rival

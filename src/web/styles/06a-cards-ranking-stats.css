@@ -487,6 +487,27 @@ main:focus {
   font-size: var(--text-label);
   color: var(--ih-text-secondary);
 }
+/* 잘 맞는 동료 이름 + 최고의 콤비 배지. 이름이 길면 배지가 다음 줄로 내려간다(이름 말줄임은 .tile-link 그대로). */
+.tile-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.tile-name-row .tag {
+  margin-left: 0;
+}
+.tile-name-row .tile-link {
+  margin-right: var(--space-2);
+}
+/* 그래프 분석 고른 플레이어의 최고의 콤비 한 줄: 배지 · 이름 · 근거. */
+.combo-line {
+  margin: 0;
+}
+.combo-line .tag {
+  margin-left: 0;
+}
 .tile-link,
 .tile-link:not(:disabled):hover {
   display: block;

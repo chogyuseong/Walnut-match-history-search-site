@@ -10,7 +10,8 @@ import { resetCountsReady, rotationContext, supportCountOf } from "../../shared/
 import { DEFAULT_SETTINGS } from "../../shared/types";
 import { UNCALIBRATED } from "../../shared/upset";
 import { josa } from "../../shared/names";
-import { draftRosterText, POSITION_LABEL } from "../format";
+import { draftRosterText, nameMap, POSITION_LABEL, standingsOf } from "../format";
+import { bestCombos } from "../../shared/bestCombos";
 import { BackLink, StickyAction, useMediaQuery } from "../screenKit";
 import { CopyButton, ErrorNote } from "../ui";
 import { go, useAppValue, type AppValue } from "../useApp";
@@ -129,6 +130,12 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
     [app.snapshot],
   );
   const forecast = app.snapshot && ratings ? draftForecast(draft, ratings, app.snapshot.matches, ratingOptions) : null;
+  // 최고의 콤비(bestCombos.ts): 팀 상자에서 같은 팀이 된 두 사람 이름 옆에 표시한다. 편성 화면은 기간을 고르지 않아 누적 기준이다.
+  // 사람마다 전체 경기를 훑으므로 자리를 바꿀 때가 아니라 스냅숏이 바뀔 때만 센다.
+  const combos = useMemo(
+    () => (app.snapshot ? bestCombos(app.snapshot.matches, standingsOf(app.snapshot), nameMap(app.snapshot)) : null),
+    [app.snapshot],
+  );
   // 균형 순위(126가지 중 몇 위): 자리를 바꿀 때마다 다시 센다(126번 × 10명이라 가볍다). 티어 쪽은 티어 점수와 같은 조건.
   const splitRanks = ratings
     ? draftSplitRanks(draft, ratings, ratingOptions.start, balance ? { priorityOf: edit.priorityMap(), groupWeights } : null)
@@ -325,7 +332,7 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
               }}
             />
           )}
-          <TeamBoards draft={draft} ctx={ctx} edit={edit} />
+          <TeamBoards draft={draft} ctx={ctx} edit={edit} combos={combos} />
           <SelectionBar draft={draft} edit={edit} canReplace={others.length > 0} />
           {!twoColumns && shuffle}
           <DeltaNote lines={delta} onUndo={() => edit.stepHistory("undo")} />

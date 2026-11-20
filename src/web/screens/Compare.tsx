@@ -49,7 +49,8 @@ import { BackLink, ScreenHead } from "../screenKit";
 import { FormDots } from "../rateMeters";
 import { PosLabel } from "../roleIcon";
 import { readRouteParams, ScopeBasis, ScopePicker, useRouteScope } from "../routeScope";
-import { StandingNote } from "../rankBadges";
+import { ComboBadge, StandingNote } from "../rankBadges";
+import { bestCombos } from "../../shared/bestCombos";
 
 function rateText(t: Tally): string {
   return tallyRateText(t.wins, t.games);
@@ -169,6 +170,9 @@ export function Compare(props: {
   const sb = useMemo(() => (ready ? formOf(scoped, b!) : null), [ready, scoped, b]);
   const h2h = useMemo(() => (ready ? headToHead(scoped, a!, b!) : null), [ready, scoped, a, b]);
   const laneSplit = useMemo(() => (ready ? laneDuelSplit(scoped, a!, b!) : null), [ready, scoped, a, b]);
+  // 최고의 콤비는 모임 사람 모두의 동료를 봐야 정해진다(서로 꼽아야 하므로). 범위가 바뀔 때만 다시 센다.
+  const combos = useMemo(() => (ready ? bestCombos(scoped, standings, nameOf) : null), [ready, scoped, standings, nameOf]);
+  const isCombo = ready && combos?.get(a!)?.partnerId === b;
 
   const pickSelect = (slot: "a" | "b", className?: string) => {
     const value = slot === "a" ? a : b;
@@ -645,6 +649,7 @@ export function Compare(props: {
             <p className="cmp-team">
               <span className="cmp-team-name cmp-team-a">{nameA}</span>
               <span className="cmp-team-name cmp-team-b">{nameB}</span>
+              {isCombo && <ComboBadge title="서로가 서로의 가장 잘 맞는 동료예요" />}
             </p>
             <p className="cmp-team-rate">
               <span className={`${rateHueText(h2h.together.wins, h2h.together.games)} cmp-face-big`}>
