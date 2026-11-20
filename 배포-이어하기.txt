@@ -59,7 +59,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
   (kit.ts 공용 저장 도구, 모임 링크·참가자·참가자 요청·익명 처리 창·경기 운영 설정·기록 관리·MMR 설정·모임 관리).
   한 함수에 모인 상태 30여 개를 구역 안으로 내려서 본문 그대로는 아님. typecheck·lint 0·단위 1245·build·
   check:bundle·E2E 173 통과, design-shots 전후 비교에서 모임 탭 6장 바이트 동일. 배포 없음.
-- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(Graphs.tsx 1131줄, server/groups.ts·index.ts) 쪼개기,
+- screens/Graphs.tsx(1133줄)를 다섯으로 나눔: Graphs.tsx(585줄, 고르기·요약·보기 여섯)·graphBars.tsx(승률 막대·표·범례)·
+  graphProfile.tsx(고른 플레이어 묶음)·graphCommentary.tsx(분석 코멘트 카드)·graphFairness.tsx(섞기 공정성 구역).
+  줄 대조 같음, typecheck·lint 0·단위 1245·build·check:bundle·그래프 E2E 43 통과, 배포 없음.
+- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(server/groups.ts 1078줄·index.ts) 쪼개기,
   styles 화면별로 모으기(전 화면 사진 대조 필요).
 - 결과 저장 뒤 다시 읽기 줄이기: 재 보고 하지 않기로 함(사용자 "권장대로"). 로컬 600경기 저장~계산 약 0.1초
   (저장 29ms·다시 읽기 53ms·gzip 47KB·계산 19ms), 2000경기 약 0.2초. 측정은 test/measure/snapshot-size.measure.ts
