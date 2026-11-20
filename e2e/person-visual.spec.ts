@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { expectNoHorizontalOverflow } from "./overflow";
 
 // 랭킹의 "누적 50경기 이상 먼저" 규칙과 개인 통계의 그림(고리·막대), 참여 경기의 위치를 확인한다.
 // 경기는 API로 빠르게 만들고 화면은 읽는 쪽만 본다.
@@ -86,13 +87,7 @@ async function build(page: Page): Promise<Setup> {
   return s;
 }
 
-async function noHorizontalOverflow(page: Page) {
-  const { scroll, client } = await page.evaluate(() => ({
-    scroll: document.documentElement.scrollWidth,
-    client: document.documentElement.clientWidth,
-  }));
-  expect(scroll, "가로로 넘치지 않는다").toBeLessThanOrEqual(client);
-}
+const noHorizontalOverflow = expectNoHorizontalOverflow;
 
 /** 개인 통계의 마지막 구역이 "참여 경기"이고, 화면에서도 다른 구역보다 아래에 있다. */
 async function playedIsLast(page: Page) {

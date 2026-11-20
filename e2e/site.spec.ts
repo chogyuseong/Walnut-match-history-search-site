@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expectNoHorizontalOverflow } from "./overflow";
 
 // 전적 사이트 화면: 경기 카드, 랭킹 정렬·라인, 기록 거르기, 두 사람 비교, 결과 이미지, 참가자 고르기 격자.
 // 경기는 API로 빠르게 만들고 화면은 읽는 쪽만 본다.
@@ -93,12 +94,7 @@ async function seed(page: Page): Promise<Setup> {
   return s;
 }
 
-async function noHorizontalOverflow(page: Page) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
-}
+const noHorizontalOverflow = expectNoHorizontalOverflow;
 
 test.use({ viewport: { width: 390, height: 844 } });
 

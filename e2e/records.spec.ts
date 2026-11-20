@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expectNoHorizontalOverflow } from "./overflow";
 
 // 구현 6번(이름 검색, 플레이어 랭킹, 개인 통계, 시즌)을 실제 브라우저에서 확인한다.
 // 경기는 API로 빠르게 만들고 화면은 읽는 쪽만 본다.
@@ -193,9 +194,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   // 좁은 화면에서도 랭킹과 개인 통계가 가로로 넘치지 않는다.
   await page.setViewportSize({ width: 320, height: 640 });
   await page.getByRole("button", { name: "전체", exact: true }).click();
-  const overflow = () =>
-    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(await overflow()).toBeLessThanOrEqual(0);
+  await expectNoHorizontalOverflow(page);
   // 랭킹 구역의 첫 버튼은 정렬 고르기이므로 첫 순위 줄의 버튼을 누른다.
   await page
     .getByRole("region", { name: "플레이어 랭킹" })
@@ -204,7 +203,7 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
     .getByRole("button")
     .click();
   await expect(page.getByRole("region", { name: "요약" })).toBeVisible();
-  expect(await overflow()).toBeLessThanOrEqual(0);
+  await expectNoHorizontalOverflow(page);
 
   // 홈의 전적 검색: 이름을 넣으면 전체 누적 전적이 나오고, 누르면 개인 통계로 간다.
   const menu = page.getByRole("navigation", { name: "주 메뉴" });
@@ -212,14 +211,14 @@ test("랭킹·검색·개인 통계·시즌", async ({ page }) => {
   const finder = page.getByRole("region", { name: "전적 검색" });
   await finder.getByLabel("플레이어 이름으로 전적 검색").fill("선수07");
   await expect(finder.getByRole("button")).toHaveCount(1);
-  expect(await overflow()).toBeLessThanOrEqual(0);
+  await expectNoHorizontalOverflow(page);
   await finder.getByRole("button").click();
   await expect(page.getByRole("heading", { level: 1, name: /선수07/ })).toBeVisible();
 
   // 주 메뉴의 분석 탭으로 그래프 화면에 바로 간다.
   await menu.getByRole("button", { name: "분석" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "그래프 분석" })).toBeVisible();
-  expect(await overflow()).toBeLessThanOrEqual(0);
+  await expectNoHorizontalOverflow(page);
 });
 
 test("그래프 분석", async ({ page }) => {

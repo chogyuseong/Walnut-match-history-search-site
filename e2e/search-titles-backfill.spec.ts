@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expectNoHorizontalOverflow } from "./overflow";
 
 // 전적 검색 메뉴, 칭호, 연도별 보기, 지난 경기 한 건 입력을 실제 브라우저에서 확인한다.
 // 경기는 API로 빠르게 만들고 화면은 읽는 쪽과 입력 폼만 본다.
@@ -87,12 +88,7 @@ async function backfill(
   });
 }
 
-async function noHorizontalOverflow(page: Page) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
-}
+const noHorizontalOverflow = expectNoHorizontalOverflow;
 
 test.use({ viewport: { width: 390, height: 844 } });
 
