@@ -73,8 +73,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 - screenKit.tsx를 여섯으로(roleIcon·routeScope·rankBadges·trendLines·rateMeters + 화면 틀), SheetImport.tsx에서
   sheetImport/MappingStep.tsx·mappingMemory.ts를 뗌. vite.config.ts에 screenKit 조각 묶음 그룹(안 묶으면 첫 화면 17.1KB로
   예산 초과). 부품 파일을 새로 만들면 그 그룹 이름 목록에 더할 것. 배포 없음.
-- 구조 개선 후보(아직 안 함): SheetImport 본체의 1·3단계 화면 떼기(상태를 props로 넘기는 구조 변경 필요),
-  styles 화면별로 모으기(전 화면 사진 대조 필요).
+- SheetImport 1·3단계를 sheetImport/SourceStep.tsx·ConfirmStep.tsx로 뗌(8e901d9). 상태와 저장 계획(plan)은 본체에
+  두고 화면은 props로 받음(본체 340줄). 06·07번 CSS는 순서 그대로 06a·06b·07a·07b·07c로 나눔, 빌드 CSS 해시 같음
+  (index-Bvh8t4hH.css). 6f5768a~8e901d9 세 커밋 push함(사용자 "push진행해"), 배포 없음.
+- 구조 개선 후보(아직 안 함): styles 화면별로 모으기(뒤 파일이 앞 파일을 이기는 순서가 바뀌어 전 화면 사진 대조 필요).
 - 결과 저장 뒤 다시 읽기 줄이기: 재 보고 하지 않기로 함(사용자 "권장대로"). 로컬 600경기 저장~계산 약 0.1초
   (저장 29ms·다시 읽기 53ms·gzip 47KB·계산 19ms), 2000경기 약 0.2초. 측정은 test/measure/snapshot-size.measure.ts
   두 번째 it. 사용자가 볼 것: 다음 내전 때 휴대폰에서 결과 저장 뒤 화면이 늦게 느껴지는지.
