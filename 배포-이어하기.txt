@@ -18,6 +18,17 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-21: 운영 4bc207cf = staging aa86e757 = main ef16987(결과 저장 뒤 피드백 한 줄, 팀 짜기 콤비 색·설명)]
+
+- 운영 피드백이 0건이라 결과 저장 뒤 창 맨 아래에 "피드백 보내기" 한 줄. 팀 짜기에서 콤비가 두 쌍 이상이면 쌍마다 색,
+  배지에 마우스를 올리면 두 사람 이름·같은 팀 승률·시너지(title). 마이그레이션 없음. Claude가 staging → 운영 배포(사용자 "배포해").
+- 배포 전: typecheck·lint 0, 단위 1255, build·check:bundle·audit:design 0, E2E 전체 174 통과(4 건너뜀).
+- 옛 자산 남기기 첫 실동작: staging·운영 모두 "이번 빌드 52개 + 지난 배포에서 35개". 운영에서 옛 index-CMGX8Dqg.js가
+  200 text/javascript로 남아 있음 확인.
+- 확인(20초 뒤): 두 곳 /api/health 200, index-CxBg8YEt.css(.result-feedback·combo-hue 규칙 들어감)·index-DjnccWMf.js,
+  운영 첫 화면 390·1440 넘침 0·콘솔 오류 0. 결과 저장·팀 짜기는 로그인이 필요해 운영에서 눌러 보지 않음(로컬 E2E·사진).
+- 남은 확인(사용자): 실제 모임 팀 짜기에서 콤비 두 쌍이 같이 뜰 때 색, 다음 내전 뒤 피드백이 들어오는지(사이트 현황 #/admin).
+
 [2026-11-21: 운영 7d41756c = staging 3eb7472b = main 2f39362(배포 때 옛 화면 조각 남기기)]
 
 - 배포 직후 첫 접속 오류(옛 index.html이 없는 옛 조각을 요청) 대책: deploy:* 가 빌드 뒤 scripts/keep-old-assets.mjs를 돌린다.
