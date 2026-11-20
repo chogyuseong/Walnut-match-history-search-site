@@ -1,6 +1,6 @@
 /**
  * 되돌리기 어려운 작업(모임 삭제·운영자 넘기기·같은 모임 복원·탈퇴) 앞의 "최근 로그인" 안내. 카카오·Google 계정에만 그린다.
- * 서버(src/server/index.ts confirmIdentity)는 이 사이트에 로그인한 지 10분이 지난 세션을 403 REAUTH_REQUIRED로 거절한다.
+ * 서버(src/server/routeKit.ts confirmIdentity)는 이 사이트에 로그인한 지 10분이 지난 세션을 403 REAUTH_REQUIRED로 거절한다.
  * 세션 쿠키만 훔친 사람은 제공자 로그인을 다시 거칠 수 없어서 이 작업들을 못 한다. 자체 계정은 이 자리에 비밀번호 칸이 나온다.
  * 쓰는 화면: screens/DangerZone.tsx, screens/Group.tsx(넘기기 창), screens/Restore.tsx.
  */

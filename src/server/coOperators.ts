@@ -34,7 +34,7 @@ async function coCount(env: Env, groupId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** 초대 링크를 만든다. 대표 운영자 확인은 앞단(index.ts requireOwner)에서 끝났다. */
+/** 초대 링크를 만든다. 대표 운영자 확인은 앞단(memberRoutes.ts requireOwner)에서 끝났다. */
 export async function createCoInvite(env: Env, groupId: string): Promise<{ token: string; expiresAt: string }> {
   if ((await coCount(env, groupId)) >= MAX_CO_OPERATORS) throw fullError();
   const token = newViewToken();

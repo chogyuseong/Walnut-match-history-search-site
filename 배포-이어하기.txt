@@ -62,7 +62,11 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 - screens/Graphs.tsx(1133줄)를 다섯으로 나눔: Graphs.tsx(585줄, 고르기·요약·보기 여섯)·graphBars.tsx(승률 막대·표·범례)·
   graphProfile.tsx(고른 플레이어 묶음)·graphCommentary.tsx(분석 코멘트 카드)·graphFairness.tsx(섞기 공정성 구역).
   줄 대조 같음, typecheck·lint 0·단위 1245·build·check:bundle·그래프 E2E 43 통과, 배포 없음.
-- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(server/groups.ts 1078줄·index.ts) 쪼개기,
+- server/index.ts(1134줄)의 경로를 묶음별 파일로 옮김: index.ts(193줄, 공통 앞단·등록 순서·404·Worker 진입점)·
+  routeKit.ts(본인 확인·스냅숏 셈 등 공용)·authRoutes·adminRoutes·groupRoutes·matchRoutes·memberRoutes·viewRoutes.
+  경로·앞단 동작 같음(겹치는 경로 없음 확인). typecheck·lint 0·단위 1245·build·check:bundle·E2E 173 통과, 배포 없음.
+  배포하면 Worker 코드가 바뀌므로 다음 배포 뒤 /api/health와 로그인·스냅숏 한 번씩 확인.
+- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(server/groups.ts 1078줄) 쪼개기,
   styles 화면별로 모으기(전 화면 사진 대조 필요).
 - 결과 저장 뒤 다시 읽기 줄이기: 재 보고 하지 않기로 함(사용자 "권장대로"). 로컬 600경기 저장~계산 약 0.1초
   (저장 29ms·다시 읽기 53ms·gzip 47KB·계산 19ms), 2000경기 약 0.2초. 측정은 test/measure/snapshot-size.measure.ts

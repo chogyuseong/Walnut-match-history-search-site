@@ -1,6 +1,6 @@
 /**
  * 끝난 경기를 기록에서 빼고 되돌리는 쓰기 요청: 전적 제외와 복구, 경기 삭제와 되살리기(migrations/0026).
- * 경기 상세·기록 화면이 부른다(경로는 index.ts).
+ * 경기 상세·기록 화면이 부른다(경로는 matchRoutes.ts).
  * 복구·되살리기는 그 사이 같은 내용의 경기가 다시 들어왔을 수 있어 지문 중복과 결과 미입력 상한을 다시 잰다
  * (matchChecks.ts의 가드). 묶음 단위 제외·복구는 matchImport.ts의 setImportBatchExcluded다.
  */

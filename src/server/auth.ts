@@ -4,7 +4,7 @@ import { ApiError } from "./http";
 const DEFAULT_SESSION_HOURS = 720;
 /**
  * 카카오·Google 계정이 되돌리기 어려운 작업(모임 삭제·운영자 넘기기·백업 복원·탈퇴)을 하려면 이 시간 안에
- * 이 사이트에 로그인했어야 한다(ms). 자체 계정은 대신 지금 비밀번호를 묻는다(index.ts confirmIdentity).
+ * 이 사이트에 로그인했어야 한다(ms). 자체 계정은 대신 지금 비밀번호를 묻는다(routeKit.ts confirmIdentity).
  * 세션 쿠키만 훔친 사람은 제공자 로그인을 다시 거칠 수 없으므로 이 작업들을 못 한다(2026-11-17 보안 점검).
  * 너무 짧으면 다시 로그인하고 확인 문구를 입력하는 사이에 끝나 버린다.
  */

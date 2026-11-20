@@ -297,7 +297,7 @@ export async function snapshotEtag(
 }
 
 /**
- * ETag 경로(GET 운영자 스냅숏·조회 링크, src/server/index.ts)가 200 본문을 만드는 단일 경계.
+ * ETag 경로(GET 운영자 스냅숏 groupRoutes.ts·조회 링크 viewRoutes.ts)가 200 본문을 만드는 단일 경계.
  * 순서: loadEtagHead(ByViewToken) → snapshotEtag → (If-None-Match가 맞으면 304) → 이 함수.
  *
  * 확장 자리(지금은 구현하지 않음): 나중에 gzip 본문을 ETag 열쇠로 D1 한 행에 캐시할 자리다.

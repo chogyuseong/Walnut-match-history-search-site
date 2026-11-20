@@ -1,6 +1,6 @@
 /**
  * 진행 흐름을 거치지 않고 확정 경기를 만드는 쓰기 요청: 지난 경기 한 건 입력, 시트·기존 사이트 기록 한꺼번에 넣기,
- * 가져온 묶음 단위의 전적 제외·복구. 모임 탭의 가져오기 화면들이 부른다(경로는 index.ts).
+ * 가져온 묶음 단위의 전적 제외·복구. 모임 탭의 가져오기 화면들이 부른다(경로는 matchRoutes.ts).
  * 같은 경기가 두 번 세지지 않게 지문(fingerprint)으로 중복을 거른다. 검사와 가드는 matchChecks.ts에 있다.
  */
 import { FUTURE_TOLERANCE_MS } from "../shared/backfill";

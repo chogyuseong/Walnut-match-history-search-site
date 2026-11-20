@@ -377,7 +377,7 @@ export async function joinInfoConditional(
   token: string,
   accountId: string | null,
   ifNoneMatch: string | null,
-  /** 요청 수 제한 세기(index.ts). 304로 답할 때는 부르지 않는다(D1 쓰기를 아낌). 없는 링크(404)·본문을 만드는 200만 센다. */
+  /** 요청 수 제한 세기(memberRoutes.ts GET /api/join/:token). 304로 답할 때는 부르지 않는다(D1 쓰기를 아낌). 없는 링크(404)·본문을 만드는 200만 센다. */
   count: () => Promise<void> = async () => {},
 ): Promise<{ etag: string; notModified: true } | { etag: string; notModified: false; view: JoinPublicView }> {
   let link: LinkRow;
