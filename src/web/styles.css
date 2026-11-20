@@ -7,8 +7,11 @@
 @import "./styles/03-graphs-adjust-wide.css";
 @import "./styles/04-surfaces.css";
 @import "./styles/05-search-login.css";
-@import "./styles/06-cards-ranking-compare.css";
-@import "./styles/07-merge-import-account.css";
+@import "./styles/06a-cards-ranking-stats.css";
+@import "./styles/06b-compare-picker-image.css";
+@import "./styles/07a-merge-import-account.css";
+@import "./styles/07b-scoreboard-season.css";
+@import "./styles/07c-intro-members.css";
 @import "./styles/08-convenience-prep.css";
 @import "./styles/09-density-graphs.css";
 @import "./styles/10-recommend-forecast.css";

@@ -1,0 +1,651 @@
+/* 요약 화면 전광판, 경기 메모·시리즈, 시즌 요약과 시상. 07a에서 이어진다.
+   순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
+/* 요약 화면 전광판(matchCard.tsx MatchScoreboard, 중계 화면 모양). 위 4px 진영 띠 · 머리 줄(경기 상세 버튼,
+   카드 빈 곳도 같은 곳) · 진영 이름과 시리즈 점수 · 라인별 맞대결(왼쪽 이름은 오른쪽 정렬, 오른쪽 이름은 왼쪽 정렬).
+   줄 높이를 고정해 두 팀 group과 가운데 라인 칸이 DOM으로 나뉘어 있어도 라인끼리 같은 줄에 선다. */
+.scoreboard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--ih-panel);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  --sb-row: 52px;
+}
+.sb-stripe {
+  display: flex;
+  gap: var(--space-1);
+  height: 4px;
+}
+/* 진영을 모르는 경기도 왼쪽(팀 A) 블루·오른쪽(팀 B) 레드 색 띠(format.ts sideColorOf). */
+.sb-stripe > span {
+  flex: 1;
+  background: var(--ih-line);
+}
+.sb-stripe > .sb-stripe-blue {
+  background: var(--ih-win-accent);
+}
+.sb-stripe > .sb-stripe-red {
+  background: var(--ih-loss-accent);
+}
+.sb-main,
+.sb-main:not(:disabled):hover {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-3) var(--space-5) var(--space-3);
+  border: none;
+  border-radius: 0;
+  /* 머리 줄은 표 머리처럼 올린 면으로 채운다. */
+  background: var(--ih-panel);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 500;
+  text-align: left;
+}
+/* 카드 전체를 덮는 누름 영역. 이름 버튼은 그 위(.sb-lanes z-index)에 놓인다. */
+.sb-main::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.sb-main:focus-visible {
+  outline-offset: -2px;
+}
+/* 카드 전체가 경기 상세로 가는 누름 영역이라 머리 글은 보조 글자색으로 두고, 올리거나 초점일 때만 강조색이 된다
+   (표 줄의 이름 링크 .link.name-link와 같은 방식, CLAUDE.md 5절). 늘 골드면 제목처럼 읽혀 강조색이 흔해진다. */
+.sb-main:not(:disabled):hover .sb-kicker,
+.sb-main:focus-visible .sb-kicker {
+  color: var(--ih-accent);
+  text-decoration: underline;
+}
+.sb-kicker {
+  color: var(--ih-text-secondary);
+  font-weight: 500;
+  transition: color var(--motion);
+}
+.sb-extra {
+  margin: var(--space-2) var(--space-5) 0;
+}
+.sb-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+.sb-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.sb-side.left {
+  align-items: flex-end;
+}
+.sb-side.right {
+  align-items: flex-start;
+}
+.sb-side-name {
+  font-size: var(--text-hero);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ih-text-secondary);
+  white-space: nowrap;
+}
+.sb-side.sb-blue .sb-side-name {
+  color: var(--ih-win-text);
+}
+.sb-side.sb-red .sb-side-name {
+  color: var(--ih-loss-text);
+}
+/* 승리·패배 라벨: 글자가 뜻을 전하고, 승리는 본문 글자·진한 테두리, 패배는 보조 글자·옅은 테두리(골드 채움은 장식이라 뺐다). */
+.sb-verdict {
+  padding: 0 var(--space-3);
+  line-height: 1.7;
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  font-weight: 500;
+}
+.sb-verdict.win {
+  border-color: var(--ih-control-border);
+  color: var(--ih-text);
+}
+.sb-series {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sb-series-num {
+  font-size: var(--text-hero);
+  color: var(--ih-text);
+}
+/* 시리즈에서 뒤진 쪽 숫자는 흐리게(큰 글자라 3:1이면 읽힌다). */
+.sb-series-num.trail {
+  color: var(--ih-text-secondary);
+}
+.sb-series-colon {
+  font-size: var(--text-screen);
+  color: var(--ih-text-secondary);
+}
+.sb-vs {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.sb-lanes {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* 빈 곳을 누르면 아래의 카드 누름 영역으로 간다. */
+  pointer-events: none;
+}
+.sb-lanes.with-pos {
+  grid-template-columns: minmax(0, 1fr) 6rem minmax(0, 1fr);
+}
+/* 라인 칸이 없으면 두 팀 사이에 세로 선 하나. */
+.sb-lanes:not(.with-pos) > .sb-team.left {
+  border-right: 1px solid var(--ih-line);
+}
+.sb-team,
+.sb-roles {
+  display: grid;
+  grid-auto-rows: var(--sb-row);
+  min-width: 0;
+}
+.sb-roles {
+  border-left: 1px solid var(--ih-line);
+  border-right: 1px solid var(--ih-line);
+}
+.sb-role {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--ih-line);
+}
+.sb-role .pos {
+  width: auto;
+  gap: var(--space-1);
+  font-size: var(--text-meta);
+  font-weight: 500;
+}
+.sb-name,
+.sb-name:not(:disabled):hover {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: none;
+  border-top: 1px solid var(--ih-line);
+  border-radius: 0;
+  background: none;
+  color: var(--ih-text-secondary);
+  font-size: var(--text-section);
+  font-weight: 500;
+}
+.sb-team.left .sb-name {
+  justify-content: flex-end;
+  text-align: right;
+}
+.sb-team.right .sb-name {
+  justify-content: flex-start;
+  text-align: left;
+}
+.sb-team.is-win .sb-name {
+  color: var(--ih-text);
+  font-weight: 500;
+}
+.sb-name:not(:disabled):hover .sb-name-text {
+  text-decoration: underline;
+}
+.sb-name:focus-visible {
+  outline-offset: -2px;
+}
+.sb-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 폰: 시안 MobileHome(390px) 크기. 이름 칸은 150px 안팎이라 16px 글자로 낮추고 좌우 여백을 줄인다. */
+@media (max-width: 479px) {
+  .scoreboard {
+    --sb-row: 44px;
+  }
+  .sb-main,
+  .sb-main:not(:disabled):hover {
+    padding: var(--space-3) var(--space-4) 0;
+  }
+  .sb-extra {
+    margin: var(--space-2) var(--space-4) 0;
+  }
+  .sb-score {
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4) var(--space-4);
+  }
+  .sb-side-name {
+    font-size: var(--text-screen);
+  }
+  .sb-series {
+    gap: var(--space-2);
+  }
+  .sb-lanes.with-pos {
+    grid-template-columns: minmax(0, 1fr) 3.75rem minmax(0, 1fr);
+  }
+  .sb-name,
+  .sb-name:not(:disabled):hover {
+    padding: 0 var(--space-3);
+    font-size: var(--text-body);
+  }
+}
+
+/* 경기 메모·시리즈. 카드에는 한 줄(넘치면 말줄임), 상세에는 줄바꿈 그대로. */
+.mc-extra {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0 var(--space-1) var(--space-1);
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.mc-memo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc-memo-label {
+  margin-right: var(--space-1);
+  font-weight: 500;
+}
+.series-badge {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-badge);
+  background: transparent;
+  color: var(--ih-text);
+  font-size: var(--text-label);
+  font-weight: 600;
+  line-height: 1.6;
+}
+.memo-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.memo-edit textarea {
+  width: 100%;
+  min-height: 5.5em;
+  resize: vertical;
+}
+.memo-count {
+  font-variant-numeric: tabular-nums;
+}
+.memo-count.over {
+  color: var(--ih-loss-text);
+  font-weight: 500;
+}
+/* 판은 한 줄에 하나. 옆으로 흘리면 폰에서 지금 판(굵은 글자)과 다른 판(44px 링크)의 높이가 달라 줄이 어긋났다.
+   지금 판 글자도 링크와 같은 44px 높이로 세워 판 사이 간격을 맞춘다. */
+.series-games {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.series-games li {
+  min-width: 0;
+}
+.series-games li > strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.series-games .link {
+  padding-left: 0;
+}
+.series-line {
+  overflow-wrap: anywhere;
+}
+.series-pick {
+  max-height: 50svh;
+  overflow-y: auto;
+}
+/* 시즌 요약과 시상(src/web/screens/SeasonSummary.tsx).
+   머리 아래 기간 한 줄 → 범위·공유 도구 줄 → 통계 타일(.ps-tiles 재사용) → 시상(주요 3 · 라인 5 · 특별상). */
+.season-dates {
+  font-variant-numeric: tabular-nums;
+}
+.season-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+.season-tools > .button-row {
+  min-width: 0;
+}
+/* 통계 칸(시즌 요약·그래프 분석 요약, 셋): 폰은 두 칸에 셋째(진영 승률)가 한 줄을 다 쓰고, 768px부터 세 칸 한 줄.
+   숫자는 크게, 단위는 같은 칸 안에서 작게("10경기"가 한 덩어리로 읽히게). */
+.season-tiles:not(.fair-tiles) > div:last-child:nth-child(3) {
+  grid-column: 1 / -1;
+}
+@media (min-width: 768px) {
+  .ps-tiles.season-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .season-tiles:not(.fair-tiles) > div:last-child:nth-child(3) {
+    grid-column: auto;
+  }
+  /* 그래프 분석 요약은 두 칸(참가자·진영 승률)이라 세 칸 격자면 오른쪽 한 칸이 빈다. */
+  .ps-tiles.season-tiles.pair-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.season-tiles dd.season-stat {
+  display: block;
+  font-size: var(--text-screen);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ih-text);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.season-unit {
+  margin-left: var(--space-1);
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+}
+.season-tiles dd.season-sides {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+  font-size: var(--text-section);
+}
+.side-values {
+  white-space: nowrap;
+}
+.side-values .blue {
+  color: var(--ih-win-text);
+}
+.side-values .red {
+  color: var(--ih-loss-text);
+}
+.side-values.none {
+  color: var(--ih-text-secondary);
+}
+.side-colon {
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+.side-bar {
+  display: flex;
+  gap: var(--space-1);
+  height: 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--ih-subtle);
+}
+.side-bar > span {
+  flex-basis: 0;
+  min-width: 0;
+}
+/* 진영 막대 칸의 채움 색. 막대 안으로만 좁힌다: 전역으로 두면 같은 이름을 쓰는 팀 상자·기록 카드 머리 글자에도
+   바탕색이 칠해져, 진영 색 글자가 진영 색 바탕 위에 놓였다(대비 1.3~1.5:1, 11-14 점검). */
+.side-bar > .side-blue {
+  background: var(--ih-win-accent);
+}
+.side-bar > .side-red {
+  background: var(--ih-loss-accent);
+}
+.season-tiles .tile-sub {
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+
+/* 시상 카드. 모든 상이 같은 카드(바탕·테두리)이고, 상 이름 옆 기호는 상마다 모양이 다르고 색은 보조 글자 하나다
+   (상마다 다른 색은 장식이라 뺐다, CLAUDE.md 5절). */
+.season-awards .row-label {
+  margin: var(--space-2) 0 var(--space-2);
+}
+/* 카드는 내용 높이만큼: 같은 줄의 긴 카드에 맞춰 늘어나 빈 공간이 생기지 않게. */
+.award-list {
+  display: grid;
+  align-items: start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.award-list-lines {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 481px) {
+  .award-list-lines {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 768px) {
+  .award-list-main {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .award-list-lines {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .award-list-more {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.award {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-3);
+  border: 1px solid var(--ih-line);
+  border-radius: var(--radius-panel);
+  background: var(--ih-panel);
+}
+/* 라인별 최고 승률은 라인 아이콘(RoleIcon)이 라인 색(--pos-*)을 스스로 갖는다. */
+.award-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.award h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+  overflow-wrap: anywhere;
+}
+.award-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--ih-text-secondary);
+}
+.award-mark-svg,
+.award-mark .role-icon {
+  width: 16px;
+  height: 16px;
+}
+.award .winner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.award-who {
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--ih-text);
+}
+.award-why {
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--ih-text-secondary);
+  font-variant-numeric: tabular-nums;
+  /* "(8경기)" 같은 낱말 중간에서 줄이 바뀌지 않게. */
+  word-break: keep-all;
+}
+/* 공동 수상 "외 n명 보기": 세로로 쌓인 이름 줄 끝에 글자 폭만큼. */
+.award-more {
+  align-self: flex-start;
+}
+.award-tie {
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ih-text-secondary);
+}
+.award-rule {
+  margin: 0;
+  font-size: var(--text-label);
+  line-height: 1.4;
+  color: var(--ih-text-secondary);
+}
+/* 주요 상: 큼직한 카드. 바탕·테두리는 다른 상과 같은 카드이고 상 색은 아이콘에만 쓴다. */
+.award-main {
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4);
+}
+.award-main .award-mark {
+  width: 32px;
+  height: 32px;
+}
+.award-main .award-mark-svg {
+  width: 20px;
+  height: 20px;
+}
+.award-main h3 {
+  font-size: var(--text-label);
+  color: var(--ih-text);
+}
+.award-main .award-who {
+  font-size: var(--text-section);
+  line-height: 1.25;
+}
+/* 주요 상: 이름 아래 줄에 근거 숫자(한 줄에 붙이면 괄호 중간에서 줄이 바뀐다). */
+.award-main .award-who,
+.award-main .award-why {
+  display: block;
+}
+.award-main .award-why {
+  font-size: var(--text-label);
+}
+/* 라인별 다섯 칸의 공통 기준(소제목 바로 아래 한 줄). */
+.season-awards .award-line-rule {
+  margin: 0 0 var(--space-2);
+}
+/* 라인 카드: 머리는 라인 아이콘 + 라인 이름(본문 색) + "최고 승률"(흐린 꼬리표) 한 줄, 이름과 숫자는 위아래로 쌓는다. */
+.award-line .award-head {
+  gap: var(--space-2);
+}
+.award-line .award-mark {
+  width: 20px;
+  height: 20px;
+}
+.award-line h3 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+.award-line-name {
+  color: var(--ih-text);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.award-line-tail {
+  color: var(--ih-text-secondary);
+  font-size: var(--text-meta);
+  font-weight: 600;
+}
+.award-line .award-who,
+.award-line .award-why {
+  display: block;
+}
+.award-line .award-who {
+  font-size: var(--text-body);
+}
+.award-line .award-why {
+  font-size: var(--text-label);
+}
+/* 해당 없음: 점선 테두리, 바탕 없이 옅게. */
+.award.is-none {
+  background: transparent;
+  border: 1px dashed var(--ih-line);
+  box-shadow: none;
+}
+.award.is-none .award-mark {
+  opacity: 0.7;
+}
+.award.is-none h3 {
+  color: var(--ih-text-secondary);
+}
+.award.is-none .winner {
+  display: block;
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+/* 해당 없는 상 한 줄 + 까닭 목록(접힌 도움말 안). */
+.award-none {
+  margin-top: var(--space-3);
+}
+.award-none-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.award-none-list h3 {
+  margin: 0;
+  font-size: var(--text-label);
+}
+.award-none-list p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-label);
+  color: var(--ih-text-secondary);
+}
+.award-none-list .award-rule {
+  display: block;
+}
