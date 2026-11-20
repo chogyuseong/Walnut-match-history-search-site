@@ -75,6 +75,9 @@ const PAGE = 20;
 /** 머리 카드의 최근 흐름 경기 수와 "상대일 때"의 맞대결 최근 흐름 경기 수. */
 const RECENT_GAMES = 10;
 const RECENT_DUELS = 5;
+/** 맞대결 막대는 1경기부터 승률 색을 칠한다. 라인별 맞대결은 대개 몇 경기뿐이라 5경기 규칙이면 흰 막대만 남았다.
+ *  위의 승률 숫자는 5경기 규칙 그대로이고, 적은 표본은 "n경기"·"자료 적음"이 알린다(2026-11-20 사용자 결정). */
+const DUEL_BAR_MIN_GAMES = 1;
 
 /** 앞선 쪽 표시: 굵기(CSS)에 더해 ▲ 기호와 읽기용 글자. 색만으로 구분하지 않는다. */
 function LeadMark() {
@@ -435,8 +438,14 @@ export function Compare(props: {
               role="img"
               aria-label={`${against.games}경기 중 ${nameA} ${against.aWins}승, ${nameB} ${against.bWins}승`}
             >
-              <span className="cmp-bar-a" style={{ flexGrow: against.aWins }} />
-              <span className="cmp-bar-b" style={{ flexGrow: against.bWins }} />
+              <span
+                className={`cmp-bar-a ${rateHueClass(against.aWins, against.games, DUEL_BAR_MIN_GAMES)}`}
+                style={{ flexGrow: against.aWins }}
+              />
+              <span
+                className={`cmp-bar-b ${rateHueClass(against.bWins, against.games, DUEL_BAR_MIN_GAMES)}`}
+                style={{ flexGrow: against.bWins }}
+              />
             </div>
             {/* 다른 화면과 같은 꼴 "승률 · N승 M패 (G경기)"(첫 번째 사람 기준). 승 수만으로는 승률이 한눈에 안 들어온다는 요청(2026-11-08). */}
             <p className="cmp-h2h-rate">
@@ -622,8 +631,14 @@ export function Compare(props: {
                           <span className="hint">{d.losses}승 {d.wins}패</span>
                         </span>
                         <span className="cmp-bar cmp-duel-bar" role="img" aria-label={`${d.games}경기 중 ${nameA} ${d.wins}승, ${nameB} ${d.losses}승`}>
-                          <span className="cmp-bar-a" style={{ flexGrow: d.wins }} />
-                          <span className="cmp-bar-b" style={{ flexGrow: d.losses }} />
+                          <span
+                            className={`cmp-bar-a ${rateHueClass(d.wins, d.games, DUEL_BAR_MIN_GAMES)}`}
+                            style={{ flexGrow: d.wins }}
+                          />
+                          <span
+                            className={`cmp-bar-b ${rateHueClass(d.losses, d.games, DUEL_BAR_MIN_GAMES)}`}
+                            style={{ flexGrow: d.losses }}
+                          />
                         </span>
                       </li>
                     );

@@ -264,18 +264,19 @@ export function rateTier(wins: number, games: number): string {
 export const PEOPLE_BAR_STEPS = [40, 45, 50, 55, 60] as const;
 
 /** 승률 여섯 칸 번호(1이 가장 낮음 ~ 6이 가장 높음). 경기가 적으면 null(색 없음). */
-function rateStepOf(wins: number, games: number): number | null {
-  if (games < RATE_HEAT_MIN_GAMES) return null;
+function rateStepOf(wins: number, games: number, minGames: number): number | null {
+  if (games < minGames) return null;
   const pct = ratePercent(wins, games);
   return 1 + PEOPLE_BAR_STEPS.filter((edge) => pct >= edge).length;
 }
 
 /**
  * 개인별·라인별 승률 막대와 숫자, 플레이어 × 라인 칸 숫자, 승률 고리, MMR 랭킹 막대의 여섯 색(rate-hue-1~6, 2026-11-12 사용자 요청). 경계는 위와 같고, 칸마다 색 자체가
- * 다르다(분홍·주황·노랑·연두·초록·청록, 진영 뜻인 파랑·빨강은 쓰지 않는다). 경기가 적으면 색 없음.
+ * 다르다(분홍·주황·노랑·연두·초록·청록, 진영 뜻인 파랑·빨강은 쓰지 않는다). 경기가 minGames보다 적으면 색 없음.
+ * minGames를 낮추는 곳은 비교 화면 맞대결 막대뿐이다(표본이 늘 적어 흰 막대만 남았다). 숫자 글자는 기본값을 지킨다.
  */
-export function rateHueClass(wins: number, games: number): string {
-  const step = rateStepOf(wins, games);
+export function rateHueClass(wins: number, games: number, minGames = RATE_HEAT_MIN_GAMES): string {
+  const step = rateStepOf(wins, games, minGames);
   return step === null ? "" : `rate-hue-${step}`;
 }
 

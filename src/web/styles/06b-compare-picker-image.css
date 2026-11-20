@@ -435,6 +435,12 @@
 .cmp-bar-b {
   border: 1px solid var(--ih-text-secondary);
 }
+/* 양쪽 칸을 각자 승률의 여섯 색으로 채운다. 맞대결 막대는 1경기부터 칠한다(Compare.tsx DUEL_BAR_MIN_GAMES). */
+.cmp-bar-a[class*="rate-hue-"],
+.cmp-bar-b[class*="rate-hue-"] {
+  background: var(--rate-hue);
+  border-color: var(--rate-hue);
+}
 .cmp-together-bar {
   display: block;
 }
