@@ -6,7 +6,7 @@ import { personDetail, personRecords } from "../../src/shared/stats";
 import { DEFAULT_TITLE_BANDS, standings, titleBandsOf } from "../../src/shared/titles";
 import type { Snapshot } from "../../src/shared/types";
 
-// 운영자 스냅숏 응답 크기와 기기 통계 계산 시간 측정(docs/구현현황.md "응답 크기 기준").
+// 운영자 스냅숏 응답 크기와 기기 통계 계산 시간 측정(docs/구현현황/2026-11-05.md "응답 크기 기준").
 // 로컬 서버가 떠 있어야 한다(npm run dev). 로컬 D1에 합성 모임을 만든다. 운영 주소에는 쓰지 않는다.
 // 실행: npx vitest run --config vitest.measure.config.ts --silent=false
 // "같은 경기 다시 받음"은 결과 저장 뒤처럼 새 스냅숏이 같은 경기 열로 올 때다. MMR은 지난 계산에서 이어 넣어(rating.ts FitState) 빠르다.
