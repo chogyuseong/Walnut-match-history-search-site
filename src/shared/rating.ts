@@ -529,7 +529,7 @@ export interface MatchRatingChange extends RatingPoint {
 }
 
 /**
- * 경기 상세 "이 경기로 바뀐 MMR"(Records.tsx MatchDetail)에 쓰는 그 경기 열 명의 전·후 값. 명단 순서 그대로다.
+ * 경기 상세 "이 경기로 바뀐 MMR"(MatchDetail.tsx)에 쓰는 그 경기 열 명의 전·후 값. 명단 순서 그대로다.
  * 계산에 들어가지 않은 경기(확정 전·제외·한쪽 팀이 빈 경기)면 빈 목록이라 화면은 그 영역을 그리지 않는다.
  * 값은 지금 기록과 설정으로 다시 계산한 것이라 앞 경기를 정정하면 바뀐다. 화면에 그 사실을 함께 적는다.
  */

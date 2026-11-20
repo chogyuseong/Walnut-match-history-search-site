@@ -165,7 +165,7 @@ test("랭킹 MMR 순 · 개인 통계 MMR · 두 사람 비교 MMR 차 · 랭킹
   await noHorizontalOverflow(page, "두 사람 비교");
 });
 
-// 경기 상세 "이 경기로 바뀐 MMR"(Records.tsx RatingChanges): 접혀 있다가 펴면 열 명의 전·후·변화가 팀별로 나온다.
+// 경기 상세 "이 경기로 바뀐 MMR"(MatchDetail.tsx RatingChanges): 접혀 있다가 펴면 열 명의 전·후·변화가 팀별로 나온다.
 // 2경기에서 선수01은 이긴 팀, 선수10은 진 팀이다.
 test("경기 상세: 이 경기로 바뀐 MMR을 펴면 열 명의 변화가 팀별로", async ({ page }) => {
   const s = await setup(page);

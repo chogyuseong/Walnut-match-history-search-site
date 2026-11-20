@@ -14,6 +14,6 @@ export { Prep } from "./Prep";
 // 첫 화면의 조각 목록이 길어진다(check:bundle 예산 17KB).
 export { HandoffNote } from "./prep/HandoffNote";
 export { PriorityScreen } from "./Priority";
-export { MatchDetail } from "./Records";
+export { MatchDetail } from "./MatchDetail";
 export { Search } from "./Search";
 export { Transfer } from "./Transfer";

@@ -162,7 +162,7 @@ const DELETABLE_STATES = ["confirmed", "excluded", "awaiting_result"] as const;
 
 /**
  * 삭제·되살리기 이력. match_revisions.kind CHECK에 새 종류를 넣으려면 표를 새로 만들어야 해서(migrations/0026 머리말)
- * kind 'correction'에 changes.deleted로 남긴다. 화면(Records.tsx)과 스냅숏(snapshot.ts revisionStatements)이
+ * kind 'correction'에 changes.deleted로 남긴다. 화면(screens/revisionText.ts)과 스냅숏(snapshot.ts revisionStatements)이
  * 이 키로 삭제 줄을 알아본다. by는 누가 했는지(대표·공동 운영자). 계정 ID는 남기지 않는다.
  */
 function deletionRevision(env: Env, groupId: string, matchId: string, deleted: boolean, by: string, at: string) {

@@ -11,10 +11,11 @@ import { go } from "../useApp";
 import { Compare } from "./Compare";
 import { Dashboard } from "./Dashboard";
 import { Graphs } from "./Graphs";
+import { MatchDetail } from "./MatchDetail";
 import { Person } from "./Person";
 import { Privacy } from "./Privacy";
 import { Ranking } from "./Ranking";
-import { MatchDetail, Records } from "./Records";
+import { Records } from "./Records";
 import { Search } from "./Search";
 import { SeasonSummaryScreen, seasonRoutePart, seasonScopeFromRoute } from "./SeasonSummary";
 

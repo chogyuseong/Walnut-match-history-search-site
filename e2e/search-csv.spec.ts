@@ -204,7 +204,7 @@ test('단축키 "/": 입력 칸 밖에서 누르면 검색 화면으로 가서 �
   await rankSearch.click();
   await page.keyboard.press("/");
   await expect(rankSearch).toHaveValue("/");
-  // 기록 화면은 보기 조건을 주소에 적는다(#/records?scope=today 등, Records.tsx "보기 조건 ↔ 주소").
+  // 기록 화면은 보기 조건을 주소에 적는다(#/records?scope=today 등, recordsView.tsx "보기 조건 ↔ 주소").
   await expect(page).toHaveURL(/#\/records(\?|$)/);
 
   await rankSearch.blur();

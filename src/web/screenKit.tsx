@@ -175,7 +175,7 @@ export function ScopePicker(props: {
 // 경기 상세에 갔다가 뒤로 와도 고른 조건이 남고, 주소를 그대로 보내면 같은 목록이 열리게 하려는 것이다.
 // 검색 화면의 질의(q=)는 searchRoute.ts가 따로 맡는다(첫 화면 묶음이 검색 단축키 때문에 그쪽을 먼저 받는다).
 //
-// 쓰는 곳: 기록 화면(screens/Records.tsx, 조건 표는 그 파일의 "보기 조건 ↔ 주소"), 개인 통계·두 사람 비교·그래프(useRouteScope),
+// 쓰는 곳: 기록 화면(screens/Records.tsx, 조건 표는 screens/recordsView.tsx "보기 조건 ↔ 주소"), 개인 통계·두 사람 비교·그래프(useRouteScope),
 // 기록·그래프 → 개인 통계, 개인 통계 → 비교로 갈 때 기간을 잇는 주소 꼬리(scopeSuffix).
 // 예전에는 routeQuery.ts 한 파일이었다. 그래프 화면까지 쓰게 되자 따로 둔 파일이 화면 조각 하나로 늘어 첫 화면의
 // 주소 미리 받기 목록이 커졌고(check:bundle 예산 17KB), 이 코드를 쓰는 화면은 모두 이 파일을 쓰므로 여기로 옮겼다.
