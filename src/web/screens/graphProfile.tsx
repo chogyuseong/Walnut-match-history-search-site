@@ -78,7 +78,7 @@ export function PlayerProfile(props: {
       }),
     [scoped, id, nameOf, ratings, expectations, attendance, cumulative, placementGames, props.snapshot.group.timezone],
   );
-  // 최고의 콤비(bestCombos.ts): 코멘트의 동료 문장과 같은 판정이라, 이 줄이 있으면 코멘트도 그 사람을 잘 맞는 동료로 말한다.
+  // 최고의 콤비(bestCombos.ts): 개인 통계 "잘 맞는 동료" 타일 기준. 코멘트의 동료 문장은 더 엄해서 이 줄만 있고 문장은 없을 수 있다.
   const combo = useMemo(() => bestCombos(scoped, cumulative, nameOf).get(id) ?? null, [scoped, cumulative, nameOf, id]);
   return (
     <section className="graph-profile" aria-label="고른 플레이어">

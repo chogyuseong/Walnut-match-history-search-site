@@ -258,7 +258,7 @@ export function playerCommentary(input: PlayerCommentaryInput): Commentary {
   }
 
   // 5. 잘 맞는 동료·어려운 상대(개인 통계와 같은 compareMetrics). 혼자 승률과 별 차이 없으면 말하지 않는다.
-  // 동료 판정은 최고의 콤비 배지와 같은 confirmedBuddy(bestCombos.ts)다.
+  // 동료 판정은 confirmedBuddy(bestCombos.ts). 최고의 콤비 배지는 개인 통계 타일 기준이라 이것보다 넉넉하다.
   const compare = compareMetrics(detail, input.cumulative);
   const confirmed = confirmedBuddy(detail, input.cumulative, personRecords(scoped));
   const buddy = confirmed?.pair ?? null;
