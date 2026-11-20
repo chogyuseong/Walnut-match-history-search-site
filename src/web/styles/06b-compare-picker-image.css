@@ -435,11 +435,14 @@
 .cmp-bar-b {
   border: 1px solid var(--ih-text-secondary);
 }
-/* 양쪽 칸을 각자 승률의 여섯 색으로 채운다. 맞대결 막대는 1경기부터 칠한다(Compare.tsx DUEL_BAR_MIN_GAMES). */
+/* 양쪽 칸을 각자 승률의 여섯 색으로 채운다. 맞대결 막대는 1경기부터 칠한다(Compare.tsx DUEL_BAR_MIN_GAMES).
+   화면 폭을 다 채우는 막대라 원색 그대로면 다크에서 청록·분홍이 눈을 찌른다(2026-11-20 사용자). 같은 색을 바탕과 섞어 낮춘다.
+   비율을 내리면 옆 칸과 구분이 흐려지니 숫자 글자색(원색)과 나란히 놓고 본다. */
 .cmp-bar-a[class*="rate-hue-"],
 .cmp-bar-b[class*="rate-hue-"] {
-  background: var(--rate-hue);
-  border-color: var(--rate-hue);
+  --duel-bar-fill: color-mix(in srgb, var(--rate-hue) 55%, var(--ih-bg));
+  background: var(--duel-bar-fill);
+  border-color: var(--duel-bar-fill);
 }
 .cmp-together-bar {
   display: block;
