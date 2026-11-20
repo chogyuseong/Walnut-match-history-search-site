@@ -55,11 +55,13 @@ export function TitleBadge(props: { name: string; grade: TitleGrade | null; comp
  * 최고의 콤비 표식(shared/bestCombos.ts): 서로가 서로의 잘 맞는 동료인 두 사람에게 똑같이 붙는다.
  * 개인 칭호와 다투지 않게 등급 색 없이 회색 테두리 배지(.tag)로 둔다(CLAUDE.md 5·8절). 근거(함께 n경기·승률·시너지)는
  * 붙이는 화면이 옆 글이나 title로 보여 준다. short는 팀 짜기 줄처럼 좁은 곳용 "콤비"(낭독기에는 전체 이름).
+ * 숨은 글자에 짝의 이름을 넣지 않는다: 팀 짜기 줄의 글(이름 찾기·복사)에 남의 이름이 섞인다. 누구와의 콤비인지는 title에 둔다.
+ * hue(1~4)는 팀 짜기 편성판에 콤비가 둘 이상일 때 같은 쌍끼리 같은 색으로 묶는 번호다(.combo-hue-n, 글자·테두리만).
  */
 export const COMBO_LABEL = "최고의 콤비";
-export function ComboBadge(props: { short?: boolean; title?: string }) {
+export function ComboBadge(props: { short?: boolean; title?: string; hue?: number | null }) {
   return (
-    <span className="tag combo-tag" title={props.title}>
+    <span className={props.hue ? `tag combo-tag combo-hue-${props.hue}` : "tag combo-tag"} title={props.title}>
       {props.short ? (
         <>
           <span aria-hidden="true">콤비</span>

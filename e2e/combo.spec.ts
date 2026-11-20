@@ -113,10 +113,15 @@ test("최고의 콤비: 비교·개인 통계·그래프 분석에 배지, 팀 �
     teams = await teamsOf(page);
     expect(teams.get("콤비01")).toBe(teams.get("콤비02"));
   }
-  // 좁은 줄이라 보이는 글자는 "콤비"이고, 낭독기에는 숨은 글자로 전체 이름을 읽힌다.
+  // 좁은 줄이라 보이는 글자는 "콤비"이고, 낭독기에는 숨은 글자로 전체 이름을 읽힌다. 마우스를 올리면(title) 누구누구의
+  // 콤비인지와 근거가 뜬다. 숨은 글자에 짝 이름을 넣으면 이 row(이름) 찾기가 짝의 줄까지 잡는다.
+  // 콤비가 한 쌍뿐이라 쌍마다 색(.combo-hue-n)은 붙지 않는다.
   for (const name of ["콤비01", "콤비02"]) {
-    await expect(row(page, name).locator(".combo-tag [aria-hidden]")).toHaveText("콤비");
-    await expect(row(page, name).locator(".combo-tag .sr-only")).toHaveText("최고의 콤비");
+    const badge = row(page, name).locator(".combo-tag");
+    await expect(badge.locator("[aria-hidden]")).toHaveText("콤비");
+    await expect(badge.locator(".sr-only")).toHaveText("최고의 콤비");
+    await expect(badge).toHaveAttribute("title", /^콤비0[12]·콤비0[12]의 최고의 콤비 · 같은 팀 40경기 승률 90% · 두 사람 평균보다 \+27%p$/);
+    await expect(badge).not.toHaveClass(/combo-hue-/);
   }
   await expect(page.locator(".teams .combo-tag")).toHaveCount(2);
   await noHorizontalOverflow(page);

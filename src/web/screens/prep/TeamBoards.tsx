@@ -7,6 +7,7 @@ import { drawStatus, supportCountOf, type RotationContext } from "../../../share
 import { POSITIONS, TEAMS } from "../../../shared/types";
 import { TEAM_MARK, teamBoxClass } from "../../format";
 import { PosLabel } from "../../roleIcon";
+import { comboMarks } from "./comboMarks";
 import { prepTeamName } from "./common";
 import type { PrepEditing } from "./usePrepEditing";
 
@@ -33,26 +34,6 @@ function movedKeys(draft: Draft): ReadonlySet<string> {
   return moved.length <= MOVED_MARK_MAX ? new Set(moved) : new Set();
 }
 
-/**
- * 같은 팀에 최고의 콤비 두 사람이 함께 있으면 그 둘의 슬롯 키. 참가자 ID가 없는 사람(새 이름)은 기록이 없어 콤비가 될 수 없다.
- */
-function comboKeys(draft: Draft, combos: ReadonlyMap<string, Combo> | null): ReadonlySet<string> {
-  if (!combos || combos.size === 0) return new Set();
-  const idOf = new Map(draft.people.map((p) => [p.key, p.participantId]));
-  const teamOfId = new Map<string, string>();
-  for (const slot of draft.slots) {
-    const id = idOf.get(slot.key);
-    if (id) teamOfId.set(id, slot.team);
-  }
-  const keys = new Set<string>();
-  for (const slot of draft.slots) {
-    const id = idOf.get(slot.key);
-    const partner = id ? combos.get(id)?.partnerId : undefined;
-    if (partner && teamOfId.get(partner) === slot.team) keys.add(slot.key);
-  }
-  return keys;
-}
-
 export function TeamBoards(props: {
   draft: Draft;
   ctx: RotationContext;
@@ -63,7 +44,7 @@ export function TeamBoards(props: {
   const { draft, ctx, edit } = props;
   const { selectedKey, nameOf, dragKey, setDragKey, dropPerson } = edit;
   const moved = movedKeys(draft);
-  const paired = comboKeys(draft, props.combos);
+  const paired = comboMarks(draft, props.combos, nameOf);
   useSlideOnReorder(draft.slots.map((s) => `${s.team}:${s.position}:${s.key}`).join("|"));
   // 바뀐 자리는 점선 테두리(styles.css .row.moved)로만 보인다. 처음에는 "바뀜" 글자 꼬리표였는데, 좁은 팀 상자에서
   // 꼬리표가 아랫줄로 내려가 누를 때마다 줄 높이가 바뀌고 팀 상자 전체가 출렁였다. 테두리는 높이를 바꾸지 않는다.
@@ -145,7 +126,9 @@ export function TeamBoards(props: {
                       <span className="name" title={nameOf(slot.key)}>
                         {nameOf(slot.key)}
                       </span>
-                      {paired.has(slot.key) && <ComboBadge short title="최고의 콤비가 같은 팀이에요" />}
+                      {paired.has(slot.key) && (
+                        <ComboBadge short title={paired.get(slot.key)!.title} hue={paired.get(slot.key)!.hue} />
+                      )}
                       {slot.locked && <span className="tag">고정</span>}
                       {avoids(edit.avoidMap, slot.key, position) && (
                         <span className="tag avoid-tag" title="기피 라인에 서 있어요">

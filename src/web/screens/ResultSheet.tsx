@@ -14,7 +14,7 @@ import { formatTime, TEAM_MARK, teamBoxClass, teamName, teamRoster, winnerText }
 import { ChampionFields } from "../lazyScreens";
 import { clearResultDraft, loadResultDraft, saveResultDraft, type LoadedResultDraft } from "../resultDraft";
 import { Dialog, ErrorNote } from "../ui";
-import { useAppValue } from "../useApp";
+import { go, useAppValue } from "../useApp";
 
 const SIDE_CHOICES: { value: Side; label: string }[] = [
   { value: "blue", label: "블루" },
@@ -252,6 +252,23 @@ export function ResultSheet(props: {
           <span className="hint">{formatTime(new Date().toISOString())} 확인</span>
         </p>
         {props.afterSave?.(saved)}
+        {/* 시험 운영 기간 피드백 입구. 메뉴 끝·상단 바 구석에만 있어 한 건도 오지 않아서, 방금 써 본 순간인 결과 저장 뒤에 둔다.
+            다음 행동(주 버튼)보다 앞서지 않게 맨 아래 보조 글자 한 줄. 정정(mode "correct")에서는 띄우지 않는다. */}
+        {props.mode === "result" && (
+          <p className="hint result-feedback">
+            써 보니 불편한 점이 있었나요?
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                props.onClose();
+                go("/feedback");
+              }}
+            >
+              피드백 보내기
+            </button>
+          </p>
+        )}
       </Dialog>
     );
   }

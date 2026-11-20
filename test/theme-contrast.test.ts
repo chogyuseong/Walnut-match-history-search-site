@@ -166,6 +166,12 @@ describe("테마 색 대비", () => {
         for (const kind of ["streak", "upset", "attendance"]) atLeast(`--story-${kind}`, "--ih-panel", 4.5);
       });
 
+      // 팀 짜기 콤비 배지(.combo-hue-1~4)는 이야기 카드 색 넷을 글자로 쓴다. 팀 줄 바탕은 패널, 호버 때 보조 면, 고른 줄은 선택 배경.
+      it("콤비 배지 색 넷 vs 팀 줄 세 바탕 4.5:1", () => {
+        for (const kind of ["streak", "upset", "pair", "attendance"])
+          for (const bg of ["--ih-panel", "--ih-subtle", "--ih-selected"]) atLeast(`--story-${kind}`, bg, 4.5);
+      });
+
       // 섞기 공정성 분포 띠(.fair-seg-*): 화면 배경 위의 색 띠라 3:1, 띠 안 경기 수는 --ih-bg 글자라 4.5:1.
       // 큰 숫자(.fair-pct, 균형 연두)는 패널 위 글자라 4.5:1.
       it("섞기 공정성 띠 세 색 vs 화면 배경 3:1, 띠 안 숫자 4.5:1, 큰 숫자 vs 패널 4.5:1", () => {

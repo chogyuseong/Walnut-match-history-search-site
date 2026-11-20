@@ -696,6 +696,15 @@
   gap: var(--space-2);
   margin: 0;
 }
+/* 결과 저장 뒤 창 맨 아래 피드백 한 줄(screens/ResultSheet.tsx). 위 다음 행동 버튼 줄과 12px 띄운다.
+   링크 버튼이 44px 높이라 글과 세로 가운데를 맞추려고 flex로 둔다. 좁은 화면에서는 링크가 다음 줄로 내려간다. */
+.result-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-1);
+  margin: var(--space-3) 0 0;
+}
 /* 사이트 현황의 피드백 목록. 받은 글은 줄바꿈을 그대로 보이고 긴 낱말(주소 등)은 칸 안에서 끊는다. */
 .feedback-list .feedback-body {
   margin: 0;

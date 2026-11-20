@@ -359,6 +359,25 @@ button.row.swap-target:hover {
 .team li + li > button.row.drop-target {
   border-color: var(--ih-accent);
 }
+/* 팀 짜기 편성판의 콤비 배지 색(prep/comboMarks.ts, CLAUDE.md 5절 예외). 콤비가 둘 이상일 때만 같은 쌍끼리 같은
+   색으로 묶는다. 이야기 카드 색 넷을 다시 쓰고 글자·1px 테두리만 칠한다(바탕은 .tag 그대로). 줄 바탕은 패널·호버 보조 면·
+   고른 줄 선택 배경이라 셋 위 4.5:1을 test/theme-contrast.test.ts가 본다. */
+.combo-tag.combo-hue-1 {
+  --combo: var(--story-streak);
+}
+.combo-tag.combo-hue-2 {
+  --combo: var(--story-upset);
+}
+.combo-tag.combo-hue-3 {
+  --combo: var(--story-pair);
+}
+.combo-tag.combo-hue-4 {
+  --combo: var(--story-attendance);
+}
+.combo-tag[class*="combo-hue-"] {
+  color: var(--combo);
+  border-color: var(--combo);
+}
 .grip {
   flex: none;
   width: 10px;
