@@ -1,7 +1,7 @@
 // API 라우트 파일(*Routes.ts)과 index.ts가 함께 쓰는 상수·도우미: 캐시 헤더 값, 스냅숏·비싼 읽기의 요청 수 셈, 본인 확인.
 import type { Hono } from "hono";
 import { readSession, recentLoginUntil } from "./auth";
-import type {  } from "./env";
+import type { Env } from "./env";
 import { ApiError } from "./http";
 import { clientIp, hit, spendSnapshotRows } from "./ratelimit";
 import { confirmCurrentPassword, LOCAL_PROVIDER } from "./local";

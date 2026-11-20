@@ -4,7 +4,7 @@
 import { pruneDraftHandoffs } from "./draftHandoff";
 import { Hono } from "hono";
 import { productionConfigProblem, readSession, requireOperator } from "./auth";
-import type {  } from "./env";
+import type { Env } from "./env";
 import { ApiError, assertSameOrigin, canConsoleLog, nowIso, securityHeaders } from "./http";
 import { maintenanceError } from "./mutation";
 import { clientIp, hit } from "./ratelimit";
