@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LoginDialog, prefetchLogin } from "./lazyScreens";
-import { ErrorNote } from "./ui";
+import { ErrorNote, LineIcon } from "./ui";
 import { go, useAppValue } from "./useApp";
 
 /** 로그인한 운영자만 쓰는 화면(주소의 첫 칸). 로그인하지 않았으면 로그인 안내를 대신 보여준다. */
@@ -113,7 +113,9 @@ export function AccountControl() {
         }}
       >
         <span className="account-dot" aria-hidden="true" />
-        로그인됨
+        {/* 768px 미만은 사람 아이콘만 보이고 글자는 낭독기용으로 숨긴다(CSS .account-label). 버튼 이름은 늘 "로그인됨". */}
+        <LineIcon name="me" />
+        <span className="account-label">로그인됨</span>
       </button>
       {menuOpen && (
         <div id="account-menu" className="account-menu" role="group" aria-label="로그인 상태">

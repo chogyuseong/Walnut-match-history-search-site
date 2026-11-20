@@ -308,6 +308,28 @@
   padding: var(--space-2) var(--space-3);
   border-color: var(--ih-control-border);
 }
+/* 768px 미만은 "로그인됨" 글자 대신 사람 아이콘(account.tsx). 320px에서 사이트 이름·피드백·테마·로그인됨이 288px 칸에
+   Pretendard로도 겨우 들어가(293px) 글꼴을 받기 전이나 리눅스 대체 글꼴에서 16~28px 넘쳤다(CI E2E 넷이 11-18부터 실패).
+   아이콘으로 약 46px 줄인다. 글자는 낭독기용으로 남겨 버튼 이름은 늘 "로그인됨"이다. */
+.topbar-account-button .line-icon {
+  display: none;
+}
+@media (max-width: 767px) {
+  .topbar-account-button {
+    padding: var(--space-2);
+  }
+  .topbar-account-button .line-icon {
+    display: block;
+  }
+  .account-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
 /* 로그인돼 있다는 점 표시. 글자(로그인됨)가 뜻을 전하고 점은 꾸밈이다. */
 .account-dot {
   flex: none;
