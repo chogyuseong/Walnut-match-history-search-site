@@ -10,7 +10,8 @@ import {
 } from "../../shared/importTable";
 import { nameKey } from "../../shared/names";
 import { parseDelimited } from "../../shared/csv";
-import { classifyImport, isLegacyLayout, type ExistingImport } from "../../shared/sheetTable";
+import { classifyImport, type ExistingImport } from "../../shared/sheetImportPlan";
+import { isLegacyLayout } from "../../shared/sheetMapping";
 import { call } from "../api";
 import { handOffPaste } from "../sheetHandoff";
 import { ImportAgainPicker } from "../importAgain";

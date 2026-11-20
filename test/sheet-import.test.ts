@@ -2,21 +2,16 @@ import { describe, expect, it } from "vitest";
 import { parseDelimited } from "../src/shared/csv";
 import { linkNames, looseKey, similarWithinTable } from "../src/shared/importLink";
 import { parseMatchTable } from "../src/shared/importTable";
+import { parseDateCell, parseLane, parseResult, parseTeamLabel, parseTime } from "../src/shared/sheetCells";
 import {
   classifyImport,
   CROWDED_DAY_MIN,
   crowdedDays,
-  detectMapping,
-  parseDateCell,
-  parseLane,
-  parseResult,
-  parseSheet,
-  parseTeamLabel,
-  parseTime,
   toSheetPayload,
   type ExistingImport,
-  type SheetMapping,
-} from "../src/shared/sheetTable";
+} from "../src/shared/sheetImportPlan";
+import { detectMapping, type SheetMapping } from "../src/shared/sheetMapping";
+import { parseSheet } from "../src/shared/sheetTable";
 import { exportUrlOf, isAllowedRedirectHost, parseSheetUrl, sourceKeyOf } from "../src/shared/sheetUrl";
 
 const TODAY = { today: "2026-11-05" };

@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 import { dateFindings } from "../shared/dateCheck";
 import { nameKey } from "../shared/names";
-import type { CrowdedDay, SheetMatch } from "../shared/sheetTable";
+import type { CrowdedDay } from "../shared/sheetImportPlan";
+import type { SheetMatch } from "../shared/sheetTable";
 
 /**
  * 가져오기 미리보기의 날짜 경고(2026-11-08). 시트·기존 사이트 기록을 넣기 전에 줄 순서와 견줘
  * 연도가 밀린 묶음·같은 날짜와 시각에 같은 열 명·아직 오지 않은 날짜를 알려 준다(src/shared/dateCheck.ts 공용).
  * 막지는 않는다(연도가 없는 시트는 추정값이라 사람이 판단한다). 넣은 뒤에는 "날짜 점검"에서 한 번에 옮길 수 있다.
- * crowded는 한 날짜에 경기가 몰린 날(sheetTable.ts crowdedDays). 고르는 기준(넣을 경기가 그 날짜에 있을 때만)은
+ * crowded는 한 날짜에 경기가 몰린 날(sheetImportPlan.ts crowdedDays). 고르는 기준(넣을 경기가 그 날짜에 있을 때만)은
  * 부르는 쪽이 정해 넘긴다. 날짜 경고가 두 상자로 갈라지지 않게 같은 목록에 넣는다.
  */
 export function ImportDateWarnings(props: { matches: readonly SheetMatch[]; crowded?: readonly CrowdedDay[] }) {

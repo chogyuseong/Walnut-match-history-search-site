@@ -16,7 +16,8 @@
  * - 비공개 시트: 401 text/html(로그인 상태가 아닌 요청)
  * - 없는 문서: 404 text/html
  */
-import { fingerprinter, type SheetPlayer } from "../shared/sheetTable";
+import { fingerprinter } from "../shared/sheetFingerprint";
+import type { SheetPlayer } from "../shared/sheetTable";
 import { localDate, safeTimeZone } from "../shared/stats";
 import type { Position, Team } from "../shared/types";
 import { fakeLoginEnabled, readSession } from "./auth";

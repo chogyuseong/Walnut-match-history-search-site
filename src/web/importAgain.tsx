@@ -4,7 +4,7 @@
  *
  * 같은 날 같은 10명·같은 결과의 경기는 지문이 같아서, 두 번째 경기만 따로 넣으면 "이미 들어간 경기"로 건너뛴다.
  * 내용만으로는 "같은 표를 다시 넣음"과 "한 번 더 한 경기"를 가를 수 없으므로 사람이 줄을 고르게 하고, 고른 줄은
- * 화면이 이미 쓰인 지문을 피한 다음 순번 지문(sheetTable nextFreeFingerprint)을 붙여 새 경기로 보낸다.
+ * 화면이 이미 쓰인 지문을 피한 다음 순번 지문(sheetFingerprint nextFreeFingerprint)을 붙여 새 경기로 보낸다.
  */
 export interface AgainRow {
   line: number;

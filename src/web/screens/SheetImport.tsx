@@ -1,29 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { columnCount, parseDelimited } from "../../shared/csv";
 import { linkNames, type NameLink } from "../../shared/importLink";
+import { columnName } from "../../shared/sheetAcross";
+import { hash64 } from "../../shared/sheetFingerprint";
 import {
   classifyImport,
-  columnName,
   crowdedDays,
-  detectMapping,
-  hash64,
-  LAYOUT_LABELS,
-  LAYOUTS,
-  mappingProblems,
   namesToLink,
-  parseSheet,
   promoteAgain,
-  roleLabel,
-  rolesOf,
   toSheetPayload,
   type ExistingImport,
   type ImportClassification,
-  type Layout,
   type SheetImportPayload,
-  type SheetMapping,
-  type SheetMatch,
   type SheetSideMode,
-} from "../../shared/sheetTable";
+} from "../../shared/sheetImportPlan";
+import {
+  detectMapping,
+  LAYOUT_LABELS,
+  LAYOUTS,
+  mappingProblems,
+  roleLabel,
+  rolesOf,
+  type Layout,
+  type SheetMapping,
+} from "../../shared/sheetMapping";
+import { parseSheet, type SheetMatch } from "../../shared/sheetTable";
 import { looksLikeLegacyUrl } from "../../shared/legacy";
 import { parseSheetUrl, SHEET_URL_MESSAGES, type SheetTab } from "../../shared/sheetUrl";
 import { localDate } from "../../shared/stats";

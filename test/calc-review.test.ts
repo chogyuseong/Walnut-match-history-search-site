@@ -6,13 +6,9 @@ import { synergyPoints } from "../src/shared/insights";
 import { shuffleDraft } from "../src/shared/rotation";
 import { matchRank } from "../src/shared/search";
 import { seasonSummary } from "../src/shared/seasonAwards";
-import {
-  detectMapping,
-  fingerprinter,
-  nextFreeFingerprint,
-  parseSheet,
-  type FingerprintInput,
-} from "../src/shared/sheetTable";
+import { fingerprinter, nextFreeFingerprint, type FingerprintInput } from "../src/shared/sheetFingerprint";
+import { detectMapping } from "../src/shared/sheetMapping";
+import { parseSheet } from "../src/shared/sheetTable";
 import { fractionPercent, localDate, ratePercent, roundRatio } from "../src/shared/stats";
 import type { MatchView, Position, Snapshot } from "../src/shared/types";
 

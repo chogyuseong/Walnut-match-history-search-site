@@ -10,15 +10,10 @@ import {
   yearEarlier,
   type LegacyMatch,
 } from "../src/shared/legacy";
-import {
-  acrossDate,
-  crowdedDays,
-  detectMapping,
-  isAcrossLayout,
-  parseSheet,
-  toSheetPayload,
-  type SheetMapping,
-} from "../src/shared/sheetTable";
+import { acrossDate, isAcrossLayout } from "../src/shared/sheetAcross";
+import { crowdedDays, toSheetPayload } from "../src/shared/sheetImportPlan";
+import { detectMapping, type SheetMapping } from "../src/shared/sheetMapping";
+import { parseSheet } from "../src/shared/sheetTable";
 import { findTab, parseTabList } from "../src/shared/sheetUrl";
 
 // 기존 사이트(v1) 기록 가져오기: v1 형식 검증, v2 경기로 바꾸기(라인·진영·날짜·지문·순서), 가로로 긴 표 읽기.

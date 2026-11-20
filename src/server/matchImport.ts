@@ -120,7 +120,7 @@ interface ImportMatch {
   roster: RosterEntry[];
   winnerTeam: Team;
   winnerSide: Side;
-  /** 다시 가져오기 중복 방지용 시트 내용 지문과 줄 위치 열쇠(src/shared/sheetTable.ts). 없어도 된다. */
+  /** 다시 가져오기 중복 방지용 시트 내용 지문과 줄 위치 열쇠(src/shared/sheetFingerprint.ts·sheetTable.ts). 없어도 된다. */
   fingerprint?: string;
   rowKey?: string;
 }

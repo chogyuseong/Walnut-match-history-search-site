@@ -3,14 +3,9 @@ import { FUTURE_TOLERANCE_MS, winnerSideOf } from "../src/shared/backfill";
 import { parseDelimited } from "../src/shared/csv";
 import { importRowFingerprintAgain, parseMatchTable, toImportMatches } from "../src/shared/importTable";
 import { nameKey } from "../src/shared/names";
-import {
-  classifyImport,
-  detectMapping,
-  parseSheet,
-  toSheetPayload,
-  type ExistingImport,
-  type SheetMapping,
-} from "../src/shared/sheetTable";
+import { classifyImport, toSheetPayload, type ExistingImport } from "../src/shared/sheetImportPlan";
+import { detectMapping, type SheetMapping } from "../src/shared/sheetMapping";
+import { parseSheet } from "../src/shared/sheetTable";
 import { zonedTimeToUtc } from "../src/shared/stats";
 import { api, requestId, rosterOf, setupGroup, snapshot, unique, type TestGroup } from "./helpers";
 

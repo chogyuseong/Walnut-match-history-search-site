@@ -48,7 +48,11 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 - screens/Records.tsx(1650줄)를 넷으로 나눔: Records.tsx(기록 목록)·MatchDetail.tsx(경기 상세)·
   recordsView.tsx(거르기 칸·보기 조건↔주소)·revisionText.ts(변경 내역 글). 본문 줄 대조 같음,
   typecheck·lint 0·단위 1245·build·check:bundle·E2E 173 통과, 배포 없음.
-- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(Group.tsx 1433줄, sheetTable.ts 1414줄 등) 쪼개기,
+- shared/sheetTable.ts(1511줄)를 여섯으로 나눔: sheetTable.ts(표 → 경기, parseSheet)·sheetCells.ts(칸 값 읽기)·
+  sheetMapping.ts(표 모양·열 역할 추정)·sheetAcross.ts(가로로 긴 표)·sheetFingerprint.ts(지문·경기 시각)·
+  sheetImportPlan.ts(다시 가져오기 비교·서버로 보낼 모양). 본문 줄 대조 같음,
+  typecheck·lint 0·단위 1245·build·check:bundle 통과, 배포 없음.
+- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(Group.tsx 1433줄, commentary.ts 1345줄 등) 쪼개기,
   styles 화면별로 모으기(전 화면 사진 대조 필요).
 - 결과 저장 뒤 다시 읽기 줄이기: 재 보고 하지 않기로 함(사용자 "권장대로"). 로컬 600경기 저장~계산 약 0.1초
   (저장 29ms·다시 읽기 53ms·gzip 47KB·계산 19ms), 2000경기 약 0.2초. 측정은 test/measure/snapshot-size.measure.ts

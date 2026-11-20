@@ -14,7 +14,8 @@
  */
 import { FUTURE_TOLERANCE_MS } from "./backfill";
 import { cleanName, MAX_NAME_LENGTH, nameKey } from "./names";
-import { fingerprinter, hash64, playedAtTimes, type SheetError, type SheetMatch, type SheetPlayer } from "./sheetTable";
+import { fingerprinter, hash64, playedAtTimes } from "./sheetFingerprint";
+import type { SheetError, SheetMatch, SheetPlayer } from "./sheetTable";
 import { localDate } from "./stats";
 import { POSITIONS, type Position } from "./types";
 

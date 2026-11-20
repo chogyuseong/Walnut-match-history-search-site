@@ -3,7 +3,7 @@ import { legacyHooks, MAX_LEGACY_BYTES } from "../src/server/legacy";
 import { rateClock } from "../src/server/ratelimit";
 import { linkNames } from "../src/shared/importLink";
 import { convertLegacy, legacySourceKey, type LegacyFutureMode, type LegacyMatch } from "../src/shared/legacy";
-import { classifyImport, toSheetPayload, type ExistingImport, type SheetSideMode } from "../src/shared/sheetTable";
+import { classifyImport, toSheetPayload, type ExistingImport, type SheetSideMode } from "../src/shared/sheetImportPlan";
 import type { Snapshot } from "../src/shared/types";
 import { direct } from "./direct";
 import { api, login, requestId, setupGroup, snapshot, unique, type LooseJson, type TestGroup } from "./helpers";

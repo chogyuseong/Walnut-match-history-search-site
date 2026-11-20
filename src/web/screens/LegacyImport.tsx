@@ -20,7 +20,7 @@ import {
   type ExistingImport,
   type ImportClassification,
   type SheetImportPayload,
-} from "../../shared/sheetTable";
+} from "../../shared/sheetImportPlan";
 import { looksLikeSheetUrl } from "../../shared/sheetUrl";
 import { CreateGroupButton } from "../account";
 import { call } from "../api";
