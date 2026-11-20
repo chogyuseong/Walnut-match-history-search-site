@@ -641,19 +641,20 @@ export function Compare(props: {
           <p className="hint">같은 팀으로 뛴 경기가 없어요.</p>
         ) : (
           <>
-            <div className="cmp-face">
-              <span className="cmp-face-name cmp-a">{nameA}</span>
-              <p className="cmp-face-mid">
-                <span className={`${rateHueText(h2h.together.wins, h2h.together.games)} cmp-face-big`}>
-                  {rateText(h2h.together)}
-                </span>{" "}
-                <span className="cmp-face-sub">
-                  · {wl(h2h.together)} ({h2h.together.games}경기)
-                </span>
-                {h2h.together.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
-              </p>
-              <span className="cmp-face-name cmp-b">{nameB}</span>
-            </div>
+            {/* 같은 팀이라 맞대결처럼 양 끝에 마주 세우지 않고 두 이름을 붙여 한 팀으로 보인다(2026-11-20 사용자). */}
+            <p className="cmp-team">
+              <span className="cmp-team-name cmp-team-a">{nameA}</span>
+              <span className="cmp-team-name cmp-team-b">{nameB}</span>
+            </p>
+            <p className="cmp-team-rate">
+              <span className={`${rateHueText(h2h.together.wins, h2h.together.games)} cmp-face-big`}>
+                {rateText(h2h.together)}
+              </span>{" "}
+              <span className="cmp-face-sub">
+                · {wl(h2h.together)} ({h2h.together.games}경기)
+              </span>
+              {h2h.together.games < SMALL_SAMPLE && <span className="tag">자료 적음</span>}
+            </p>
             <span
               className="cmp-together-bar"
               role="img"
