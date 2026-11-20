@@ -18,6 +18,17 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-21: 운영 28fc3696 = staging 9b2614a5 = main 1ceefed(좁은 화면 상단 바 로그인됨 → 사람 아이콘, CI 넘침)]
+
+- CI e2e가 11-18부터 내내 실패(같은 넷, 320px 가로 넘침 28px)하던 원인: 상단 바 "내전로그·피드백·테마·로그인됨"이
+  320px에서 288px 칸에 Pretendard로도 겨우 들어가 넓은 글꼴(리눅스 CI 등)이면 넘침. 768px 미만에서 "로그인됨" 글자를
+  사람 아이콘으로(낭독기 이름은 그대로 "로그인됨"). 마이그레이션 없음. Claude가 push·staging → 운영 배포(사용자 "푸시하고 배포해").
+- 배포 전: typecheck·lint·audit:design 0, build·check:bundle, 로컬 E2E 전체 174 통과(4 건너뜀).
+- 확인(20초 뒤): 두 곳 /api/health 200, index-_ML3oIQx.css(.account-label 들어감)·index-BwhTiSFD.js,
+  직전 배포 index-DjnccWMf.js 200 text/javascript(옛 자산 남기기 두 번째도 동작), 운영 첫 화면 390·1440 넘침 0·콘솔 오류 0.
+- CI: 1ceefed는 check 통과, e2e는 이 메모 커밋 push로 취소되고 다음 커밋 실행에서 확인. GitHub 연결 도구는
+  GITHUB_PERSONAL_ACCESS_TOKEN이 이 PC에 없어 400(빈 Bearer). CI 상태는 공개 Actions API로 로그인 없이 볼 수 있다.
+
 [2026-11-21: 운영 4bc207cf = staging aa86e757 = main ef16987(결과 저장 뒤 피드백 한 줄, 팀 짜기 콤비 색·설명)]
 
 - 운영 피드백이 0건이라 결과 저장 뒤 창 맨 아래에 "피드백 보내기" 한 줄. 팀 짜기에서 콤비가 두 쌍 이상이면 쌍마다 색,
