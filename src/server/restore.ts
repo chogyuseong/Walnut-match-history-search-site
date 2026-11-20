@@ -533,7 +533,7 @@ export function validateBackup(
     if (!isTimeOrNull(r.startedAt) || !isTimeOrNull(r.endedAt) || !isTimeOrNull(r.confirmedAt)) {
       return p.add(`${at}: 시각 값 오류`);
     }
-    // 지운 경기(2026-11-11). 진행 중·취소 경기는 지울 수 없으므로(matches.ts DELETABLE_STATES) 그런 파일은 손댄 것이다.
+    // 지운 경기(2026-11-11). 진행 중·취소 경기는 지울 수 없으므로(matchRemoval.ts DELETABLE_STATES) 그런 파일은 손댄 것이다.
     if (!isTimeOrNull(r.deletedAt)) return p.add(`${at}: 삭제 시각 오류`);
     if (isTime(r.deletedAt) && (r.state === "in_progress" || r.state === "canceled")) {
       return p.add(`${at}: 진행 중·취소 경기는 지운 상태일 수 없습니다.`);

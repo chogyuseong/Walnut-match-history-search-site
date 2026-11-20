@@ -8,7 +8,7 @@ import { mutate, newRequestId } from "./api";
 import { ErrorNote } from "./ui";
 import { go } from "./useApp";
 
-/** 한 요청에 넣는 경기 수. 서버 상한(matches.ts MAX_IMPORT_MATCHES)보다 작아야 하고, 실패하면 이 묶음부터 다시 보낸다. */
+/** 한 요청에 넣는 경기 수. 서버 상한(matchImport.ts MAX_IMPORT_MATCHES)보다 작아야 하고, 실패하면 이 묶음부터 다시 보낸다. */
 const MATCH_CHUNK = 50;
 /** 참가자를 한 번에 만드는 이름 수. 서버 participants 요청의 이름 수 상한 이하로 둔다. */
 const NAME_CHUNK = 30;

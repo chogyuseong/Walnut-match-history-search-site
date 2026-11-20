@@ -96,7 +96,7 @@ const MATCH_COLUMNS = `id, match_no, session_id, state, source, started_at, ende
 /**
  * 지운 경기(migrations/0026)를 빼는 조건. 경기를 화면·계산으로 내보내는 읽기는 모두 이 조건을 붙인다(이 파일 밖의
  * matches 읽기도 같은 글자를 직접 쓴다: matches.ts·series.ts·sheets.ts·restore.ts 등). 지운 경기까지 읽는 곳은
- * 백업(groups.ts exportBackup)·참가자 합치기(merge.ts)·되살리기(matches.ts undeleteMatch)뿐이다.
+ * 백업(groups.ts exportBackup)·참가자 합치기(merge.ts)·되살리기(matchRemoval.ts undeleteMatch)뿐이다.
  */
 const ALIVE = "deleted_at IS NULL";
 

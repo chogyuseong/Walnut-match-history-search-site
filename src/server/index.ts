@@ -54,25 +54,17 @@ import {
   requireString,
   securityHeaders,
 } from "./http";
+import { correctMatch, shiftMatchDates, SHIFT_DATES_BODY_BYTES } from "./matchCorrection";
+import { MAX_IMPORT_BODY_BYTES, backfillMatch, importMatches, setImportBatchExcluded } from "./matchImport";
+import { deleteMatch, excludeMatch, restoreMatch, undeleteMatch } from "./matchRemoval";
 import {
-  MAX_IMPORT_BODY_BYTES,
-  backfillMatch,
   cancelMatch,
   confirmResult,
-  correctMatch,
-  deleteMatch,
   endLater,
-  excludeMatch,
-  importMatches,
   replaceLiveParticipant,
-  restoreMatch,
   saveChampions,
   saveMemo,
-  setImportBatchExcluded,
-  shiftMatchDates,
-  SHIFT_DATES_BODY_BYTES,
   startMatch,
-  undeleteMatch,
 } from "./matches";
 import { addToSeries, createSeries, removeFromSeries, updateSeries } from "./series";
 import { deleteAccount, deleteGroup } from "./deletion";
@@ -1041,7 +1033,7 @@ app.post("/api/groups/:gid/matches/:mid/:action", async (c) => {
   });
 });
 
-// 날짜 일괄 정정(2026-11-08, src/server/matches.ts shiftMatchDates). 운영자·공동 운영자. 화면 "날짜 점검".
+// 날짜 일괄 정정(2026-11-08, src/server/matchCorrection.ts shiftMatchDates). 운영자·공동 운영자. 화면 "날짜 점검".
 app.post("/api/groups/:gid/matches/shift-dates", async (c) => {
   const gid = c.req.param("gid");
   await requireOperator(c.env, c.req.raw, gid);

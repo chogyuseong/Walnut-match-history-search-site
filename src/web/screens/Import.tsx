@@ -119,7 +119,7 @@ export function Import() {
 
   // 저장 계획에는 진영이 박혀 있다. 첫 시도가 실패한 뒤 진영을 바꾸면 계획을 버려야 새 값으로 저장된다.
   // 한 묶음이라도 저장됐으면(saved > 0) 고르는 칸이 잠기므로 여기 오지 않는다. 응답만 잃고 실제로는 들어간 묶음이
-  // 있어도 서버가 같은 지문을 거절해(matches.ts 다시 가져오기 중복 방지) 두 번 들어가지 않는다.
+  // 있어도 서버가 같은 지문을 거절해(matchImport.ts 다시 가져오기 중복 방지) 두 번 들어가지 않는다.
   function chooseSide(mode: ImportSideMode) {
     setSideMode(mode);
     plan.current = null;

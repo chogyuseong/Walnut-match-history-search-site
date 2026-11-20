@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { api, requestId, rosterOf, setupGroup, snapshot } from "./helpers";
 
-// 날짜 일괄 정정(POST /api/groups/:gid/matches/shift-dates, src/server/matches.ts shiftMatchDates).
+// 날짜 일괄 정정(POST /api/groups/:gid/matches/shift-dates, src/server/matchCorrection.ts shiftMatchDates).
 async function backfillAt(g: Awaited<ReturnType<typeof setupGroup>>, playedAt: string) {
   const res = await api(g.cookie, "POST", `/api/groups/${g.gid}/matches/backfill`, {
     requestId: requestId(),

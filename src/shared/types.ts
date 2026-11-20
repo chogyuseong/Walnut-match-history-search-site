@@ -207,7 +207,7 @@ export interface RevisionView {
    */
   merge?: { sourceId: string; targetId: string; matchCount: number };
   /**
-   * 경기 삭제 줄(changes.deleted, src/server/matches.ts deleteMatch) 가운데 그 경기가 지금도 지워져 있고 가장 최근의
+   * 경기 삭제 줄(changes.deleted, src/server/matchRemoval.ts deleteMatch) 가운데 그 경기가 지금도 지워져 있고 가장 최근의
    * 삭제 줄에만 있다. 지운 경기는 스냅숏의 matches에 없으므로 되살리기 요청의 baseMatchVersion을 여기서 얻는다.
    */
   deletedMatch?: { version: number };

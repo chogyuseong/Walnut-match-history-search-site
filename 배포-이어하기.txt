@@ -39,7 +39,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 - docs/구현현황.md(약 590KB)를 입구 + docs/구현현황/ 날짜 구간 넷(2026-11-05·07·11·16.md)으로 나눔. 기록이 모두 11월이라
   월별 대신 구간별. 본문은 바이트 그대로 자름. 새 일지는 마지막 파일(2026-11-16.md) 끝에 쓴다. 이 파일의
   "docs/구현현황.md 맨 끝" 같은 옛 말은 이제 마지막 구간 파일을 뜻한다.
-- 구조 개선 후보(아직 안 함): 1000줄 넘는 파일(server/matches.ts 1991줄, restore.ts·Records.tsx 1582줄 등) 쪼개기,
+- server/matches.ts(2074줄)를 다섯으로 나눔: matches.ts(경기 진행)·matchRemoval.ts(제외·삭제와 복구)·
+  matchCorrection.ts(정정·날짜 일괄 정정)·matchImport.ts(지난 경기 입력·가져오기)·matchChecks.ts(함께 쓰는 검증·가드).
+  함수 본문 그대로(줄 대조), API 경로·동작 같음. typecheck·lint 0·단위 1245·build·check:bundle 통과, 배포 없음.
+- 구조 개선 후보(아직 안 함): 남은 1000줄 넘는 파일(restore.ts·Records.tsx 1582줄, Group.tsx 1433줄 등) 쪼개기,
   styles 화면별로 모으기(전 화면 사진 대조 필요).
 - 결과 저장 뒤 다시 읽기 줄이기: 재 보고 하지 않기로 함(사용자 "권장대로"). 로컬 600경기 저장~계산 약 0.1초
   (저장 29ms·다시 읽기 53ms·gzip 47KB·계산 19ms), 2000경기 약 0.2초. 측정은 test/measure/snapshot-size.measure.ts

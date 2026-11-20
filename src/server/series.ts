@@ -119,7 +119,7 @@ function seriesStillGuard(env: Env, groupId: string, series: SeriesView): D1Prep
 }
 
 /**
- * 지운 경기를 되살릴 때 그 경기가 든 시리즈를 확인한다(matches.ts undeleteMatch).
+ * 지운 경기를 되살릴 때 그 경기가 든 시리즈를 확인한다(matchRemoval.ts undeleteMatch).
  * 지운 경기는 시리즈 소속(match_series_members)이 남아 있어, 지운 사이 시리즈에 새 판을 넣고 되살리면 3판 2선승이 4판이
  * 되거나 승부가 난 뒤에 판이 붙었다(2026-11-12 사용자 결정: 이럴 때는 되살리기를 거절한다).
  * 되살린 뒤의 판 수가 형식의 최대 판 수(3판 2선승 3, 5판 3선승 5, 자유 MAX_SERIES_GAMES)를 넘거나, 승부가 난 뒤 판이
@@ -142,7 +142,7 @@ export async function seriesUndeleteGuards(env: Env, groupId: string, match: Mat
 }
 
 /**
- * 전적 제외한 경기를 복구할 때 그 경기가 든 시리즈를 확인한다(matches.ts restoreMatch).
+ * 전적 제외한 경기를 복구할 때 그 경기가 든 시리즈를 확인한다(matchRemoval.ts restoreMatch).
  * 제외한 판은 시리즈 점수에서 빠지므로(seriesScore "dropped") 그 사이 판을 더 넣어 승부가 났을 수 있다. 복구로 승부가 난 뒤에
  * 판이 생기면(overflow가 새로 생기면) 되살리기와 같은 까닭으로 거절한다. 원래 넘쳐 있던 시리즈는 이 복구 탓이 아니라 막지 않는다.
  * 판 수는 그대로라(제외한 판도 시리즈 소속) 판 수 상한은 보지 않는다.
@@ -164,7 +164,7 @@ export async function seriesRestoreGuards(
 }
 
 /**
- * 일괄 입력 묶음 복구(matches.ts restoreImportBatch)용 seriesRestoreGuards. 복구할 경기들이 든 시리즈마다 같은 기준
+ * 일괄 입력 묶음 복구(matchImport.ts restoreImportBatch)용 seriesRestoreGuards. 복구할 경기들이 든 시리즈마다 같은 기준
  * (복구로 승부 뒤에 판이 새로 생기면 거절)으로 본다. 묶음 복구는 늘 "확정"으로 되돌린다.
  * 경기가 몇 개든 질의는 소속 1회·시리즈 1회·경기 1회다(무료 요금제 호출당 질의 50회 한도).
  */

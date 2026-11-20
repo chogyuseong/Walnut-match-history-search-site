@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import type { Env } from "../src/server/env";
-import { MAX_IMPORT_MATCHES } from "../src/server/matches";
+import { MAX_IMPORT_MATCHES } from "../src/server/matchImport";
 import { snapshotCost } from "../src/server/ratelimit";
 import {
   loadEtagHead,

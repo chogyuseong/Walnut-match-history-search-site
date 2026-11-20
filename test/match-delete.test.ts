@@ -17,7 +17,7 @@ import {
   type TestGroup,
 } from "./helpers";
 
-// 경기 삭제·되살리기(migrations/0026, src/server/matches.ts deleteMatch·undeleteMatch).
+// 경기 삭제·되살리기(migrations/0026, src/server/matchRemoval.ts deleteMatch·undeleteMatch).
 // 지운 경기는 DB에 남지만 스냅숏·조회 링크·계산·가져오기 중복 판정에서 빠지고, 변경 내역의 삭제 줄로 되살린다.
 
 /** 같은 명단을 여러 번 쓰려고 서포터 반복을 허용하고 시작·결과까지 확정한다. */
@@ -245,7 +245,7 @@ describe("지운 경기가 새지 않는 곳", () => {
     expect(view.body.matches.some((m) => m.id === second.id)).toBe(false);
     expect(view.text).not.toContain("지운경기비밀메모");
     // 경기 ID는 삭제 줄의 matchId 한 번만 나온다(명단·시리즈·정정 줄 어디에도 없다).
-    // 예외: 서포터 차례 기록(rotation.events)은 지울 때 그대로 두는 것으로 정해서(matches.ts deleteMatch 주석) 그 경기의
+    // 예외: 서포터 차례 기록(rotation.events)은 지울 때 그대로 두는 것으로 정해서(matchRemoval.ts deleteMatch 주석) 그 경기의
     // 서포터 차례 사용 줄(경기 ID·서포터 ID)이 남는다. 승패·명단·메모는 거기에 없다.
     const { rotation, ...rest } = view.body;
     expect(JSON.stringify(rest).split(second.id).length - 1).toBe(1);

@@ -111,7 +111,7 @@ const REVISION_LABEL: Record<string, string> = {
 };
 
 /**
- * 경기 삭제·되살리기 줄(src/server/matches.ts deleteMatch가 kind "correction"에 changes.deleted로 남긴다)이면
+ * 경기 삭제·되살리기 줄(src/server/matchRemoval.ts deleteMatch가 kind "correction"에 changes.deleted로 남긴다)이면
  * 지운 줄은 true, 되살린 줄은 false. 그 밖의 줄은 null.
  */
 function deletionOf(r: RevisionView): boolean | null {
@@ -1164,7 +1164,7 @@ export function MatchDetail(props: {
   }
 
   /**
-   * 경기 삭제(src/server/matches.ts deleteMatch). 성공하면 기록 화면으로 먼저 돌아간 뒤 새로 읽는다: 새로 읽은 다음에
+   * 경기 삭제(src/server/matchRemoval.ts deleteMatch). 성공하면 기록 화면으로 먼저 돌아간 뒤 새로 읽는다: 새로 읽은 다음에
    * 돌아가면 그 사이 이 화면이 "경기를 찾을 수 없어요"로 한 번 그려진다.
    */
   async function deleteThisMatch() {
