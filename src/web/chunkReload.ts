@@ -1,8 +1,9 @@
 /**
  * 배포 뒤 옛 탭의 지연 로딩 실패를 새로 고침 한 번으로 복구한다.
  *
- * 왜 생기나: 화면 조각 파일 이름에는 내용 해시가 붙는다(/assets/Graphs-HASH.js). 새로 배포하면 옛 조각이 사라지는데,
- * 배포 전에 열어 둔 탭은 옛 index.html이 알려 준 옛 이름으로 조각을 요청한다. 정적 자산 설정이
+ * 왜 생기나: 화면 조각 파일 이름에는 내용 해시가 붙는다(/assets/Graphs-HASH.js). 배포할 때 바로 전 배포의 조각은
+ * scripts/keep-old-assets.mjs가 함께 올려 한 배포 동안 남지만, 두 배포 이상 지난 탭은 옛 index.html이 알려 준 옛 이름으로
+ * 없는 조각을 요청한다. 정적 자산 설정이
  * not_found_handling: "single-page-application"(wrangler.jsonc)이라 없는 파일 요청에 index.html(200, text/html)이
  * 오고, 브라우저는 그것을 JS 모듈로 읽지 못해 import()가 실패한다.
  *
