@@ -18,6 +18,16 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-21: 운영 20f0c206 = staging bdff35ae = main cbf0abc(기록 화면 경기 카드·경기 상세에도 어려운 상대)]
+
+- 경기 카드는 이변 배지 줄에 "어려운 상대 · 정글 ○○ · 원딜 ○○", 경기 상세는 강한 쪽 이름 아래 배지(지금까지 누적 기준).
+  판정은 shared/headToHead.ts hardestLaneRivals·laneRivalMeetings로 팀 짜기와 하나. 마이그레이션 없음.
+  이번에는 Claude 실행 deploy:production이 권한 검사에 막히지 않아 Claude가 push·staging·운영까지 배포.
+- 배포 전: typecheck·lint·audit:design 0, 단위 1259, build·check:bundle, 전체 E2E 178 통과(4 건너뜀).
+- 확인(20초 뒤): 두 곳 /api/health 200, 운영 index-B7EWUT9x.js·index-CarlYnAh.css, 직전 index-U3rhPDPT.js 200
+  text/javascript. 예시 모임 기록 390·1440: 어려운 상대 줄 카드 2개, 경기 상세 배지 3개, 넘침 0·콘솔 오류 0.
+  요약·기록·랭킹·챔피언 320·390·1440 넘침 0·오류 0.
+
 [2026-11-21: 운영 f80a9331 = staging 4b376627 = main 2fcdac6(콤비·어려운 상대 배지 앞 16px 마크)]
 
 - 콤비는 두 사람, 어려운 상대는 엇갈린 칼(시즌 시상 최고의 듀오·천적 관계와 같은 도형, rankBadges.tsx DUO_SHAPE·RIVAL_SHAPE).
