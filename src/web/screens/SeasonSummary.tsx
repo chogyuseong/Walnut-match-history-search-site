@@ -11,6 +11,7 @@ import type { Snapshot } from "../../shared/types";
 import { formatDate, formatRange, nameMap, POSITION_LABEL } from "../format";
 import { drawSeasonImage, ShareImageDialog } from "../shareImage";
 import { BackLink, Help, ScreenHead } from "../screenKit";
+import { DUO_SHAPE, RIVAL_SHAPE } from "../rankBadges";
 import { RoleIcon } from "../roleIcon";
 import { CopyButton } from "../ui";
 
@@ -63,15 +64,9 @@ const AWARD_MARKS: Record<Exclude<AwardKey, "lineBest">, ReactNode> = {
   // 번개
   longestStreak: <path d="M13 3L5.5 13.5h5.5l-1 7.5 8-11h-5.5L13 3z" />,
   // 두 사람
-  bestDuo: (
-    <>
-      <circle cx="9" cy="8" r="3" />
-      <circle cx="16.5" cy="9" r="2.5" />
-      <path d="M3.5 19.5c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5M15.5 14.2c2.9 0 5 1.9 5 5.3" />
-    </>
-  ),
-  // 엇갈린 칼
-  nemesis: <path d="M4.5 4.5l11 11M19.5 4.5l-11 11M6 15l3 3M18 15l-3 3M4.5 19.5l2.5-2.5M19.5 19.5L17 17" />,
+  bestDuo: DUO_SHAPE,
+  // 엇갈린 칼(팀 짜기 "어려운 상대" 배지와 같은 도형)
+  nemesis: RIVAL_SHAPE,
   // 오르는 선
   mostImproved: <path d="M4 17l5.5-5.5 4 4L20 9M15 9h5v5" />,
   // 하트

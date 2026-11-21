@@ -567,6 +567,17 @@ details.help > .help-body p {
   background: transparent;
   color: var(--ih-text-secondary);
 }
+/* 마크가 앞에 붙은 배지(rankBadges.tsx BadgeMark: 콤비·어려운 상대). 마크와 글자 사이 4px, 마크는 16px. */
+.tag.marked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.badge-mark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
 .card {
   background: var(--ih-panel);
   border: 1px solid var(--ih-line);

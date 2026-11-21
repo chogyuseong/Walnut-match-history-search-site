@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { Draft } from "../../../shared/draft";
 import { avoids } from "../../../shared/avoid";
 import type { Combo } from "../../../shared/bestCombos";
-import { ComboBadge } from "../../rankBadges";
+import { ComboBadge, RivalBadge } from "../../rankBadges";
 import { drawStatus, supportCountOf, type RotationContext } from "../../../shared/rotation";
 import { POSITIONS, TEAMS } from "../../../shared/types";
 import { POSITION_LABEL, TEAM_MARK, teamBoxClass } from "../../format";
@@ -135,13 +135,9 @@ export function TeamBoards(props: {
                         <ComboBadge short title={paired.get(slot.key)!.title} hue={paired.get(slot.key)!.hue} />
                       )}
                       {rivalMark && (
-                        // 회색 배지(.tag): 승패 색(파랑·빨강)을 쓰면 진영 표시와 헷갈린다(CLAUDE.md 5절).
-                        <span
-                          className="tag"
+                        <RivalBadge
                           title={`${nameOf(rivalMark.weakerKey)} 상대로 ${POSITION_LABEL[position]} 맞라인 ${rivalMark.rival.losses}승 ${rivalMark.rival.wins}패 · ${nameOf(rivalMark.weakerKey)}에게 이 라인에서 가장 어려운 상대`}
-                        >
-                          어려운 상대
-                        </span>
+                        />
                       )}
                       {slot.locked && <span className="tag">고정</span>}
                       {avoids(edit.avoidMap, slot.key, position) && (

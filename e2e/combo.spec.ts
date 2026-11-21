@@ -118,7 +118,8 @@ test("최고의 콤비: 비교·개인 통계·그래프 분석에 배지, 팀 �
   // 콤비가 한 쌍뿐이라 쌍마다 색(.combo-hue-n)은 붙지 않는다.
   for (const name of ["콤비01", "콤비02"]) {
     const badge = row(page, name).locator(".combo-tag");
-    await expect(badge.locator("[aria-hidden]")).toHaveText("콤비");
+    await expect(badge.locator("span[aria-hidden]")).toHaveText("콤비");
+    await expect(badge.locator("svg.badge-mark")).toHaveCount(1);
     await expect(badge.locator(".sr-only")).toHaveText("최고의 콤비");
     await expect(badge).toHaveAttribute("title", /^콤비0[12]·콤비0[12]의 최고의 콤비 · 같은 팀 40경기 승률 90% · 두 사람 평균보다 \+27%p$/);
     await expect(badge).not.toHaveClass(/combo-hue-/);

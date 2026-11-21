@@ -52,6 +52,41 @@ export function TitleBadge(props: { name: string; grade: TitleGrade | null; comp
 }
 
 /**
+ * 두 사람 사이를 뜻하는 마크. 시즌 시상(SeasonSummary.tsx)의 "최고의 듀오"·"천적 관계"와 콤비·어려운 상대 배지가
+ * 같은 도형을 쓴다. 뜻이 같은 곳에 같은 마크가 보이게 하려는 것이라 한쪽만 바꾸지 않는다.
+ */
+export const DUO_SHAPE = (
+  <>
+    <circle cx="9" cy="8" r="3" />
+    <circle cx="16.5" cy="9" r="2.5" />
+    <path d="M3.5 19.5c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5M15.5 14.2c2.9 0 5 1.9 5 5.3" />
+  </>
+);
+export const RIVAL_SHAPE = <path d="M4.5 4.5l11 11M19.5 4.5l-11 11M6 15l3 3M18 15l-3 3M4.5 19.5l2.5-2.5M19.5 19.5L17 17" />;
+
+/**
+ * 배지 글자 앞 16px 마크(꾸밈, 낭독기에서 숨김). 선 굵기는 24 눈금에서 2.25라 16px로 그리면 1.5px(CLAUDE.md 7절).
+ * 색은 배지 글자색(currentColor)을 따라 콤비 쌍 색(.combo-hue-n)도 그대로 받는다.
+ */
+function BadgeMark(props: { children: ReactNode }) {
+  return (
+    <svg
+      className="badge-mark"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {props.children}
+    </svg>
+  );
+}
+
+/**
  * 최고의 콤비 표식(shared/bestCombos.ts): 서로가 서로의 잘 맞는 동료인 두 사람에게 똑같이 붙는다.
  * 개인 칭호와 다투지 않게 등급 색 없이 회색 테두리 배지(.tag)로 둔다(CLAUDE.md 5·8절). 근거(함께 n경기·승률·시너지)는
  * 붙이는 화면이 옆 글이나 title로 보여 준다. short는 팀 짜기 줄처럼 좁은 곳용 "콤비"(낭독기에는 전체 이름).
@@ -61,7 +96,8 @@ export function TitleBadge(props: { name: string; grade: TitleGrade | null; comp
 export const COMBO_LABEL = "최고의 콤비";
 export function ComboBadge(props: { short?: boolean; title?: string; hue?: number | null }) {
   return (
-    <span className={props.hue ? `tag combo-tag combo-hue-${props.hue}` : "tag combo-tag"} title={props.title}>
+    <span className={props.hue ? `tag marked combo-tag combo-hue-${props.hue}` : "tag marked combo-tag"} title={props.title}>
+      <BadgeMark>{DUO_SHAPE}</BadgeMark>
       {props.short ? (
         <>
           <span aria-hidden="true">콤비</span>
@@ -70,6 +106,19 @@ export function ComboBadge(props: { short?: boolean; title?: string; hue?: numbe
       ) : (
         COMBO_LABEL
       )}
+    </span>
+  );
+}
+
+/**
+ * 팀 짜기 편성판의 "어려운 상대"(prep/rivalMarks.ts): 맞은편에게 상대하기 어려운 사람. 근거는 title에 둔다.
+ * 승패 색(파랑·빨강)은 진영 표시와 헷갈려 쓰지 않고 회색 배지로 둔다(CLAUDE.md 5절).
+ */
+export function RivalBadge(props: { title: string }) {
+  return (
+    <span className="tag marked rival-tag" title={props.title}>
+      <BadgeMark>{RIVAL_SHAPE}</BadgeMark>
+      어려운 상대
     </span>
   );
 }
