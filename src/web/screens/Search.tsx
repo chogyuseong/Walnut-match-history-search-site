@@ -4,7 +4,7 @@ import { parseDateQuery, textContains } from "../../shared/search";
 import { localDate, matchesInScope, personRecords, searchByName, placementGamesOf } from "../../shared/stats";
 import type { Snapshot } from "../../shared/types";
 import { nameMap, rateHueText, rateText, standingsOf } from "../format";
-import { MatchCard, useExpectations } from "../matchCard";
+import { MatchCard, useExpectations, useLaneRivals } from "../matchCard";
 import { arrivedByBack } from "../nav";
 import { addRecentSearch, loadRecentSearches, saveRecentSearches } from "../recentSearch";
 import { pushHashQuery, readHashQuery, readHashShown, replaceHashQuery } from "../searchHash";
@@ -84,6 +84,7 @@ export function Search(props: {
   const placementGames = placementGamesOf(snapshot.group.settings);
   const nameOfId = useMemo(() => nameMap(snapshot), [snapshot]);
   const expectation = useExpectations(snapshot);
+  const laneRivals = useLaneRivals(snapshot);
   // 확정된 경기가 있는 사람과, 아직 경기가 없는 활성 참가자를 모두 찾을 수 있다.
   const people = useMemo(
     () =>
@@ -359,6 +360,7 @@ export function Search(props: {
                     timeZone={tz}
                     showDate
                     upset={expectation.get(m.id)?.upset}
+                    laneRivals={laneRivals}
                     onOpen={() => {
                       remember(query);
                       openedMatchByHash.set(location.hash, m.id);

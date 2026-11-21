@@ -70,6 +70,13 @@ test("어려운 상대: 탑 맞라인에서 4판 3승인 강한 쪽에만 배지
   expect(overflow).toBeLessThanOrEqual(0);
   if (SHOTS_DIR) await page.locator(".teams").screenshot({ path: `${SHOTS_DIR}/lane-rival-detail.png` });
 
+  // ---------- 검색에서 들어가는 개인 통계의 참여 경기 카드에도 같은 줄
+  await page.goto(`/#/p/${ids[0]}`);
+  const personCard = page.getByRole("region", { name: /참여 경기/ }).locator(".match-card").first();
+  await expect(personCard.locator(".mc-rivals-who")).toHaveText("탑 어려06");
+  overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });
   for (const name of names) await all.getByRole("button", { name: new RegExp(name) }).click();

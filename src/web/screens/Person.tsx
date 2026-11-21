@@ -35,7 +35,7 @@ import { formatDate, nameMap, POSITION_LABEL, percentText, rateHueText, rateText
 import { attendanceReport } from "../../shared/attendance";
 import { personUpsets, UPSET_MMR_GAP } from "../../shared/upset";
 import { csvFileName, downloadText, personMatchesCsv } from "../csvExport";
-import { MatchCard, useExpectations } from "../matchCard";
+import { MatchCard, useExpectations, useLaneRivals } from "../matchCard";
 import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, Help, ScreenHead, FilterBar } from "../screenKit";
 import { FormDots, Meter, RateBar, RateRing, WinLossBar } from "../rateMeters";
@@ -113,6 +113,7 @@ export function Person(props: {
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);
   const seriesBadge = useSeriesBadges(snapshot);
   const expectation = useExpectations(snapshot);
+  const hardestByLane = useLaneRivals(snapshot);
   const person = snapshot.participants.find((p) => p.id === participantId);
 
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
@@ -795,6 +796,7 @@ export function Person(props: {
                 onOpen={() => props.openMatch(m.id)}
                 seriesBadge={seriesBadge(m.id)}
                 upset={expectation.get(m.id)?.upset}
+                laneRivals={hardestByLane}
                 onPerson={props.openPerson}
               />
             ))}
