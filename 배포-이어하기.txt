@@ -18,6 +18,15 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-21: 운영 03319bfb = staging 79f80a10 = main 5bce8a7(팀 짜기 "어려운 상대" 배지)]
+
+- 같은 라인 맞은편이 개인 통계 "맞라인 상대"의 그 라인 가장 어려운 상대면 지는 쪽 줄에 회색 "어려운 상대"(prep/rivalMarks.ts,
+  기준은 사용자가 개인 통계와 같게 고름). 마이그레이션 없음. Claude가 push·staging, 운영은 사용자가 직접 배포.
+- 배포 전: typecheck·lint·audit:design 0, 단위 1258, build·check:bundle, E2E lane-rival(새)·combo 통과.
+- 확인(20초 뒤): 두 곳 /api/health 200, 운영 첫 화면 index-6_8Z44p8.js·index-DEwqlOep.css, operator-BKMuS8qW.js에 배지 문구,
+  직전 배포 index-iaVbBGAh.js 200 text/javascript, 예시 모임 320·390·1440 넘침 0·콘솔 오류 0.
+  팀 짜기는 로그인이 필요해 운영에서 눌러 보지 않음(로컬 E2E·390px 사진). 다음 내전 때 배지가 뜨는지 볼 것.
+
 [2026-11-21: 운영 6eaec597 = staging f524fe2f = main f73a879(검색 칸 min-width: 0 배포, 라이엇 제품 등록 승인)]
 
 - 아래 ffba940 검색 칸 수정을 올림. 마이그레이션·wrangler.jsonc 변경 없음. Claude가 staging 배포, 운영은 Claude 실행이
