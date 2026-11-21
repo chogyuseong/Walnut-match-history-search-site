@@ -51,6 +51,25 @@ test("어려운 상대: 탑 맞라인에서 4판 3승인 강한 쪽에만 배지
     }
   }
 
+  // ---------- 기록: 경기 카드 위 줄에 "어려운 상대 탑 어려06", 경기 상세에서는 어려06 이름 옆에 배지
+  await page.goto("/#/records");
+  const firstCard = page.locator(".match-card").first();
+  await expect(firstCard.locator(".mc-rivals")).toContainText("어려운 상대");
+  await expect(firstCard.locator(".mc-rivals-who")).toHaveText("탑 어려06");
+  let overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  if (SHOTS_DIR) await firstCard.screenshot({ path: `${SHOTS_DIR}/lane-rival-card.png` });
+  await firstCard.locator(".mc-main").click();
+  const strongRow = page.locator(".teams li").filter({ hasText: "어려06" });
+  await expect(strongRow.locator(".rival-tag")).toHaveAttribute(
+    "title",
+    "어려01 상대로 탑 맞라인 30승 10패 · 어려01에게 이 라인에서 가장 어려운 상대 (지금까지 누적 기준)",
+  );
+  await expect(page.locator(".teams .rival-tag")).toHaveCount(1);
+  overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  if (SHOTS_DIR) await page.locator(".teams").screenshot({ path: `${SHOTS_DIR}/lane-rival-detail.png` });
+
   await page.goto("/#/pick");
   const all = page.getByRole("region", { name: "전체 참가자" });
   for (const name of names) await all.getByRole("button", { name: new RegExp(name) }).click();
@@ -71,7 +90,7 @@ test("어려운 상대: 탑 맞라인에서 4판 3승인 강한 쪽에만 배지
     "title",
     "어려01 상대로 탑 맞라인 30승 10패 · 어려01에게 이 라인에서 가장 어려운 상대",
   );
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   if (SHOTS_DIR) await page.locator(".teams").screenshot({ path: `${SHOTS_DIR}/lane-rival-prep.png` });
 

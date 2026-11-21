@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Draft } from "../src/shared/draft";
-import type { LaneRival } from "../src/shared/headToHead";
+import { hardestLaneRivals, laneRivalMeetings, type LaneRival } from "../src/shared/headToHead";
 import { POSITIONS, type MatchView, type Position } from "../src/shared/types";
-import { hardestLaneRivals, rivalMarks } from "../src/web/screens/prep/rivalMarks";
+import { rivalMarks } from "../src/web/screens/prep/rivalMarks";
 
 // 팀 짜기 편성판의 "어려운 상대" 배지(prep/rivalMarks.ts). 사람 키 "k0"~"k9", 참가자 ID "p0"~"p9".
 // k0~k4가 블루팀(A) 탑~서폿, k5~k9가 레드팀(B) 탑~서폿이라 k0과 k5가 탑 맞라인이다.
@@ -57,6 +57,19 @@ describe("팀 짜기 어려운 상대 배지", () => {
 
     const placing = new Map([["p0", { done: true }], ["p5", { done: false }]]);
     expect(hardestLaneRivals(matches, ["p0"], placing).size).toBe(0);
+  });
+
+  it("기록 경기에서도 같은 라인에 마주 선 강한 쪽을 찾는다(포지션 없는 사람은 건너뜀)", () => {
+    const hardest = new Map([["p0", new Map([["top" as Position, rival("top", "p5", 1, 3)]])]]);
+    const roster = [
+      { participantId: "p0", team: "A", position: "top" as Position },
+      { participantId: "p5", team: "B", position: "top" as Position },
+      { participantId: "p1", team: "A", position: null },
+    ];
+    expect(laneRivalMeetings(roster, hardest)).toEqual([
+      { position: "top", strongId: "p5", weakId: "p0", rival: rival("top", "p5", 1, 3) },
+    ]);
+    expect(laneRivalMeetings(roster.map((r) => (r.participantId === "p5" ? { ...r, position: "mid" as Position } : r)), hardest)).toEqual([]);
   });
 
   it("세 경기보다 적게 만났으면 붙지 않는다", () => {

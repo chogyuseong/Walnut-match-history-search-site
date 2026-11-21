@@ -1,8 +1,10 @@
 // 칭호 엠블럼·칭호 표식, MMR 티어 이름표, 배치·칭호 한 줄(StandingNote). 요약·랭킹·개인 통계·검색·칭호 설정이 쓴다.
 import type { ReactNode } from "react";
+import type { LaneRival } from "../shared/headToHead";
 import { ratingTierOf } from "../shared/rating";
 import type { TitleGrade } from "../shared/titles";
-import type { ShownStanding } from "./format";
+import type { Position } from "../shared/types";
+import { POSITION_LABEL, type ShownStanding } from "./format";
 
 /**
  * 칭호 엠블럼. 등급(구간 순서)마다 직접 그린 단순한 도형이다(게임의 랭크 엠블럼을 본뜨지 않았다).
@@ -114,6 +116,10 @@ export function ComboBadge(props: { short?: boolean; title?: string; hue?: numbe
  * 팀 짜기 편성판의 "어려운 상대"(prep/rivalMarks.ts): 맞은편에게 상대하기 어려운 사람. 근거는 title에 둔다.
  * 승패 색(파랑·빨강)은 진영 표시와 헷갈려 쓰지 않고 회색 배지로 둔다(CLAUDE.md 5절).
  */
+export function laneRivalTitle(position: Position, weakName: string, rival: LaneRival): string {
+  return `${weakName} 상대로 ${POSITION_LABEL[position]} 맞라인 ${rival.losses}승 ${rival.wins}패 · ${weakName}에게 이 라인에서 가장 어려운 상대`;
+}
+
 export function RivalBadge(props: { title: string }) {
   return (
     <span className="tag marked rival-tag" title={props.title}>

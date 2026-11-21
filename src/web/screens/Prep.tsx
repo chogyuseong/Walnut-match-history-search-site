@@ -28,7 +28,7 @@ import { SeriesSection } from "./prep/SeriesSection";
 import { QUICK_BAR_NARROW_MAX, QuickShuffleButtons, ShuffleSection, ShuffleSettings, SideSection } from "./prep/ShuffleSection";
 import { StartAskDialog } from "./prep/StartAskDialog";
 import { supportCountLabel, SupportCountSection } from "./prep/SupportCountSection";
-import { hardestLaneRivals } from "./prep/rivalMarks";
+import { hardestLaneRivals } from "../../shared/headToHead";
 import { SelectionBar, TeamBoards } from "./prep/TeamBoards";
 import { useNightPool } from "./prep/useNightPool";
 import { usePrepEditing } from "./prep/usePrepEditing";

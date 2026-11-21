@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from "react";
+import { hardestLaneRivals, laneRivalMeetings, type HardestLaneRivals } from "../shared/headToHead";
 import { memoOneLine } from "../shared/memo";
 import { ratingOptionsOf } from "../shared/rating";
 import { isCounted } from "../shared/stats";
@@ -13,10 +14,12 @@ import {
   POSITION_LABEL,
   resultLine,
   SIDE_LABEL,
+  standingsOf,
   TEAM_MARK,
   teamName,
   teamRoster,
 } from "./format";
+import { laneRivalTitle, RivalBadge } from "./rankBadges";
 import { PosLabel } from "./roleIcon";
 
 /**
@@ -52,8 +55,14 @@ export function MatchCard(props: {
   seriesBadge?: string | null;
   /** 이변 경기면 "이변" 배지를 붙인다(src/shared/upset.ts, useExpectations). */
   upset?: boolean;
+  /**
+   * 있으면(기록 화면) 같은 라인에 마주 선 "어려운 상대"를 이변 배지 줄에 적는다(useLaneRivals).
+   * 이름 칸은 폰에서 54px이라 배지를 넣을 자리가 없어 카드 위 줄에 "탑 ○○"로 모은다.
+   */
+  laneRivals?: HardestLaneRivals;
 }) {
   const { match, nameOf, focusId } = props;
+  const rivals = props.laneRivals ? laneRivalMeetings(match.roster, props.laneRivals) : [];
   const confirmed = isCounted(match);
   const me = focusId ? (match.roster.find((r) => r.participantId === focusId) ?? null) : null;
   const myWin = me && confirmed ? me.team === match.winnerTeam : null;
@@ -84,12 +93,24 @@ export function MatchCard(props: {
         </button>
         {props.action && <span className="mc-action">{props.action}</span>}
       </div>
-      {(props.seriesBadge || props.upset || match.memo) && (
-        // 시리즈·이변 배지와 메모 한 줄(넘치면 말줄임). 메모는 글자로만 그린다(HTML로 해석하지 않음).
+      {(props.seriesBadge || props.upset || match.memo || rivals.length > 0) && (
+        // 시리즈·이변·어려운 상대 배지와 메모 한 줄(넘치면 말줄임). 메모는 글자로만 그린다(HTML로 해석하지 않음).
         <p className="mc-extra">
           {props.upset && (
             <span className="series-badge" title={UPSET_BADGE_TITLE}>
               이변<span className="sr-only">: {UPSET_BADGE_TITLE}</span>
+            </span>
+          )}
+          {rivals.length > 0 && (
+            <span className="mc-rivals">
+              <RivalBadge
+                title={`${rivals
+                  .map((r) => `${nameOf(r.strongId)}: ${laneRivalTitle(r.position, nameOf(r.weakId), r.rival)}`)
+                  .join(" / ")} (${LANE_RIVAL_BASIS})`}
+              />
+              <span className="mc-rivals-who">
+                {rivals.map((r) => `${POSITION_LABEL[r.position]} ${nameOf(r.strongId)}`).join(" · ")}
+              </span>
             </span>
           )}
           {props.seriesBadge && <span className="series-badge">{props.seriesBadge}</span>}
@@ -322,6 +343,24 @@ export function MatchScoreboard(props: {
  * 경기마다의 경기 전 예상(이변 지수, src/shared/upset.ts). 모임 전체 누적 MMR로 계산하므로 스냅숏이 바뀔 때만 다시 센다.
  * 경기 ID → 예상. 유효 확정 경기가 아니면 없다.
  */
+/**
+ * 기록 화면의 "어려운 상대" 표시(경기 카드·경기 상세)에 쓰는 모든 참가자의 라인별 가장 어려운 상대.
+ * 경기 당시가 아니라 지금까지의 누적 기준이라(개인 통계와 같음) 화면 설명에도 "지금까지 누적"을 적는다.
+ * 사람마다 전체 경기를 훑으므로 스냅숏이 바뀔 때만 다시 센다.
+ */
+export function useLaneRivals(snapshot: Snapshot | null): HardestLaneRivals {
+  return useMemo(
+    () =>
+      snapshot
+        ? hardestLaneRivals(snapshot.matches, snapshot.participants.map((p) => p.id), standingsOf(snapshot))
+        : new Map(),
+    [snapshot],
+  );
+}
+
+/** 기록 화면에서 "어려운 상대" 설명 끝에 붙이는 기준. 옛 경기에도 지금 누적 전적으로 판정한다. */
+export const LANE_RIVAL_BASIS = "지금까지 누적 기준";
+
 export function useExpectations(snapshot: Snapshot | null): ReadonlyMap<string, MatchExpectation> {
   return useMemo(
     () => (snapshot ? matchExpectations(snapshot.matches, ratingOptionsOf(snapshot.group.settings)) : new Map()),

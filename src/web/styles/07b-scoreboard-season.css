@@ -274,6 +274,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 경기 카드의 어려운 상대(matchCard.tsx laneRivals): 배지 + "탑 ○○". 메모와 한 줄이라 좁으면 이름 쪽이 말줄임된다. */
+.mc-rivals {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.mc-rivals .tag {
+  margin-left: 0;
+}
+.mc-rivals-who {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .mc-memo-label {
   margin-right: var(--space-1);
   font-weight: 500;

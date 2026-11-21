@@ -2,13 +2,14 @@ import { useLayoutEffect, useRef } from "react";
 import type { Draft } from "../../../shared/draft";
 import { avoids } from "../../../shared/avoid";
 import type { Combo } from "../../../shared/bestCombos";
-import { ComboBadge, RivalBadge } from "../../rankBadges";
+import { ComboBadge, laneRivalTitle, RivalBadge } from "../../rankBadges";
 import { drawStatus, supportCountOf, type RotationContext } from "../../../shared/rotation";
 import { POSITIONS, TEAMS } from "../../../shared/types";
-import { POSITION_LABEL, TEAM_MARK, teamBoxClass } from "../../format";
+import { TEAM_MARK, teamBoxClass } from "../../format";
 import { PosLabel } from "../../roleIcon";
 import { comboMarks } from "./comboMarks";
-import { rivalMarks, type HardestLaneRivals } from "./rivalMarks";
+import type { HardestLaneRivals } from "../../../shared/headToHead";
+import { rivalMarks } from "./rivalMarks";
 import { prepTeamName } from "./common";
 import type { PrepEditing } from "./usePrepEditing";
 
@@ -135,9 +136,7 @@ export function TeamBoards(props: {
                         <ComboBadge short title={paired.get(slot.key)!.title} hue={paired.get(slot.key)!.hue} />
                       )}
                       {rivalMark && (
-                        <RivalBadge
-                          title={`${nameOf(rivalMark.weakerKey)} 상대로 ${POSITION_LABEL[position]} 맞라인 ${rivalMark.rival.losses}승 ${rivalMark.rival.wins}패 · ${nameOf(rivalMark.weakerKey)}에게 이 라인에서 가장 어려운 상대`}
-                        />
+                        <RivalBadge title={laneRivalTitle(position, nameOf(rivalMark.weakerKey), rivalMark.rival)} />
                       )}
                       {slot.locked && <span className="tag">고정</span>}
                       {avoids(edit.avoidMap, slot.key, position) && (

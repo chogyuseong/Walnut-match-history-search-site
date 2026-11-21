@@ -70,6 +70,8 @@ export function MatchTeams(props: {
   championName?: (key: string) => string;
   /** 있으면 챔피언 이름 옆에 초상화를 둔다(championPortrait.tsx). 같은 까닭으로 부르는 화면에서 받는다. */
   championPortrait?: (key: string) => ReactNode;
+  /** 있으면 이름 뒤에 붙일 배지(경기 상세의 "어려운 상대"). 판정 코드를 이 부품에 싣지 않으려고 부르는 화면에서 받는다. */
+  badgeOf?: (participantId: string) => ReactNode;
 }) {
   return (
     <div className="teams">
@@ -118,6 +120,7 @@ export function MatchTeams(props: {
                       {props.nameOf(entry.participantId)}
                     </span>
                   )}
+                  {props.badgeOf?.(entry.participantId)}
                 </li>
               ),
             )}

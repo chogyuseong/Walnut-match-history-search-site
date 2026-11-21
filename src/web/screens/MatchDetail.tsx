@@ -33,7 +33,9 @@ import {
   teamName,
   teamRoster,
 } from "../format";
-import { useExpectations } from "../matchCard";
+import { laneRivalMeetings } from "../../shared/headToHead";
+import { LANE_RIVAL_BASIS, useExpectations, useLaneRivals } from "../matchCard";
+import { laneRivalTitle, RivalBadge } from "../rankBadges";
 import { expectedOf, UPSET_MMR_GAP, type MatchExpectation } from "../../shared/upset";
 import { MatchMemoSection } from "../memoField";
 import { MatchSeriesSection } from "../seriesPanel";
@@ -217,6 +219,7 @@ export function MatchDetail(props: {
   const [imageOpen, setImageOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const expectationOf = useExpectations(snapshot);
+  const laneRivals = useLaneRivals(snapshot);
   // 요청 ID는 같은 요청(동작·내용·경기 버전)을 다시 보낼 때 같은 값을 쓴다. 성공하거나 내용이 바뀌면 새로 만든다.
   const request = useRef<{ id: string; key: string } | null>(null);
 
@@ -324,6 +327,15 @@ export function MatchDetail(props: {
         nameOf={nameOf}
         championName={championName}
         championPortrait={(key) => <ChampionPortrait championKey={key} size={32} />}
+        badgeOf={(id) => {
+          // 같은 라인 맞은편에게 개인 통계 기준 가장 어려운 상대인 쪽에만(matchCard.tsx useLaneRivals, 지금까지 누적).
+          const meeting = laneRivalMeetings(match.roster, laneRivals).find((m) => m.strongId === id);
+          return meeting ? (
+            <RivalBadge
+              title={`${laneRivalTitle(meeting.position, nameOf(meeting.weakId), meeting.rival)} (${LANE_RIVAL_BASIS})`}
+            />
+          ) : null;
+        }}
       />
 
       <ExpectationLine expectation={expectationOf.get(match.id)} />

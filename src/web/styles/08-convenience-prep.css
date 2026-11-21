@@ -342,6 +342,15 @@ button.row.swap-target:hover {
 .team li + li.row {
   border-top-color: var(--ih-line);
 }
+/* 경기 상세 팀 상자(screenKit MatchTeams)에서 "어려운 상대" 배지가 붙은 줄: 팀 짜기 줄(button.row)처럼 배지가 아랫줄로
+   내려간다. 감지 않으면 390px에서 배지가 이름 칸을 0까지 눌러 이름이 사라졌다. 배지 없는 줄은 이름 말줄임 그대로 둔다. */
+.team li.row:has(> .rival-tag) {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+.team li.row > .rival-tag {
+  margin-left: 0;
+}
 .team button.row:not(:disabled):hover {
   background: color-mix(in srgb, var(--ih-subtle) 55%, transparent);
 }

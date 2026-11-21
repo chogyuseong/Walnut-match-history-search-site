@@ -146,6 +146,59 @@ export interface LaneRivalPick {
   easiest: LaneRival | null;
 }
 
+/** 참가자 ID → 라인 → 그 라인에서 가장 어려운 맞라인 상대. 어려운 상대가 없는 라인·사람은 빠진다. */
+export type HardestLaneRivals = ReadonlyMap<string, ReadonlyMap<Position, LaneRival>>;
+
+/**
+ * 여러 사람의 라인별 가장 어려운 맞라인 상대(누적). 개인 통계 "맞라인 상대"(Person.tsx)와 같은 판정이라
+ * "어려운 상대" 배지(팀 짜기·기록 경기 카드·경기 상세)를 보고 개인 통계에 가면 같은 사람이 보인다.
+ * 배치 중인 상대를 빼는 것도 개인 통계와 같다(한두 판 운으로 뽑히지 않게).
+ * 사람마다 전체 경기를 훑으므로 화면에서는 스냅숏이 바뀔 때만 부른다.
+ */
+export function hardestLaneRivals(
+  matches: readonly MatchView[],
+  participantIds: readonly string[],
+  standings: ReadonlyMap<string, { done: boolean }>,
+): HardestLaneRivals {
+  const result = new Map<string, Map<Position, LaneRival>>();
+  for (const id of new Set(participantIds)) {
+    const opponents = laneRivals(matches, id).filter((r) => standings.get(r.opponentId)?.done);
+    const byLine = new Map<Position, LaneRival>();
+    for (const pick of laneRivalSummary(opponents)) if (pick.hardest) byLine.set(pick.position, pick.hardest);
+    if (byLine.size > 0) result.set(id, byLine);
+  }
+  return result;
+}
+
+export interface LaneRivalMeeting {
+  position: Position;
+  /** 배지를 받는 쪽: 맞은편에게 "어려운 상대"인 사람. */
+  strongId: string;
+  weakId: string;
+  /** 약한 쪽 기준 맞라인 전적. 강한 쪽 기준으로 읽으려면 승·패를 뒤집는다. */
+  rival: LaneRival;
+}
+
+/**
+ * 한 경기(또는 편성)에서 같은 라인에 마주 선 두 사람 중 한쪽이 다른 쪽의 그 라인 가장 어려운 상대인 경우들(라인 순).
+ * 어려운 상대는 50% 미만에서만 고르므로 한 라인에서 두 사람이 서로를 꼽는 일은 없다. 포지션 기록이 없는 사람은 건너뛴다.
+ */
+export function laneRivalMeetings(
+  roster: readonly { participantId: string | null; team: string; position: Position | null }[],
+  hardest: HardestLaneRivals,
+): LaneRivalMeeting[] {
+  if (hardest.size === 0) return [];
+  return POSITIONS.flatMap((position) => {
+    const inLine = roster.filter((r) => r.position === position && r.participantId);
+    for (const weak of inLine) {
+      const rival = hardest.get(weak.participantId!)?.get(position);
+      const strong = rival && inLine.find((r) => r.team !== weak.team && r.participantId === rival.opponentId);
+      if (strong) return [{ position, strongId: strong.participantId!, weakId: weak.participantId!, rival: rival! }];
+    }
+    return [];
+  });
+}
+
 /** 맞라인 기록이 있는 라인마다(탑~서폿) 가장 어려운·쉬운 상대. 후보가 하나면 둘 다 같은 사람이다. */
 export function laneRivalSummary(rivals: readonly LaneRival[], min = LANE_RIVAL_MIN): LaneRivalPick[] {
   return POSITIONS.flatMap((position) => {

@@ -37,7 +37,7 @@ import {
   standingsOf,
 } from "../format";
 import { csvFileName, downloadText, matchesCsv, rankingCsv } from "../csvExport";
-import { MatchCard, useExpectations } from "../matchCard";
+import { MatchCard, useExpectations, useLaneRivals } from "../matchCard";
 import { SeriesListSection, useSeriesBadges } from "../seriesPanel";
 import { FilterBar, Glue, Help, KpiStrip, ScreenHead, SortHead } from "../screenKit";
 import { FormDots } from "../rateMeters";
@@ -83,6 +83,7 @@ export function Records(props: {
   const { snapshot } = props;
   const seriesBadge = useSeriesBadges(snapshot);
   const expectation = useExpectations(snapshot);
+  const laneRivals = useLaneRivals(snapshot);
   // 처음 보기 조건은 주소에서 읽는다(뒤로 왔을 때·공유 링크). 한 번만 읽고 그 뒤로는 화면 상태를 주소에 적는다.
   // 흐름: 화면 상태(scope·filter·sort·line·shown) → viewParams → 아래 효과가 replaceRouteParams로 주소를 고친다.
   // 주소를 고쳐도 화면 상태를 다시 읽지 않으므로 둘이 서로를 바꾸며 도는 일은 없다.
@@ -267,6 +268,7 @@ export function Records(props: {
                 onPerson={openPersonInScope}
                 seriesBadge={seriesBadge(m.id)}
                 upset={expectation.get(m.id)?.upset}
+                laneRivals={laneRivals}
                 action={
                   m.state === "awaiting_result" && props.onResult ? (
                     <button type="button" className="secondary" onClick={() => props.onResult!(m)}>
