@@ -38,9 +38,10 @@ describe("팀 짜기 어려운 상대 배지", () => {
       // p2가 원딜에서 p7에게 약해도 지금은 미드에 서 있어 붙지 않는다.
       ["p2", new Map([["adc" as Position, rival("adc", "p7", 0, 4)]])],
     ]);
+    // 배지는 강한 쪽(맞은편 k5)에 붙는다.
     const marks = rivalMarks(draftOf(), hardest);
-    expect([...marks.keys()]).toEqual(["k0"]);
-    expect(marks.get("k0")).toEqual({ opponentKey: "k5", rival: rival("top", "p5", 1, 3) });
+    expect([...marks.keys()]).toEqual(["k5"]);
+    expect(marks.get("k5")).toEqual({ weakerKey: "k0", rival: rival("top", "p5", 1, 3) });
   });
 
   it("경기 기록에서 지는 쪽만 고르고, 배치 중인 상대는 뺀다", () => {
@@ -52,7 +53,7 @@ describe("팀 짜기 어려운 상대 배지", () => {
     const hardest = hardestLaneRivals(matches, ["p0", "p5"], done);
     expect(hardest.get("p0")?.get("top")).toEqual(rival("top", "p5", 1, 2));
     expect(hardest.has("p5")).toBe(false);
-    expect([...rivalMarks(draftOf(), hardest).keys()]).toEqual(["k0"]);
+    expect([...rivalMarks(draftOf(), hardest).keys()]).toEqual(["k5"]);
 
     const placing = new Map([["p0", { done: true }], ["p5", { done: false }]]);
     expect(hardestLaneRivals(matches, ["p0"], placing).size).toBe(0);

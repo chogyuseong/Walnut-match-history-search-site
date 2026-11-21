@@ -3,8 +3,8 @@ import { laneRivals, laneRivalSummary, type LaneRival } from "../../../shared/he
 import type { MatchView, Position } from "../../../shared/types";
 
 /**
- * 팀 짜기 편성판(TeamBoards.tsx)의 "어려운 상대" 배지: 같은 라인에 마주 선 상대가 그 사람의 개인 통계
- * "맞라인 상대"에서 그 라인의 가장 어려운 상대로 뜨는 사람이면, 지는 쪽에게 붙인다.
+ * 팀 짜기 편성판(TeamBoards.tsx)의 "어려운 상대" 배지: 같은 라인에 마주 선 사람이 맞은편의 개인 통계
+ * "맞라인 상대"에서 그 라인의 가장 어려운 상대로 뜨면, 그 강한 쪽에게 붙인다(낱말 뜻대로 "상대하기 어려운 사람", 사용자 결정).
  * 판정을 개인 통계(Person.tsx lanePicks)와 똑같이 둬서 배지를 보고 개인 통계에 가면 같은 사람이 보이게 한다(사용자 결정).
  * 기준을 바꾸려면 headToHead.ts laneRivalSummary(경기 수·50% 미만)를 고친다. 두 화면이 함께 바뀐다.
  * test/teamBoardsRival.test.ts가 브라우저 타입 없이 가져오므로 web/format.ts 대신 shared만 쓴다.
@@ -33,14 +33,14 @@ export function hardestLaneRivals(
 }
 
 export interface RivalMark {
-  /** 맞은편 같은 라인 사람의 슬롯 키(설명 글에 이름을 넣을 때 쓴다). */
-  opponentKey: string;
-  /** 지금 라인에서 그 상대와의 맞라인 전적(배지를 단 사람 기준 승·패). */
+  /** 이 사람에게 약한 맞은편 같은 라인 사람의 슬롯 키(설명 글에 이름을 넣을 때 쓴다). */
+  weakerKey: string;
+  /** 약한 쪽 기준의 맞라인 전적. 배지를 단 사람 기준으로 읽으려면 승·패를 뒤집는다. */
   rival: LaneRival;
 }
 
 /**
- * 슬롯 키 → 표식. 맞은편 같은 라인 사람이 내 그 라인의 가장 어려운 상대일 때만 붙는다.
+ * 슬롯 키 → 표식. 내가 맞은편 같은 라인 사람의 그 라인 가장 어려운 상대일 때만 붙는다.
  * 어려운 상대는 50% 미만에서만 고르므로 같은 맞대결에서 두 사람이 동시에 받지는 않는다.
  */
 export function rivalMarks(draft: Draft, hardest: HardestLaneRivals | null): ReadonlyMap<string, RivalMark> {
@@ -52,7 +52,7 @@ export function rivalMarks(draft: Draft, hardest: HardestLaneRivals | null): Rea
     const rival = id ? hardest.get(id)?.get(slot.position) : undefined;
     if (!rival) continue;
     const across = draft.slots.find((s) => s.position === slot.position && s.team !== slot.team);
-    if (across && idOf.get(across.key) === rival.opponentId) marks.set(slot.key, { opponentKey: across.key, rival });
+    if (across && idOf.get(across.key) === rival.opponentId) marks.set(across.key, { weakerKey: slot.key, rival });
   }
   return marks;
 }

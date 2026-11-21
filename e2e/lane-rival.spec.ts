@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// 팀 짜기 "어려운 상대" 배지(prep/rivalMarks.ts): 같은 라인 맞은편이 개인 통계의 그 라인 가장 어려운 상대면 지는 쪽에만.
+// 팀 짜기 "어려운 상대" 배지(prep/rivalMarks.ts): 맞은편 개인 통계에서 그 라인 가장 어려운 상대로 뜨는 강한 쪽에만.
 // 지난 경기 40판: 어려01(탑)은 늘 어려06(탑)을 만나 4판에 1승. 나머지 넷은 앞 20판과 뒤 20판에서 팀을 맞바꿔
-// 맞라인 상대와 정확히 반반(50%)이 되게 해서 배지가 어려01 한 사람에게만 붙는다.
+// 맞라인 상대와 정확히 반반(50%)이 되게 해서 배지가 어려06 한 사람에게만 붙는다.
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -14,7 +14,7 @@ const SHOTS_DIR = process.env.SHOTS_DIR;
 const row = (page: Page, name: string) => page.locator(".teams").getByRole("button").filter({ hasText: name });
 const topRow = (page: Page, team: string) => page.getByRole("region", { name: team }).getByRole("listitem").first().getByRole("button");
 
-test("어려운 상대: 탑 맞라인에서 4판 1승이면 지는 쪽에만 배지, 자리를 바꾸면 사라진다", async ({ page }) => {
+test("어려운 상대: 탑 맞라인에서 4판 3승인 강한 쪽에만 배지, 자리를 바꾸면 사라진다", async ({ page }) => {
   test.setTimeout(240000);
   const login = await page.request.post("/api/auth/fake-login", {
     data: { subject: `e2e-rival-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}` },
@@ -67,9 +67,9 @@ test("어려운 상대: 탑 맞라인에서 4판 1승이면 지는 쪽에만 배
 
   const badges = page.locator(".teams .tag", { hasText: "어려운 상대" });
   await expect(badges).toHaveCount(1);
-  await expect(row(page, "어려01").locator(".tag", { hasText: "어려운 상대" })).toHaveAttribute(
+  await expect(row(page, "어려06").locator(".tag", { hasText: "어려운 상대" })).toHaveAttribute(
     "title",
-    "어려06 상대로 탑 맞라인 10승 30패 · 이 라인에서 가장 어려운 상대",
+    "어려01 상대로 탑 맞라인 30승 10패 · 어려01에게 이 라인에서 가장 어려운 상대",
   );
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);

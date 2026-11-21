@@ -138,7 +138,7 @@ export function TeamBoards(props: {
                         // 회색 배지(.tag): 승패 색(파랑·빨강)을 쓰면 진영 표시와 헷갈린다(CLAUDE.md 5절).
                         <span
                           className="tag"
-                          title={`${nameOf(rivalMark.opponentKey)} 상대로 ${POSITION_LABEL[position]} 맞라인 ${rivalMark.rival.wins}승 ${rivalMark.rival.losses}패 · 이 라인에서 가장 어려운 상대`}
+                          title={`${nameOf(rivalMark.weakerKey)} 상대로 ${POSITION_LABEL[position]} 맞라인 ${rivalMark.rival.losses}승 ${rivalMark.rival.wins}패 · ${nameOf(rivalMark.weakerKey)}에게 이 라인에서 가장 어려운 상대`}
                         >
                           어려운 상대
                         </span>
