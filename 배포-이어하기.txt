@@ -18,6 +18,18 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-21: 운영 6eaec597 = staging f524fe2f = main f73a879(검색 칸 min-width: 0 배포, 라이엇 제품 등록 승인)]
+
+- 아래 ffba940 검색 칸 수정을 올림. 마이그레이션·wrangler.jsonc 변경 없음. Claude가 staging 배포, 운영은 Claude 실행이
+  권한 검사에 막혀 사용자가 직접 배포(! npm run deploy:production). 두 곳 모두 "이번 빌드 52개 + 지난 배포에서 35개".
+- 검사: 일반 build 뒤 check:bundle 통과. 배포 빌드(dist에 옛 조각이 섞임) 위에서 돌리면 route-preload 검사가 실패하니
+  반드시 npm run build 다음에 돌린다.
+- 확인(20초 뒤): 두 곳 /api/health 200, 운영 첫 화면 index-iaVbBGAh.js·index-DEwqlOep.css(.filter-search에 min-width:0),
+  직전 배포 index-BwhTiSFD.js 200 text/javascript. 예시 모임 요약·기록·랭킹·챔피언 320·390·1440 가로 넘침 0·콘솔 오류 0,
+  320px 기록 화면 검색 칸 오른쪽 끝 304px.
+- 라이엇 개발자 포털 제품 등록 Approved(App ID 910113), 등록 때 보낸 질문 넷에는 답 없음. 자세한 것은
+  docs/라이엇-정책-웹사이트-조사-2026-11-16.md "등록 결과". 키는 쓰지 않으며 사용자가 재발급했고 어디에도 적지 않는다.
+
 [2026-11-21 밤: 배포 없음. 운영 28fc3696 그대로, main은 그 뒤 CI 넘침 진짜 원인 수정(검색 칸 min-width: 0)]
 
 - 아래 1ceefed의 상단 바 수정은 CI 넘침 원인이 아니었다(CI 18e4be7에서도 같은 넷이 28px 그대로 실패).
