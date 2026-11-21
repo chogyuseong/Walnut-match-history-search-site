@@ -28,6 +28,7 @@ import { SeriesSection } from "./prep/SeriesSection";
 import { QUICK_BAR_NARROW_MAX, QuickShuffleButtons, ShuffleSection, ShuffleSettings, SideSection } from "./prep/ShuffleSection";
 import { StartAskDialog } from "./prep/StartAskDialog";
 import { supportCountLabel, SupportCountSection } from "./prep/SupportCountSection";
+import { hardestLaneRivals } from "./prep/rivalMarks";
 import { SelectionBar, TeamBoards } from "./prep/TeamBoards";
 import { useNightPool } from "./prep/useNightPool";
 import { usePrepEditing } from "./prep/usePrepEditing";
@@ -135,6 +136,14 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
   const combos = useMemo(
     () => (app.snapshot ? bestCombos(app.snapshot.matches, standingsOf(app.snapshot), nameMap(app.snapshot)) : null),
     [app.snapshot],
+  );
+  // 어려운 상대(prep/rivalMarks.ts): 같은 라인 맞은편이 개인 통계의 그 라인 가장 어려운 상대면 지는 쪽에 표시한다.
+  // 사람마다 전체 경기를 훑으므로 자리를 바꿀 때가 아니라 스냅숏이나 편성 인원이 바뀔 때만 센다.
+  const draftIds = draft.people.flatMap((p) => (p.participantId ? [p.participantId] : [])).join(",");
+  const laneRivalPicks = useMemo(
+    () =>
+      app.snapshot ? hardestLaneRivals(app.snapshot.matches, draftIds.split(",").filter(Boolean), standingsOf(app.snapshot)) : null,
+    [app.snapshot, draftIds],
   );
   // 균형 순위(126가지 중 몇 위): 자리를 바꿀 때마다 다시 센다(126번 × 10명이라 가볍다). 티어 쪽은 티어 점수와 같은 조건.
   const splitRanks = ratings
@@ -332,7 +341,7 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
               }}
             />
           )}
-          <TeamBoards draft={draft} ctx={ctx} edit={edit} combos={combos} />
+          <TeamBoards draft={draft} ctx={ctx} edit={edit} combos={combos} laneRivals={laneRivalPicks} />
           <SelectionBar draft={draft} edit={edit} canReplace={others.length > 0} />
           {!twoColumns && shuffle}
           <DeltaNote lines={delta} onUndo={() => edit.stepHistory("undo")} />

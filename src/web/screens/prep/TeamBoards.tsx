@@ -5,9 +5,10 @@ import type { Combo } from "../../../shared/bestCombos";
 import { ComboBadge } from "../../rankBadges";
 import { drawStatus, supportCountOf, type RotationContext } from "../../../shared/rotation";
 import { POSITIONS, TEAMS } from "../../../shared/types";
-import { TEAM_MARK, teamBoxClass } from "../../format";
+import { POSITION_LABEL, TEAM_MARK, teamBoxClass } from "../../format";
 import { PosLabel } from "../../roleIcon";
 import { comboMarks } from "./comboMarks";
+import { rivalMarks, type HardestLaneRivals } from "./rivalMarks";
 import { prepTeamName } from "./common";
 import type { PrepEditing } from "./usePrepEditing";
 
@@ -40,11 +41,14 @@ export function TeamBoards(props: {
   edit: PrepEditing;
   /** bestCombos(누적). 스냅숏이 없으면 null. */
   combos: ReadonlyMap<string, Combo> | null;
+  /** hardestLaneRivals(누적). 스냅숏이 없으면 null. */
+  laneRivals: HardestLaneRivals | null;
 }) {
   const { draft, ctx, edit } = props;
   const { selectedKey, nameOf, dragKey, setDragKey, dropPerson } = edit;
   const moved = movedKeys(draft);
   const paired = comboMarks(draft, props.combos, nameOf);
+  const outmatched = rivalMarks(draft, props.laneRivals);
   useSlideOnReorder(draft.slots.map((s) => `${s.team}:${s.position}:${s.key}`).join("|"));
   // 바뀐 자리는 점선 테두리(styles.css .row.moved)로만 보인다. 처음에는 "바뀜" 글자 꼬리표였는데, 좁은 팀 상자에서
   // 꼬리표가 아랫줄로 내려가 누를 때마다 줄 높이가 바뀌고 팀 상자 전체가 출렁였다. 테두리는 높이를 바꾸지 않는다.
@@ -82,6 +86,7 @@ export function TeamBoards(props: {
                   );
                 }
                 const supportCount = ctx.enabled ? supportCountOf(draft, slot.key, ctx) : 0;
+                const rivalMark = outmatched.get(slot.key);
                 return (
                   <li key={slot.key} data-flip-key={slot.key}>
                     <button
@@ -128,6 +133,15 @@ export function TeamBoards(props: {
                       </span>
                       {paired.has(slot.key) && (
                         <ComboBadge short title={paired.get(slot.key)!.title} hue={paired.get(slot.key)!.hue} />
+                      )}
+                      {rivalMark && (
+                        // 회색 배지(.tag): 승패 색(파랑·빨강)을 쓰면 진영 표시와 헷갈린다(CLAUDE.md 5절).
+                        <span
+                          className="tag"
+                          title={`${nameOf(rivalMark.opponentKey)} 상대로 ${POSITION_LABEL[position]} 맞라인 ${rivalMark.rival.wins}승 ${rivalMark.rival.losses}패 · 이 라인에서 가장 어려운 상대`}
+                        >
+                          어려운 상대
+                        </span>
                       )}
                       {slot.locked && <span className="tag">고정</span>}
                       {avoids(edit.avoidMap, slot.key, position) && (
