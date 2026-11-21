@@ -40,7 +40,7 @@ import { useSeriesBadges } from "../seriesPanel";
 import { BackLink, Help, ScreenHead, FilterBar } from "../screenKit";
 import { FormDots, Meter, RateBar, RateRing, WinLossBar } from "../rateMeters";
 import { PosLabel } from "../roleIcon";
-import { ComboBadge, RatingTierBadge, TitleBadge } from "../rankBadges";
+import { ComboBadge, RatingTierBadge, RivalBadge, TitleBadge } from "../rankBadges";
 import { RatingTrendLine, TrendLine } from "../trendLines";
 import { ScopeBasis, ScopePicker, scopeSuffix, useRouteScope } from "../routeScope";
 
@@ -476,7 +476,16 @@ export function Person(props: {
             </div>
             <div>
               <dt className="tile-label">어려운 상대</dt>
-              <dd>{pairTile(cmp.rival, "상대일 때", cmp.versus)}</dd>
+              <dd>
+                {/* 잘 맞는 동료의 콤비 배지와 짝을 맞춘 표식(엇갈린 칼). 이 타일은 라인과 무관한 상대 팀 전적이라
+                    팀 짜기·경기 카드의 맞라인 "어려운 상대"와 고르는 사람이 다를 수 있다. */}
+                {pairTile(
+                  cmp.rival,
+                  "상대일 때",
+                  cmp.versus,
+                  cmp.rival ? <RivalBadge title="상대 팀으로 만났을 때 승률이 가장 낮은 사람이에요(라인 무관)" /> : null,
+                )}
+              </dd>
             </div>
           </dl>
           {(upsets.upsetWins > 0 || upsets.underdogGames > 0) && (
