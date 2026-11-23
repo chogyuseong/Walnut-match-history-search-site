@@ -280,6 +280,11 @@
   font-size: var(--text-label);
   white-space: nowrap;
 }
+/* 처음 온 사람의 소개 화면에는 본문에 "로그인하고 모임 만들기"가 있어 같은 로그인 창으로 가는 길이 둘이 된다.
+   소개가 떠 있는 동안만 상단 [로그인]을 숨긴다. :has()를 모르는 브라우저는 둘 다 보이는 예전 모습 그대로다. */
+body:has(.intro) .topbar-login {
+  display: none;
+}
 /* 상단 바 "피드백" 글자 링크(시험 운영 기간, App.tsx TopBar). 누르는 칸 44×44. 운영 화면은 넓은 화면에 같은 탭이 있어
    좁은 화면에서만 보인다(.nav-narrow-only). */
 .topbar-feedback {

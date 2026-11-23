@@ -30,14 +30,15 @@ test.describe("상단 바 로그인 (390px)", () => {
 
   test("상단 [로그인] → 모임 탭이 생기고, 모임이 없으면 시트 가져오기로 바로 시작할 수 있다", async ({ page }) => {
     await page.goto("/");
-    // 로그인 전: 상단에 [로그인], 주 메뉴에 모임 탭이 없다.
-    await expect(banner(page).getByRole("button", { name: "로그인", exact: true })).toBeVisible();
-    await expect(menu(page).getByRole("button", { name: "모임" })).toHaveCount(0);
-    // 처음 온 사람의 첫 화면은 소개라 본문의 로그인 길은 소개 안의 텍스트 링크다("맨 위 [로그인]" 안내는 재방문자용).
+    // 처음 온 사람의 첫 화면은 소개다. 소개 안에 "로그인하고 모임 만들기"가 있어 상단 [로그인]은 숨긴다(같은 창으로 가는 길이 둘이 되지 않게).
     await expect(
       page.getByRole("region", { name: "이 사이트 소개" }).getByRole("button", { name: "로그인하고 모임 만들기" }),
     ).toBeVisible();
+    await expect(banner(page).getByRole("button", { name: "로그인", exact: true })).toBeHidden();
+    await expect(menu(page).getByRole("button", { name: "모임" })).toHaveCount(0);
 
+    // 소개가 아닌 화면에서는 상단 [로그인]이 다시 보이고, 그것으로 로그인한다.
+    await menu(page).getByRole("button", { name: "검색" }).click();
     await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
     await fakeLogin(page, uniqueUser());
 
@@ -69,8 +70,11 @@ test.describe("상단 바 로그인 (390px)", () => {
     const account = page.getByRole("group", { name: "로그인 상태" });
     await expect(account).toContainText("로그인돼 있어요");
     await account.getByRole("button", { name: "로그아웃" }).click();
-    // 로그인해야 쓰는 화면에 있었으므로 첫 화면으로 간다.
-    await expect(banner(page).getByRole("button", { name: "로그인", exact: true })).toBeVisible();
+    // 로그인해야 쓰는 화면에 있었으므로 첫 화면으로 간다. 로그아웃은 이 기기의 모임 기억을 지우므로(forgetAccountStorage) 다시 소개가 뜨고, 로그인 길은 소개 안의 링크다.
+    await expect(
+      page.getByRole("region", { name: "이 사이트 소개" }).getByRole("button", { name: "로그인하고 모임 만들기" }),
+    ).toBeVisible();
+    await expect(banner(page).getByRole("button", { name: "로그인", exact: true })).toBeHidden();
     await expect(menu(page).getByRole("button", { name: "모임" })).toHaveCount(0);
     await expect(page).toHaveURL(/#\/$/);
   });

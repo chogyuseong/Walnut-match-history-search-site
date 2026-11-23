@@ -125,7 +125,8 @@ test("디자인 비교 사진: 첫 화면·예시 모임·로그인·빈 오늘�
     await capture(page, name!);
   }
   await page.goto("/");
-  await page.getByRole("banner").getByRole("button", { name: "로그인", exact: true }).click();
+  // 첫 방문 소개에서는 상단 [로그인]이 숨으므로 소개 안의 링크로 연다.
+  await page.getByRole("region", { name: "이 사이트 소개" }).getByRole("button", { name: "로그인하고 모임 만들기" }).click();
   await expect(page.getByRole("dialog", { name: "로그인" })).toBeVisible();
   await capture(page, "09-login");
 
