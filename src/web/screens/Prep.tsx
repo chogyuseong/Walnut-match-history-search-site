@@ -22,6 +22,7 @@ import { DraftImageDialog } from "./prep/DraftImage";
 import { DeltaNote } from "./prep/DeltaNote";
 import { DrawSummary } from "./prep/DrawSummary";
 import { ForecastSection } from "./prep/ForecastSection";
+import { HANDOFF_KEPT_ON_SERVER, handoffOf } from "../draftHandoff";
 import { HandoffNote } from "./prep/HandoffNote";
 import { LateDialog, RecommendDialog, ReplaceDialog } from "./prep/EditDialogs";
 import { SeriesSection } from "./prep/SeriesSection";
@@ -275,9 +276,12 @@ function PrepEditor(props: { app: AppValue; draft: NightDraft }) {
       {/* "이 기기에만 있어요" + 다른 기기로 넘기기, 또는 넘긴·넘겨받을 편성 안내. */}
       <HandoffNote app={app} where="prep" />
 
+      {/* 넘겨받은 편성을 저장하지 못했으면 서버 사본이 남아 있다(draftHandoff.ts takeHandoff). 그때는 다시 이어받을 길을 적는다. */}
       {!app.storageOk && (
         <p className="note warn" role="alert">
-          이 기기에 편성을 보관할 수 없어요. 창을 닫으면 사라져요.
+          {handoffOf(app.snapshot)?.mine === false
+            ? HANDOFF_KEPT_ON_SERVER
+            : "이 기기에 편성을 보관할 수 없어요. 창을 닫으면 사라져요."}
         </p>
       )}
       {baseChanged && app.snapshot && (

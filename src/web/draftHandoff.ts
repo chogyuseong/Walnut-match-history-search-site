@@ -19,6 +19,10 @@ import type { AppValue } from "./useApp";
  */
 export const HANDOFF_FRESH_MS = 12 * 3600_000;
 
+/** 이어받았지만 기기에 저장하지 못해 서버 사본을 남겨 둔 때의 안내. 준비 화면(Prep.tsx)의 저장 실패 경고 줄이 쓴다. */
+export const HANDOFF_KEPT_ON_SERVER =
+  "이 기기에 저장하지 못해서 넘긴 편성을 서버에 그대로 두었어요. 창을 닫았다가 다시 열면 오늘 화면에서 다시 이어받을 수 있어요(넘긴 지 12시간까지).";
+
 const sentKey = (groupId: string) => `naejeon.handoffSent.v1.${groupId}`;
 
 function sentId(groupId: string): string | null {
@@ -82,32 +86,48 @@ export async function dropHandoff(app: AppValue, view: DraftHandoffView): Promis
 }
 
 /**
- * 넘긴 편성을 이 기기의 작성 중인 편성으로 가져온다. 기기에 먼저 저장한 다음 서버에서 지운다(지우기가 실패해도 편성은 남는다).
+ * 넘긴 편성을 이 기기의 작성 중인 편성으로 가져온다. 기기에 저장한 다음 서버에서 지운다(지우기가 실패해도 편성은 남는다).
+ * - expectedId는 사용자가 본 안내의 넘기기 ID다. 안내를 본 뒤 다른 기기가 다시 넘겼으면 받은 본문이 다르므로
+ *   편성을 바꾸지 않고, 안내를 새로 읽은 뒤 오류를 던진다(본 적 없는 판으로 바뀌지 않게).
+ * - 기기 저장(초안·오늘 명단)이 하나라도 실패하면 서버 사본을 지우지 않는다. 화면에는 편성이 올라가지만
+ *   탭을 닫으면 사라지므로, 다시 열었을 때 이어받을 사본을 남긴다. 남은 사본은 다음 넘기기·경기 시작·24시간 정리가 지운다.
+ *   돌려주는 kept가 false면 부른 쪽이 그 사실을 알린다.
  * 진행 상태 버전(baseLiveVersion)은 넘긴 때의 값 그대로 둔다: 그 사이 경기가 시작됐으면 준비 화면이 알리고,
  * 그대로 시작을 누르면 서버가 409로 막는다(matches.ts startMatch).
  * 받은 본문이 기기 저장값 검사를 통과하지 못하면(다른 판의 화면이 넘긴 것 등) 오류를 던진다.
  */
-export async function takeHandoff(app: AppValue): Promise<void> {
+export async function takeHandoff(app: AppValue, expectedId: string): Promise<{ kept: boolean }> {
   const snapshot = app.snapshot;
-  if (!snapshot) return;
+  if (!snapshot) return { kept: true };
   const groupId = snapshot.group.id;
   const body = await call<{ handoffId: string; draft: unknown; nightPool: unknown }>(
     "GET",
     `/api/groups/${groupId}/draft-handoff`,
   );
+  if (body.handoffId !== expectedId) {
+    await app.refresh();
+    throw new ApiFailure(
+      "api",
+      "그 사이 다른 기기에서 편성을 다시 넘겼어요. 안내를 새로 불러왔으니 시각과 인원을 확인하고 다시 이어받아 주세요.",
+    );
+  }
   const parsed = parseStoredDraft(JSON.stringify(body.draft));
   if (!parsed || parsed.groupId !== groupId) {
     throw new ApiFailure("api", "넘겨받은 편성을 읽지 못했어요. 넘긴 기기에서 화면을 새로 고친 뒤 다시 넘겨 주세요.");
   }
   // 합쳐진 참가자 이름은 아래 app.refresh()가 맞춘다(useApp.ts loadSnapshot이 작성 중인 편성에 remapDraft를 건다).
-  app.setDraft(parsed);
+  const draftKept = app.setDraft(parsed);
   const pool = parseNightPool(JSON.stringify(body.nightPool), groupId);
-  if (pool) writeNightPool(pool);
+  const poolKept = pool ? writeNightPool(pool) : true;
   rememberSent(groupId, null);
-  try {
-    await call("DELETE", `/api/groups/${groupId}/draft-handoff?id=${encodeURIComponent(body.handoffId)}`);
-  } catch {
-    // 서버에 남아도 다음 넘기기·경기 시작이 지운다. 이어받은 편성은 이미 이 기기에 있다.
+  const kept = draftKept && poolKept;
+  if (kept) {
+    try {
+      await call("DELETE", `/api/groups/${groupId}/draft-handoff?id=${encodeURIComponent(body.handoffId)}`);
+    } catch {
+      // 서버에 남아도 다음 넘기기·경기 시작이 지운다. 이어받은 편성은 이미 이 기기에 있다.
+    }
   }
   await app.refresh();
+  return { kept };
 }

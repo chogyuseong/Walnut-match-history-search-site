@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Draft } from "../../../shared/draft";
 import { dropHandoff, handoffOf, sendHandoff, takeHandoff, type HandoffState } from "../../draftHandoff";
 import { formatTime } from "../../format";
 import { Dialog, ErrorNote } from "../../ui";
@@ -31,12 +32,13 @@ export function HandoffNote(props: { app: AppValue; where: "today" | "prep" }) {
       setBusy(false);
     }
   };
-  const take = () =>
+  const take = (expectedId: string) =>
     run(async () => {
       setAsking(false);
-      await takeHandoff(app);
+      const { kept } = await takeHandoff(app, expectedId);
       if (where === "today") go("/prep");
-      else app.setNotice("넘겨받은 편성으로 바꿨어요.");
+      // 저장하지 못했으면(kept=false) 준비 화면의 저장 실패 경고 줄이 서버에 남겨 둔 사실을 알린다(Prep.tsx).
+      else if (kept) app.setNotice("넘겨받은 편성으로 바꿨어요.");
     });
   const send = () => run(() => sendHandoff(app, app.draft!));
   const timeOf = (s: HandoffState) => formatTime(s.view.createdAt, app.snapshot?.group.timezone);
@@ -50,7 +52,7 @@ export function HandoffNote(props: { app: AppValue; where: "today" | "prep" }) {
           {state.stale && " 넘긴 뒤 경기 상태가 바뀌어 이어받은 다음 명단을 확인해야 해요."}
         </span>
         <span className="button-row">
-          <button type="button" className="secondary" disabled={busy} onClick={() => (app.draft ? setAsking(true) : take())}>
+          <button type="button" className="secondary" disabled={busy} onClick={() => (app.draft ? setAsking(true) : take(state.view.id))}>
             이어받기
           </button>
           <button type="button" className="link" disabled={busy} onClick={() => run(() => dropHandoff(app, state.view))}>
@@ -97,9 +99,14 @@ export function HandoffNote(props: { app: AppValue; where: "today" | "prep" }) {
       <ErrorNote error={error} />
       {asking && (
         <Dialog title="작성하던 편성을 바꿀까요?" onClose={() => setAsking(false)}>
-          <p>이 기기에서 작성하던 편성은 지워지고, 다른 기기에서 넘긴 편성({state?.view.people}명)으로 바뀌어요.</p>
+          <p>
+            {app.draft
+              ? `이 기기에서 ${formatTime(app.draft.createdAt, app.snapshot?.group.timezone)}에 만든 편성(${draftPeople(app.draft)}명)은`
+              : "이 기기에서 작성하던 편성은"}{" "}
+            지워지고, {state ? `${timeOf(state)}에 ` : ""}다른 기기에서 넘긴 편성({state?.view.people}명)으로 바뀌어요.
+          </p>
           <div className="button-row">
-            <button type="button" className="primary" disabled={busy} onClick={take}>
+            <button type="button" className="primary" disabled={busy || !state} onClick={() => state && take(state.view.id)}>
               넘겨받은 편성으로 바꾸기
             </button>
             <button type="button" className="secondary" onClick={() => setAsking(false)}>
@@ -110,4 +117,9 @@ export function HandoffNote(props: { app: AppValue; where: "today" | "prep" }) {
       )}
     </>
   );
+}
+
+/** 초안의 인원(출전 10명 + 대기). 넘긴 편성 요약의 인원(서버 draft_handoffs.people)과 같은 기준이다. */
+function draftPeople(draft: Draft): number {
+  return draft.people.length + (draft.bench?.length ?? 0);
 }

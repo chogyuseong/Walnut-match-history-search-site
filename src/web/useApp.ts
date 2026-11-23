@@ -126,7 +126,8 @@ export interface AppValue {
   /** 화면 아래에 잠깐 보여주는 안내. */
   notice: string | null;
   setNotice: (text: string | null) => void;
-  setDraft: (draft: Draft | null) => void;
+  /** 기기에 보관했으면 true. 넘겨받기(draftHandoff.ts)는 false면 서버 사본을 지우지 않는다. */
+  setDraft: (draft: Draft | null) => boolean;
   /** 서버 상태를 다시 읽는다. 초안은 덮어쓰지 않는다. */
   refresh: () => Promise<Snapshot | null>;
   /** 이 기기에서 변경을 저장한 뒤 부른다. 초안의 기준 버전을 최신으로 맞춘다. */
@@ -193,16 +194,18 @@ export function useApp(enabled: boolean): AppValue {
    */
   const lastSnapshot = useRef<{ etag: string; snapshot: Snapshot } | null>(null);
 
-  const setDraft = useCallback((next: Draft | null) => {
+  const setDraft = useCallback((next: Draft | null): boolean => {
     draftRef.current = next;
     setDraftState(next);
     try {
       if (next) localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
       else localStorage.removeItem(DRAFT_KEY);
       setStorageOk(true);
+      return true;
     } catch {
       // 보관에 실패해도 작업은 계속한다. 화면에 "창을 닫으면 사라집니다"를 보여준다.
       setStorageOk(false);
+      return false;
     }
   }, []);
 

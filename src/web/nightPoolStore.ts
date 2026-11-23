@@ -25,11 +25,14 @@ export function readNightPool(groupId: string): NightPool | null {
   }
 }
 
-export function writeNightPool(pool: NightPool): void {
+/** 보관했으면 true. 넘겨받기(draftHandoff.ts)만 결과를 본다: 못 보관했으면 서버 사본을 남겨 둔다. */
+export function writeNightPool(pool: NightPool): boolean {
   try {
     localStorage.setItem(nightKey(pool.groupId), JSON.stringify(pool));
+    return true;
   } catch {
     // 보관하지 못하면 다음 판 제안만 없어진다. 편성과 시작은 그대로 된다.
+    return false;
   }
 }
 
