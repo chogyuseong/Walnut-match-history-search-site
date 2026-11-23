@@ -79,6 +79,7 @@ npm run seed         # (선택) 다른 창에서: 가짜 이름 30명·경기 12
 | `npm test` / `npx vitest run` | 단위·통합 테스트(기본 제한 30초) |
 | `npm run build` → `npm run check:bundle` | 화면 빌드 → 첫 화면·화면별 크기 출력(압축 전·brotli) → 검사: 첫 화면 우리 코드 brotli 17KB, 첫 화면 전체(JS + CSS) brotli 97KB, 껍데기 허용 목록(`scripts/shell-modules.mjs`) 밖 모듈, 가장 큰 JS 250KB(압축 전), 화면 조각·주소 미리 받기 대응표의 파일 존재. 걸리면 원본 파일별 크기 상위 15개와 들어온 import 경로를 출력 |
 | `node scripts/measure-load.mjs --base http://127.0.0.1:8787` | 첫 진입 속도 측정(로컬 전용, CI 아님). CPU 4배 감속·느린 4G로 `#/`·조회 링크·`#/demo`를 3번씩 열어 FCP·LCP·화면 조각 표시·받은 JS·요청 수 중앙값. 조회 링크용 모임은 가짜 로그인으로 만든다 |
+| `node scripts/measure-after-save.mjs --sizes 50,500,2000` | 결과 저장 뒤 측정(로컬 전용, CI 아님). 같은 저사양 조건에서 진행 화면 "결과 저장" → 저장됨 표시·기록 다시 받음·조용해짐(마지막 긴 작업 끝), 이어 "다음 경기 준비" → 준비 화면 표시를 경기 수별 3번씩 재 중앙값. 측정용 모임은 가짜 로그인으로 만든다 |
 | `npm run e2e` | 브라우저 흐름 테스트. 떠 있는 8787 서버를 그대로 씀. 다른 포트는 `E2E_PORT` |
 | `npm run seed` | 떠 있는 로컬 서버에 합성 데이터 넣기(로컬 주소만 허용) |
 | `npm run db:migrate:local` | 로컬 D1 마이그레이션만 |
