@@ -14,7 +14,7 @@
 
 /** Cloudflare 대시보드 → Web Analytics → 사이트 추가(naejeon.guseong-family.workers.dev) → Manage site의 스니펫 속 token 값.
  *  페이지 HTML에 그대로 실리는 값이라 비밀값이 아니다. 비우면 비컨을 넣지 않는다. */
-export const WEB_ANALYTICS_TOKEN = "";
+export const WEB_ANALYTICS_TOKEN = "00784247fdaf482a9a7f14ac7e177d73";
 
 export const BEACON_SRC = "https://static.cloudflareinsights.com/beacon.min.js";
 

@@ -18,6 +18,14 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 옛 운영 Worker·옛 D1은 지웠고, staging 자료도 비웠다.
 
 
+[2026-11-23 저녁: 운영 fee74223 = staging 957a3190(방문자 수 보기 Cloudflare Web Analytics 켬)]
+
+- 운영 빌드에만 비컨(scripts/web-analytics-plugin.mjs, 토큰은 페이지에 실리는 공개값이라 그 파일에 적음).
+  staging은 넣지 않는다. CSP에 beacon.min.js·cloudflareinsights.com 허용, 처리방침에 한 줄, 시행일 2026-11-23.
+- 확인: 운영 첫 화면에서 beacon.min.js 200, /cdn-cgi/rum POST 204, 콘솔 오류 0, 처리방침에 줄 보임.
+  staging은 비컨 요청 0·처리방침 줄 0. 확인하느라 운영에 방문 몇 건이 찍혔다.
+- 보는 곳: Cloudflare 대시보드 → Analytics & Logs → Web Analytics. 주소가 #/ 방식이라 화면별 조회수는 정확하지 않다.
+
 [2026-11-23 저녁: 운영 07129972 = staging 492c155f = main bdfd0b6(첫 방문 소개에서 상단 [로그인] 숨김)]
 
 - 소개 화면에는 상단 [로그인]과 본문 "로그인하고 모임 만들기"가 같은 창을 열었다. 소개가 떠 있는 동안만 상단 것을 숨긴다
@@ -1202,7 +1210,7 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 [나중에 할 후보 (정해진 것 없음, 2026-11-11 대화에서 나온 것)]
 
-- 방문자 수 보기: Cloudflare Web Analytics를 켜면 하루 방문자·유입 경로가 보인다(대시보드에서 사이트 추가 → 토큰 →
+- (끝남, 11-23) 방문자 수 보기: Cloudflare Web Analytics를 켜면 하루 방문자·유입 경로가 보인다(대시보드에서 사이트 추가 → 토큰 →
   사이트에 스크립트·CSP 허용·처리방침 한 줄). 지금은 Workers Metrics의 요청 수만 보인다.
 - (끝남, 11-16) 카카오톡 공유 미리보기 그림(og:image) 추가.
 - 결과 저장 뒤 모임 전체 자료를 다시 읽는 구조 줄이기(속도와 D1 읽기 한도. 규칙상 Opus high 작업).

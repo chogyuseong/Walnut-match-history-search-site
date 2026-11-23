@@ -19,7 +19,7 @@ export const PRIVACY = {
   /** 개인정보 보호책임자. 개인 운영이면 운영자 본인. */
   privacyOfficer: "조규성",
   /** 시행일(YYYY-MM-DD). */
-  effectiveDate: "2026-11-18",
+  effectiveDate: "2026-11-23",
 };
 
 export const PRIVACY_IS_DRAFT = Object.values(PRIVACY).some((v) => v.includes("[채워야 함]"));
