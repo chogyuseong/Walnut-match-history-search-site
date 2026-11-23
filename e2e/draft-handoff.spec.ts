@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 
 // 편성 넘기기(2026-11-18, src/web/draftHandoff.ts · migrations/0029).
 // 같은 계정으로 연 두 기기(PC → 휴대폰)를 두 브라우저 문맥으로 흉내 낸다.
@@ -60,7 +60,21 @@ async function noHorizontalOverflow(page: Page, where: string) {
   expect(overflow, `${where} 가로 넘침`).toBeLessThanOrEqual(0);
 }
 
-for (const width of [390, 1440]) {
+/** 화면에 꺼내 놓았을 때 가운데가 하단 탭 등 다른 요소에 가리지 않는지(320px처럼 낮은 화면에서 탭이 덮기 쉽다). */
+async function expectUncovered(target: Locator) {
+  await target.scrollIntoViewIfNeeded();
+  const hit = await target.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return top !== null && el.contains(top);
+  });
+  expect(hit, "다른 요소에 가림").toBe(true);
+}
+
+// 320×568은 가장 좁고 낮은 휴대폰(하단 탭이 화면을 가장 많이 차지한다).
+const PHONE_HEIGHT: Record<number, number> = { 320: 568, 390: 844, 1440: 900 };
+
+for (const width of [320, 390, 1440]) {
   test(`${width}px 받는 기기: PC에서 넘긴 편성을 이어받고, 작성하던 편성이 있으면 묻는다`, async ({ page, browser }) => {
     const subject = `e2e-handoff-${width}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -77,13 +91,14 @@ for (const width of [390, 1440]) {
     if (SHOT_DIR) await page.screenshot({ path: `${SHOT_DIR}/handoff-sent-pc-${width}.png` });
 
     // 휴대폰: 같은 계정으로 연다.
-    const phone = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } });
+    const phone = await browser.newContext({ viewport: { width, height: PHONE_HEIGHT[width] } });
     const mobile = await phone.newPage();
     await post(mobile.request, "/api/auth/fake-login", { subject });
     await mobile.goto("/#/");
     const offer = mobile.locator(".handoff-note");
     await expect(offer).toContainText("다른 기기에서 넘긴 편성이 있어요(10명)");
     await noHorizontalOverflow(mobile, "오늘 화면(이어받기 안내)");
+    await expectUncovered(offer.getByRole("button", { name: "이어받기" }));
     if (SHOT_DIR) await mobile.screenshot({ path: `${SHOT_DIR}/handoff-offer-${width}.png` });
     await offer.getByRole("button", { name: "이어받기" }).click();
     await expect(mobile).toHaveURL(/#\/prep/);
@@ -104,6 +119,8 @@ for (const width of [390, 1440]) {
     await offer.getByRole("button", { name: "이어받기" }).click();
     const ask = mobile.getByRole("dialog", { name: "작성하던 편성을 바꿀까요?" });
     await expect(ask).toBeVisible();
+    await noHorizontalOverflow(mobile, "바꿀지 묻는 창");
+    await expectUncovered(ask.getByRole("button", { name: "그대로 두기" }));
     if (SHOT_DIR) await mobile.screenshot({ path: `${SHOT_DIR}/handoff-ask-${width}.png` });
     await ask.getByRole("button", { name: "그대로 두기" }).click();
     await expect(ask).toHaveCount(0);
@@ -121,7 +138,8 @@ for (const width of [390, 1440]) {
 // 쿠키 하나로 저장 막기를 켜고 끈다: 쿠키는 저장소와 따로라 막힌 동안에도 지울 수 있다.
 const BLOCK_COOKIE = "e2e-block-storage";
 
-test("390px 받는 기기 저장 실패: 서버 사본이 남고, 창을 닫았다 열어 다시 이어받는다", async ({ page, browser }) => {
+for (const width of [320, 390]) {
+test(`${width}px 받는 기기 저장 실패: 서버 사본이 남고, 창을 닫았다 열어 다시 이어받는다`, async ({ page, browser }) => {
   const subject = `e2e-handoff-keep-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
   await page.setViewportSize({ width: 1440, height: 900 });
   const gid = await setup(page, subject);
@@ -130,7 +148,7 @@ test("390px 받는 기기 저장 실패: 서버 사본이 남고, 창을 닫았�
   await page.getByRole("button", { name: "다른 기기로 넘기기" }).click();
   await expect(page.getByText(/다른 기기로 넘겨 두었어요/)).toBeVisible();
 
-  const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const phone = await browser.newContext({ viewport: { width, height: PHONE_HEIGHT[width] } });
   await phone.addInitScript((cookie) => {
     if (!document.cookie.includes(`${cookie}=1`)) return;
     Storage.prototype.setItem = function () {
@@ -144,8 +162,11 @@ test("390px 받는 기기 저장 실패: 서버 사본이 남고, 창을 닫았�
   await mobile.locator(".handoff-note").getByRole("button", { name: "이어받기" }).click();
   await expect(mobile.getByRole("heading", { level: 1, name: "다음 경기 준비" })).toBeVisible();
   expect(await lineup(mobile)).toEqual(sent);
-  await expect(mobile.getByRole("alert").filter({ hasText: "넘긴 편성을 서버에 그대로 두었어요" })).toBeVisible();
+  const keptNotice = mobile.getByRole("alert").filter({ hasText: "넘긴 편성을 서버에 그대로 두었어요" });
+  await expect(keptNotice).toBeVisible();
   await noHorizontalOverflow(mobile, "준비 화면(저장 실패 안내)");
+  await expectUncovered(keptNotice);
+  if (SHOT_DIR) await mobile.screenshot({ path: `${SHOT_DIR}/handoff-kept-${width}.png`, fullPage: true });
   expect((await mobile.request.get(`/api/groups/${gid}/draft-handoff`)).status()).toBe(200);
 
   // 탭을 닫고, 저장을 풀고 다시 연다: 이어받기 안내가 다시 보이고 같은 편성이 들어온다.
@@ -164,6 +185,7 @@ test("390px 받는 기기 저장 실패: 서버 사본이 남고, 창을 닫았�
   expect(await lineup(again)).toEqual(sent);
   await phone.close();
 });
+}
 
 // ④ 받는 기기가 안내를 본 뒤 넘긴 기기가 다시 넘기면, 본 적 없는 판으로 바꾸지 않고 안내를 새로 보여 준다.
 test("안내를 본 뒤 다시 넘겼으면 이어받기가 멈추고 새 안내를 보여 준다", async ({ page, browser }) => {
