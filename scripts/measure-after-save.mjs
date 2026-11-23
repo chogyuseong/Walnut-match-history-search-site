@@ -111,7 +111,10 @@ async function seedGroup(count) {
   return { storageState, groupId: group.id, ten: ids.slice(0, 10) };
 }
 
-/** 진행 중 경기를 하나 연다. 팀 A = 블루라 결과 창이 "블루팀 승/레드팀 승" 빠른 입력이 된다(실제 준비 화면에서 시작한 경기와 같다). */
+/**
+ * 진행 중 경기를 하나 연다. 팀 A = 블루라 결과 창이 "블루팀 승/레드팀 승" 빠른 입력이 된다(실제 준비 화면에서 시작한 경기와 같다).
+ * 돌려주는 값: 가장 최근 확정 경기 ID(MMR을 미리 계산해 둘 때 그 경기 상세를 연다).
+ */
 async function startLiveMatch(storageState, groupId, ten) {
   const api = await apiRequest.newContext({ baseURL: BASE, storageState });
   const snapshot = await (await api.get(`/api/groups/${groupId}/snapshot`)).json();
@@ -125,10 +128,16 @@ async function startLiveMatch(storageState, groupId, ten) {
   });
   if (!response.ok()) throw new Error(`경기 시작 → ${response.status()} ${await response.text()}`);
   await api.dispose();
+  return snapshot.matches.filter((m) => m.state === "confirmed").at(-1).id;
 }
 
-async function measureOnce(browser, group) {
-  await startLiveMatch(group.storageState, group.groupId, group.ten);
+/**
+ * warm이 false면 진행 화면을 막 연 상태(휴대폰이 탭을 새로 고친 직후처럼 MMR을 아직 한 번도 계산하지 않음)에서 잰다.
+ * true면 먼저 경기 상세를 열어 MMR을 계산해 둔다. 평소 흐름(준비 화면 → 시작 → 저장 → 다음 준비)은 준비 화면이 이미
+ * 계산해 두었으므로 이쪽에 가깝다. 계산해 둔 상태면 다음 스냅숏은 뒤에 붙은 경기만 이어 넣는다(rating.ts fitRatings).
+ */
+async function measureOnce(browser, group, warm) {
+  const lastConfirmedId = await startLiveMatch(group.storageState, group.groupId, group.ten);
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     locale: "ko-KR",
@@ -174,6 +183,13 @@ async function measureOnce(browser, group) {
   await page.goto(`${BASE}/#/match`, { timeout: 300_000 });
   await page.getByRole("heading", { name: /경기 진행 중/ }).waitFor({ timeout: 300_000 });
   await page.waitForLoadState("networkidle");
+  if (warm) {
+    // 같은 문서 안에서 주소만 바꾼다(새로 불러오면 계산해 둔 MMR이 사라진다).
+    await page.evaluate((id) => (window.location.hash = `#/m/${id}`), lastConfirmedId);
+    await page.getByText("이 경기로 바뀐 MMR", { exact: true }).waitFor({ timeout: 300_000 });
+    await page.evaluate(() => (window.location.hash = "#/match"));
+    await page.getByRole("heading", { name: /경기 진행 중/ }).waitFor();
+  }
   await page.waitForTimeout(QUIET_WAIT_MS);
 
   const cdp = await context.newCDPSession(page);
@@ -241,20 +257,22 @@ const browser = await chromium.launch();
 const rows = [];
 for (const size of SIZES) {
   const group = await seedGroup(size);
-  const runs = [];
-  for (let i = 0; i < RUNS; i++) runs.push(await measureOnce(browser, group));
-  const pick = (key) => median(runs.map((r) => r[key]));
-  rows.push({ size, ...Object.fromEntries(Object.keys(runs[0]).map((key) => [key, pick(key)])), raw: runs });
+  for (const warm of [false, true]) {
+    const runs = [];
+    for (let i = 0; i < RUNS; i++) runs.push(await measureOnce(browser, group, warm));
+    const pick = (key) => median(runs.map((r) => r[key]));
+    rows.push({ size, warm, ...Object.fromEntries(Object.keys(runs[0]).map((key) => [key, pick(key)])), raw: runs });
+  }
 }
 await browser.close();
 
 const ms = (v) => (v === null ? "-" : `${Math.round(v)}ms`);
 console.log(`결과 저장 뒤 측정 ${LABEL} (${BASE}, ${RUNS}회 중앙값, 390×844, CPU ${CPU_SLOWDOWN}배 감속, 지연 ${NETWORK.latency}ms·1.6Mbps/750kbps)`);
-console.log("| 경기 수 | 저장됨 표시 | 기록 다시 받음 | 조용해짐 | 긴 작업 합 | 준비 화면 | 준비 조용해짐 | 준비 긴 작업 |");
-console.log("|---|---|---|---|---|---|---|---|");
+console.log("| 경기 수 | MMR | 저장됨 표시 | 기록 다시 받음 | 조용해짐 | 긴 작업 합 | 준비 화면 | 준비 조용해짐 | 준비 긴 작업 |");
+console.log("|---|---|---|---|---|---|---|---|---|");
 for (const r of rows) {
   console.log(
-    `| ${r.size} | ${ms(r.saved)} | ${ms(r.snapshot)} | ${ms(r.quiet)} | ${ms(r.saveLong)} | ${ms(r.prep)} | ${ms(r.prepQuiet)} | ${ms(r.prepLong)} |`,
+    `| ${r.size} | ${r.warm ? "계산해 둠" : "처음"} | ${ms(r.saved)} | ${ms(r.snapshot)} | ${ms(r.quiet)} | ${ms(r.saveLong)} | ${ms(r.prep)} | ${ms(r.prepQuiet)} | ${ms(r.prepLong)} |`,
   );
 }
 if ("verbose" in args) console.log(JSON.stringify(rows, null, 2));
