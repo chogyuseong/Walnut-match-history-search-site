@@ -123,14 +123,16 @@ export async function readOptionalJsonBody(req: Request, maxBytes = MAX_BODY_BYT
  *   CSS 주입으로 화면을 덮거나 값을 빼 가는 길을 막는다). 화면에 <style>이나 setAttribute("style")을 새로 쓰면 막힌다.
  * - img-src의 data:·blob:은 공유 이미지(캔버스)·백업 파일 내려받기(Blob URL)에 쓴다.
  *   ddragon.leagueoflegends.com은 챔피언 초상화(src/web/portraits.ts). 초상화를 꺼도 남겨 둬서 해가 없다.
+ * - script-src의 beacon.min.js와 connect-src의 cloudflareinsights.com은 방문자 수 보기(scripts/web-analytics-plugin.mjs).
+ *   스크립트는 그 파일 하나만 허용한다. 비컨을 넣지 않는 빌드(staging·토큰 없음)에서도 남겨 둬서 해가 없다.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' https://static.cloudflareinsights.com/beacon.min.js",
   "style-src 'self'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https://ddragon.leagueoflegends.com",
-  "connect-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",

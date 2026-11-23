@@ -229,6 +229,15 @@ export function Privacy(props: { back: () => void; backLabel: string }) {
             있습니다(이름·토큰·세션 값은 남기지 않습니다).
           </li>
           <li>카카오·Google: 로그인할 때 해당 회사의 로그인 화면을 거칩니다.</li>
+          {/* 운영 빌드에 방문자 수 비컨이 들어갈 때만 보인다(scripts/web-analytics-plugin.mjs). 문장은 Cloudflare 공식 문서의
+              "does not collect or use your visitors' personal data", "does not store any data in the browser"를 옮긴 것이다. */}
+          {import.meta.env.VITE_WEB_ANALYTICS === true && (
+            <li>
+              Cloudflare Web Analytics: 하루 방문자 수와 들어온 경로를 보려고 씁니다. 화면을 열면 브라우저가 Cloudflare에
+              들어온 주소(검색어 등 주소 뒤 물음표 부분 제외)·이전 페이지 주소·불러오기 시간을 보냅니다. 쿠키나 브라우저 저장소를
+              쓰지 않고, IP 주소는 Cloudflare가 받는 즉시 버리며 저장하지 않는다고 밝히고 있습니다.
+            </li>
+          )}
           {CHAMPION_PORTRAITS && (
             <li>
               라이엇 게임즈: 챔피언 초상화를 라이엇의 이미지 서버(ddragon.leagueoflegends.com)에서 받아 오는 과정에서
