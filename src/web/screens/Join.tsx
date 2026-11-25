@@ -84,8 +84,11 @@ export function Join(props: { token: string; rest: string[] }) {
       <div className="screen">
         <h1>참가 신청</h1>
         <p className="note error" role="alert">
-          이 신청 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.
+          신청 링크가 잘못 옮겨졌거나 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.
         </p>
+        <button type="button" className="primary" onClick={() => go("/")}>
+          내전로그 첫 화면으로
+        </button>
       </div>
     );
   }

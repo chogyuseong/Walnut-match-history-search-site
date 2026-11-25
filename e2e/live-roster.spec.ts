@@ -226,7 +226,8 @@ test("조회 링크를 다시 만들면 다음 확인에서 명단이 사라지�
 
   await post(page.request, `/api/groups/${s.groupId}/view-token`, { requestId: crypto.randomUUID() });
   await guest.clock.runFor(60_000);
-  await expect(guest.getByText("이 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.")).toBeVisible();
+  await expect(guest.getByText("링크가 잘못 옮겨졌거나 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.")).toBeVisible();
+  await expect(guest.getByRole("button", { name: "내전로그 첫 화면으로" })).toBeVisible();
   await expect(guest.getByRole("region", { name: "블루팀" })).toHaveCount(0);
 
   const after: string[] = [];

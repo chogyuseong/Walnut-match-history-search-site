@@ -205,5 +205,8 @@ test("조회 링크를 연 화면은 모임이 지워지면 '더 이상 열리�
   await expect(page.getByRole("heading", { name: /1경기/ })).toBeVisible();
   await post(page.request, `/api/groups/${s.groupId}/delete`, { confirm: "삭제" });
   await page.reload();
-  await expect(page.getByText("이 링크는 더 이상 열리지 않아요")).toBeVisible();
+  await expect(page.getByText("더 이상 열리지 않아요")).toBeVisible();
+  // 막다른 화면이 되지 않게 나갈 길이 있다.
+  await page.getByRole("button", { name: "내전로그 첫 화면으로" }).click();
+  await expect(page).toHaveURL(/#\/$/);
 });

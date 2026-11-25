@@ -22,6 +22,7 @@ import {
 import { PosLabel } from "../roleIcon";
 import { ScreenHead } from "../screenKit";
 import { LineIcon, Redirect } from "../ui";
+import { go } from "../useApp";
 
 /**
  * 참가자에게 보내는 편성 화면(#/v/토큰/live, 2026-11-07). 로그인 없이 조회 토큰으로 연다.
@@ -62,8 +63,11 @@ export function ViewerLive(props: { token: string }) {
       <div className="screen">
         <h1>링크를 열 수 없어요</h1>
         <p className="note error" role="alert">
-          이 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.
+          링크가 잘못 옮겨졌거나 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요.
         </p>
+        <button type="button" className="primary" onClick={() => go("/")}>
+          내전로그 첫 화면으로
+        </button>
       </div>
     );
   }

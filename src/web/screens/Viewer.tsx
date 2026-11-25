@@ -101,7 +101,7 @@ export function Viewer(props: { token: string; rest: string[] }) {
             <h1>{error.status === 404 ? "링크를 열 수 없어요" : "불러오지 못했어요"}</h1>
             <p className="note error" role="alert">
               {error.status === 404
-                ? "이 링크는 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요."
+                ? "링크가 잘못 옮겨졌거나 더 이상 열리지 않아요. 운영자에게 새 링크를 받아 주세요."
                 : "잠시 뒤 다시 시도해 주세요."}{" "}
               {error.status !== 404 && (
                 <button type="button" className="link" onClick={() => void load()}>
@@ -109,6 +109,12 @@ export function Viewer(props: { token: string; rest: string[] }) {
                 </button>
               )}
             </p>
+            {/* 404면 이 화면에서 할 수 있는 게 없다. 없는 주소 화면(App.tsx NotFound)처럼 나갈 길을 둔다. */}
+            {error.status === 404 && (
+              <button type="button" className="primary" onClick={() => go("/")}>
+                내전로그 첫 화면으로
+              </button>
+            )}
           </>
         ) : (
           <p>불러오는 중…</p>
