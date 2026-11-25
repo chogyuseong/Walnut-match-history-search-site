@@ -139,10 +139,11 @@
     justify-content: space-between;
   }
 }
-/* 예시 데이터를 만드는 동안 자리를 잡아 둔다(아래 푸터가 크게 튀지 않게). */
+/* 예시 데이터를 만드는 동안 자리를 잡아 둔다. 화면 높이 전체를 잡아 아래 푸터가 처음부터 화면 밖에 있게 한다.
+   60svh였을 때는 390×844에서 푸터가 화면 안(y≈680)에 그려졌다가 본문이 들어오며 밀려 레이아웃 이동(CLS)이 0.2였다. */
 .demo-loading,
 .site-admin-loading {
-  min-height: 60svh;
+  min-height: 100svh;
 }
 /* 사이트 현황의 오류 스택. */
 .error-log details {

@@ -88,8 +88,8 @@ export function App() {
         <main tabIndex={-1}>
           <Suspense fallback={LOADING}>
             <Join token={route[1]!} rest={route.slice(2)} />
+            <LegalFooter privacyHref={`#/join/${route[1]}/privacy`} />
           </Suspense>
-          <LegalFooter privacyHref={`#/join/${route[1]}/privacy`} />
         </main>
       </>
     );
@@ -103,10 +103,10 @@ export function App() {
         <main className="bleed" tabIndex={-1}>
           <Suspense fallback={LOADING}>
             <Demo rest={route.slice(1)} />
+            <div className="bleed-body">
+              <LegalFooter />
+            </div>
           </Suspense>
-          <div className="bleed-body">
-            <LegalFooter />
-          </div>
         </main>
       </>
     );
@@ -125,11 +125,11 @@ export function App() {
             ) : (
               <Viewer key={route[1]} token={route[1]!} rest={route.slice(2)} />
             )}
+            {/* 모임 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
+            <div className="bleed-body">
+              <LegalFooter privacyHref={`#/v/${route[1]}/privacy`} />
+            </div>
           </Suspense>
-          {/* 모임 링크로 들어온 사람은 처리방침을 보고도 조회 화면으로 돌아올 수 있게 같은 링크 아래에서 연다. */}
-          <div className="bleed-body">
-            <LegalFooter privacyHref={`#/v/${route[1]}/privacy`} />
-          </div>
         </main>
       </>
     );
@@ -151,14 +151,14 @@ export function App() {
           // 모임을 바꾸면 화면을 새로 그린다(앞 모임에서 입력하던 상태가 남지 않게).
           <Suspense fallback={LOADING}>
             <OperatorScreen key={app.switchSeq} route={route} />
+            {route[0] === "mine" ? (
+              <div className="bleed-body">
+                <LegalFooter />
+              </div>
+            ) : (
+              <LegalFooter />
+            )}
           </Suspense>
-        )}
-        {route[0] === "mine" ? (
-          <div className="bleed-body">
-            <LegalFooter />
-          </div>
-        ) : (
-          <LegalFooter />
         )}
       </main>
       {notice && (
@@ -352,6 +352,8 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode; feedbackNarrow
  * 라이엇 게임즈와 무관한 서비스임을 알리는 문구. 디자인 키트의 안내에 따라 모든 화면 아래에 둔다.
  * 챔피언 초상화(라이엇 자산)를 켜 두면 라이엇 "Legal Jibber Jabber" 정책이 요구하는 문구를 원문 그대로 더하고,
  * 끄면(src/web/portraits.ts CHAMPION_PORTRAITS) 그 문구를 빼고 "게임 이미지를 쓰지 않는다"는 예전 문구로 돌아간다.
+ * 부르는 쪽은 화면 조각과 같은 Suspense 안에 둔다. 밖에 두면 "불러오는 중…" 바로 아래 먼저 그려졌다가 본문이 들어오며
+ * 밀려 첫 화면 레이아웃 이동(CLS)이 0.5를 넘었다. 본문과 함께 새로 나타나는 것은 이동으로 세지 않는다.
  */
 function LegalFooter(props: { privacyHref?: string }) {
   return (
