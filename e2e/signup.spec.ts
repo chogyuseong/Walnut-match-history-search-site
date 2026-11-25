@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// 자체 계정(아이디 + 비밀번호): 상단 [로그인] → 회원가입 → 복구 코드 → 모임 탭 → 로그아웃 → 다시 로그인.
+// 자체 계정(아이디 + 비밀번호): 소개의 로그인 → 회원가입 → 복구 코드 → 모임 탭 → 로그아웃 → 다시 로그인.
 
 let n = 0;
 function newName(): string {
@@ -10,6 +10,15 @@ function newName(): string {
 
 const banner = (page: Page) => page.getByRole("banner");
 const menu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴" });
+
+/**
+ * 처음 온 사람(그리고 로그아웃한 뒤)의 첫 화면은 소개이고, 소개가 떠 있는 동안 상단 [로그인]은 숨는다
+ * (login-entry.spec.ts가 그 규칙을 지킨다). 그래서 로그인 창은 소개 안의 링크로 연다. 상단 버튼을 누르면 소개가 그려지기 전
+ * 잠깐 보이는 순간을 잡아야만 통과해 들쭉날쭉했고, 로그아웃 뒤에는 늘 실패했다.
+ */
+async function openLoginFromIntro(page: Page) {
+  await page.getByRole("region", { name: "이 사이트 소개" }).getByRole("button", { name: "로그인하고 모임 만들기" }).click();
+}
 
 async function noHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(
@@ -38,11 +47,11 @@ async function signUp(page: Page, username: string, password: string) {
 test.describe("회원가입 (390px)", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("상단 [로그인] → 회원가입 → 복구 코드 → 모임 탭 → 로그아웃 → 같은 아이디로 로그인, 틀리면 안내", async ({ page }) => {
+  test("소개의 로그인 → 회원가입 → 복구 코드 → 모임 탭 → 로그아웃 → 같은 아이디로 로그인, 틀리면 안내", async ({ page }) => {
     const username = newName();
     const password = "my inhouse pw";
     await page.goto("/");
-    await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
+    await openLoginFromIntro(page);
     const dialog = page.getByRole("dialog", { name: "로그인" });
     // 기본은 로그인 칸. 비밀번호 관리자가 알아보도록 autocomplete가 맞게 붙어 있다.
     await expect(dialog.getByLabel("아이디")).toHaveAttribute("autocomplete", "username");
@@ -92,10 +101,10 @@ test.describe("회원가입 (390px)", () => {
     // 로그아웃.
     await banner(page).getByRole("button", { name: "로그인됨" }).click();
     await page.getByRole("group", { name: "로그인 상태" }).getByRole("button", { name: "로그아웃" }).click();
-    await expect(banner(page).getByRole("button", { name: "로그인", exact: true })).toBeVisible();
+    await expect(banner(page).getByRole("button", { name: "로그인됨" })).toHaveCount(0);
 
     // 같은 아이디(대문자로 적어도)로 로그인: 틀리면 하나의 안내 문구.
-    await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
+    await openLoginFromIntro(page);
     await dialog.getByLabel("아이디").fill(username.toUpperCase());
     await dialog.getByLabel("비밀번호", { exact: true }).fill("wrong password");
     await dialog.getByRole("button", { name: "아이디로 로그인" }).click();
@@ -127,12 +136,12 @@ test.describe("회원가입 (390px)", () => {
   test("비밀번호를 잊었을 때: 복구 코드로 다시 정하면 새 코드를 주고, 모임 탭에서 비밀번호를 바꿀 수 있다", async ({ page }) => {
     const username = newName();
     await page.goto("/");
-    await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
+    await openLoginFromIntro(page);
     const code = await signUp(page, username, "first password");
     await banner(page).getByRole("button", { name: "로그인됨" }).click();
     await page.getByRole("group", { name: "로그인 상태" }).getByRole("button", { name: "로그아웃" }).click();
 
-    await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
+    await openLoginFromIntro(page);
     const dialog = page.getByRole("dialog", { name: "로그인" });
     await dialog.getByRole("button", { name: "비밀번호를 잊었어요" }).click();
     await expect(dialog.getByRole("heading", { name: "복구 코드로 비밀번호 다시 정하기" })).toBeVisible();
@@ -168,7 +177,7 @@ test.describe("회원가입 (390px)", () => {
   test("아이디로 가입한 대표 운영자는 모임을 지울 때 지금 비밀번호를 다시 넣는다", async ({ page }) => {
     const password = "owner password 1";
     await page.goto("/");
-    await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
+    await openLoginFromIntro(page);
     await signUp(page, newName(), password);
     const created = await page.request.post("/api/groups", {
       data: { name: "재확인 모임", requestId: `e2e-reauth-${Date.now().toString(36)}` },
@@ -203,7 +212,7 @@ test.describe("좁은 화면의 로그인·가입 창", () => {
   test("320px: 로그인·가입·복구 코드 창이 넘치지 않고 터치 대상 44px 이상", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto("/");
-    await banner(page).getByRole("button", { name: "로그인", exact: true }).click();
+    await openLoginFromIntro(page);
     const dialog = page.getByRole("dialog", { name: "로그인" });
     const check = async (scope: ReturnType<Page["getByRole"]>) => {
       await noHorizontalOverflow(page);
