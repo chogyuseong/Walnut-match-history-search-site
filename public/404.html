@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      없는 경로(예: /admin, /.env)에 돌려주는 페이지. wrangler.jsonc assets.not_found_handling "404-page"가 404 상태로 보낸다.
+      예전에는 모든 경로에 index.html을 200으로 줘서 검색엔진이 없는 주소를 정상 페이지로 볼 수 있었다(2026-11-25 QA).
+      앱 화면 주소는 모두 # 뒤(#/v/토큰 등)라 서버 경로는 "/", "/guide", 정적 파일뿐이다.
+      vite를 거치지 않고 public/에서 그대로 복사된다. 인라인 스크립트·스타일은 CSP가 막으니 모양은 guide.css를 같이 쓴다.
+    -->
+    <title>없는 주소예요 | 내전로그</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="stylesheet" href="/fonts/pretendard-1.3.9/pretendard.css" />
+    <link rel="stylesheet" href="/guide.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/">내전로그</a>
+    </header>
+    <main>
+      <h1>없는 주소예요</h1>
+      <p class="lead">주소가 바뀌었거나 잘못 적혔을 수 있어요. 모임 링크라면 운영자에게 새 링크를 받아 주세요.</p>
+      <div class="actions">
+        <a class="button primary" href="/">내전로그 첫 화면으로</a>
+        <a class="link" href="/guide">사용 안내</a>
+      </div>
+    </main>
+  </body>
+</html>

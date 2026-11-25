@@ -3,10 +3,13 @@
   "name": "naejeon-v2",
   "main": "src/server/index.ts",
   "compatibility_date": "2026-11-01",
-  // 화면은 정적 파일로 함께 배포한다. /api/* 만 Worker가 처리하고 나머지 주소는 index.html로 보낸다.
+  // 화면은 정적 파일로 함께 배포한다. /api/* 만 Worker가 처리한다. 화면 주소는 모두 # 뒤(#/v/토큰 등)라 서버 경로는
+  // "/", "/guide", 정적 파일뿐이다. 없는 경로는 404 상태로 public/404.html을 준다. 예전 "single-page-application"은
+  // /admin·/.env 같은 아무 주소에나 index.html을 200으로 줘서 검색엔진이 정상 페이지로 볼 수 있었다(2026-11-25 QA).
+  // 없는 화면 조각(/assets/옛이름.js)도 404가 되어 chunkReload.ts의 새로 고침 한 번이 그대로 동작한다.
   "assets": {
     "directory": "./dist/web",
-    "not_found_handling": "single-page-application",
+    "not_found_handling": "404-page",
     "run_worker_first": ["/api/*"]
   },
   // ---------------------------------------------------------------------------

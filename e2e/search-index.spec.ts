@@ -13,8 +13,24 @@ test("운영이 아닌 빌드는 검색엔진에 막혀 있다(noindex·X-Robots
   expect(robots.status()).toBe(200);
   expect(await robots.text()).not.toMatch(/^Disallow: \/$/m);
 
-  // 없는 파일은 화면(index.html)으로 돌아온다(single-page-application). 사이트맵 내용이 없어야 한다.
-  expect(await (await request.get("/sitemap.xml")).text()).not.toContain("<urlset");
+  // 운영이 아닌 빌드에는 사이트맵이 없다. 없는 파일은 404 상태와 없는 주소 안내(public/404.html)로 돌아온다.
+  const sitemap = await request.get("/sitemap.xml");
+  expect(sitemap.status()).toBe(404);
+  expect(await sitemap.text()).not.toContain("<urlset");
+});
+
+test("없는 경로는 404 상태로 없는 주소 안내를 준다(앱 화면을 200으로 주지 않는다)", async ({ request, page }) => {
+  // 화면 주소는 모두 # 뒤라 서버 경로는 "/", "/guide", 정적 파일뿐이다(wrangler.jsonc not_found_handling "404-page").
+  for (const path of ["/nope-page", "/admin", "/.env"]) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(404);
+    expect(await res.text(), path).toContain("<h1>없는 주소예요</h1>");
+  }
+  // # 뒤 화면 주소·질의가 붙은 첫 화면은 그대로 앱이다.
+  expect((await request.get("/?from=share")).status()).toBe(200);
+  await page.goto("/nope-page");
+  await page.getByRole("link", { name: "내전로그 첫 화면으로" }).click();
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test("로그인하지 않은 첫 화면은 검색용 제목과 소개를 그대로 둔다", async ({ page }) => {

@@ -43,7 +43,10 @@ if (!origin) {
   process.exit(0);
 }
 
-/** 받은 응답이 진짜 파일인지. 없는 주소는 index.html(200, text/html)이 오므로 상태 코드만으로는 모른다. */
+/**
+ * 받은 응답이 진짜 파일인지. 지금은 없는 주소가 404(public/404.html)지만, 2026-11-25 전 배포는 index.html을 200 text/html로
+ * 줬다. 그 판에서 목록을 받을 때도 맞게 상태와 형식을 함께 본다.
+ */
 function isRealFile(response) {
   return response.ok && !(response.headers.get("content-type") ?? "").includes("text/html");
 }

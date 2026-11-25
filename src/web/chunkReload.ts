@@ -3,9 +3,9 @@
  *
  * 왜 생기나: 화면 조각 파일 이름에는 내용 해시가 붙는다(/assets/Graphs-HASH.js). 배포할 때 바로 전 배포의 조각은
  * scripts/keep-old-assets.mjs가 함께 올려 한 배포 동안 남지만, 두 배포 이상 지난 탭은 옛 index.html이 알려 준 옛 이름으로
- * 없는 조각을 요청한다. 정적 자산 설정이
- * not_found_handling: "single-page-application"(wrangler.jsonc)이라 없는 파일 요청에 index.html(200, text/html)이
- * 오고, 브라우저는 그것을 JS 모듈로 읽지 못해 import()가 실패한다.
+ * 없는 조각을 요청한다. 없는 파일은 404(not_found_handling "404-page", wrangler.jsonc)라 import()가 실패한다.
+ * (2026-11-25 전에는 "single-page-application"이라 index.html이 200 text/html로 와서 모듈로 읽지 못해 실패했다.
+ * 어느 쪽이든 아래 오류 메시지 중 하나로 끝난다.)
  *
  * 처리: import()가 실패하면 이 탭 세션에서 아직 새로 고치지 않았을 때만 location.reload()를 한 번 한다(새 index.html이
  * 새 조각 이름을 알려 준다). 이미 한 번 했으면(새로 고친 뒤에도 실패 = 진짜 오류) 원래 오류를 그대로 던져
