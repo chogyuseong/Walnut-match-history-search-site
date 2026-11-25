@@ -211,7 +211,13 @@ function LocalAccountForms(props: {
 
   async function submit() {
     setTried(true);
-    if (nameProblem || passProblem || codeProblem) return;
+    // 고칠 칸이 있으면 화면 순서(아이디 → 복구 코드 → 비밀번호)로 첫 칸에 초점을 옮긴다. 버튼에 초점이 남으면
+    // 낭독기 사용자는 어느 칸이 틀렸는지 다시 찾아 올라가야 했다.
+    const firstBad = nameProblem ? "local-username" : codeProblem ? "local-recovery" : passProblem ? "local-password" : null;
+    if (firstBad) {
+      document.getElementById(firstBad)?.focus();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
