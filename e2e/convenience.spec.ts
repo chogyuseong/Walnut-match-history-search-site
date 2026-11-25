@@ -7,6 +7,11 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 test.use({ viewport: { width: 390, height: 844 } });
 
 const POSITIONS = ["top", "jungle", "mid", "adc", "support"];
+/**
+ * 공유 이미지가 다 그려질 때까지 기다리는 시간(ms). 이미지는 한글 글꼴 조각 여러 개를 다 받은 뒤 그린다(shareImage.tsx
+ * paintWithFonts). 테스트마다 새 브라우저라 글꼴을 처음부터 받아서, 기본 5초 안에 "이미지를 만드는 중…"에 머물다 실패하곤 했다.
+ */
+const SHARE_IMAGE_TIMEOUT = 20_000;
 
 interface Setup {
   groupId: string;
@@ -246,7 +251,7 @@ test("4) 오늘 요약 공유: 경기 수·승 많은 순 승패·연승을 글�
 
   await dialog.getByRole("button", { name: "이미지로 만들기" }).click();
   const image = page.getByRole("dialog", { name: "오늘 요약 이미지" });
-  await expect(image.getByRole("img", { name: "오늘 요약 이미지 미리보기" })).toBeVisible();
+  await expect(image.getByRole("img", { name: "오늘 요약 이미지 미리보기" })).toBeVisible({ timeout: SHARE_IMAGE_TIMEOUT });
   await noHorizontalOverflow(page, "오늘 요약 이미지 창");
 });
 

@@ -10,6 +10,8 @@ import { join } from "node:path";
 test.use({ viewport: { width: 390, height: 844 } });
 
 const names = Array.from({ length: 12 }, (_, i) => `준비${String(i + 1).padStart(2, "0")}`);
+/** 편성 이미지가 다 그려질 때까지 기다리는 시간(ms). 한글 글꼴을 다 받은 뒤 그려서 새 브라우저에서는 5초를 넘기곤 한다(convenience.spec.ts와 같은 이유). */
+const SHARE_IMAGE_TIMEOUT = 20_000;
 
 /** 로그인·모임·참가자 12명을 만들고 앞에서 count명을 골라 팀을 짠다. 11명 이상이면 넘는 사람은 대기자가 된다. 모임 ID를 돌려준다. */
 async function openPrep(page: Page, count = 10): Promise<string> {
@@ -316,7 +318,7 @@ test("준비 화면 추가 기능(390px): 대기자 교체 · 예상 승률 판(
   await expect(page.getByRole("button", { name: "명단 텍스트 복사" })).toBeVisible();
   await page.getByRole("button", { name: "편성 이미지" }).click();
   const imageDialog = page.getByRole("dialog", { name: "편성 이미지" });
-  await expect(imageDialog.getByRole("img", { name: "편성 이미지 미리보기" })).toBeVisible();
+  await expect(imageDialog.getByRole("img", { name: "편성 이미지 미리보기" })).toBeVisible({ timeout: SHARE_IMAGE_TIMEOUT });
   await imageDialog.getByRole("button", { name: "닫기" }).click();
   await expect(imageDialog).toHaveCount(0);
 
