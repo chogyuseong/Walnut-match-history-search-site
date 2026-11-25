@@ -12,6 +12,7 @@
   text-wrap: balance;
   word-break: keep-all;
 }
+/* 디자인 규칙 5절의 예외(제목은 강조색으로 칠하지 않는다). 이 구절 하나만 허용했으니 다른 제목에 옮기지 않는다. */
 .intro h1 span {
   color: var(--ih-accent);
 }
