@@ -88,8 +88,10 @@ export function TeamBoards(props: {
                 }
                 const supportCount = ctx.enabled ? supportCountOf(draft, slot.key, ctx) : 0;
                 const rivalMark = outmatched.get(slot.key);
+                // key는 사람이 아니라 자리(팀·라인)다. 사람 key면 다른 팀으로 옮겨 간 사람의 버튼이 지워졌다 새로 생겨
+                // 키보드 초점이 페이지 맨 앞으로 사라졌다. 미끄러짐 애니메이션은 data-flip-key(사람)로 찾으니 그대로 돈다.
                 return (
-                  <li key={slot.key} data-flip-key={slot.key}>
+                  <li key={`${team}:${position}`} data-flip-key={slot.key}>
                     <button
                       type="button"
                       className={rowClass(slot.key)}

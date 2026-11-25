@@ -123,6 +123,7 @@ export function Records(props: {
   // 경기 카드·순위표의 이름을 누르면 개인 통계를 지금 범위로 연다. 변경 내역의 이름은 범위와 무관해 그대로 연다.
   const openPersonInScope = (id: string) => props.openPerson(`${id}${scopeSuffix(scope)}`);
   const scoped = useMemo(() => matchesInScope(snapshot, scope), [snapshot, scope]);
+  const scopedSnapshot = useMemo(() => ({ ...snapshot, matches: scoped }), [snapshot, scoped]);
   const ordered = useMemo(() => newestFirst(scoped), [scoped]);
   const filtered = useMemo(() => filterMatches(ordered, filter), [ordered, filter]);
   const filtering = isFilterActive(filter);
@@ -221,7 +222,8 @@ export function Records(props: {
       </FilterBar>
       <ScopeBasis snapshot={snapshot} scope={scope} />
 
-      <KpiStrip snapshot={snapshot} hideGames />
+      {/* 위 기준 줄과 같은 범위로 센다. 전체 snapshot을 넘기면 '오늘'을 골라도 누적 승률·참가자가 나왔다. */}
+      <KpiStrip snapshot={scopedSnapshot} hideGames />
 
       <section className="rec-matches" aria-label="경기 목록">
         <h2>
