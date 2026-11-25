@@ -63,7 +63,7 @@ export function Demo(props: { rest: string[] }) {
  * 예시 모임 메뉴 칸. 모임 링크 메뉴(ViewerNav)는 좁은 화면 6칸이 "현재 경기"로 차서 분석이 없지만, 예시에는 현재 경기가 없어
  * 한 칸이 남는다. 처음 온 사람이 그래프 분석을 메뉴에서 바로 찾게 여기에만 둔다(운영자 하단 탭과 같은 6칸).
  */
-type DemoTab = Exclude<ViewerTab, "now"> | "graphs";
+type DemoTab = ViewerTab | "graphs";
 const DEMO_TAB_ICON: Record<DemoTab, LineIconName> = { ...VIEWER_TAB_ICON, graphs: "graphs" };
 
 /**
