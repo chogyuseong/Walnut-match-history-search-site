@@ -20,14 +20,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 [지금 상태와 다음 할 일 (2026-11-25)]
 
-- 운영 fee74223 = staging 957a3190 = main 755510d. 마이그레이션은 0029까지.
-- 11-25 운영 QA 수정 8건은 main에 커밋·push했지만 staging·운영 배포는 아직이다(마이그레이션 없음).
-  QA-01 기록 진영 승률 띠가 기간을 따름, QA-02 첫 화면 CLS 0.51→0.008, QA-03 팀 간 교환 뒤 초점 유지,
-  QA-04 잘못된 링크 화면에 첫 화면 버튼, QA-05 빈 제출 시 첫 오류 칸 초점, QA-06 복사 완료 aria-live,
-  QA-07 없는 서버 경로 404(public/404.html, not_found_handling 404-page), QA-09 signup E2E 고침.
-  배포하면 staging에서 404 응답에도 _headers 보안 헤더가 붙는지 본다(로컬 wrangler는 안 붙여서 못 봄).
-- 보류: QA-08 첫 방문 소개 제목 둘째 줄 골드(디자인 규칙 5절과 어긋남). 골드를 뺄지 규칙에 예외로 적을지 사용자 결정.
-  리포트는 .playwright-mcp/QA_REPORT.md(gitignore 대상, 이 컴퓨터에만 있음).
+- 운영 0dbf0786 = staging f8476ef6 = main(이 기록이 들어간 커밋). 마이그레이션은 0029까지, 11-25는 DB 변경 없음. push까지 끝남.
+- 11-25 운영에 나간 것: 운영 QA 수정 9건(QA-01~07·09, 리포트 .playwright-mcp/QA_REPORT.md는 이 컴퓨터에만 있음),
+  QA-08 소개 제목 골드는 디자인 규칙 5절 예외로 기록(11-19 사용자 커밋으로 들어온 모양이라 그대로 둠),
+  예시 모임 메뉴에 '분석' 칸. 아래 11-25 칸에 확인 결과.
 - 작업 규칙(11-25부터): 한 건 끝나면 구현현황과 이 절을 고쳐 커밋하고 push까지 묻지 않고 한다. 배포만 묻는다.
 - 오늘 운영에 나간 것: 편성 이어받기 서버 사본 남김(41fc008c), 첫 방문 소개에서 상단 [로그인] 숨김(07129972),
   방문자 수 보기 Cloudflare Web Analytics(fee74223, 처리방침 시행일 2026-11-23).
@@ -45,6 +41,16 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
   5. 실제 휴대폰으로 편성 넘기기·이어받기, 첫 화면 로그인 확인(지금까지는 브라우저 흉내로만 봄).
 - 방문자 수: Cloudflare 대시보드 → Analytics & Logs → Web Analytics. 11-23 확인 접속 몇 건이 섞여 있다.
 
+
+[2026-11-25: 운영 0dbf0786 = staging f8476ef6(운영 QA 후속 9건 + 예시 메뉴 '분석')]
+
+- 배포 전: typecheck·lint 0, 단위 1259, build·check:bundle·audit:design, 전체 E2E 184 통과·실패 0·건너뜀 4. 마이그레이션 없음. Claude가 전부 배포.
+- staging 확인: /·/guide·/?x=1 200, /nope-page·/.env·없는 /assets/*.js 404이고 404 응답에도 CSP·HSTS·X-Frame-Options 등이 붙음
+  (로컬 wrangler에서 못 본 항목), 404 안내 화면 390폭 정상, 예시 '분석' 칸 현재 표시, 콘솔 오류는 404 응답 자체 하나뿐.
+- 운영 확인: /api/health 200, /api/me authMode oauth, robots.txt·sitemap.xml 200, 없는 경로 404, 첫 화면 비컨 1개·noindex 없음,
+  390×844 첫 방문 CLS 0.008(전 0.51)·소개 뜨고 상단 [로그인] 숨김, 예시 모임 분석 6칸 가로 넘침 0, 콘솔 오류 0.
+- 고치지 않기로 한 것: 첫 방문의 ResultSheet·shareImage 미리 받기(압축 14KB, 늦추면 결과 입력 창이 느려짐),
+  HSTS includeSubDomains(workers.dev라 자체 도메인 때), "다음 경기 준비" 계산(평소 0.47초, 1,000경기 넘는 모임이 생기면 다시 잼).
 
 [2026-11-23 저녁: 운영 fee74223 = staging 957a3190(방문자 수 보기 Cloudflare Web Analytics 켬)]
 
