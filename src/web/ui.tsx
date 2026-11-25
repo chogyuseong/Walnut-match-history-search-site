@@ -169,6 +169,12 @@ export function CopyButton(props: { label: string; text: () => string }) {
       >
         {state === "copied" ? "복사했어요" : props.label}
       </button>
+      {/* 버튼 글자가 바뀌는 것만으로는 낭독기가 알리지 않는 경우가 많다. 알림 영역은 늘 그려 두고 글만 바꾼다
+          (영역이 글과 함께 새로 생기면 읽지 않는 낭독기가 있다). role="status"가 아니라 aria-live만 둔다: 복사 버튼이 화면마다
+          여럿이라, 빈 status가 늘면 화면의 진짜 상태 문구(저장됨·지웠어요 등)를 찾는 쪽과 겹친다. */}
+      <span className="sr-only" aria-live="polite">
+        {state === "copied" ? "복사했어요" : ""}
+      </span>
       {state === "manual" && (
         <label className="manual-copy">
           복사하지 못했어요. 아래 글을 길게 눌러 직접 복사해 주세요.
