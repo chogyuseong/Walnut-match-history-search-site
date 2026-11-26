@@ -32,8 +32,8 @@ const SETTLE_MS = 1500;
 const PREP_NAMES = ["밤송이", "솔방울", "구름빵", "바람개비", "주전자", "징검다리", "새벽별", "보름달", "모래성", "도토리"];
 /** 참가 신청 사진에서 이미 신청해 둔 사람 수. 많으면 "오늘 참가" 버튼이 사진 밖으로 밀린다. */
 const JOINED_BEFORE_SHOT = 2;
-/** 참가 신청 사진에 보이는 명단 줄 수(신청함 표시 줄과 "오늘 참가" 버튼 줄이 섞여 보이게). */
-const JOIN_ROWS_SHOWN = 3;
+/** 참가 신청 사진에 보이는 "오늘 참가" 버튼 줄 수. 셋이면 사진이 다른 탭의 두 배 가까이 길어져 소개 패널이 크게 늘었다. */
+const JOIN_ROWS_SHOWN = 2;
 
 /**
  * 로컬 서버에 시험 모임을 만들고 참가 신청 링크 토큰을 돌려준다. 두 테마가 같은 링크를 쓰도록 한 번만 부른다.
@@ -96,11 +96,13 @@ const SHOTS = [
     async clip(page, joinToken) {
       // 참가자 쪽 화면이라 로그인하지 않은 새 문맥에서 연다.
       await page.goto(`/#/join/${joinToken}`);
-      const heading = page.getByRole("heading", { level: 1 });
-      await heading.waitFor();
+      await page.getByRole("heading", { level: 1 }).waitFor();
+      // 화면 제목·신청 상태·본인 확인 안내 문단은 빼고 "신청한 사람"부터 자른다. 안내 문단이 사진 높이의 1/4을 차지했고,
+      // 소개 문구가 이미 "로그인 없이 이름을 올린다"고 말해 준다.
+      const signedUp = page.getByRole("heading", { name: /^신청한 사람/ });
       const roster = page.getByRole("region", { name: "명단에서 신청" }).locator(".search-results > li");
       await roster.nth(JOIN_ROWS_SHOWN - 1).waitFor();
-      return clipBetween(page, heading, roster.nth(JOIN_ROWS_SHOWN - 1));
+      return clipBetween(page, signedUp, roster.nth(JOIN_ROWS_SHOWN - 1));
     },
   },
   {

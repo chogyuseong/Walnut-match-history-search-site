@@ -47,7 +47,7 @@ const FEATURES: { icon: LineIconName; title: string; text: string; shot: IntroSh
     shot: {
       name: "join",
       alt: "참가 신청 화면 예시: 신청한 사람 2명이 위에 있고, 아래 명단에서 자기 이름 옆의 '오늘 참가' 버튼을 누른다",
-      height: 776,
+      height: 449,
     },
   },
   {
