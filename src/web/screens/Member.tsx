@@ -117,7 +117,7 @@ function CurrentMatch(props: { snapshot: Snapshot; meId: string; base: string })
           snapshot={snapshot}
           openMatch={(id) => go(`${base}/d/${id}`)}
           openPerson={(id) => go(`${base}/p/${id}`)}
-          openRanking={() => go(`${base}/records`)}
+          openRanking={(query) => go(`${base}/records${query}`)}
         />
       </div>
     );

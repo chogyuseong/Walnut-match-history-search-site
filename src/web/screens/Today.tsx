@@ -375,7 +375,7 @@ export function Today() {
           skipIds={todayIds}
           openMatch={(id) => go(`/m/${id}`)}
           openPerson={(id) => go(`/p/${id}`)}
-          openRanking={() => go("/records")}
+          openRanking={(query) => go(`/records${query}`)}
         />
       )}
 

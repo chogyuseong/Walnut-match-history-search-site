@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AccountControl, LOGIN_ONLY, LoginRequired } from "./account";
 import {
   Backfill,
@@ -82,6 +82,7 @@ export function App() {
   useKeyboardFlag();
   usePrefetchOperator(app, operatorMode);
   useDocumentTitle(route, !!app.me?.accountId, !!app.me?.siteAdmin);
+  useKeepFocusOnNavigate(rawRoute);
   const notice = useVisibleNotice(app);
 
   if (isJoin) {
@@ -281,6 +282,21 @@ function useDocumentTitle(route: string[], loggedIn: boolean, siteAdmin: boolean
   useEffect(() => {
     document.title = title;
   }, [title]);
+}
+
+/**
+ * 화면이 바뀌며 누른 버튼이 사라지면(예시 모임 상단 [피드백] → 운영 화면의 상단 바로 바뀜) 초점이 body로 떨어져
+ * 키보드 사용자는 페이지 맨 앞부터 다시 Tab해야 한다. 그때만 본문(main)으로 옮긴다. 건너뛰기 링크와 같은 목적지라
+ * 테두리는 그리지 않는다(main:focus). 누른 버튼이 남아 있으면(같은 상단 바의 메뉴 칸) 초점을 그대로 둔다.
+ * 지연 화면은 main 안에서 그려지므로 main은 이 효과가 돌 때 이미 있다.
+ */
+function useKeepFocusOnNavigate(route: string[]): void {
+  // 처음 연 화면은 건드리지 않는다. 그때 main으로 옮기면 첫 Tab이 건너뛰기 링크와 상단 바를 지나쳐 버린다.
+  const firstRoute = useRef(route);
+  useEffect(() => {
+    if (route === firstRoute.current) return;
+    if (document.activeElement === document.body) document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });
+  }, [route]);
 }
 
 /** 모르는 주소. 조용히 오늘 화면으로 보내지 않고 알린다(주소를 잘못 옮겨 적은 경우 등). */

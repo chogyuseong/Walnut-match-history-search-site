@@ -204,7 +204,11 @@ export function Person(props: {
     return (
       <div className="screen">
         <BackLink label="← 기록" fallback={props.back} />
-        <p>참가자를 찾을 수 없어요.</p>
+        <h1>참가자를 찾을 수 없어요</h1>
+        <p>지워졌거나 주소가 잘못 적혔을 수 있어요.</p>
+        <button type="button" className="primary" onClick={props.back}>
+          기록으로
+        </button>
       </div>
     );
   }

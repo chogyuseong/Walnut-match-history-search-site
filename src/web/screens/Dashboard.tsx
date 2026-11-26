@@ -40,6 +40,11 @@ function DashboardEmpty() {
 /** 홈에 보여주는 최근 경기·랭킹 수. */
 const RECENT_MATCHES = 5;
 const TOP_PEOPLE = 5;
+/**
+ * "기록 전체 보기"·"랭킹 전체"가 여는 기록 화면의 범위. 이 요약은 전체 누적이라 범위를 꼭 적는다.
+ * 빼면 기록 화면은 오늘 경기가 있는 날 "오늘"로 열려 위 목록과 다른 사람·순서가 나온다(recordsView.tsx readRecordsView).
+ */
+const ALL_RECORDS_QUERY = "?scope=all";
 
 /**
  * 홈 아래쪽 요약: 최근 경기 5개, 랭킹 상위 5명(전체 누적), 요즘 흐름(연승 중·최근 10경기 승률).
@@ -53,7 +58,8 @@ export function Dashboard(props: {
   snapshot: Snapshot;
   openMatch: (id: string) => void;
   openPerson: (id: string) => void;
-  openRanking: () => void;
+  /** 기록 화면을 연다. query("?scope=all")를 경로 뒤에 그대로 붙인다. */
+  openRanking: (query: string) => void;
   /** 위에서 이미 보여준 경기(오늘의 결과)는 최근 경기에서 뺀다. */
   skipIds?: ReadonlySet<string>;
   /** 가장 최근 확정 경기를 전광판으로 올린다(조회·예시 요약 탭). */
@@ -111,7 +117,7 @@ export function Dashboard(props: {
           <section className="dash-recent" aria-label={olderOnly ? "이전 경기" : "최근 경기"}>
             <div className="section-head">
               <h2>{olderOnly ? "이전 경기" : "최근 경기"}</h2>
-              <button type="button" className="link" onClick={props.openRanking}>
+              <button type="button" className="link" onClick={() => props.openRanking(ALL_RECORDS_QUERY)}>
                 기록 전체 보기
               </button>
             </div>
@@ -149,7 +155,7 @@ export function Dashboard(props: {
         <section aria-label="랭킹 상위">
           <div className="section-head">
             <h2>랭킹 상위 {top.length}명 (전체)</h2>
-            <button type="button" className="link" onClick={props.openRanking}>
+            <button type="button" className="link" onClick={() => props.openRanking(ALL_RECORDS_QUERY)}>
               랭킹 전체
             </button>
           </div>

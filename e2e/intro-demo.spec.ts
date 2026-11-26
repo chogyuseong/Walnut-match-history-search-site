@@ -148,3 +148,36 @@ test("1440px: 소개와 예시 모임이 넘치지 않는다", async ({ page }) 
   await expect(page.getByRole("heading", { name: "기록", level: 1 })).toBeVisible();
   await noHorizontalOverflow(page, "예시 기록 1440");
 });
+
+test("예시 요약의 '랭킹 전체'는 전체 범위로 열리고, 없는 사람·경기는 제목과 돌아갈 버튼을 보인다", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/#/demo");
+  const topFive = page.locator(".dash-rank-list .rank-person");
+  const firstOnSummary = await topFive.first().textContent();
+  await page.getByRole("button", { name: "랭킹 전체" }).click();
+  // 예시 모임에는 "오늘" 경기가 있어 범위를 적지 않으면 오늘로 열렸다(2026-11-26 QA-10).
+  await expect(page).toHaveURL(/#\/demo\/records\?scope=all/);
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적");
+  await expect(page.locator(".rank-person").first()).toHaveText(firstOnSummary ?? "");
+
+  for (const [path, title] of [
+    ["/#/demo/p/nope", "참가자를 찾을 수 없어요"],
+    ["/#/demo/d/nope", "경기를 찾을 수 없어요"],
+  ]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await page.getByRole("button", { name: "기록으로" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "기록" })).toBeVisible();
+  }
+});
+
+test("예시 모임 상단 [피드백]을 키보드로 누르면 초점이 본문으로 간다", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/#/demo");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.locator(".topbar").getByRole("link", { name: "피드백" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#\/feedback/);
+  // 누른 버튼이 상단 바와 함께 바뀌어 초점이 body로 떨어지던 것(QA-12). 이제 main이 받는다.
+  await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).toBe("MAIN");
+});
