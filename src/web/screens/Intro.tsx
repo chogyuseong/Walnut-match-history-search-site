@@ -32,13 +32,13 @@ const FEATURES: { icon: LineIconName; title: string; text: string; shot: IntroSh
     icon: "group",
     title: "팀 짜기",
     text: "10명을 넣으면 티어로 실력을 맞춘 두 팀을 추천하고, 서포터를 돌아가며 맡도록 순서를 챙겨요.",
-    shot: { name: "prep", alt: "팀 짜기 화면 예시: 블루팀·레드팀에 탑부터 서폿까지 라인별로 다섯 명씩 배치돼 있다", height: 362 },
+    shot: { name: "prep", alt: "팀 짜기 화면 예시: 블루팀·레드팀에 탑부터 서폿까지 라인별로 다섯 명씩 배치돼 있다", height: 300 },
   },
   {
     icon: "ranking",
     title: "전적과 랭킹",
     text: "경기 결과를 저장하면 승률 랭킹, 라인별 기록, 함께 뛴 사람별 기록이 쌓여요.",
-    shot: { name: "ranking", alt: "MMR 랭킹 화면 예시: 순위, 이름, MMR, 경기 수와 승률, 최근 10경기 승패가 줄마다 보인다", height: 448 },
+    shot: { name: "ranking", alt: "MMR 랭킹 화면 예시: 순위, 이름, MMR, 경기 수와 승률, 최근 10경기 승패가 줄마다 보인다", height: 398 },
   },
   {
     icon: "link",

@@ -72,11 +72,12 @@ const SHOTS = [
       await page.getByRole("main").getByRole("textbox").first().fill(PREP_NAMES.join("\n"));
       await page.getByRole("button", { name: "추가", exact: true }).click();
       await page.getByRole("button", { name: "팀 짜기 (10/10)" }).click();
-      const heading = page.getByRole("heading", { name: "다음 경기 준비" });
-      await heading.waitFor();
-      // 블루·레드 보드에서 자른다. 그 아래 사용 안내 문장·섞기 버튼까지 넣으면 사진이 설명서처럼 읽히고 길어져
+      const teams = page.getByRole("main").locator(".teams").first();
+      await teams.waitFor();
+      // 블루·레드 보드만 자른다. 위의 화면 머리("← 오늘 · 다음 경기 준비 · 이 기기에만 있어요")까지 넣으면 소개 패널 안에
+      // 화면이 하나 더 들어 있는 것처럼 보였다. 아래 사용 안내 문장·섞기 버튼까지 넣으면 사진이 설명서처럼 읽히고 길어져
       // 1200px 이상 소개에서 첫 화면이 사진 하나로 찬다.
-      return clipBetween(page, heading, page.getByRole("main").locator(".teams").first());
+      return clipBetween(page, teams, teams);
     },
   },
   {
