@@ -385,12 +385,14 @@ table {
   outline-offset: 2px;
   border-radius: var(--radius-control);
 }
-.theme-select {
-  width: auto;
+/* 테마 바꾸기 버튼(App.tsx TopBar): 44×44 칸에 20px 해·달 아이콘. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
   min-height: var(--control-height);
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--text-label);
-  font-weight: 500;
+  padding: 0;
   border-color: var(--ih-control-border);
 }
 
@@ -509,26 +511,31 @@ table {
     display: none;
   }
 }
-/* 768px 이상: 주 메뉴는 상단 바 아래 한 줄(글자만). 줄 테두리는 창 폭 전체, 칸은 본문과 같은 왼쪽 정렬선.
-   상단 바만 따라오고 메뉴 줄은 본문과 함께 올라간다(따라오는 높이를 64px로 묶어 좁은 창·확대에서 본문을 덜 가리게). */
+/* 768px 이상: 주 메뉴(글자만)는 상단 바 한 줄 안, 사이트 이름 오른쪽에 들어가 바와 함께 따라온다.
+   따라오는 높이는 바 하나(64px)뿐이라 본문을 덜 가린다. 예전처럼 바 아래 따로 한 줄을 두면 61px이 더 내려갔다.
+   768~1199px은 메뉴 8칸·사이트 이름·테마·로그인됨이 한 줄에 들어가도록 칸 좌우를 12px로 줄이고(768px 로그인 상태에서 약 60px 남는다), 1200px부터 16px다. */
 @media (min-width: 768px) {
   .topbar {
     position: sticky;
     top: 0;
     z-index: 3;
   }
-  .tabs {
-    border-bottom: 1px solid var(--ih-line);
+  /* 사이트 이름과 첫 칸 사이 24px(바의 gap 12px + 12px): 이름이 메뉴 칸 하나로 읽히지 않게. */
+  .topbar .tabs {
+    flex: 1;
+    min-width: 0;
+    margin-left: var(--space-3);
   }
   .tabs-inner {
     display: flex;
     gap: var(--space-1);
-    max-width: var(--content-max);
-    margin: 0 auto;
-    padding: var(--space-2) var(--page-gutter);
   }
   .tabs button,
-  .tabs button:not(:disabled):hover,
+  .tabs button:not(:disabled):hover {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-3);
+  }
   .viewer-nav > span > .link,
   .viewer-nav > span > .link:not(:disabled):hover {
     display: inline-flex;
@@ -543,6 +550,12 @@ table {
   .tabs .line-icon,
   .viewer-nav .line-icon {
     display: none;
+  }
+}
+@media (min-width: 1200px) {
+  .tabs button,
+  .tabs button:not(:disabled):hover {
+    padding: 0 var(--space-4);
   }
 }
 /* 조회 화면의 점검 안내: 본문(.screen)과 같은 좌우 여백. */

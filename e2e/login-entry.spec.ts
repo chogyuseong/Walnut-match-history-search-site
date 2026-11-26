@@ -160,6 +160,11 @@ test.describe("상단 바 배치", () => {
       .locator("a, button, select")
       .evaluateAll((nodes) =>
         nodes
+          // 좁은 화면의 주 메뉴는 상단 바 안에 있어도 화면 아래에 고정되므로 바의 한 줄 배치에서 뺀다.
+          .filter((n) => {
+            const nav = n.closest(".tabs");
+            return !nav || getComputedStyle(nav).position !== "fixed";
+          })
           .map((n) => n.getBoundingClientRect())
           // 숨긴 조작(넓은 화면의 상단 바 "피드백" 링크는 탭이 대신해 display:none)은 세지 않는다.
           .filter((r) => r.width > 0 && r.height > 0)
@@ -172,9 +177,10 @@ test.describe("상단 바 배치", () => {
     }
     for (let i = 1; i < controls.length; i++) expect(controls[i]!.x).toBeGreaterThanOrEqual(controls[i - 1]!.x + controls[i - 1]!.w);
     if (width >= 768) {
-      // 넓은 화면에서는 주 메뉴가 상단 바 아래 한 줄이다(디자인 3단계 전에는 상단 바에 겹쳐 놓였다).
+      // 넓은 화면에서는 주 메뉴가 상단 바 한 줄 안에 들어간다. 위 겹침·넘침 검사가 메뉴 칸까지 함께 잰다.
       const tabs = await menu(page).boundingBox();
-      expect(tabs!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height);
+      expect(tabs!.y).toBeGreaterThanOrEqual(bar!.y);
+      expect(tabs!.y + tabs!.height).toBeLessThanOrEqual(bar!.y + bar!.height);
     }
   }
 
@@ -205,7 +211,7 @@ test.describe("상단 바 배치", () => {
     const group = await (await page.request.post("/api/groups", { data: { requestId: crypto.randomUUID(), name: "조회 모임" } })).json();
     const snapshot = await (await page.request.get(`/api/groups/${group.id}/snapshot`)).json();
     await page.goto(`/#/v/${snapshot.group.viewToken}/now`);
-    await expect(banner(page).getByRole("combobox", { name: "화면 테마" })).toBeVisible();
-    await expect(banner(page).getByRole("button")).toHaveCount(0);
+    await expect(banner(page).getByRole("button", { name: /테마로 바꾸기$/ })).toBeVisible();
+    await expect(banner(page).getByRole("button", { name: /로그인/ })).toHaveCount(0);
   });
 });

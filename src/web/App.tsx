@@ -42,6 +42,9 @@ import { CHAMPION_PORTRAITS } from "./portraits";
 import { stripRouteQuery, useSearchShortcut } from "./searchRoute";
 import { seasonRoutePart, seasonScopeFromRoute } from "./seasonRoute";
 import { applyTheme, readTheme, THEMES, type Theme } from "./theme";
+
+/** 테마 값 → 화면 이름(테마 버튼의 "라이트 테마로 바꾸기"). */
+const THEME_LABEL = Object.fromEntries(THEMES.map((t) => [t.value, t.label])) as Record<Theme, string>;
 import { LineIcon, useDialogOpen, useKeyboardFlag, type LineIconName } from "./ui";
 import { AppContext, go, useApp, useAppValue, useRoute, type AppValue } from "./useApp";
 
@@ -137,11 +140,14 @@ export function App() {
 
   return (
     <AppContext.Provider value={app}>
-      <TopBar homeLink actions={<AccountControl />} feedbackNarrowOnly />
       {/* 참가 중인 모임(#/mine/...)은 자기 메뉴(조회 메뉴)를 쓴다. 운영 탭은 다른 모임을 가리키므로 숨긴다.
-          <main> 앞에 둔다: 넓은 화면에서 상단 바 바로 아래 한 줄이고, Tab 순서도 상단 바 → 주 메뉴 → 본문이다.
-          좁은 화면에서는 CSS가 아래에 고정한다(순서는 같다). */}
-      {route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
+          Tab 순서는 사이트 이름 → 주 메뉴 → 테마·로그인 → 본문이다. 좁은 화면에서는 CSS가 메뉴를 아래에 고정한다. */}
+      <TopBar
+        homeLink
+        nav={route[0] !== "mine" && <Tabs current={route[0] ?? ""} />}
+        actions={<AccountControl />}
+        feedbackNarrowOnly
+      />
       {/* 참가 중인 모임은 조회 메뉴 줄이 main 안에 있어, 예시·모임 링크처럼 main의 폭 제한을 풀고(bleed) 줄을 창 폭 전체로
           긋는다. 본문은 Member의 .bleed-body, 푸터는 아래 .bleed-body가 본문 폭으로 묶는다. */}
       <main className={route[0] === "mine" ? "bleed" : undefined} tabIndex={-1}>
@@ -291,12 +297,14 @@ function NotFound() {
 }
 
 /**
- * 상단 바: 사이트 이름, 테마 고르기, 로그인 상태(운영 화면만). 주 메뉴는 이 바 아래 한 줄(넓은 화면) 또는 화면 아래(좁은 화면).
+ * 상단 바: 사이트 이름, 주 메뉴(운영 화면만, nav), 테마 버튼, 로그인 상태(운영 화면만).
+ * 주 메뉴는 넓은 화면에서 이 바 한 줄 안에 들어가 바와 함께 따라오고, 좁은 화면에서는 CSS가 화면 아래에 고정한다.
  * 사이트 이름은 중립색 글자다(CLAUDE.md 5절: 로고를 강조색으로 칠하지 않는다).
  * 모임 링크로 들어온 사람에게는 운영 화면으로 가는 로고 링크와 로그인 버튼을 주지 않는다.
  */
-function TopBar(props: { homeLink?: boolean; actions?: ReactNode; feedbackNarrowOnly?: boolean }) {
+function TopBar(props: { homeLink?: boolean; nav?: ReactNode; actions?: ReactNode; feedbackNarrowOnly?: boolean }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
+  const nextTheme: Theme = theme === "dark" ? "light" : "dark";
   const mark = <span>{SITE_NAME}</span>;
   return (
     <>
@@ -318,28 +326,26 @@ function TopBar(props: { homeLink?: boolean; actions?: ReactNode; feedbackNarrow
         ) : (
           <span className="brand">{mark}</span>
         )}
+        {props.nav}
         <div className="topbar-actions">
           {/* 피드백(시험 운영 기간). 운영 화면은 넓은 화면에 "피드백" 탭이 있어 좁은 화면에서만 보인다(feedbackNarrowOnly).
               모임 링크·참가 신청·예시 모임에는 운영 탭이 없어 늘 보인다. */}
           <a className={props.feedbackNarrowOnly ? "topbar-feedback nav-narrow-only" : "topbar-feedback"} href="#/feedback">
             피드백
           </a>
-          <select
-            className="theme-select"
-            aria-label="화면 테마"
-            value={theme}
-            onChange={(event) => {
-              const next = event.target.value as Theme;
-              setTheme(next);
-              applyTheme(next, true);
+          {/* 테마가 둘뿐이라 고르기 상자 대신 바꾸기 버튼. 이름과 그림은 누르면 바뀔 테마다(8절: 버튼 이름에 결과). */}
+          <button
+            type="button"
+            className="secondary theme-toggle"
+            aria-label={`${THEME_LABEL[nextTheme]} 테마로 바꾸기`}
+            title={`${THEME_LABEL[nextTheme]} 테마로 바꾸기`}
+            onClick={() => {
+              setTheme(nextTheme);
+              applyTheme(nextTheme, true);
             }}
           >
-            {THEMES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            <LineIcon name={nextTheme === "light" ? "sun" : "moon"} />
+          </button>
           {props.actions}
         </div>
       </div>
@@ -659,7 +665,7 @@ function Tabs(props: { current: string }) {
   );
   return (
     <nav className="tabs" aria-label="주 메뉴">
-      {/* 넓은 화면에서 줄 테두리는 창 폭 전체, 칸은 본문 폭(--content-max) 안에 맞추려고 안쪽 묶음을 둔다. */}
+      {/* 좁은 화면의 하단 고정 줄에서 칸을 똑같이 나누는 격자(04-surfaces.css .tabs-inner). */}
       <div className="tabs-inner">
         {item("today", "/", "오늘", "today")}
         {item("search", "/search", "검색", "search")}

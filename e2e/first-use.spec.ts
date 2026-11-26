@@ -270,11 +270,13 @@ test.describe("좁은 화면과 긴 이름 (39)", () => {
         .evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().height));
       expect(Math.max(...actionHeights)).toBeLessThanOrEqual(50);
 
-      // 넓은 화면에서는 탭이 상단 바(64px) 바로 아래에, 좁은 화면에서는 아래에 있다.
+      // 넓은 화면에서는 탭이 상단 바(64px) 한 줄 안에, 좁은 화면에서는 아래에 있다.
       await page.evaluate(() => window.scrollTo(0, 0));
       const tabsBox = await page.getByRole("navigation", { name: "주 메뉴" }).boundingBox();
-      if (width >= 768) expect(tabsBox!.y).toBe(64);
-      else expect(tabsBox!.y).toBeGreaterThan(300);
+      if (width >= 768) {
+        expect(tabsBox!.y).toBeGreaterThanOrEqual(0);
+        expect(tabsBox!.y + tabsBox!.height).toBeLessThanOrEqual(64);
+      } else expect(tabsBox!.y).toBeGreaterThan(300);
     });
   }
 });
