@@ -20,9 +20,12 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 [지금 상태와 다음 할 일 (2026-11-26)]
 
-- 11-27 main(배포 전, 운영은 05301d92): 챔피언 티어 색을 사용자 캡처 색(--champ-tier-1~5: 주황·파랑·청록·회청·황토)으로 바꿈,
-  3차 QA No 13 수정(기록 화면이 열린 채 조건 붙은 주소로 바뀌면 그 조건을 따름, Records.tsx follow). DB 변경 없음.
-  검사: 단위·대비·audit:design·typecheck·lint·build·check:bundle, E2E 15 통과(새 회귀 시험은 수정 전 실패 확인).
+- 11-27 오후: 운영 5cecce38 = staging 408fcaa6 = main c46261e. 챔피언 티어 색을 사용자 캡처 색(--champ-tier-1~5:
+  주황·파랑·청록·회청·황토)으로 바꿈, 3차 QA No 13 수정(기록 화면이 열린 채 조건 붙은 주소로 바뀌면 그 조건을 따름,
+  Records.tsx follow). DB 변경 없음. Claude가 staging → 운영 배포(사용자 "진행해").
+  검사: 단위 1261·대비·audit:design·typecheck·lint·build·check:bundle, E2E 15 통과(새 회귀 시험은 수정 전 실패 확인).
+  운영 확인(20초 뒤): /api/health 200, index-DGGnH03Q.css, 예시 챔피언 다크·라이트 390·1440 다섯 색·넘침 0,
+  기록 화면 주소 조건 따름(scope=all&who=demo-p02), 콘솔 오류 0.
 - 11-27: 운영 05301d92 = staging 7d0aa344 = main a5a15c6. 챔피언 티어 표식을 승률 색 다섯으로 채운 육각형으로
   (1 청록·2 초록·3 연두·4 주황·5 분홍, CLAUDE.md 5절 예외). DB 변경 없음. Claude가 staging → 운영 배포(사용자 "진행해").
   검사: 단위 1261, typecheck·lint 0, build·check:bundle·audit:design 위반 0, E2E champion-tier·narrow-search 5 통과.
