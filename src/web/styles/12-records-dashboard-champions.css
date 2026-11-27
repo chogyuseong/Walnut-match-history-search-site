@@ -56,6 +56,10 @@
   font-variant-numeric: tabular-nums;
   word-break: keep-all;
 }
+/* 폰에서 전적은 칸(승률 · 승패 · (경기 수)) 단위로만 줄을 바꾼다. 세 자리 수에서 칸 안이 갈라지지 않게. */
+.rank-row :is(.c-rate, .c-wins, .c-games) {
+  white-space: nowrap;
+}
 .rank-row > .c-mmr {
   grid-area: mmr;
   justify-self: end;

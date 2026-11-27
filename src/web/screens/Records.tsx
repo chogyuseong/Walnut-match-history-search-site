@@ -439,9 +439,11 @@ export function Records(props: {
                               <Glue> · </Glue>
                             </span>
                             <span className="c-wins num">
-                              {r.wins}승 {r.losses}패<Glue> (</Glue>
+                              {r.wins}승 {r.losses}패
                             </span>
+                            {/* 여는 괄호는 경기 수 칸에 둔다. 앞 칸 끝에 두면 좁은 폰에서 "406승 294패 (" / "700경기)"로 갈라진다. */}
                             <span className="c-games num">
+                              <Glue> (</Glue>
                               {r.games}
                               <Glue>경기)</Glue>
                             </span>
