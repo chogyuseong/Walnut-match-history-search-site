@@ -19,7 +19,7 @@ import {
   teamName,
   teamRoster,
 } from "./format";
-import { laneRivalTitle, RivalBadge } from "./rankBadges";
+import { laneRivalTitle, RivalMark } from "./rankBadges";
 import { PosLabel } from "./roleIcon";
 
 /**
@@ -102,14 +102,25 @@ export function MatchCard(props: {
             </span>
           )}
           {rivals.length > 0 && (
-            <span className="mc-rivals">
-              <RivalBadge
-                title={`${rivals
-                  .map((r) => `${nameOf(r.strongId)}: ${laneRivalTitle(r.position, nameOf(r.weakId), r.rival)}`)
-                  .join(" / ")} (${LANE_RIVAL_BASIS})`}
-              />
+            // 배지(칭호처럼 보임) 대신 마크 + 풀어 쓴 글. 라인이 둘 이상이면 "탑 ○○, 원딜 ○○"로 잇고,
+            // 좁은 폰에서는 라인 단위로 다음 줄에 내려간다(이름을 말줄임하지 않음, 2026-11-27 사용자 요청).
+            <span
+              className="mc-rivals"
+              title={`${rivals
+                .map((r) => `${nameOf(r.strongId)}: ${laneRivalTitle(r.position, nameOf(r.weakId), r.rival)}`)
+                .join(" / ")} (${LANE_RIVAL_BASIS})`}
+            >
+              <span className="mc-rivals-label">
+                <RivalMark />
+                {LANE_RIVAL_LABEL}
+              </span>
               <span className="mc-rivals-who">
-                {rivals.map((r) => `${POSITION_LABEL[r.position]} ${nameOf(r.strongId)}`).join(" · ")}
+                {rivals.map((r, i) => (
+                  <span key={r.position} className="mc-rival">
+                    {POSITION_LABEL[r.position]} {nameOf(r.strongId)}
+                    {i < rivals.length - 1 && ","}
+                  </span>
+                ))}
               </span>
             </span>
           )}
@@ -360,6 +371,8 @@ export function useLaneRivals(snapshot: Snapshot | null): HardestLaneRivals {
 
 /** 기록 화면에서 "어려운 상대" 설명 끝에 붙이는 기준. 옛 경기에도 지금 누적 전적으로 판정한다. */
 export const LANE_RIVAL_BASIS = "지금까지 누적 기준";
+/** 경기 카드 줄의 이름. 팀 짜기·경기 상세의 짧은 배지 "어려운 상대"를 처음 보는 사람도 알게 풀어 쓴다. */
+const LANE_RIVAL_LABEL = "맞라이너가 어려워하는 상대";
 
 export function useExpectations(snapshot: Snapshot | null): ReadonlyMap<string, MatchExpectation> {
   return useMemo(

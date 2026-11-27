@@ -120,6 +120,11 @@ export function laneRivalTitle(position: Position, weakName: string, rival: Lane
   return `${weakName} 상대로 ${POSITION_LABEL[position]} 맞라인 ${rival.losses}승 ${rival.wins}패 · ${weakName}에게 이 라인에서 가장 어려운 상대`;
 }
 
+/** 배지 테두리 없이 글 앞에만 붙이는 엇갈린 칼 마크(경기 카드의 "맞라이너가 어려워하는 상대" 줄). */
+export function RivalMark() {
+  return <BadgeMark>{RIVAL_SHAPE}</BadgeMark>;
+}
+
 export function RivalBadge(props: { title: string }) {
   return (
     <span className="tag marked rival-tag" title={props.title}>
