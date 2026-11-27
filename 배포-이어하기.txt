@@ -20,6 +20,9 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 [지금 상태와 다음 할 일 (2026-11-26)]
 
+- 11-27 저녁: 배포 없음(운영·staging은 아래 오후 줄 그대로). 문서만: docs/DB-구조도.md(ERD), 보안 점검 결과는
+  docs/구현현황/2026-11-16.md 끝(치명·높음 없음, 낮음 2·정보 4, 고칠지 미정). 클라우드 루틴 "새 롤 챔피언 감지"
+  (매주 목 10:00 한국, 빠진 챔피언 있으면 메일) https://claude.ai/code/routines/trig_01QakzKSZNgHFcJUSuQMenEx
 - 11-27 오후: 운영 5cecce38 = staging 408fcaa6 = main c46261e. 챔피언 티어 색을 사용자 캡처 색(--champ-tier-1~5:
   주황·파랑·청록·회청·황토)으로 바꿈, 3차 QA No 13 수정(기록 화면이 열린 채 조건 붙은 주소로 바뀌면 그 조건을 따름,
   Records.tsx follow). DB 변경 없음. Claude가 staging → 운영 배포(사용자 "진행해").
