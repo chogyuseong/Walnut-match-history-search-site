@@ -315,7 +315,13 @@
 }
 /* 기록 화면만(spellOutRivals): 마크 + "맞라이너가 어려워하는 상대" + "탑 ○○, 원딜 ○○".
    마크와 글, 글과 이름 사이는 8px. 좁으면 라인 단위로 다음 줄에 내려가고 이름은 자르지 않는다. */
+/* 이 글이 있으면 줄 하나를 통째로 쓰고 시리즈·이변 배지와 메모는 다음 줄로 보낸다. 다섯 라인이 다 뜨거나 이름이 길면
+   오른쪽 시리즈 배지가 이름 위에 겹쳤다(320px, 20자 이름으로 확인). */
+.mc-extra:has(> .mc-rivals.spelled) {
+  flex-wrap: wrap;
+}
 .mc-rivals.spelled {
+  flex: 1 1 100%;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
 }
@@ -333,8 +339,10 @@
   white-space: normal;
   color: var(--ih-text);
 }
+/* 라인 하나("탑 ○○,")는 덩어리로 줄을 바꾸되, 그 하나가 한 줄보다 길면(20자 이름) 그 안에서 꺾는다. */
 .mc-rival {
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .mc-memo-label {
   margin-right: var(--space-1);
