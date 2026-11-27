@@ -388,10 +388,13 @@
   flex: none;
   justify-content: flex-end;
 }
-/* 티어 배정: 좁은 화면에서는 1·2·3·4·5·미정 버튼 줄(6칸 × 44px + 간격 = 294px)이 이름 아래로 내려간다.
-   버튼은 44px 이상. 390px 화면의 줄 안쪽 폭(약 330px)에 한 줄로 들어간다. */
+/* 티어 배정·기피 라인 줄. 넓은 화면은 이름 왼쪽, 버튼 줄(6칸 × 44px + 간격 = 294px) 오른쪽.
+   768px 미만은 버튼 줄을 늘 이름 아래 한 줄로 내린다. 예전처럼 남는 폭에 따라 접히게 두면
+   "이번 편성" 배지가 붙은 줄만 내려가 줄마다 이름 자리와 칸 폭이 달라졌다(2026-11-27 아이폰 캡처). */
 .list-row.priority-row {
   flex-wrap: wrap;
+  /* 넓은 화면 버튼 줄 폭: 티어 6칸이 72px씩. 기피 라인 5칸은 같은 폭을 나눠 아이콘 + 라인 이름이 들어간다. */
+  --priority-buttons-width: 432px;
 }
 .priority-row > .segmented {
   flex: 1 1 294px;
@@ -400,14 +403,30 @@
   min-width: 44px;
   padding: var(--space-2) var(--space-1);
 }
-/* 360px 미만: 294px 줄이 카드 안쪽 폭(약 280px)보다 넓어 넘치므로 여섯 칸을 똑같이 나눈다(44px 미만이 되지만 한 줄 유지). */
-@media (max-width: 359px) {
+/* 넓은 화면: 버튼 줄 폭을 고정해 이름 길이와 상관없이 줄마다 같은 자리에 오게 한다(이름이 남는 폭을 가짐). */
+@media (min-width: 768px) {
+  .priority-row > .name {
+    flex: 1 1 0;
+  }
+  .priority-row > .segmented {
+    flex: 0 0 var(--priority-buttons-width);
+  }
+  .priority-row > .segmented button {
+    flex: 1 1 0;
+  }
+}
+@media (max-width: 767px) {
   .priority-row > .segmented {
     flex-basis: 100%;
     min-width: 0;
   }
   .priority-row > .segmented button {
     flex: 1 1 0;
+  }
+}
+/* 360px 미만: 카드 안쪽 폭(약 280px)이 44px 여섯 칸보다 좁아 44px 아래로 줄이되 한 줄은 지킨다. */
+@media (max-width: 359px) {
+  .priority-row > .segmented button {
     min-width: 0;
     padding: var(--space-2) 0;
   }
