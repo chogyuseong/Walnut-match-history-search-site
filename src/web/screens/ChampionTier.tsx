@@ -350,7 +350,7 @@ export function ChampionTier(props: {
   );
 }
 
-/** 티어 칸: 숫자가 든 작은 각진 칸. 1티어만 포인트 색으로 채우고 아래로 갈수록 옅어진다. */
+/** 티어 칸: 숫자가 든 작은 육각형을 티어 색(승률 색 재사용)으로 채운다. 색만으로 뜻을 전하지 않게 숫자를 늘 둔다. */
 function TierMark(props: { tier: Tier | null }) {
   if (props.tier === null) return <span className="hint">–</span>;
   return (

@@ -415,39 +415,37 @@
 .ct-player {
   white-space: nowrap;
 }
-/* 티어 칸: 숫자 하나가 든 각진 칸. 색 없이 명도로만 단계를 보인다(CLAUDE.md 5절): 1티어는 본문 글자 색으로 채운 칸,
-   2티어는 컨트롤 경계 테두리, 3·4티어는 보조 면, 5티어는 옅은 테두리. 숫자 글자가 늘 뜻을 전한다. */
+/* 티어 칸: 숫자 하나가 든 육각형을 티어 색으로 채운다(CLAUDE.md 5절 예외). 표 칸 전체가 아니라 이 작은 표식만 칠한다.
+   색은 승률 여섯 색(--rate-hue-*)을 다시 써서 승률 화면과 같은 방향(청록 = 높음, 분홍 = 낮음)으로 읽힌다.
+   노랑(--rate-hue-3)은 골드 강조색과 헷갈려 건너뛴다. 새 색을 만들지 않는다.
+   숫자는 --ih-bg 글자: 다크는 밝은 채움 위 어두운 글자, 라이트는 진한 채움 위 밝은 글자가 되어 두 테마 모두 4.5:1을 넘는다
+   (test/theme-contrast.test.ts "챔피언 티어 칸"). 육각형은 clip-path라 테두리를 그리지 않는다. */
 .ct-tier-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
-  height: 24px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-badge);
+  height: 26px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  color: var(--ih-bg);
   font-size: var(--text-label);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .ct-tier-mark.t1 {
-  background: var(--ih-text);
-  color: var(--ih-bg);
+  background: var(--rate-hue-6);
 }
 .ct-tier-mark.t2 {
-  border-color: var(--ih-control-border);
-  color: var(--ih-text);
+  background: var(--rate-hue-5);
 }
 .ct-tier-mark.t3 {
-  background: var(--ih-subtle);
-  color: var(--ih-text);
+  background: var(--rate-hue-4);
 }
 .ct-tier-mark.t4 {
-  background: var(--ih-subtle);
-  color: var(--ih-text-secondary);
+  background: var(--rate-hue-2);
 }
 .ct-tier-mark.t5 {
-  border-color: var(--ih-line);
-  color: var(--ih-text-secondary);
+  background: var(--rate-hue-1);
 }
 .ct-tier-counts {
   display: flex;

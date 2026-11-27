@@ -201,6 +201,11 @@ describe("테마 색 대비", () => {
         expect(new Set(hues.map(get)).size).toBe(6);
       });
 
+      // 챔피언 티어 칸(.ct-tier-mark)은 승률 색 다섯으로 채운 육각형이고 숫자는 --ih-bg 글자다. 칸 자체의 패널 대비는 위 검사에 든다.
+      it("챔피언 티어 칸 채움 다섯 색 위 숫자 4.5:1", () => {
+        for (const n of [6, 5, 4, 2, 1]) atLeast("--ih-bg", `--rate-hue-${n}`, 4.5);
+      });
+
       // 높은 등급(1)일수록 밝다. 라이트는 흰 바탕 대비 때문에 폭이 좁지만 같은 방향으로 둔다.
       it("칭호 등급 색은 1등급에서 아래로 갈수록 휘도가 줄어든다", () => {
         const lums = TITLE_GRADES.map((g) => luminance(get(`--title-${g}`)));
