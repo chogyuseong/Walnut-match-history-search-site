@@ -84,7 +84,8 @@ export function Records(props: {
   const seriesBadge = useSeriesBadges(snapshot);
   const expectation = useExpectations(snapshot);
   const laneRivals = useLaneRivals(snapshot);
-  // 처음 보기 조건은 주소에서 읽는다(뒤로 왔을 때·공유 링크). 한 번만 읽고 그 뒤로는 화면 상태를 주소에 적는다.
+  // 처음 보기 조건은 주소에서 읽는다(뒤로 왔을 때·공유 링크). 그 뒤로는 화면 상태를 주소에 적고, 화면이 떠 있는 채
+  // 조건 붙은 기록 주소로 바뀔 때만 다시 읽는다(아래 follow).
   // 흐름: 화면 상태(scope·filter·sort·line·shown) → viewParams → 아래 효과가 replaceRouteParams로 주소를 고친다.
   // 주소를 고쳐도 화면 상태를 다시 읽지 않으므로 둘이 서로를 바꾸며 도는 일은 없다.
   const [initial] = useState(() => readRecordsView(snapshot));
@@ -101,13 +102,26 @@ export function Records(props: {
   );
   useEffect(() => {
     replaceRouteParams(viewParams);
-    // 기록 화면에서 메뉴의 "기록"을 다시 누르면 조건 없는 주소가 되지만 화면 상태는 그대로다. 주소를 화면에 다시 맞춘다.
-    const keep = () => {
-      if (location.hash.replace(/\?.*$/, "").endsWith("/records")) replaceRouteParams(viewParams);
+    // 이 화면이 떠 있는 채로 주소가 다시 기록 화면이 될 때:
+    // - 조건 없는 주소(메뉴의 "기록"을 다시 누름): 화면 상태는 그대로 두고 주소를 화면에 다시 맞춘다.
+    // - 조건 붙은 주소(같은 탭에 공유 링크를 붙여 넣음 등): 주소가 뜻하는 조건으로 화면을 바꾼다.
+    //   상태가 바뀌면 위 replaceRouteParams가 주소를 정리해 적는다. replaceState는 hashchange를 내지 않아 다시 돌지 않는다.
+    const follow = () => {
+      if (!location.hash.replace(/\?.*$/, "").endsWith("/records")) return;
+      if (!location.hash.includes("?")) {
+        replaceRouteParams(viewParams);
+        return;
+      }
+      const next = readRecordsView(snapshot);
+      setScope(next.scope);
+      setFilterState(next.filter);
+      setSort(next.sort);
+      setLine(next.line);
+      setShown(next.shown);
     };
-    window.addEventListener("hashchange", keep);
-    return () => window.removeEventListener("hashchange", keep);
-  }, [viewParams]);
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, [viewParams, snapshot]);
   // 경기 상세에서 뒤로 오면 떠날 때의 스크롤 위치로 돌아간다. 펼친 개수(n)도 주소에 있어 같은 위치가 같은 경기다.
   useScrollMemory();
   const nameOf = useMemo(() => nameMap(snapshot), [snapshot]);

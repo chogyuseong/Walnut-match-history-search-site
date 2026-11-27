@@ -415,9 +415,8 @@
 .ct-player {
   white-space: nowrap;
 }
-/* 티어 칸: 숫자 하나가 든 육각형을 티어 색으로 채운다(CLAUDE.md 5절 예외). 표 칸 전체가 아니라 이 작은 표식만 칠한다.
-   색은 승률 여섯 색(--rate-hue-*)을 다시 써서 승률 화면과 같은 방향(청록 = 높음, 분홍 = 낮음)으로 읽힌다.
-   노랑(--rate-hue-3)은 골드 강조색과 헷갈려 건너뛴다. 새 색을 만들지 않는다.
+/* 티어 칸: 숫자 하나가 든 육각형을 티어 색(--champ-tier-1~5)으로 채운다(CLAUDE.md 5절 예외). 표 칸 전체가 아니라 이 작은 표식만 칠한다.
+   색은 사용자가 준 티어 목록 캡처의 계열(1 주황·2 파랑·3 청록·4 회청·5 황토)이고, 숫자를 늘 함께 둔다.
    숫자는 --ih-bg 글자: 다크는 밝은 채움 위 어두운 글자, 라이트는 진한 채움 위 밝은 글자가 되어 두 테마 모두 4.5:1을 넘는다
    (test/theme-contrast.test.ts "챔피언 티어 칸"). 육각형은 clip-path라 테두리를 그리지 않는다. */
 .ct-tier-mark {
@@ -433,19 +432,19 @@
   font-variant-numeric: tabular-nums;
 }
 .ct-tier-mark.t1 {
-  background: var(--rate-hue-6);
+  background: var(--champ-tier-1);
 }
 .ct-tier-mark.t2 {
-  background: var(--rate-hue-5);
+  background: var(--champ-tier-2);
 }
 .ct-tier-mark.t3 {
-  background: var(--rate-hue-4);
+  background: var(--champ-tier-3);
 }
 .ct-tier-mark.t4 {
-  background: var(--rate-hue-2);
+  background: var(--champ-tier-4);
 }
 .ct-tier-mark.t5 {
-  background: var(--rate-hue-1);
+  background: var(--champ-tier-5);
 }
 .ct-tier-counts {
   display: flex;

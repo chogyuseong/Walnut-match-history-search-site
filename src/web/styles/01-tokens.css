@@ -89,6 +89,13 @@
   --rate-hue-4: #b4d66b;
   --rate-hue-5: #6fd69a;
   --rate-hue-6: #5cd0d6;
+  /* 챔피언 티어 표식 다섯 색(12-records-dashboard-champions.css .ct-tier-mark). 사용자가 준 티어 목록 캡처의 색 계열
+     (1 주황·2 파랑·3 청록·4 회청·5 황토)이다. 채움 위 숫자는 --ih-bg라 4.5:1(test/theme-contrast.test.ts). 다른 곳에 쓰지 않는다. */
+  --champ-tier-1: #f8b359;
+  --champ-tier-2: #379dd2;
+  --champ-tier-3: #3abdab;
+  --champ-tier-4: #838ca7;
+  --champ-tier-5: #b19142;
 }
 
 [data-theme="light"] {
@@ -144,6 +151,12 @@
   --rate-hue-4: #55701a;
   --rate-hue-5: #1d7046;
   --rate-hue-6: #0f6b70;
+  /* 챔피언 티어 표식: 같은 계열을 진하게 해서 흰 숫자(--ih-bg)가 4.5:1. */
+  --champ-tier-1: #a65500;
+  --champ-tier-2: #1d6a9c;
+  --champ-tier-3: #127466;
+  --champ-tier-4: #545d78;
+  --champ-tier-5: #7a6118;
 }
 
 /* 테마와 상관없는 척도·치수·아이콘. 테마마다 바꾸지 않는다(CLAUDE.md 5절: 테마별로 레이아웃·글자 크기·간격을 바꾸지 않음). */

@@ -171,6 +171,24 @@ test("예시 요약의 '랭킹 전체'는 전체 범위로 열리고, 없는 사
   }
 });
 
+test("기록 화면이 열린 채 조건 붙은 주소로 바뀌면 그 조건을 따르고, 메뉴 '기록'은 보던 조건을 지킨다", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/#/demo/records?scope=today");
+  await expect(page.locator(".scope-basis")).toContainText("오늘");
+  // 같은 탭 주소창에 공유 링크를 붙여 넣은 경우. 고치기 전에는 주소가 ?scope=today로 되돌아갔다(2026-11-27 QA-13).
+  await page.evaluate(() => {
+    location.hash = "#/demo/records?scope=all&who=demo-p02";
+  });
+  await expect(page).toHaveURL(/scope=all/);
+  await expect(page).toHaveURL(/who=demo-p02/);
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적");
+  // 메뉴의 "기록"은 조건 없는 주소로 가지만 화면은 보던 조건 그대로이고 주소도 그 조건으로 다시 적힌다.
+  await page.getByRole("navigation").getByRole("button", { name: "기록", exact: true }).first().click();
+  await expect(page).toHaveURL(/scope=all/);
+  await expect(page).toHaveURL(/who=demo-p02/);
+  await expect(page.locator(".scope-basis")).toContainText("전체 누적");
+});
+
 test("예시 모임 상단 [피드백]을 키보드로 누르면 초점이 본문으로 간다", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/demo");
