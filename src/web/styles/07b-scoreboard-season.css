@@ -31,7 +31,8 @@
   background: var(--ih-loss-accent);
 }
 .sb-main,
-.sb-main:not(:disabled):hover {
+.sb-main:not(:disabled):hover,
+.sb-main:not(:disabled):active {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -60,10 +61,21 @@
 }
 /* 카드 전체가 경기 상세로 가는 누름 영역이라 머리 글은 보조 글자색으로 두고, 올리거나 초점일 때만 강조색이 된다
    (표 줄의 이름 링크 .link.name-link와 같은 방식, CLAUDE.md 5절). 늘 골드면 제목처럼 읽혀 강조색이 흔해진다. */
-.sb-main:not(:disabled):hover .sb-kicker,
 .sb-main:focus-visible .sb-kicker {
   color: var(--ih-accent);
   text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  .sb-main:not(:disabled):hover .sb-kicker {
+    color: var(--ih-accent);
+    text-decoration: underline;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .sb-main:not(:disabled):active .sb-kicker {
+    color: var(--ih-accent);
+    text-decoration: underline;
+  }
 }
 .sb-kicker {
   color: var(--ih-text-secondary);
@@ -183,7 +195,8 @@
   font-weight: 500;
 }
 .sb-name,
-.sb-name:not(:disabled):hover {
+.sb-name:not(:disabled):hover,
+.sb-name:not(:disabled):active {
   pointer-events: auto;
   display: flex;
   align-items: center;
@@ -210,8 +223,15 @@
   color: var(--ih-text);
   font-weight: 500;
 }
-.sb-name:not(:disabled):hover .sb-name-text {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .sb-name:not(:disabled):hover .sb-name-text {
+    text-decoration: underline;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .sb-name:not(:disabled):active .sb-name-text {
+    text-decoration: underline;
+  }
 }
 .sb-name:focus-visible {
   outline-offset: -2px;
@@ -228,7 +248,8 @@
     --sb-row: 44px;
   }
   .sb-main,
-  .sb-main:not(:disabled):hover {
+  .sb-main:not(:disabled):hover,
+  .sb-main:not(:disabled):active {
     padding: var(--space-3) var(--space-4) 0;
   }
   .sb-extra {
@@ -248,7 +269,8 @@
     grid-template-columns: minmax(0, 1fr) 3.75rem minmax(0, 1fr);
   }
   .sb-name,
-  .sb-name:not(:disabled):hover {
+  .sb-name:not(:disabled):hover,
+  .sb-name:not(:disabled):active {
     padding: 0 var(--space-3);
     font-size: var(--text-body);
   }

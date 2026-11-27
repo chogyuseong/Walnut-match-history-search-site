@@ -73,8 +73,15 @@
   background: none;
   text-align: left;
 }
-button.bar-row:hover {
-  background: var(--ih-subtle);
+@media (hover: hover) and (pointer: fine) {
+  button.bar-row:hover {
+    background: var(--ih-subtle);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  button.bar-row:active {
+    background: var(--ih-subtle);
+  }
 }
 .bar-head {
   display: flex;
@@ -290,9 +297,17 @@ button.bar-row:hover {
 .matrix-row {
   cursor: pointer;
 }
-.matrix-row:hover .matrix-name {
-  color: var(--ih-accent);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .matrix-row:hover .matrix-name {
+    color: var(--ih-accent);
+    text-decoration: underline;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .matrix-row:active .matrix-name {
+    color: var(--ih-accent);
+    text-decoration: underline;
+  }
 }
 .matrix-name {
   display: block;
@@ -310,9 +325,17 @@ button.bar-row:hover {
   white-space: nowrap;
   cursor: pointer;
 }
-.matrix-name:hover {
-  color: var(--ih-accent);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .matrix-name:hover {
+    color: var(--ih-accent);
+    text-decoration: underline;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .matrix-name:active {
+    color: var(--ih-accent);
+    text-decoration: underline;
+  }
 }
 /* 플레이어 필터로 고른 사람의 행: 칸마다 1px 강조 선, 이름 칸만 선택 바탕(승률 칸 바탕은 다른 줄과 같게 둔다). */
 .matrix tr.picked > th,

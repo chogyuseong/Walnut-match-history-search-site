@@ -81,7 +81,8 @@ main:focus {
   min-width: 0;
 }
 .mc-main,
-.mc-main:not(:disabled):hover {
+.mc-main:not(:disabled):hover,
+.mc-main:not(:disabled):active {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
@@ -194,7 +195,8 @@ main:focus {
   color: var(--ih-text);
 }
 .mc-name,
-.mc-name:not(:disabled):hover {
+.mc-name:not(:disabled):hover,
+.mc-name:not(:disabled):active {
   pointer-events: auto;
   min-width: 0;
   overflow: hidden;
@@ -222,15 +224,23 @@ main:focus {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.mc-name:not(:disabled):hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .mc-name:not(:disabled):hover {
+    text-decoration: underline;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .mc-name:not(:disabled):active {
+    text-decoration: underline;
+  }
 }
 @media (max-width: 419px) {
   .match-card {
     padding: 0 var(--space-1) var(--space-2) var(--space-2);
   }
   .mc-name,
-  .mc-name:not(:disabled):hover {
+  .mc-name:not(:disabled):hover,
+  .mc-name:not(:disabled):active {
     padding: 0;
   }
 }
@@ -253,14 +263,16 @@ main:focus {
   font-weight: 500;
 }
 .mc-name.is-me,
-.mc-name.is-me:not(:disabled):hover {
+.mc-name.is-me:not(:disabled):hover,
+.mc-name.is-me:not(:disabled):active {
   color: var(--ih-text);
   background: var(--ih-selected);
   border: 1px solid var(--ih-accent);
 }
 @media (min-width: 768px) {
   .mc-name,
-  .mc-name:not(:disabled):hover {
+  .mc-name:not(:disabled):hover,
+  .mc-name:not(:disabled):active {
     font-size: var(--text-label);
   }
 }
@@ -509,7 +521,8 @@ main:focus {
   margin-left: 0;
 }
 .tile-link,
-.tile-link:not(:disabled):hover {
+.tile-link:not(:disabled):hover,
+.tile-link:not(:disabled):active {
   display: block;
   max-width: 100%;
   padding: 0;

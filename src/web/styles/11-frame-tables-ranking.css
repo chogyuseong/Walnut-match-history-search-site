@@ -244,7 +244,8 @@ input[type="search"].filter-search {
 }
 /* 카드 안 이름 링크(랭킹 1위): 일반 패널 그대로이고, 1위라는 뜻은 카드 제목 "1위" 글자가 전한다(채운 강조 없음). */
 .stat-card-name,
-.stat-card-name:not(:disabled):hover {
+.stat-card-name:not(:disabled):hover,
+.stat-card-name:not(:disabled):active {
   padding: 0;
   font-size: var(--text-body);
   font-weight: 500;
@@ -374,7 +375,8 @@ input[type="search"].filter-search {
   text-align: right;
 }
 .dt-sort,
-.dt-sort:not(:disabled):hover {
+.dt-sort:not(:disabled):hover,
+.dt-sort:not(:disabled):active {
   display: inline-flex;
   align-items: center;
   min-height: var(--control-height);
@@ -390,8 +392,15 @@ input[type="search"].filter-search {
 .num > .dt-sort {
   justify-content: flex-end;
 }
-.dt-sort:not(:disabled):hover {
-  color: var(--ih-text);
+@media (hover: hover) and (pointer: fine) {
+  .dt-sort:not(:disabled):hover {
+    color: var(--ih-text);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .dt-sort:not(:disabled):active {
+    color: var(--ih-text);
+  }
 }
 /* 글자·화살표 묶음. 지금 정렬 열은 이 묶음 아래에만 강조색 밑줄(글자 폭만큼). */
 .dt-sort-text {
@@ -439,7 +448,8 @@ input[type="search"].filter-search {
     display: none;
   }
   .dt-head .dt-sort,
-  .dt-head .dt-sort:not(:disabled):hover {
+  .dt-head .dt-sort:not(:disabled):hover,
+  .dt-head .dt-sort:not(:disabled):active {
     padding: var(--space-1) var(--space-3);
     border: 1px solid var(--ih-line);
     border-radius: var(--radius-control);
@@ -494,14 +504,22 @@ input[type="search"].filter-search {
   padding: 0;
 }
 .data-table th > .dt-sort,
-.data-table th > .dt-sort:not(:disabled):hover {
+.data-table th > .dt-sort:not(:disabled):hover,
+.data-table th > .dt-sort:not(:disabled):active {
   padding: 0 var(--space-3);
 }
 .data-table tr.is-clickable {
   cursor: pointer;
 }
-.data-table tr.is-clickable:hover td {
-  background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .data-table tr.is-clickable:hover td {
+    background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .data-table tr.is-clickable:active td {
+    background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
+  }
 }
 @media (max-width: 767px) {
   .data-table .wide-only {
@@ -546,7 +564,8 @@ input[type="search"].filter-search {
 }
 .mmr-cards .stat-card-lead,
 .mmr-cards .stat-card-name,
-.mmr-cards .stat-card-name:not(:disabled):hover {
+.mmr-cards .stat-card-name:not(:disabled):hover,
+.mmr-cards .stat-card-name:not(:disabled):active {
   font-size: var(--text-section);
   font-weight: 600;
   line-height: 1.4;
@@ -645,7 +664,8 @@ input[type="search"].filter-search {
   min-width: 0;
 }
 .mmr-name,
-.mmr-name:not(:disabled):hover {
+.mmr-name:not(:disabled):hover,
+.mmr-name:not(:disabled):active {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -674,7 +694,8 @@ input[type="search"].filter-search {
   width: 4.5rem;
 }
 .mmr-toggle,
-.mmr-toggle:not(:disabled):hover {
+.mmr-toggle:not(:disabled):hover,
+.mmr-toggle:not(:disabled):active {
   width: var(--control-height);
   min-height: var(--control-height);
   padding: 0;

@@ -29,12 +29,30 @@
 }
 
 /* 버튼 호버: 테두리만 한 단계 진하게. 클래스 없는 기본 버튼과 secondary는 바탕도 한 단계 밝아진다. 다른 버튼은 각자 규칙을 따른다. */
-button:not(:disabled):hover {
-  border-color: var(--ih-text-secondary);
+/* 호버 규칙은 모든 파일에서 두 벌이다. 마우스(hover: hover, pointer: fine)에서는 :hover, 터치에서는 같은 모양을 :active로 준다.
+   터치는 누른 칸에 :hover가 남아 다른 곳을 누를 때까지 호버 색이 붙어 있기 때문이다. 새 호버 규칙도 이 짝으로 쓰고,
+   기본 모양을 지키려고 호버를 함께 적은 규칙(.link, .link:hover 등)에는 :active 짝도 함께 적는다. */
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover {
+    border-color: var(--ih-text-secondary);
+  }
 }
-button:not([class]):not(:disabled):hover,
-.secondary:not(:disabled):hover {
-  background: var(--ih-subtle);
+@media (hover: none), (pointer: coarse) {
+  button:not(:disabled):active {
+    border-color: var(--ih-text-secondary);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  button:not([class]):not(:disabled):hover,
+  .secondary:not(:disabled):hover {
+    background: var(--ih-subtle);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  button:not([class]):not(:disabled):active,
+  .secondary:not(:disabled):active {
+    background: var(--ih-subtle);
+  }
 }
 /* 버튼 단계: primary(화면당 하나, 강조색 채움) > secondary(조용한 바탕, 또렷한 테두리) > link(글자). 그림자 없음. */
 .secondary {
@@ -52,9 +70,17 @@ button:not([class]):not(:disabled):hover,
   border-radius: 0;
   background: transparent;
 }
-button.list-row:not(:disabled):hover {
-  background: var(--ih-subtle);
-  border-color: var(--ih-control-border);
+@media (hover: hover) and (pointer: fine) {
+  button.list-row:not(:disabled):hover {
+    background: var(--ih-subtle);
+    border-color: var(--ih-control-border);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  button.list-row:not(:disabled):active {
+    background: var(--ih-subtle);
+    border-color: var(--ih-control-border);
+  }
 }
 /* 카드 하나로 묶은 목록: 줄을 상자로 늘어놓지 않고 카드 한 장 안의 줄 칸으로.
    줄 사이는 구분선 한 줄, 간격 0. 첫 줄은 카드 테두리와 겹치지 않게 위 선을 뺀다. 경기 카드 목록은 쓰지 않는다. */
@@ -73,9 +99,17 @@ button.list-row:not(:disabled):hover {
 .list-card > .list-row:first-child {
   border-top-width: 0;
 }
-.list-card button.list-row:not(:disabled):hover {
-  background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
-  border-color: var(--ih-line);
+@media (hover: hover) and (pointer: fine) {
+  .list-card button.list-row:not(:disabled):hover {
+    background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
+    border-color: var(--ih-line);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .list-card button.list-row:not(:disabled):active {
+    background: color-mix(in srgb, var(--ih-subtle) 60%, transparent);
+    border-color: var(--ih-line);
+  }
 }
 .list-card:empty {
   display: none;
@@ -118,19 +152,41 @@ button.list-row:not(:disabled):hover {
   border-color: var(--ih-line);
   border-left-color: var(--ih-loss-accent);
 }
-button.match-row.tone-blue:not(:disabled):hover,
-button.match-row.tone-win:not(:disabled):hover,
-li.match-row.tone-blue:hover {
-  background: var(--ih-win-bg-hover);
-  border-color: var(--ih-win-border);
-  border-left-color: var(--ih-win-accent);
+@media (hover: hover) and (pointer: fine) {
+  button.match-row.tone-blue:not(:disabled):hover,
+  button.match-row.tone-win:not(:disabled):hover,
+  li.match-row.tone-blue:hover {
+    background: var(--ih-win-bg-hover);
+    border-color: var(--ih-win-border);
+    border-left-color: var(--ih-win-accent);
+  }
 }
-button.match-row.tone-red:not(:disabled):hover,
-button.match-row.tone-loss:not(:disabled):hover,
-li.match-row.tone-red:hover {
-  background: var(--ih-loss-bg-hover);
-  border-color: var(--ih-loss-border);
-  border-left-color: var(--ih-loss-accent);
+@media (hover: none), (pointer: coarse) {
+  button.match-row.tone-blue:not(:disabled):active,
+  button.match-row.tone-win:not(:disabled):active,
+  li.match-row.tone-blue:active {
+    background: var(--ih-win-bg-hover);
+    border-color: var(--ih-win-border);
+    border-left-color: var(--ih-win-accent);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  button.match-row.tone-red:not(:disabled):hover,
+  button.match-row.tone-loss:not(:disabled):hover,
+  li.match-row.tone-red:hover {
+    background: var(--ih-loss-bg-hover);
+    border-color: var(--ih-loss-border);
+    border-left-color: var(--ih-loss-accent);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  button.match-row.tone-red:not(:disabled):active,
+  button.match-row.tone-loss:not(:disabled):active,
+  li.match-row.tone-red:active {
+    background: var(--ih-loss-bg-hover);
+    border-color: var(--ih-loss-border);
+    border-left-color: var(--ih-loss-accent);
+  }
 }
 .result-win {
   color: var(--ih-win-text);
@@ -425,7 +481,9 @@ table {
 .tabs button,
 .tabs button:not(:disabled):hover,
 .viewer-nav > span > .link,
-.viewer-nav > span > .link:not(:disabled):hover {
+.viewer-nav > span > .link:not(:disabled):hover,
+.tabs button:not(:disabled):active,
+.viewer-nav > span > .link:not(:disabled):active {
   min-height: var(--control-height);
   border: none;
   border-radius: var(--radius-control);
@@ -436,17 +494,28 @@ table {
   text-decoration: none;
   white-space: nowrap;
 }
-.tabs button:not(:disabled):not([aria-current="page"]):hover,
-.viewer-nav > span > .link:not(:disabled):not([aria-current="page"]):hover {
-  color: var(--ih-text);
-  background: var(--ih-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .tabs button:not(:disabled):not([aria-current="page"]):hover,
+  .viewer-nav > span > .link:not(:disabled):not([aria-current="page"]):hover {
+    color: var(--ih-text);
+    background: var(--ih-subtle);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .tabs button:not(:disabled):not([aria-current="page"]):active,
+  .viewer-nav > span > .link:not(:disabled):not([aria-current="page"]):active {
+    color: var(--ih-text);
+    background: var(--ih-subtle);
+  }
 }
 /* 지금 화면 칸: 옅은 선택 배경 + 강조 글자. 주 버튼처럼 채우지 않는다(CLAUDE.md 5절).
    색 쌍은 --ih-accent / --ih-selected이라 대비 검사를 함께 받는다. */
 .tabs button[aria-current="page"],
 .tabs button[aria-current="page"]:hover,
 .viewer-nav > span > .link[aria-current="page"],
-.viewer-nav > span > .link[aria-current="page"]:hover {
+.viewer-nav > span > .link[aria-current="page"]:hover,
+.tabs button[aria-current="page"]:active,
+.viewer-nav > span > .link[aria-current="page"]:active {
   background: var(--ih-selected);
   color: var(--ih-accent);
 }
@@ -492,7 +561,9 @@ table {
   .tabs button,
   .tabs button:not(:disabled):hover,
   .viewer-nav > span > .link,
-  .viewer-nav > span > .link:not(:disabled):hover {
+  .viewer-nav > span > .link:not(:disabled):hover,
+  .tabs button:not(:disabled):active,
+  .viewer-nav > span > .link:not(:disabled):active {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -531,13 +602,15 @@ table {
     gap: var(--space-1);
   }
   .tabs button,
-  .tabs button:not(:disabled):hover {
+  .tabs button:not(:disabled):hover,
+  .tabs button:not(:disabled):active {
     display: inline-flex;
     align-items: center;
     padding: 0 var(--space-3);
   }
   .viewer-nav > span > .link,
-  .viewer-nav > span > .link:not(:disabled):hover {
+  .viewer-nav > span > .link:not(:disabled):hover,
+  .viewer-nav > span > .link:not(:disabled):active {
     display: inline-flex;
     align-items: center;
     padding: 0 var(--space-4);
@@ -554,7 +627,8 @@ table {
 }
 @media (min-width: 1200px) {
   .tabs button,
-  .tabs button:not(:disabled):hover {
+  .tabs button:not(:disabled):hover,
+  .tabs button:not(:disabled):active {
     padding: 0 var(--space-4);
   }
 }

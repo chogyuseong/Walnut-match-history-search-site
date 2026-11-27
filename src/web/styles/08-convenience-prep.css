@@ -300,9 +300,17 @@
   font-variant-numeric: tabular-nums;
   color: var(--ih-text-secondary);
 }
-button.priority-jump:hover {
-  background: var(--ih-subtle);
-  border-color: var(--ih-line);
+@media (hover: hover) and (pointer: fine) {
+  button.priority-jump:hover {
+    background: var(--ih-subtle);
+    border-color: var(--ih-line);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  button.priority-jump:active {
+    background: var(--ih-subtle);
+    border-color: var(--ih-line);
+  }
 }
 
 /* ---------- 편성 손으로 고치기: 끌어다 놓기 ----------
@@ -321,13 +329,29 @@ button.row.drop-target,
   border-style: dashed;
   border-color: var(--ih-accent);
 }
-button.row.drop-target:hover,
-.list-row.drop-target:hover {
-  background: var(--ih-selected);
-  border-style: solid;
+@media (hover: hover) and (pointer: fine) {
+  button.row.drop-target:hover,
+  .list-row.drop-target:hover {
+    background: var(--ih-selected);
+    border-style: solid;
+  }
 }
-button.row.swap-target:hover {
-  border-color: var(--ih-accent);
+@media (hover: none), (pointer: coarse) {
+  button.row.drop-target:active,
+  .list-row.drop-target:active {
+    background: var(--ih-selected);
+    border-style: solid;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  button.row.swap-target:hover {
+    border-color: var(--ih-accent);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  button.row.swap-target:active {
+    border-color: var(--ih-accent);
+  }
 }
 /* 팀 판(.team) 안의 사람 줄: 카드 안 줄 칸 규칙에 맞춰 상자 대신 위쪽 구분선 한 줄.
    테두리 1px 자리는 네 변 모두 두되 평소에는 투명이라, 고른 줄·놓을 자리 표시(네 변 테두리)로 바뀌어도 줄이 밀리지 않는다. */
@@ -351,18 +375,34 @@ button.row.swap-target:hover {
 .team li.row > .rival-tag {
   margin-left: 0;
 }
-.team button.row:not(:disabled):hover {
-  background: color-mix(in srgb, var(--ih-subtle) 55%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .team button.row:not(:disabled):hover {
+    background: color-mix(in srgb, var(--ih-subtle) 55%, transparent);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .team button.row:not(:disabled):active {
+    background: color-mix(in srgb, var(--ih-subtle) 55%, transparent);
+  }
 }
 .team button.row.picked,
 .team li + li > button.row.picked,
-.team button.row.picked:hover {
+.team button.row.picked:hover,
+.team button.row.picked:active {
   background: var(--ih-selected);
   border-color: var(--ih-accent);
 }
-.team button.row.swap-target:hover,
-.team li + li > button.row.swap-target:hover {
-  border-color: var(--ih-accent);
+@media (hover: hover) and (pointer: fine) {
+  .team button.row.swap-target:hover,
+  .team li + li > button.row.swap-target:hover {
+    border-color: var(--ih-accent);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .team button.row.swap-target:active,
+  .team li + li > button.row.swap-target:active {
+    border-color: var(--ih-accent);
+  }
 }
 .team button.row.drop-target,
 .team li + li > button.row.drop-target {
@@ -460,8 +500,16 @@ button.row.moved {
   font-size: var(--text-label);
   font-weight: 600;
 }
-.block-nav .chip:hover {
-  color: var(--ih-text);
-  border-color: var(--ih-control-border);
+@media (hover: hover) and (pointer: fine) {
+  .block-nav .chip:hover {
+    color: var(--ih-text);
+    border-color: var(--ih-control-border);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .block-nav .chip:active {
+    color: var(--ih-text);
+    border-color: var(--ih-control-border);
+  }
 }
 

@@ -394,7 +394,8 @@ body:has(.intro) .topbar-login {
 }
 /* [로그인 | 회원가입] 전환: 기존 .segmented의 고른 칸 모양을 탭(aria-selected)에도 쓴다. */
 .segmented button[role="tab"][aria-selected="true"],
-.segmented button[role="tab"][aria-selected="true"]:hover {
+.segmented button[role="tab"][aria-selected="true"]:hover,
+.segmented button[role="tab"][aria-selected="true"]:active {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
   color: var(--ih-text);

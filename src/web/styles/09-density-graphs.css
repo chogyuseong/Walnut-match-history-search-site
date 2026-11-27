@@ -7,7 +7,8 @@
     padding-bottom: var(--space-1);
   }
   .match-cards .mc-name,
-  .match-cards .mc-name:not(:disabled):hover {
+  .match-cards .mc-name:not(:disabled):hover,
+  .match-cards .mc-name:not(:disabled):active {
     font-size: var(--text-body);
   }
   .match-cards .mc-roles {
@@ -351,8 +352,15 @@ label:has(> select) {
   border-radius: var(--radius-panel);
   color: var(--ih-text);
 }
-.story-card:hover {
-  border-color: var(--ih-control-border);
+@media (hover: hover) and (pointer: fine) {
+  .story-card:hover {
+    border-color: var(--ih-control-border);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .story-card:active {
+    border-color: var(--ih-control-border);
+  }
 }
 /* 카드 종류별 라벨 색. --story가 없는 종류(MMR 최고 상승)는 보조 글자색 그대로이고 점도 없다. */
 .story-card .tile-label {

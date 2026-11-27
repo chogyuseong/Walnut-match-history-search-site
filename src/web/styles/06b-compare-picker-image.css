@@ -74,7 +74,8 @@
   margin: 0;
 }
 .cmp-name,
-.cmp-name:not(:disabled):hover {
+.cmp-name:not(:disabled):hover,
+.cmp-name:not(:disabled):active {
   display: block;
   max-width: 100%;
   padding: 0;
@@ -229,7 +230,8 @@
     padding: var(--space-4) var(--space-4);
   }
   .cmp-name,
-  .cmp-name:not(:disabled):hover {
+  .cmp-name:not(:disabled):hover,
+  .cmp-name:not(:disabled):active {
     font-size: var(--text-section);
   }
   .cmp-card-rate .rate {
@@ -597,7 +599,8 @@
    옅은 배경과 강조 글자). 라이트의 선택 바탕(#FBF3E2)은 흰 패널과 명도 차가 작으니 체크와 글자를 빼지 않는다.
    마우스를 올려도 선택 바탕이 풀리지 않게 한다. */
 .list-card .list-row.pick-item.selected,
-.list-card button.list-row.pick-item.selected:not(:disabled):hover {
+.list-card button.list-row.pick-item.selected:not(:disabled):hover,
+.list-card button.list-row.pick-item.selected:not(:disabled):active {
   background: var(--ih-selected);
   border-color: var(--ih-line);
   border-width: 1px 0 0;

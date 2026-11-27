@@ -150,7 +150,8 @@
   padding-bottom: var(--space-2);
 }
 .recent-table .rm-open,
-.recent-table .rm-open:not(:disabled):hover {
+.recent-table .rm-open:not(:disabled):hover,
+.recent-table .rm-open:not(:disabled):active {
   padding: 0;
   color: var(--ih-text);
   font-weight: 500;
@@ -355,9 +356,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ct-cell:not(:disabled):hover {
-  background: var(--ih-subtle);
-  color: var(--ih-text);
+@media (hover: hover) and (pointer: fine) {
+  .ct-cell:not(:disabled):hover {
+    background: var(--ih-subtle);
+    color: var(--ih-text);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .ct-cell:not(:disabled):active {
+    background: var(--ih-subtle);
+    color: var(--ih-text);
+  }
 }
 .ct-cell[aria-pressed="true"] {
   border-color: var(--ih-accent);
@@ -378,7 +387,8 @@
 .ct-table th,
 .ct-table td,
 .ct-table th > .dt-sort,
-.ct-table th > .dt-sort:not(:disabled):hover {
+.ct-table th > .dt-sort:not(:disabled):hover,
+.ct-table th > .dt-sort:not(:disabled):active {
   padding-left: var(--space-2);
   padding-right: var(--space-2);
 }
@@ -399,9 +409,17 @@
   font-weight: 500;
   text-align: left;
 }
-.ct-name:not(:disabled):hover {
-  background: none;
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .ct-name:not(:disabled):hover {
+    background: none;
+    text-decoration: underline;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .ct-name:not(:disabled):active {
+    background: none;
+    text-decoration: underline;
+  }
 }
 .ct-table tr.is-open td {
   background: var(--ih-selected);
@@ -547,7 +565,8 @@
   .ct-table th,
   .ct-table td,
   .ct-table th > .dt-sort,
-  .ct-table th > .dt-sort:not(:disabled):hover {
+  .ct-table th > .dt-sort:not(:disabled):hover,
+  .ct-table th > .dt-sort:not(:disabled):active {
     padding-left: var(--space-1);
     padding-right: var(--space-1);
   }

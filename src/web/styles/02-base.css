@@ -2,6 +2,8 @@
    순서가 곧 우선순위다: styles.css의 @import 순서대로 이어 붙어 한 파일일 때와 같은 결과가 된다. */
 html {
   -webkit-text-size-adjust: 100%;
+  /* 휴대폰 브라우저가 누른 칸 위에 칠하는 회색·파란 반짝임을 끈다. 대신 각 칸의 :active(호버 규칙과 짝)가 눌림을 보여 준다. */
+  -webkit-tap-highlight-color: transparent;
   /* 초점 이동·scrollIntoView(검색 이동 useSearchJump도 이 값을 읽는다)가 칸을 하단 메뉴와 고정 버튼 뒤, 따라오는
      머리(.sticky-head, 약 64px) 아래로 보내지 않게 한다. 88px은 고정 행동 버튼 줄(.action-sticky) 몫이다.
      768px 미만은 상단 바가 본문과 함께 흐르므로 위쪽은 따라오는 머리 몫만 둔다. */
@@ -172,9 +174,17 @@ summary:focus-visible,
   color: var(--ih-on-primary);
   font-weight: 500;
 }
-.primary:not(:disabled):hover {
-  background: var(--ih-primary-hover);
-  border-color: var(--ih-primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .primary:not(:disabled):hover {
+    background: var(--ih-primary-hover);
+    border-color: var(--ih-primary-hover);
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .primary:not(:disabled):active {
+    background: var(--ih-primary-hover);
+    border-color: var(--ih-primary-hover);
+  }
 }
 .danger {
   border-color: var(--ih-loss-border);
@@ -184,7 +194,8 @@ summary:focus-visible,
 /* 글자 링크 모양 버튼. "닫기"·"수정"처럼 글자가 짧아도 누르는 칸은 44×44를 지킨다(min-width).
    줄 안에서 링크를 작게 보이고 싶어도 min-height·min-width를 내리지 않는다. */
 .link,
-.link:not(:disabled):hover {
+.link:not(:disabled):hover,
+.link:not(:disabled):active {
   border-color: transparent;
   background: none;
   color: var(--ih-accent);
@@ -207,10 +218,21 @@ summary:focus-visible,
   text-underline-offset: 4px;
   transition: color var(--motion);
 }
-.link.name-link:not(:disabled):hover,
 .link.name-link:focus-visible {
   color: var(--ih-accent);
   text-decoration-color: currentColor;
+}
+@media (hover: hover) and (pointer: fine) {
+  .link.name-link:not(:disabled):hover {
+    color: var(--ih-accent);
+    text-decoration-color: currentColor;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .link.name-link:not(:disabled):active {
+    color: var(--ih-accent);
+    text-decoration-color: currentColor;
+  }
 }
 .wide {
   width: 100%;
@@ -638,7 +660,8 @@ button.row {
   margin-bottom: var(--space-1);
 }
 .row.picked,
-button.row.picked:hover {
+button.row.picked:hover,
+button.row.picked:active {
   background: var(--ih-selected);
   border: 1px solid var(--ih-accent);
 }
@@ -720,9 +743,17 @@ button.row.picked:hover {
   text-align: left;
   min-width: 0;
 }
-.row-main:not(:disabled):hover {
-  border: none;
-  background: none;
+@media (hover: hover) and (pointer: fine) {
+  .row-main:not(:disabled):hover {
+    border: none;
+    background: none;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .row-main:not(:disabled):active {
+    border: none;
+    background: none;
+  }
 }
 .chips {
   display: flex;
@@ -790,7 +821,8 @@ button.row.picked:hover {
    호버 선택자의 :not(:disabled)는 지우지 않는다. 뒤쪽 button:not([class]):not(:disabled):hover와
    명시도가 같아지면 고른 칸에 마우스를 올릴 때 바탕이 보조 면으로 바뀐다. */
 .segmented button[aria-pressed="true"],
-.segmented button[aria-pressed="true"]:not(:disabled):hover {
+.segmented button[aria-pressed="true"]:not(:disabled):hover,
+.segmented button[aria-pressed="true"]:not(:disabled):active {
   border: 1px solid var(--ih-accent);
   background: var(--ih-selected);
   color: var(--ih-text);
