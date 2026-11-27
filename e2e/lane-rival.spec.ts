@@ -51,7 +51,7 @@ test("어려운 상대: 탑 맞라인에서 4판 3승인 강한 쪽에만 배지
     }
   }
 
-  // ---------- 기록: 경기 카드 위 줄에 "어려운 상대 탑 어려06", 경기 상세에서는 어려06 이름 옆에 배지
+  // ---------- 기록: 경기 카드 위 줄에 "맞라이너가 어려워하는 상대 탑 어려06", 경기 상세에서는 어려06 이름 옆에 배지
   await page.goto("/#/records");
   const firstCard = page.locator(".match-card").first();
   await expect(firstCard.locator(".mc-rivals")).toContainText("맞라이너가 어려워하는 상대");
@@ -74,6 +74,9 @@ test("어려운 상대: 탑 맞라인에서 4판 3승인 강한 쪽에만 배지
   await page.goto(`/#/p/${ids[0]}`);
   const personCard = page.getByRole("region", { name: /참여 경기/ }).locator(".match-card").first();
   await expect(personCard.locator(".mc-rivals-who")).toHaveText("탑 어려06");
+  // 풀어 쓴 글은 기록 화면에서만이고, 개인 통계 카드는 예전 배지 그대로.
+  await expect(personCard.locator(".mc-rivals .rival-tag")).toHaveText("어려운 상대");
+  await expect(personCard.locator(".mc-rivals")).not.toContainText("맞라이너");
   overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 

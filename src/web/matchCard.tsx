@@ -19,7 +19,7 @@ import {
   teamName,
   teamRoster,
 } from "./format";
-import { laneRivalTitle, RivalMark } from "./rankBadges";
+import { laneRivalTitle, RivalBadge, RivalMark } from "./rankBadges";
 import { PosLabel } from "./roleIcon";
 
 /**
@@ -60,9 +60,17 @@ export function MatchCard(props: {
    * 이름 칸은 폰에서 54px이라 배지를 넣을 자리가 없어 카드 위 줄에 "탑 ○○"로 모은다.
    */
   laneRivals?: HardestLaneRivals;
+  /**
+   * 기록 화면만 true: 배지 대신 마크 + "맞라이너가 어려워하는 상대 탑 ○○, 원딜 ○○"로 풀어 쓴다(2026-11-27 사용자 요청,
+   * 기록 화면에서만). 검색·개인 통계 카드는 예전 배지 그대로다.
+   */
+  spellOutRivals?: boolean;
 }) {
   const { match, nameOf, focusId } = props;
   const rivals = props.laneRivals ? laneRivalMeetings(match.roster, props.laneRivals) : [];
+  const rivalsTitle = `${rivals
+    .map((r) => `${nameOf(r.strongId)}: ${laneRivalTitle(r.position, nameOf(r.weakId), r.rival)}`)
+    .join(" / ")} (${LANE_RIVAL_BASIS})`;
   const confirmed = isCounted(match);
   const me = focusId ? (match.roster.find((r) => r.participantId === focusId) ?? null) : null;
   const myWin = me && confirmed ? me.team === match.winnerTeam : null;
@@ -101,29 +109,32 @@ export function MatchCard(props: {
               이변<span className="sr-only">: {UPSET_BADGE_TITLE}</span>
             </span>
           )}
-          {rivals.length > 0 && (
-            // 배지(칭호처럼 보임) 대신 마크 + 풀어 쓴 글. 라인이 둘 이상이면 "탑 ○○, 원딜 ○○"로 잇고,
-            // 좁은 폰에서는 라인 단위로 다음 줄에 내려간다(이름을 말줄임하지 않음, 2026-11-27 사용자 요청).
-            <span
-              className="mc-rivals"
-              title={`${rivals
-                .map((r) => `${nameOf(r.strongId)}: ${laneRivalTitle(r.position, nameOf(r.weakId), r.rival)}`)
-                .join(" / ")} (${LANE_RIVAL_BASIS})`}
-            >
-              <span className="mc-rivals-label">
-                <RivalMark />
-                {LANE_RIVAL_LABEL}
+          {rivals.length > 0 &&
+            (props.spellOutRivals ? (
+              // 배지(칭호처럼 보임) 대신 마크 + 풀어 쓴 글. 라인이 둘 이상이면 "탑 ○○, 원딜 ○○"로 잇고,
+              // 좁은 폰에서는 라인 단위로 다음 줄에 내려간다(이름을 말줄임하지 않음).
+              <span className="mc-rivals spelled" title={rivalsTitle}>
+                <span className="mc-rivals-label">
+                  <RivalMark />
+                  {LANE_RIVAL_LABEL}
+                </span>
+                <span className="mc-rivals-who">
+                  {rivals.map((r, i) => (
+                    <span key={r.position} className="mc-rival">
+                      {POSITION_LABEL[r.position]} {nameOf(r.strongId)}
+                      {i < rivals.length - 1 && ","}
+                    </span>
+                  ))}
+                </span>
               </span>
-              <span className="mc-rivals-who">
-                {rivals.map((r, i) => (
-                  <span key={r.position} className="mc-rival">
-                    {POSITION_LABEL[r.position]} {nameOf(r.strongId)}
-                    {i < rivals.length - 1 && ","}
-                  </span>
-                ))}
+            ) : (
+              <span className="mc-rivals">
+                <RivalBadge title={rivalsTitle} />
+                <span className="mc-rivals-who">
+                  {rivals.map((r) => `${POSITION_LABEL[r.position]} ${nameOf(r.strongId)}`).join(" · ")}
+                </span>
               </span>
-            </span>
-          )}
+            ))}
           {props.seriesBadge && <span className="series-badge">{props.seriesBadge}</span>}
           {match.memo && (
             <span className="mc-memo" title={match.memo}>

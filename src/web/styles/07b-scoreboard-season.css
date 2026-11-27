@@ -296,15 +296,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 경기 카드의 "맞라이너가 어려워하는 상대"(matchCard.tsx laneRivals): 마크 + 글 + "탑 ○○, 원딜 ○○".
-   마크와 글, 글과 이름 사이는 8px. 좁으면 라인 단위로 다음 줄에 내려가고 이름은 자르지 않는다. */
+/* 경기 카드의 어려운 상대(matchCard.tsx laneRivals): 배지 + "탑 ○○". 메모와 한 줄이라 좁으면 이름 쪽이 말줄임된다. */
 .mc-rivals {
   display: flex;
   flex: 0 1 auto;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-2);
+  gap: var(--space-1);
   min-width: 0;
+}
+.mc-rivals .tag {
+  margin-left: 0;
+}
+.mc-rivals-who {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 기록 화면만(spellOutRivals): 마크 + "맞라이너가 어려워하는 상대" + "탑 ○○, 원딜 ○○".
+   마크와 글, 글과 이름 사이는 8px. 좁으면 라인 단위로 다음 줄에 내려가고 이름은 자르지 않는다. */
+.mc-rivals.spelled {
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
 }
 .mc-rivals-label {
   display: inline-flex;
@@ -312,11 +325,12 @@
   gap: var(--space-2);
   white-space: nowrap;
 }
-.mc-rivals-who {
+.mc-rivals.spelled .mc-rivals-who {
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--space-1);
-  min-width: 0;
+  overflow: visible;
+  white-space: normal;
   color: var(--ih-text);
 }
 .mc-rival {

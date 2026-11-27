@@ -287,6 +287,7 @@ export function Records(props: {
                 seriesBadge={seriesBadge(m.id)}
                 upset={expectation.get(m.id)?.upset}
                 laneRivals={laneRivals}
+                spellOutRivals
                 action={
                   m.state === "awaiting_result" && props.onResult ? (
                     <button type="button" className="secondary" onClick={() => props.onResult!(m)}>
