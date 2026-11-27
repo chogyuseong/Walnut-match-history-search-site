@@ -113,6 +113,8 @@ export function Records(props: {
         return;
       }
       const next = readRecordsView(snapshot);
+      // 랭킹 이름 검색은 주소에 없다. 남겨 두면 붙여 넣은 링크의 조건과 다른 목록이 보인다.
+      setQuery("");
       setScope(next.scope);
       setFilterState(next.filter);
       setSort(next.sort);

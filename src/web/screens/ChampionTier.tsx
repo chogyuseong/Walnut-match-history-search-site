@@ -350,7 +350,7 @@ export function ChampionTier(props: {
   );
 }
 
-/** 티어 칸: 숫자가 든 작은 육각형을 티어 색(승률 색 재사용)으로 채운다. 색만으로 뜻을 전하지 않게 숫자를 늘 둔다. */
+/** 티어 칸: 숫자가 든 작은 육각형을 티어 색(--champ-tier-1~5, 사용자가 준 티어 캡처의 계열)으로 채운다. 색만으로 뜻을 전하지 않게 숫자를 늘 둔다. */
 function TierMark(props: { tier: Tier | null }) {
   if (props.tier === null) return <span className="hint">–</span>;
   return (

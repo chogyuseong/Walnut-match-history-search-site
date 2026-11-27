@@ -20,6 +20,8 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 [지금 상태와 다음 할 일 (2026-11-26)]
 
+- 11-27 저녁: 코드 리뷰 후속(Records.tsx follow가 랭킹 검색어도 비움, TierMark 주석) main에만 있음, 배포 안 함.
+  다음 배포 때 함께 나간다.
 - 11-27 저녁: 배포 없음(운영·staging은 아래 오후 줄 그대로). 문서만: docs/DB-구조도.md(ERD), 보안 점검 결과는
   docs/구현현황/2026-11-16.md 끝(치명·높음 없음, 낮음 2·정보 4, 고칠지 미정). 클라우드 루틴 "새 롤 챔피언 감지"
   (매주 목 10:00 한국, 빠진 챔피언 있으면 메일) https://claude.ai/code/routines/trig_01QakzKSZNgHFcJUSuQMenEx
