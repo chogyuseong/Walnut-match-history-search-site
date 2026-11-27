@@ -20,8 +20,10 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 
 [지금 상태와 다음 할 일 (2026-11-26)]
 
-- 11-27 main(배포 전): 챔피언 티어 표식을 승률 색 다섯으로 채운 육각형으로(1 청록·2 초록·3 연두·4 주황·5 분홍, CLAUDE.md 5절 예외).
-  DB 변경 없음. 대비 시험·audit:design·typecheck·lint·E2E champion-tier 통과. 운영 배포는 아직(사용자에게 물어봄).
+- 11-27: 운영 05301d92 = staging 7d0aa344 = main a5a15c6. 챔피언 티어 표식을 승률 색 다섯으로 채운 육각형으로
+  (1 청록·2 초록·3 연두·4 주황·5 분홍, CLAUDE.md 5절 예외). DB 변경 없음. Claude가 staging → 운영 배포(사용자 "진행해").
+  검사: 단위 1261, typecheck·lint 0, build·check:bundle·audit:design 위반 0, E2E champion-tier·narrow-search 5 통과.
+  운영 확인(20초 뒤): /api/health 200, index-DvEsewPc.css, 예시 챔피언 다크·라이트 390·1440 표식 64개·넘침 0·콘솔 오류 0.
   3차 QA는 중간에 멈춤: 기록 화면이 열린 채 조건 붙은 기록 주소로 바뀌면 새 조건이 무시됨(Records.tsx keep), 미수정.
 - 운영 c4e13bee = staging ec89f407 = main(이 기록이 들어간 커밋). 11-26 저녁, DB 변경 없음. Claude가 staging → 운영 배포, push까지 끝남.
 - 11-26 저녁 운영에 나간 것(운영 2차 QA 후속): 요약 "랭킹 전체"·"기록 전체 보기"가 전체 범위로 열림(오늘 경기가 있으면 "오늘"로
