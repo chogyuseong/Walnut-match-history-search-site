@@ -21,14 +21,16 @@ Claude에게 "배포-이어하기.txt 보고 이어서 해줘"라고 하면 된�
 [지금 상태와 다음 할 일 (2026-11-26)]
 
 - 11-27 밤: 휴대폰에서 누른 칸에 호버 색이 남던 것 고침(호버 규칙을 마우스일 때만, 터치는 같은 모양을 :active로,
-  탭 반짝임 끔). main에만 있음, 배포 안 함. 첫 화면 전체 brotli 96.3KB로 예산 97KB에 0.7KB 남음.
+  탭 반짝임 끔). 운영 724acb3c = staging 3f05dd11 = main 34bb3f6(그 전 코드 리뷰 후속도 함께 나감). DB 변경 없음.
+  Claude가 staging → 운영 배포(사용자 "배포진행"). 첫 화면 전체 brotli 96.3KB로 예산 97KB에 0.7KB 남음.
+  운영 확인(20초 뒤): /api/health 200, index-IsUpMdPS.css, 비컨 있음·noindex 메타 없음, 1440 호버 색 바뀜,
+  iPhone 13 흉내에서 누른 뒤 색 돌아옴·탭 반짝임 투명.
   검사: audit:design·build·check:bundle, E2E 187 통과·건너뜀 4. iPhone 13 흉내에서 누른 뒤 색 돌아옴 확인.
 - 11-27 밤: 카카오·Google 로그인은 쓰지 않기로 함(사용자 결정, 필요해지면 추가). 운영 비밀값에 KAKAO_*·GOOGLE_*가
   없어 /api/me providers가 ["local"]뿐이고 버튼도 안 나온다. 코드는 그대로 두고, 켤 때는 docs/배포안내.md 4~6절대로
   앱 등록 → wrangler secret put만 하면 버튼이 나온다. 아래 90일 실행표 5번은 아이디 로그인으로 확인한다
   (휴대폰 확인표 https://claude.ai/artifact/N2dXBx5hroAEPB9RidH6e5, 결과 기다리는 중).
-- 11-27 저녁: 코드 리뷰 후속(Records.tsx follow가 랭킹 검색어도 비움, TierMark 주석) main에만 있음, 배포 안 함.
-  다음 배포 때 함께 나간다.
+- 11-27 저녁: 코드 리뷰 후속(Records.tsx follow가 랭킹 검색어도 비움, TierMark 주석). 11-27 밤 배포로 나감.
 - 11-27 저녁: 배포 없음(운영·staging은 아래 오후 줄 그대로). 문서만: docs/DB-구조도.md(ERD), 보안 점검 결과는
   docs/구현현황/2026-11-16.md 끝(치명·높음 없음, 낮음 2·정보 4, 고칠지 미정). 클라우드 루틴 "새 롤 챔피언 감지"
   (매주 목 10:00 한국, 빠진 챔피언 있으면 메일) https://claude.ai/code/routines/trig_01QakzKSZNgHFcJUSuQMenEx
